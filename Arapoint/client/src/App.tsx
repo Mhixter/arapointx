@@ -19,6 +19,7 @@ import IdentityVerification from "@/pages/dashboard/IdentityVerification";
 import IdentityServiceRouter from "@/pages/dashboard/identity/IdentityServiceRouter";
 import BVNRetrieval from "@/pages/dashboard/BVNRetrieval";
 import EducationServices from "@/pages/dashboard/EducationServices";
+import VerificationHistory from "@/pages/dashboard/VerificationHistory";
 import Services from "@/pages/dashboard/Services";
 import VTUServices from "@/pages/dashboard/VTUServices";
 import SubscriptionServices from "@/pages/dashboard/SubscriptionServices";
@@ -87,6 +88,11 @@ function Router() {
         <Route path="/dashboard/education">
           <DashboardLayout>
             <EducationServices />
+          </DashboardLayout>
+        </Route>
+        <Route path="/dashboard/education/history">
+          <DashboardLayout>
+            <VerificationHistory />
           </DashboardLayout>
         </Route>
         <Route path="/dashboard/services">

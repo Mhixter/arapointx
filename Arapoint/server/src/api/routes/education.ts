@@ -6,19 +6,39 @@ import { jambSchema, waecSchema, necoSchema, nabtebSchema, nbaisSchema } from '.
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { educationServices } from '../../db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { educationServices, servicePricing } from '../../db/schema';
+import { eq, desc, and } from 'drizzle-orm';
 
 const router = Router();
 router.use(authMiddleware);
 
-const SERVICE_PRICES = {
-  jamb: 100,
-  waec: 150,
-  neco: 150,
-  nabteb: 150,
-  nbais: 150,
+const DEFAULT_PRICES: Record<string, number> = {
+  jamb: 1000,
+  waec: 1000,
+  neco: 1000,
+  nabteb: 1000,
+  nbais: 1000,
 };
+
+async function getServicePrice(serviceType: string): Promise<number> {
+  try {
+    const [pricing] = await db.select()
+      .from(servicePricing)
+      .where(and(
+        eq(servicePricing.serviceType, serviceType),
+        eq(servicePricing.isActive, true)
+      ))
+      .limit(1);
+    
+    if (pricing?.price) {
+      return parseFloat(pricing.price);
+    }
+    return DEFAULT_PRICES[serviceType] || 1000;
+  } catch (error: any) {
+    logger.error('Error fetching service price', { serviceType, error: error.message });
+    return DEFAULT_PRICES[serviceType] || 1000;
+  }
+}
 
 router.post('/jamb', async (req: Request, res: Response) => {
   try {
@@ -29,7 +49,7 @@ router.post('/jamb', async (req: Request, res: Response) => {
       ));
     }
 
-    const price = SERVICE_PRICES.jamb;
+    const price = await getServicePrice('jamb');
     await walletService.deductBalance(req.userId!, price, 'JAMB Score Lookup');
 
     const job = await jobService.createEducationJob(req.userId!, {
@@ -64,7 +84,7 @@ router.post('/waec', async (req: Request, res: Response) => {
       ));
     }
 
-    const price = SERVICE_PRICES.waec;
+    const price = await getServicePrice('waec');
     await walletService.deductBalance(req.userId!, price, 'WAEC Result Lookup');
 
     const job = await jobService.createEducationJob(req.userId!, {
@@ -99,7 +119,7 @@ router.post('/neco', async (req: Request, res: Response) => {
       ));
     }
 
-    const price = SERVICE_PRICES.neco;
+    const price = await getServicePrice('neco');
     await walletService.deductBalance(req.userId!, price, 'NECO Result Lookup');
 
     const job = await jobService.createEducationJob(req.userId!, {
@@ -134,7 +154,7 @@ router.post('/nabteb', async (req: Request, res: Response) => {
       ));
     }
 
-    const price = SERVICE_PRICES.nabteb;
+    const price = await getServicePrice('nabteb');
     await walletService.deductBalance(req.userId!, price, 'NABTEB Result Lookup');
 
     const job = await jobService.createEducationJob(req.userId!, {
@@ -169,7 +189,7 @@ router.post('/nbais', async (req: Request, res: Response) => {
       ));
     }
 
-    const price = SERVICE_PRICES.nbais;
+    const price = await getServicePrice('nbais');
     await walletService.deductBalance(req.userId!, price, 'NBAIS Result Lookup');
 
     const job = await jobService.createEducationJob(req.userId!, {

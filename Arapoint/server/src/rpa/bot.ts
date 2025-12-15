@@ -94,10 +94,15 @@ class RPABot {
 
       const result = await this.executeWorker(job);
 
+      const hasError = !result.success || result.error || 
+        (result.data && (result.data.error === true || result.data.errorMessage));
+      const finalStatus = hasError ? 'failed' : 'completed';
+
       await db.update(rpaJobs)
         .set({
-          status: 'completed',
+          status: finalStatus,
           result: result.data || {},
+          errorMessage: hasError ? (result.error || (result.data as any)?.errorMessage || 'Verification failed') : null,
           completedAt: new Date(),
         })
         .where(eq(rpaJobs.id, job.id));
@@ -105,10 +110,15 @@ class RPABot {
       if (job.service_type.includes('jamb') || job.service_type.includes('waec') || 
           job.service_type.includes('neco') || job.service_type.includes('nabteb') ||
           job.service_type.includes('nbais')) {
-        await this.updateEducationService(job, result);
+        const errorMsg = hasError ? (result.error || (result.data as any)?.errorMessage || 'Verification failed') : undefined;
+        await this.updateEducationService(job, { ...result, success: !hasError }, errorMsg);
       }
 
-      logger.info('Job completed successfully', { jobId: job.id });
+      if (hasError) {
+        logger.warn('Job completed with errors', { jobId: job.id, error: result.error || (result.data as any)?.errorMessage });
+      } else {
+        logger.info('Job completed successfully', { jobId: job.id });
+      }
     } catch (error: any) {
       logger.error('Error processing job', { jobId: job.id, error: error.message });
 
@@ -132,6 +142,12 @@ class RPABot {
             completedAt: new Date(),
           })
           .where(eq(rpaJobs.id, job.id));
+
+        if (job.service_type.includes('jamb') || job.service_type.includes('waec') || 
+            job.service_type.includes('neco') || job.service_type.includes('nabteb') ||
+            job.service_type.includes('nbais')) {
+          await this.updateEducationService(job, { success: false }, error.message);
+        }
       }
     } finally {
       this.processingJobIds.delete(job.id);
@@ -182,7 +198,11 @@ class RPABot {
     }
   }
 
-  private async updateEducationService(job: RPAJob, result: { success: boolean; data?: Record<string, unknown> }): Promise<void> {
+  private async updateEducationService(
+    job: RPAJob, 
+    result: { success: boolean; data?: Record<string, unknown>; error?: string },
+    errorMessage?: string
+  ): Promise<void> {
     try {
       const [existingService] = await db.select()
         .from(educationServices)
@@ -190,10 +210,19 @@ class RPABot {
         .limit(1);
 
       if (existingService) {
+        const status = result.success ? 'completed' : 'failed';
+        const resultData = result.success 
+          ? (result.data || {})
+          : { 
+              error: true,
+              errorMessage: errorMessage || result.error || 'Verification failed',
+              ...result.data
+            };
+
         await db.update(educationServices)
           .set({
-            status: result.success ? 'completed' : 'failed',
-            resultData: result.data || {},
+            status,
+            resultData,
             updatedAt: new Date(),
           })
           .where(eq(educationServices.id, existingService.id));

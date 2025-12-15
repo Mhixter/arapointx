@@ -18,12 +18,14 @@ import {
   RotateCw,
   CheckCircle2,
   Activity,
-  AlertCircle
+  AlertCircle,
+  History
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { servicesApi, WAECCheckRequest } from "@/lib/api/services";
 import { handleApiError } from "@/lib/api/client";
+import { Link } from "wouter";
 import waecLogo from '@assets/kisspng-west-african-senior-school-certificate-examination-domestic-energy-performance-certificates-5b0dc33eecc3f6.4371727315276286069698-removebg-preview_1764215404355.png';
 import nbaisLogo from '@assets/nbais-logo_1764215925986.png';
 import jambLogo from '@assets/Official_JAMB_logo-removebg-preview_1764215962098.png';
@@ -229,6 +231,18 @@ export default function EducationServices() {
       
       const resultData = await pollJobStatus(jobResponse.jobId);
       
+      if (resultData?.error || resultData?.errorMessage) {
+        const errorMsg = resultData.errorMessage || 'Verification failed. Please check your details and try again.';
+        setError(errorMsg);
+        setStatusMessage('');
+        toast({
+          title: "Verification Failed",
+          description: errorMsg,
+          variant: "destructive",
+        });
+        return;
+      }
+      
       setResult(resultData);
       setCurrentJobId(jobResponse.jobId);
       setStatusMessage('');
@@ -353,9 +367,17 @@ export default function EducationServices() {
           </Card>
         </div>
 
-        <div>
-          <h2 className="text-3xl font-heading font-bold tracking-tight">Education Services</h2>
-          <p className="text-muted-foreground">Select an education service to get started.</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-heading font-bold tracking-tight">Education Services</h2>
+            <p className="text-muted-foreground">Select an education service to get started.</p>
+          </div>
+          <Link href="/dashboard/education/history">
+            <Button variant="outline">
+              <History className="h-4 w-4 mr-2" />
+              View History
+            </Button>
+          </Link>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
