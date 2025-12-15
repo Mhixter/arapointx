@@ -2,6 +2,7 @@ import { jobQueue, RPAJob } from './queue';
 import { logger } from '../utils/logger';
 import { config } from '../config/env';
 import { jambWorker } from './workers/jambWorker';
+import { waecWorker } from './workers/waecWorker';
 import { db } from '../config/database';
 import { rpaJobs, educationServices } from '../db/schema';
 import { eq } from 'drizzle-orm';
@@ -114,6 +115,8 @@ class RPABot {
 
       case 'waec':
       case 'waec_service':
+        return await waecWorker.execute(queryData);
+
       case 'neco':
       case 'neco_service':
       case 'nabteb':
