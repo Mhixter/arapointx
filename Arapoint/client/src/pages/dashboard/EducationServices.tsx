@@ -889,98 +889,208 @@ export default function EducationServices() {
   }
 
   // Result Display View
+  const serviceName = EDUCATION_SERVICES.find(s => s.id === selectedService)?.name || 'Education';
+  const hasSubjects = result?.subjects && result.subjects.length > 0;
+  const hasScreenshot = result?.screenshotBase64;
+  const hasPdf = result?.pdfBase64;
+  const isNotFound = result?.verificationStatus === 'not_found' || result?.message?.includes('Could not extract');
+  
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-heading font-bold tracking-tight">Result Slip</h2>
-          <p className="text-muted-foreground">Your verified examination result</p>
+          <h2 className="text-3xl font-heading font-bold tracking-tight">
+            {isNotFound ? 'Result Not Found' : 'Result Retrieved'}
+          </h2>
+          <p className="text-muted-foreground">
+            {isNotFound ? 'We could not find your result. Please verify your details.' : 'Your examination result has been verified'}
+          </p>
         </div>
         <Button variant="outline" onClick={() => {
           setResult(null);
           setSelectedService(null);
+          setCurrentJobId(null);
+          setError(null);
         }} data-testid="button-back">
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
       </div>
 
-      <Card className="max-w-2xl border-2 border-primary/20 overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground">
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle className="text-2xl">Examination Result Slip</CardTitle>
-              <p className="text-primary-foreground/80 text-sm mt-1">Official Verification Copy</p>
+      {isNotFound ? (
+        <Card className="max-w-2xl border-2 border-destructive/20">
+          <CardContent className="pt-8 pb-8">
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center">
+                <AlertCircle className="h-8 w-8 text-destructive" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-xl font-bold">Result Not Found</h3>
+                <p className="text-muted-foreground max-w-md">
+                  {result?.message || 'We could not find your examination result. Please check your registration number and exam year, then try again.'}
+                </p>
+              </div>
+              <div className="bg-muted/50 rounded-lg p-4 w-full max-w-sm text-left space-y-2">
+                <p className="text-sm"><span className="font-medium">Registration Number:</span> {result?.registrationNumber}</p>
+                <p className="text-sm"><span className="font-medium">Exam Type:</span> {result?.examType}</p>
+                <p className="text-sm"><span className="font-medium">Exam Year:</span> {result?.examYear}</p>
+              </div>
+              <Button onClick={() => {
+                setResult(null);
+                setError(null);
+              }} className="mt-4">
+                Try Again
+              </Button>
             </div>
-            <div className="h-12 w-12 bg-white/20 rounded-full flex items-center justify-center">
-              <Award className="h-6 w-6" />
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="max-w-4xl border-2 border-primary/20 overflow-hidden print:border-none print:shadow-none">
+          <CardHeader className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground print:bg-primary print:text-white">
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle className="text-2xl">{serviceName} - Result Slip</CardTitle>
+                <p className="text-primary-foreground/80 text-sm mt-1">Official Verification Copy</p>
+              </div>
+              <div className="h-12 w-12 bg-white/20 rounded-full flex items-center justify-center print:hidden">
+                <Award className="h-6 w-6" />
+              </div>
             </div>
-          </div>
-        </CardHeader>
+          </CardHeader>
 
-        <CardContent className="pt-8 pb-8 space-y-8">
-          {/* Candidate Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Candidate Name</p>
-              <p className="font-bold text-lg mt-1">{result.candidateName}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Registration Number</p>
-              <p className="font-mono font-bold text-lg mt-1">{result.regNumber}</p>
-            </div>
-          </div>
-
-          {/* Subjects and Scores */}
-          <div className="border rounded-lg p-4 bg-muted/10">
-            <div className="flex justify-between items-center mb-4 pb-2 border-b font-semibold">
-              <span>Subject</span>
-              <span>Score</span>
-            </div>
-            <div className="space-y-3">
-              {result.subjects.map((sub: any, i: number) => (
-                <div key={i} className="flex justify-between items-center text-sm">
-                  <span>{sub.name}</span>
-                  <span className="font-mono font-bold">{sub.score}</span>
+          <CardContent className="pt-8 pb-8 space-y-8">
+            {/* Candidate Info */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {result?.candidateName && (
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Candidate Name</p>
+                  <p className="font-bold text-lg mt-1">{result.candidateName}</p>
                 </div>
-              ))}
+              )}
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Registration Number</p>
+                <p className="font-mono font-bold text-lg mt-1">{result?.registrationNumber || result?.regNumber}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">Exam Year</p>
+                <p className="font-bold text-lg mt-1">{result?.examYear}</p>
+              </div>
+              {result?.examType && (
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Exam Type</p>
+                  <p className="font-bold text-lg mt-1">{result.examType}</p>
+                </div>
+              )}
             </div>
-            <div className="mt-4 pt-4 border-t flex justify-between items-center">
-              <span className="font-bold">Total Score</span>
-              <span className="font-mono font-bold text-xl text-primary">{result.score}</span>
-            </div>
-          </div>
 
-          {/* Status */}
-          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-            <p className="text-sm">
-              <span className="font-semibold">Admission Status:</span>{" "}
-              <span className="font-bold text-green-600">{result.status}</span>
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">{result.institution}</p>
-          </div>
-        </CardContent>
-
-        <CardFooter className="bg-muted/30 flex gap-4 justify-between">
-          <Button variant="outline" size="sm" onClick={handlePrintResult}>
-            <Printer className="h-4 w-4 mr-2" />
-            Print
-          </Button>
-          <Button size="sm" onClick={handleDownloadResult} disabled={downloading}>
-            {downloading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Downloading...
-              </>
-            ) : (
-              <>
-                <Download className="h-4 w-4 mr-2" />
-                Download PDF
-              </>
+            {/* Subjects and Grades - if available */}
+            {hasSubjects && (
+              <div className="border rounded-lg p-4 bg-muted/10">
+                <div className="flex justify-between items-center mb-4 pb-2 border-b font-semibold">
+                  <span>Subject</span>
+                  <span>Grade</span>
+                </div>
+                <div className="space-y-3">
+                  {result.subjects.map((sub: any, i: number) => (
+                    <div key={i} className="flex justify-between items-center text-sm">
+                      <span>{sub.subject || sub.name}</span>
+                      <span className="font-mono font-bold">{sub.grade || sub.score}</span>
+                    </div>
+                  ))}
+                </div>
+                {result?.score && (
+                  <div className="mt-4 pt-4 border-t flex justify-between items-center">
+                    <span className="font-bold">Total Score</span>
+                    <span className="font-mono font-bold text-xl text-primary">{result.score}</span>
+                  </div>
+                )}
+              </div>
             )}
-          </Button>
-        </CardFooter>
-      </Card>
+
+            {/* Screenshot of Result - Primary Display */}
+            {hasScreenshot && (
+              <div className="border rounded-lg overflow-hidden">
+                <div className="bg-muted/50 p-3 border-b">
+                  <p className="text-sm font-medium">Official Result Screenshot</p>
+                </div>
+                <div className="p-4 bg-white">
+                  <img 
+                    src={`data:image/png;base64,${result.screenshotBase64}`}
+                    alt="Examination Result"
+                    className="w-full h-auto rounded border"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Status if available */}
+            {(result?.status || result?.institution) && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                {result?.status && (
+                  <p className="text-sm">
+                    <span className="font-semibold">Admission Status:</span>{" "}
+                    <span className="font-bold text-green-600">{result.status}</span>
+                  </p>
+                )}
+                {result?.institution && (
+                  <p className="text-xs text-muted-foreground mt-1">{result.institution}</p>
+                )}
+              </div>
+            )}
+
+            {/* Verification timestamp */}
+            <div className="text-xs text-muted-foreground text-center border-t pt-4">
+              Verified on {new Date().toLocaleDateString('en-NG', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </div>
+          </CardContent>
+
+          <CardFooter className="bg-muted/30 flex gap-4 justify-between print:hidden">
+            <Button variant="outline" size="sm" onClick={handlePrintResult}>
+              <Printer className="h-4 w-4 mr-2" />
+              Print Result
+            </Button>
+            <div className="flex gap-2">
+              {hasScreenshot && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = `data:image/png;base64,${result.screenshotBase64}`;
+                    link.download = `${selectedService}_result_screenshot.png`;
+                    link.click();
+                  }}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Screenshot
+                </Button>
+              )}
+              {(hasPdf || currentJobId) && (
+                <Button size="sm" onClick={handleDownloadResult} disabled={downloading}>
+                  {downloading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4 mr-2" />
+                      Download PDF
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </CardFooter>
+        </Card>
+      )}
     </div>
   );
 }
