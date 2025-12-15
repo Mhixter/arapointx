@@ -5,13 +5,14 @@ import { jambWorker } from './workers/jambWorker';
 import { waecWorker } from './workers/waecWorker';
 import { db } from '../config/database';
 import { rpaJobs, educationServices } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, asc } from 'drizzle-orm';
 import { browserPool } from './browserPool';
 
 class RPABot {
   private isRunning: boolean = false;
   private processingInterval: NodeJS.Timeout | null = null;
   private activeJobCount: number = 0;
+  private processingJobIds: Set<string> = new Set();
 
   async start(): Promise<void> {
     if (this.isRunning) {
@@ -23,10 +24,12 @@ class RPABot {
     await browserPool.initialize(config.RPA_MAX_CONCURRENT_JOBS || 10);
 
     this.isRunning = true;
-    logger.info('RPA Bot started');
+    logger.info('RPA Bot started - polling database for jobs');
 
     this.processingInterval = setInterval(() => {
-      this.processNextJob();
+      this.processNextJob().catch(err => {
+        logger.error('Error in processNextJob loop', { error: err.message });
+      });
     }, 500);
   }
 
@@ -46,9 +49,38 @@ class RPABot {
       return;
     }
 
-    const job = jobQueue.getNextJob();
-    if (!job) return;
+    // Poll database for pending jobs instead of in-memory queue
+    let pendingJobs;
+    try {
+      pendingJobs = await db.select()
+        .from(rpaJobs)
+        .where(eq(rpaJobs.status, 'pending'))
+        .orderBy(asc(rpaJobs.createdAt))
+        .limit(1);
+    } catch (err: any) {
+      logger.error('Error polling database for jobs', { error: err.message });
+      return;
+    }
 
+    const dbJob = pendingJobs[0];
+    if (!dbJob || this.processingJobIds.has(dbJob.id)) return;
+    
+    logger.info('Found pending job in database', { jobId: dbJob.id, service: dbJob.serviceType });
+
+    // Convert database job to RPAJob format
+    const job: RPAJob = {
+      id: dbJob.id,
+      user_id: dbJob.userId || '',
+      service_type: dbJob.serviceType,
+      query_data: dbJob.queryData as Record<string, any>,
+      priority: dbJob.priority || 0,
+      status: (dbJob.status || 'pending') as 'pending' | 'processing' | 'completed' | 'failed',
+      retry_count: dbJob.retryCount || 0,
+      max_retries: dbJob.maxRetries || 3,
+      created_at: dbJob.createdAt || new Date(),
+    };
+
+    this.processingJobIds.add(job.id);
     this.activeJobCount++;
 
     try {
@@ -74,7 +106,6 @@ class RPABot {
         await this.updateEducationService(job, result);
       }
 
-      jobQueue.completeJob(job.id);
       logger.info('Job completed successfully', { jobId: job.id });
     } catch (error: any) {
       logger.error('Error processing job', { jobId: job.id, error: error.message });
@@ -90,8 +121,6 @@ class RPABot {
             errorMessage: error.message,
           })
           .where(eq(rpaJobs.id, job.id));
-        
-        jobQueue.requeueJob(job.id);
       } else {
         await db.update(rpaJobs)
           .set({
@@ -101,10 +130,9 @@ class RPABot {
             completedAt: new Date(),
           })
           .where(eq(rpaJobs.id, job.id));
-        
-        jobQueue.failJob(job.id);
       }
     } finally {
+      this.processingJobIds.delete(job.id);
       this.activeJobCount--;
     }
   }

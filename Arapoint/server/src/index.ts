@@ -59,13 +59,17 @@ app.use((req, res) => {
 // Start Server
 const PORT = config.PORT;
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   logger.info(`Server running on port ${PORT}`);
   logger.info(`Environment: ${config.NODE_ENV}`);
   
-  // Start RPA Bot
-  rpaBot.start();
-  logger.info('RPA Bot started');
+  // Start RPA Bot with error handling
+  try {
+    await rpaBot.start();
+    logger.info('RPA Bot successfully started');
+  } catch (error: any) {
+    logger.error('Failed to start RPA Bot', { error: error.message, stack: error.stack });
+  }
 });
 
 export default app;
