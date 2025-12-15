@@ -18,6 +18,8 @@ import dashboardRoutes from "./src/api/routes/dashboard";
 
 import { publicRateLimiter, authenticatedRateLimiter } from "./src/api/middleware/rateLimit";
 import { errorHandler } from "./src/api/middleware/errorHandler";
+import { rpaBot } from "./src/rpa/bot";
+import { logger } from "./src/utils/logger";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -64,6 +66,18 @@ export async function registerRoutes(
       code: 404,
       message: 'API endpoint not found',
     });
+  });
+
+  // RPA Bot status endpoint
+  app.get('/api/rpa/status', (req, res) => {
+    res.json(rpaBot.getStatus());
+  });
+
+  // Start RPA Bot for processing jobs
+  rpaBot.start().then(() => {
+    logger.info('RPA Bot successfully started');
+  }).catch((err: any) => {
+    logger.error('Failed to start RPA Bot', { error: err.message });
   });
 
   return httpServer;

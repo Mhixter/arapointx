@@ -20,11 +20,13 @@ class RPABot {
       return;
     }
 
-    logger.info('Initializing browser pool...');
-    await browserPool.initialize(config.RPA_MAX_CONCURRENT_JOBS || 10);
-
     this.isRunning = true;
     logger.info('RPA Bot started - polling database for jobs');
+
+    // Initialize browser pool in the background (non-blocking)
+    browserPool.initialize(config.RPA_MAX_CONCURRENT_JOBS || 5).catch(err => {
+      logger.error('Browser pool initialization failed', { error: err.message });
+    });
 
     this.processingInterval = setInterval(() => {
       this.processNextJob().catch(err => {
@@ -143,18 +145,23 @@ class RPABot {
 
     switch (serviceType) {
       case 'jamb':
+      case 'jamb_score':
       case 'jamb_service':
         return await jambWorker.execute(queryData);
 
       case 'waec':
+      case 'waec_result':
       case 'waec_service':
         return await waecWorker.execute(queryData);
 
       case 'neco':
+      case 'neco_result':
       case 'neco_service':
       case 'nabteb':
+      case 'nabteb_result':
       case 'nabteb_service':
       case 'nbais':
+      case 'nbais_result':
       case 'nbais_service':
         logger.warn(`Worker for ${serviceType} not yet implemented, using placeholder`);
         return {

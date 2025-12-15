@@ -1,7 +1,20 @@
-import { RPAJob } from '../types';
 import { logger } from '../utils/logger';
 
-export { RPAJob };
+export interface RPAJob {
+  id: string;
+  user_id: string;
+  service_type: string;
+  query_data: Record<string, any>;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  result?: Record<string, any>;
+  error_message?: string;
+  retry_count: number;
+  max_retries: number;
+  priority: number;
+  created_at: Date;
+  started_at?: Date;
+  completed_at?: Date;
+}
 
 interface QueuedJob {
   job: RPAJob;
