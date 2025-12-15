@@ -132,6 +132,143 @@ export class WAECWorker extends BaseWorker {
     }
   }
 
+  private async closePrivacyPopup(page: Page): Promise<void> {
+    logger.info('Checking for WAEC privacy/data instruction popup');
+    
+    try {
+      // Common selectors for popup close buttons on WAEC portal
+      const closeButtonSelectors = [
+        // Modal close buttons
+        'button.close',
+        '.modal .close',
+        '.modal-header .close',
+        '[data-dismiss="modal"]',
+        'button[aria-label="Close"]',
+        '.btn-close',
+        // Common close/accept/OK buttons
+        'button:contains("Close")',
+        'button:contains("OK")',
+        'button:contains("Accept")',
+        'button:contains("I Agree")',
+        'button:contains("Continue")',
+        'button:contains("Proceed")',
+        'a:contains("Close")',
+        'a:contains("OK")',
+        // Generic modal backdrop/overlay click
+        '.modal-footer button',
+        '.modal button.btn-primary',
+        '.modal button.btn-secondary',
+        // X button
+        '.close-btn',
+        '.closeBtn',
+        '[class*="close"]',
+        // Swal/sweetalert style
+        '.swal-button',
+        '.swal2-confirm',
+        '.swal2-close',
+      ];
+
+      // Wait briefly for any popup to appear
+      await this.sleep(1000);
+
+      // Check if there's a modal/popup visible
+      const hasPopup = await page.evaluate(() => {
+        const modals = document.querySelectorAll('.modal, .popup, .overlay, [role="dialog"], .swal2-container, .swal-overlay');
+        for (const modal of Array.from(modals)) {
+          const style = window.getComputedStyle(modal);
+          if (style.display !== 'none' && style.visibility !== 'hidden') {
+            return true;
+          }
+        }
+        // Also check for any element that might be a privacy notice
+        const privacyElements = document.querySelectorAll('[class*="privacy"], [class*="notice"], [class*="instruction"], [class*="disclaimer"]');
+        for (const el of Array.from(privacyElements)) {
+          const style = window.getComputedStyle(el);
+          if (style.display !== 'none' && style.visibility !== 'hidden' && (el as HTMLElement).offsetHeight > 100) {
+            return true;
+          }
+        }
+        return false;
+      });
+
+      if (hasPopup) {
+        logger.info('Popup/modal detected, attempting to close');
+        
+        // Try clicking close buttons
+        for (const selector of closeButtonSelectors) {
+          try {
+            const clicked = await page.evaluate((sel) => {
+              // Handle :contains pseudo-selector manually
+              if (sel.includes(':contains(')) {
+                const match = sel.match(/(.+):contains\("(.+)"\)/);
+                if (match) {
+                  const [, tagSelector, text] = match;
+                  const elements = document.querySelectorAll(tagSelector);
+                  for (const el of Array.from(elements)) {
+                    if (el.textContent?.toLowerCase().includes(text.toLowerCase())) {
+                      const style = window.getComputedStyle(el);
+                      if (style.display !== 'none' && style.visibility !== 'hidden') {
+                        (el as HTMLElement).click();
+                        return true;
+                      }
+                    }
+                  }
+                }
+                return false;
+              }
+              
+              const btn = document.querySelector(sel);
+              if (btn) {
+                const style = window.getComputedStyle(btn);
+                if (style.display !== 'none' && style.visibility !== 'hidden') {
+                  (btn as HTMLElement).click();
+                  return true;
+                }
+              }
+              return false;
+            }, selector);
+
+            if (clicked) {
+              logger.info('Successfully clicked popup close button', { selector });
+              await this.sleep(500);
+              break;
+            }
+          } catch {
+            continue;
+          }
+        }
+
+        // If still visible, try pressing Escape key
+        try {
+          await page.keyboard.press('Escape');
+          logger.info('Pressed Escape key to close popup');
+          await this.sleep(300);
+        } catch {
+          // Ignore
+        }
+
+        // Final attempt: click outside the modal (on backdrop)
+        try {
+          await page.evaluate(() => {
+            const backdrop = document.querySelector('.modal-backdrop, .overlay, .fade');
+            if (backdrop) {
+              (backdrop as HTMLElement).click();
+            }
+          });
+        } catch {
+          // Ignore
+        }
+
+        await this.sleep(500);
+        logger.info('Popup handling completed');
+      } else {
+        logger.info('No popup detected, proceeding with form');
+      }
+    } catch (error: any) {
+      logger.warn('Error handling privacy popup, continuing anyway', { error: error.message });
+    }
+  }
+
   private async performVerification(
     page: Page,
     portalUrl: string,
@@ -141,6 +278,9 @@ export class WAECWorker extends BaseWorker {
     logger.info('Navigating to WAEC Direct portal', { url: portalUrl });
     await page.goto(portalUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
     await this.sleep(1500);
+
+    // Handle WAEC Data Privacy popup - close it if present
+    await this.closePrivacyPopup(page);
 
     try {
       await page.waitForSelector('form, input, select', { timeout: 10000 });
