@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,11 +17,13 @@ import {
   Gift,
   RotateCw,
   CheckCircle2,
-  Activity
+  Activity,
+  AlertCircle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
-import { servicesApi } from "@/lib/api/services";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { servicesApi, WAECCheckRequest } from "@/lib/api/services";
+import { handleApiError } from "@/lib/api/client";
 import waecLogo from '@assets/kisspng-west-african-senior-school-certificate-examination-domestic-energy-performance-certificates-5b0dc33eecc3f6.4371727315276286069698-removebg-preview_1764215404355.png';
 import nbaisLogo from '@assets/nbais-logo_1764215925986.png';
 import jambLogo from '@assets/Official_JAMB_logo-removebg-preview_1764215962098.png';
@@ -107,11 +109,22 @@ const JAMB_SUB_SERVICES = [
 
 export default function EducationServices() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string>('');
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [selectedJAMBSub, setSelectedJAMBSub] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  
+  const [waecYear, setWaecYear] = useState(new Date().getFullYear().toString());
+  const [waecType, setWaecType] = useState('WASSCE');
+  const [nabtebYear, setNabtebYear] = useState(new Date().getFullYear().toString());
+  const [nabtebType, setNabtebType] = useState('may');
+  const [nbaisYear, setNbaisYear] = useState(new Date().getFullYear().toString());
+  const [nbaisMonth, setNbaisMonth] = useState('06');
+  const [nbaisState, setNbaisState] = useState('');
 
   const { data: dashboardData } = useQuery({
     queryKey: ['dashboard-stats'],
@@ -122,33 +135,119 @@ export default function EducationServices() {
   const educationTotal = dashboardData?.stats?.educationVerifications || 0;
   const educationSuccess = dashboardData?.stats?.educationVerifications || 0;
 
-  const handleQuery = (e: React.FormEvent) => {
+  const pollJobStatus = async (jobId: string, maxAttempts = 60): Promise<any> => {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      setStatusMessage(`Processing your request... (${attempt + 1}/${maxAttempts})`);
+      
+      try {
+        const jobStatus = await servicesApi.education.getJobStatus(jobId);
+        
+        if (jobStatus.status === 'completed') {
+          return jobStatus.resultData;
+        } else if (jobStatus.status === 'failed') {
+          throw new Error(jobStatus.errorMessage || 'Verification failed');
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      } catch (err: any) {
+        if (attempt === maxAttempts - 1) {
+          throw err;
+        }
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+    }
+    throw new Error('Verification timed out. Please try again later.');
+  };
+
+  const handleQuery = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
+    setResult(null);
+    setStatusMessage('Submitting your request...');
     
-    setTimeout(() => {
-      setLoading(false);
-      setResult({
-        candidateName: "OGUNLEYE ADEOLA JOHN",
-        examYear: "2023",
-        examType: "UTME",
-        regNumber: "202398765432AB",
-        score: "285",
-        subjects: [
-          { name: "Use of English", score: "72" },
-          { name: "Mathematics", score: "75" },
-          { name: "Physics", score: "68" },
-          { name: "Chemistry", score: "70" },
-        ],
-        status: "ADMITTED",
-        institution: "UNIVERSITY OF LAGOS"
+    const form = e.target as HTMLFormElement;
+    
+    try {
+      let jobResponse: { jobId: string; price: number };
+      
+      switch (selectedService) {
+        case 'jamb-result': {
+          const regNumber = (form.querySelector('#jamb-reg') as HTMLInputElement)?.value;
+          jobResponse = await servicesApi.education.checkJAMB({
+            registrationNumber: regNumber,
+          });
+          break;
+        }
+        case 'waec-result': {
+          const examNum = (form.querySelector('#waec-exam-num') as HTMLInputElement)?.value;
+          const pin = (form.querySelector('#waec-pin') as HTMLInputElement)?.value;
+          const serial = (form.querySelector('#waec-serial') as HTMLInputElement)?.value;
+          
+          jobResponse = await servicesApi.education.checkWAEC({
+            registrationNumber: examNum,
+            examYear: parseInt(waecYear),
+            examType: waecType === 'internal' ? 'WASSCE' : 'GCE',
+            cardSerialNumber: serial,
+            cardPin: pin,
+          });
+          break;
+        }
+        case 'neco-result': {
+          const regNumber = (form.querySelector('#neco-reg') as HTMLInputElement)?.value;
+          jobResponse = await servicesApi.education.checkNECO({
+            registrationNumber: regNumber,
+          });
+          break;
+        }
+        case 'nabteb-result': {
+          const candNumber = (form.querySelector('#nabteb-cand') as HTMLInputElement)?.value;
+          jobResponse = await servicesApi.education.checkNABTEB({
+            registrationNumber: candNumber,
+            examYear: parseInt(nabtebYear),
+          });
+          break;
+        }
+        case 'nbais-result': {
+          const examNumber = (form.querySelector('#nbais-number') as HTMLInputElement)?.value;
+          jobResponse = await servicesApi.education.checkNBAIS({
+            registrationNumber: examNumber,
+            examYear: parseInt(nbaisYear),
+          });
+          break;
+        }
+        default:
+          throw new Error('Unknown service selected');
+      }
+      
+      toast({
+        title: "Request Submitted",
+        description: `Your request has been submitted. ₦${jobResponse.price} deducted from your wallet.`,
       });
+      
+      const resultData = await pollJobStatus(jobResponse.jobId);
+      
+      setResult(resultData);
+      setStatusMessage('');
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
       
       toast({
         title: "Result Retrieved Successfully",
-        description: "Your examination result has been retrieved.",
+        description: "Your examination result has been verified.",
       });
-    }, 2000);
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.message || err.message || 'Failed to process request';
+      setError(errorMessage);
+      setStatusMessage('');
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleJAMBSubService = (e: React.FormEvent) => {
@@ -519,7 +618,7 @@ export default function EducationServices() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="waec-year">Examination Year</Label>
-                      <Select defaultValue={new Date().getFullYear().toString()}>
+                      <Select value={waecYear} onValueChange={setWaecYear}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -534,13 +633,13 @@ export default function EducationServices() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="waec-type">Candidate Type</Label>
-                      <Select defaultValue="internal">
+                      <Select value={waecType} onValueChange={setWaecType}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="internal">Internal Candidate</SelectItem>
-                          <SelectItem value="private">Private Candidate</SelectItem>
+                          <SelectItem value="internal">Internal Candidate (WASSCE)</SelectItem>
+                          <SelectItem value="private">Private Candidate (GCE)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -592,7 +691,7 @@ export default function EducationServices() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="nabteb-year">Examination Year</Label>
-                      <Select defaultValue={new Date().getFullYear().toString()}>
+                      <Select value={nabtebYear} onValueChange={setNabtebYear}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -639,7 +738,7 @@ export default function EducationServices() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="nbais-year">Exam Year</Label>
-                      <Select defaultValue={new Date().getFullYear().toString()}>
+                      <Select value={nbaisYear} onValueChange={setNbaisYear}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
@@ -677,11 +776,28 @@ export default function EducationServices() {
                 </>
               )}
 
+              {error && (
+                <div className="bg-destructive/10 text-destructive p-4 rounded-lg flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium">Error</p>
+                    <p className="text-sm">{error}</p>
+                  </div>
+                </div>
+              )}
+              
+              {statusMessage && (
+                <div className="bg-primary/10 text-primary p-4 rounded-lg flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin flex-shrink-0" />
+                  <p className="text-sm font-medium">{statusMessage}</p>
+                </div>
+              )}
+
               <Button type="submit" className="w-full h-11" disabled={loading} data-testid="button-check">
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Checking...
+                    {statusMessage ? 'Processing...' : 'Checking...'}
                   </>
                 ) : "Check Result"}
               </Button>
