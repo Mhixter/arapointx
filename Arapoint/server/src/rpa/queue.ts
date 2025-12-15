@@ -1,6 +1,8 @@
 import { RPAJob } from '../types';
 import { logger } from '../utils/logger';
 
+export { RPAJob };
+
 interface QueuedJob {
   job: RPAJob;
   priority: number;
@@ -29,7 +31,8 @@ class JobQueue {
     let nextJob: QueuedJob | null = null;
     let maxPriority = -1;
 
-    for (const [jobId, queued] of this.jobs) {
+    const entries = Array.from(this.jobs.entries());
+    for (const [jobId, queued] of entries) {
       if (!this.activeJobs.has(jobId) && queued.priority > maxPriority) {
         nextJob = queued;
         maxPriority = queued.priority;
@@ -51,8 +54,19 @@ class JobQueue {
   }
 
   failJob(jobId: string): void {
+    this.jobs.delete(jobId);
     this.activeJobs.delete(jobId);
-    logger.warn('Job failed', { jobId });
+    logger.warn('Job failed and removed from queue', { jobId });
+  }
+
+  requeueJob(jobId: string): void {
+    this.activeJobs.delete(jobId);
+    const queuedJob = this.jobs.get(jobId);
+    if (queuedJob) {
+      queuedJob.job.retry_count = (queuedJob.job.retry_count || 0) + 1;
+      this.jobs.set(jobId, queuedJob);
+    }
+    logger.info('Job requeued for retry', { jobId, retryCount: queuedJob?.job.retry_count });
   }
 
   getQueueLength(): number {

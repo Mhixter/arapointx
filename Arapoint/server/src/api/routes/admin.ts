@@ -746,4 +746,167 @@ router.post('/rpa/retry/:jobId', async (req: Request, res: Response) => {
   }
 });
 
+router.get('/rpa/providers', async (req: Request, res: Response) => {
+  try {
+    const providerSettings = await db.select()
+      .from(adminSettings)
+      .where(sql`${adminSettings.settingKey} LIKE 'rpa_provider_%'`);
+
+    const providers: Record<string, { url?: string; selectors?: Record<string, string> }> = {};
+    
+    for (const setting of providerSettings) {
+      const keyParts = setting.settingKey.split('_');
+      const providerName = keyParts[3];
+      const settingType = keyParts[2];
+      
+      if (!providers[providerName]) {
+        providers[providerName] = {};
+      }
+      
+      if (settingType === 'url') {
+        providers[providerName].url = setting.settingValue || undefined;
+      } else if (settingType === 'selectors') {
+        try {
+          providers[providerName].selectors = JSON.parse(setting.settingValue || '{}');
+        } catch {
+          providers[providerName].selectors = {};
+        }
+      }
+    }
+
+    res.json(formatResponse('success', 200, 'RPA providers retrieved', { providers }));
+  } catch (error: any) {
+    logger.error('Get RPA providers error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get RPA providers'));
+  }
+});
+
+router.put('/rpa/providers/:providerName', async (req: Request, res: Response) => {
+  try {
+    const { providerName } = req.params;
+    const { url, selectors } = req.body;
+
+    if (!providerName) {
+      return res.status(400).json(formatErrorResponse(400, 'Provider name is required'));
+    }
+
+    const validProviders = ['jamb', 'waec', 'neco', 'nabteb', 'nbais', 'bvn', 'nin'];
+    if (!validProviders.includes(providerName.toLowerCase())) {
+      return res.status(400).json(formatErrorResponse(400, `Invalid provider. Valid providers: ${validProviders.join(', ')}`));
+    }
+
+    const urlKey = `rpa_provider_url_${providerName.toLowerCase()}`;
+    const selectorsKey = `rpa_selectors_${providerName.toLowerCase()}`;
+
+    if (url !== undefined) {
+      const [existingUrl] = await db.select()
+        .from(adminSettings)
+        .where(eq(adminSettings.settingKey, urlKey))
+        .limit(1);
+
+      if (existingUrl) {
+        await db.update(adminSettings)
+          .set({ settingValue: url, updatedAt: new Date() })
+          .where(eq(adminSettings.settingKey, urlKey));
+      } else {
+        await db.insert(adminSettings).values({
+          settingKey: urlKey,
+          settingValue: url,
+          description: `RPA portal URL for ${providerName.toUpperCase()} service`,
+        });
+      }
+    }
+
+    if (selectors !== undefined) {
+      const selectorsJson = typeof selectors === 'string' ? selectors : JSON.stringify(selectors);
+      
+      const [existingSelectors] = await db.select()
+        .from(adminSettings)
+        .where(eq(adminSettings.settingKey, selectorsKey))
+        .limit(1);
+
+      if (existingSelectors) {
+        await db.update(adminSettings)
+          .set({ settingValue: selectorsJson, updatedAt: new Date() })
+          .where(eq(adminSettings.settingKey, selectorsKey));
+      } else {
+        await db.insert(adminSettings).values({
+          settingKey: selectorsKey,
+          settingValue: selectorsJson,
+          description: `RPA CSS selectors for ${providerName.toUpperCase()} portal`,
+        });
+      }
+    }
+
+    logger.info('RPA provider configured', { provider: providerName, adminId: req.userId });
+
+    res.json(formatResponse('success', 200, 'RPA provider configured successfully', {
+      provider: providerName,
+      url,
+      selectors,
+    }));
+  } catch (error: any) {
+    logger.error('Configure RPA provider error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to configure RPA provider'));
+  }
+});
+
+router.get('/rpa/providers/:providerName', async (req: Request, res: Response) => {
+  try {
+    const { providerName } = req.params;
+    
+    const urlKey = `rpa_provider_url_${providerName.toLowerCase()}`;
+    const selectorsKey = `rpa_selectors_${providerName.toLowerCase()}`;
+
+    const [urlSetting] = await db.select()
+      .from(adminSettings)
+      .where(eq(adminSettings.settingKey, urlKey))
+      .limit(1);
+
+    const [selectorsSetting] = await db.select()
+      .from(adminSettings)
+      .where(eq(adminSettings.settingKey, selectorsKey))
+      .limit(1);
+
+    let selectors = {};
+    if (selectorsSetting?.settingValue) {
+      try {
+        selectors = JSON.parse(selectorsSetting.settingValue);
+      } catch {
+        selectors = {};
+      }
+    }
+
+    res.json(formatResponse('success', 200, 'RPA provider retrieved', {
+      provider: providerName,
+      url: urlSetting?.settingValue || null,
+      selectors,
+    }));
+  } catch (error: any) {
+    logger.error('Get RPA provider error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get RPA provider'));
+  }
+});
+
+router.delete('/rpa/providers/:providerName', async (req: Request, res: Response) => {
+  try {
+    const { providerName } = req.params;
+    
+    const urlKey = `rpa_provider_url_${providerName.toLowerCase()}`;
+    const selectorsKey = `rpa_selectors_${providerName.toLowerCase()}`;
+
+    await db.delete(adminSettings).where(eq(adminSettings.settingKey, urlKey));
+    await db.delete(adminSettings).where(eq(adminSettings.settingKey, selectorsKey));
+
+    logger.info('RPA provider configuration deleted', { provider: providerName, adminId: req.userId });
+
+    res.json(formatResponse('success', 200, 'RPA provider configuration deleted', {
+      provider: providerName,
+    }));
+  } catch (error: any) {
+    logger.error('Delete RPA provider error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to delete RPA provider'));
+  }
+});
+
 export default router;
