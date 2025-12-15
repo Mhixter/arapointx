@@ -195,12 +195,12 @@ export default function EducationVerification() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
         <div className="space-y-2">
           <Label htmlFor="nabteb-year">Examination Year *</Label>
-          <Select defaultValue="2023">
+          <Select defaultValue={new Date().getFullYear().toString()}>
             <SelectTrigger className="h-10 sm:h-11">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {Array.from({length: 10}, (_, i) => 2024 - i).map(year => (
+              {Array.from({length: 12}, (_, i) => new Date().getFullYear() + 1 - i).map(year => (
                 <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
               ))}
             </SelectContent>
@@ -255,12 +255,12 @@ export default function EducationVerification() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
         <div className="space-y-2">
           <Label htmlFor="nbais-year">Exam Year *</Label>
-          <Select defaultValue="2023">
+          <Select defaultValue={new Date().getFullYear().toString()}>
             <SelectTrigger className="h-10 sm:h-11">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {Array.from({length: 10}, (_, i) => 2024 - i).map(year => (
+              {Array.from({length: 12}, (_, i) => new Date().getFullYear() + 1 - i).map(year => (
                 <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
               ))}
             </SelectContent>
