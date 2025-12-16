@@ -115,6 +115,10 @@ npm run dev
 - Maximum 20 concurrent RPA jobs with exponential backoff retry
 
 ## Recent Changes
+- 2025-12-16: Added PDF file upload for CAC agent document completion using object storage
+- 2025-12-16: Added sample NIN slip downloads for all 4 tiers (Information, Regular, Standard, Premium)
+- 2025-12-16: Connected admin pricing UI to real database API with numeric validation
+- 2025-12-16: Secured upload endpoint with authMiddleware and rate limiting
 - 2024-12-04: Added email OTP verification system for registration
 - 2024-12-04: Created production database schema with 14 tables
 - 2024-12-04: Implemented complete backend service layer
