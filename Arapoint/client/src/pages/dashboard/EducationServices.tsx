@@ -930,17 +930,21 @@ export default function EducationServices() {
   const hasSubjects = result?.subjects && result.subjects.length > 0;
   const hasScreenshot = result?.screenshotBase64;
   const hasPdf = result?.pdfBase64;
-  const isNotFound = result?.verificationStatus === 'not_found' || result?.message?.includes('Could not extract');
+  const isError = result?.verificationStatus === 'error' || 
+                  result?.verificationStatus === 'not_found' || 
+                  result?.error === true || 
+                  !!result?.errorMessage;
+  const isVerified = result?.verificationStatus === 'verified' && !isError && (hasPdf || hasScreenshot);
   
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-heading font-bold tracking-tight">
-            {isNotFound ? 'Result Not Found' : 'Result Retrieved'}
+            {isError ? 'Verification Failed' : 'Result Retrieved'}
           </h2>
           <p className="text-muted-foreground">
-            {isNotFound ? 'We could not find your result. Please verify your details.' : 'Your examination result has been verified'}
+            {isError ? 'There was an issue verifying your result.' : 'Your examination result has been verified'}
           </p>
         </div>
         <Button variant="outline" onClick={() => {
@@ -954,7 +958,7 @@ export default function EducationServices() {
         </Button>
       </div>
 
-      {isNotFound ? (
+      {isError ? (
         <Card className="max-w-2xl border-2 border-destructive/20">
           <CardContent className="pt-8 pb-8">
             <div className="flex flex-col items-center gap-4 text-center">
@@ -962,11 +966,22 @@ export default function EducationServices() {
                 <AlertCircle className="h-8 w-8 text-destructive" />
               </div>
               <div className="space-y-2">
-                <h3 className="text-xl font-bold">Result Not Found</h3>
+                <h3 className="text-xl font-bold">
+                  {result?.verificationStatus === 'not_found' ? 'Result Not Found' : 'Verification Error'}
+                </h3>
                 <p className="text-muted-foreground max-w-md">
-                  {result?.message || 'We could not find your examination result. Please check your registration number and exam year, then try again.'}
+                  {result?.message || result?.errorMessage || 'We could not verify your examination result. Please check your details and try again.'}
                 </p>
               </div>
+              
+              {!result?.message?.toLowerCase().includes('refund') && (
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 w-full max-w-sm">
+                  <p className="text-sm text-green-700 dark:text-green-300 font-medium">
+                    Your wallet has been automatically refunded for this failed verification.
+                  </p>
+                </div>
+              )}
+              
               <div className="bg-muted/50 rounded-lg p-4 w-full max-w-sm text-left space-y-2">
                 <p className="text-sm"><span className="font-medium">Registration Number:</span> {result?.registrationNumber}</p>
                 <p className="text-sm"><span className="font-medium">Exam Type:</span> {result?.examType}</p>

@@ -222,9 +222,14 @@ export default function VerificationHistory() {
                         <p>Submitted: {formatDate(record.createdAt)}</p>
                       </div>
                       {errorMessage && (
-                        <div className="flex items-start gap-2 mt-2 p-2 bg-red-50 dark:bg-red-950/30 rounded-md border border-red-200 dark:border-red-800">
-                          <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
-                          <p className="text-sm text-red-700 dark:text-red-400">{errorMessage}</p>
+                        <div className="space-y-2 mt-2">
+                          <div className="flex items-start gap-2 p-2 bg-red-50 dark:bg-red-950/30 rounded-md border border-red-200 dark:border-red-800">
+                            <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+                            <p className="text-sm text-red-700 dark:text-red-400">{errorMessage}</p>
+                          </div>
+                          <div className="p-2 bg-green-50 dark:bg-green-950/30 rounded-md border border-green-200 dark:border-green-800">
+                            <p className="text-sm text-green-700 dark:text-green-400">Wallet refunded automatically</p>
+                          </div>
                         </div>
                       )}
                     </div>

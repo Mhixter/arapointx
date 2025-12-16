@@ -85,7 +85,21 @@ export class WAECWorker extends BaseWorker {
         timeoutPromise
       ]);
 
-      return this.createSuccessResult(result as unknown as Record<string, unknown>);
+      if (result.verificationStatus === 'verified') {
+        return this.createSuccessResult(result as unknown as Record<string, unknown>);
+      } else {
+        return {
+          success: false,
+          error: result.message,
+          data: {
+            verificationStatus: result.verificationStatus,
+            errorMessage: result.message,
+            registrationNumber: result.registrationNumber,
+            examYear: result.examYear,
+            examType: result.examType,
+          },
+        };
+      }
     } catch (error: any) {
       logger.error('WAEC Worker error', { error: error.message });
       return this.createErrorResult(error.message, true);
@@ -625,8 +639,7 @@ export class WAECWorker extends BaseWorker {
         examType: data.examType,
         subjects: [],
         verificationStatus: 'error',
-        message: 'The scratch card has been exhausted. Please purchase a new card.',
-        screenshotBase64: screenshot as string,
+        message: 'The scratch card has been exhausted or invalid. Please purchase a new card.',
       };
     }
 
@@ -639,7 +652,6 @@ export class WAECWorker extends BaseWorker {
         subjects: [],
         verificationStatus: 'not_found',
         message: errorMatch ? errorMatch[0].trim() : 'The registration number or card details are invalid.',
-        screenshotBase64: screenshot as string,
       };
     }
 
@@ -651,7 +663,6 @@ export class WAECWorker extends BaseWorker {
         subjects: [],
         verificationStatus: 'error',
         message: 'Could not find results on WAEC response page. The portal may be experiencing issues.',
-        screenshotBase64: screenshot as string,
       };
     }
 
