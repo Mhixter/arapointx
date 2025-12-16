@@ -10,7 +10,7 @@ import { Building2, Loader2, UserPlus, Edit, Trash2, Users, FileText, Settings }
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
-const getAdminToken = () => localStorage.getItem('adminToken');
+const getAdminToken = () => localStorage.getItem('accessToken');
 
 export default function AdminCACServices() {
   const { toast } = useToast();
