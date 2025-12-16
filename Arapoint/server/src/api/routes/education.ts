@@ -91,6 +91,9 @@ router.post('/waec', async (req: Request, res: Response) => {
       serviceType: 'waec',
       registrationNumber: validation.data.registrationNumber,
       examYear: validation.data.examYear,
+      cardSerialNumber: validation.data.cardSerialNumber,
+      cardPin: validation.data.cardPin,
+      examType: validation.data.examType,
     });
 
     logger.info('WAEC lookup request', { userId: req.userId, jobId: job.jobId });

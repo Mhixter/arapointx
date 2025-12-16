@@ -134,6 +134,9 @@ export const jobService = {
     serviceType: 'jamb' | 'waec' | 'neco' | 'nabteb' | 'nbais';
     registrationNumber: string;
     examYear?: number;
+    cardSerialNumber?: string;
+    cardPin?: string;
+    examType?: string;
   }) {
     const jobResult = await this.createJob({
       userId,

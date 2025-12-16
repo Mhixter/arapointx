@@ -14,7 +14,7 @@ export const config = {
   // RPA Configuration
   RPA_MAX_CONCURRENT_JOBS: parseInt(process.env.RPA_MAX_CONCURRENT_JOBS || '5'),
   RPA_JOB_TIMEOUT: parseInt(process.env.RPA_JOB_TIMEOUT || '60000'),
-  RPA_REQUEST_TIMEOUT: parseInt(process.env.RPA_REQUEST_TIMEOUT || '45000'),
+  RPA_REQUEST_TIMEOUT: parseInt(process.env.RPA_REQUEST_TIMEOUT || '90000'),
   RPA_RETRY_MAX: parseInt(process.env.RPA_RETRY_MAX || '3'),
   RPA_RETRY_BACKOFF: process.env.RPA_RETRY_BACKOFF || 'exponential',
   
