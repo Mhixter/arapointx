@@ -65,7 +65,9 @@ export const jobService = {
       status: job.status,
       serviceType: job.serviceType,
       result: job.result,
+      resultData: job.result,
       error: job.errorMessage,
+      errorMessage: job.errorMessage,
       createdAt: job.createdAt,
       completedAt: job.completedAt,
     };
