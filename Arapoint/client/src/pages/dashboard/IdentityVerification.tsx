@@ -1,8 +1,9 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { servicesApi } from "@/lib/api/services";
+import { Badge } from "@/components/ui/badge";
 import { 
   ShieldCheck, 
   Search, 
@@ -23,7 +24,9 @@ import {
   ListChecks,
   Activity,
   ChevronRight,
-  Shield
+  Shield,
+  Download,
+  FileText
 } from "lucide-react";
 
 export const SERVICES = [
@@ -118,6 +121,56 @@ export default function IdentityVerification() {
           </Link>
         ))}
       </div>
+
+      {/* NIN Slip Tiers */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5 text-primary" />
+            NIN Slip Types & Samples
+          </CardTitle>
+          <CardDescription>
+            After successful NIN verification, you can download your slip in different formats. View sample slips below.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { name: "Information Slip", price: 200, desc: "Basic info with photo and NIN", tier: "information", features: ["Full Name", "Date of Birth", "Gender", "Photo"] },
+              { name: "Regular Slip", price: 250, desc: "Standard slip with more details", tier: "regular", features: ["All Basic Info", "Phone Number", "State of Origin", "LGA"] },
+              { name: "Standard Slip", price: 300, desc: "Complete information slip", tier: "standard", features: ["All Regular Info", "Address", "Signature", "QR Code"] },
+              { name: "Premium Slip", price: 300, desc: "Full detailed verification slip", tier: "premium", features: ["All Standard Info", "Biometrics", "Next of Kin", "Employment"] },
+            ].map((slip) => (
+              <Card key={slip.tier} className="relative overflow-hidden">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-semibold text-sm">{slip.name}</h4>
+                    <Badge variant="secondary" className="text-xs">₦{slip.price}</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">{slip.desc}</p>
+                  <ul className="text-xs space-y-1 mb-4">
+                    {slip.features.map((feature, i) => (
+                      <li key={i} className="flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3 text-green-500" />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs"
+                    onClick={() => window.open(`/api/identity/sample-slip/${slip.tier}`, '_blank')}
+                  >
+                    <Download className="h-3 w-3 mr-1" />
+                    View Sample
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

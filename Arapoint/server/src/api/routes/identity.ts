@@ -432,4 +432,55 @@ router.get('/slip/:id', async (req: Request, res: Response) => {
   }
 });
 
+router.get('/sample-slip/:type', async (req: Request, res: Response) => {
+  try {
+    const { type } = req.params;
+    const validTypes = ['information', 'regular', 'standard', 'premium'];
+    
+    if (!validTypes.includes(type)) {
+      return res.status(400).json(formatErrorResponse(400, 'Invalid slip type'));
+    }
+
+    const sampleData = {
+      nin: '12345678901',
+      firstName: 'JOHN',
+      lastName: 'DOE',
+      middleName: 'SAMPLE',
+      dateOfBirth: '1990-01-15',
+      gender: 'Male',
+      phone: '08012345678',
+      email: 'sample@example.com',
+      stateOfOrigin: 'Lagos',
+      lgaOfOrigin: 'Ikeja',
+      residentialAddress: '123 Sample Street, Victoria Island',
+      residentialState: 'Lagos',
+      residentialLga: 'Eti-Osa',
+      maritalStatus: 'Single',
+      educationLevel: 'BSc',
+      nationality: 'Nigerian',
+      photo: '',
+      signature: '',
+      trackingId: 'TRK-SAMPLE-001',
+      centralId: 'CID-SAMPLE-001',
+      birthCountry: 'Nigeria',
+      birthState: 'Lagos',
+      birthLga: 'Lagos Island',
+      employmentStatus: 'Employed',
+      profession: 'Software Engineer',
+      nokFirstName: 'JANE',
+      nokLastName: 'DOE',
+      nokPhone: '08098765432',
+      nokAddress: '456 Sample Avenue, Lekki',
+    };
+
+    const slip = generateNINSlip(sampleData as any, `SAMPLE-${type.toUpperCase()}`, type as any);
+
+    res.setHeader('Content-Type', 'text/html');
+    res.send(slip.html);
+  } catch (error: any) {
+    logger.error('Get sample slip error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get sample slip'));
+  }
+});
+
 export default router;

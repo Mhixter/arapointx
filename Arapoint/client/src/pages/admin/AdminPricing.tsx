@@ -1,63 +1,115 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Edit, Save, X, DollarSign, TrendingUp, Layers, AlertCircle } from "lucide-react";
+import { Edit, Save, X, DollarSign, TrendingUp, Layers, AlertCircle, Loader2, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 interface ServicePrice {
   id: string;
-  service_type: string;
-  service_name: string;
+  serviceType: string;
+  serviceName: string;
   price: number;
   description: string | null;
-  is_active: boolean;
-  category: string;
+  isActive: boolean;
 }
 
-const MOCK_PRICING: ServicePrice[] = [
-  { id: "1", service_type: "nin_verification", service_name: "NIN Verification", price: 150, description: "Verify using 11-digit NIN", is_active: true, category: "Identity" },
-  { id: "2", service_type: "nin_phone", service_name: "NIN With Phone", price: 200, description: "Search NIN using Phone Number", is_active: true, category: "Identity" },
-  { id: "3", service_type: "nin_recovery", service_name: "Lost NIN Recovery", price: 2500, description: "Recover lost NIN using NIMC tracking ID", is_active: true, category: "Identity" },
-  { id: "4", service_type: "validation", service_name: "Validation", price: 1500, description: "General Identity Validation", is_active: true, category: "Identity" },
-  { id: "5", service_type: "personalization", service_name: "Personalization", price: 3000, description: "Customize Identity Data", is_active: true, category: "Identity" },
-  { id: "6", service_type: "birth_attestation", service_name: "Birth Attestation", price: 5000, description: "NPC Birth Certificate", is_active: true, category: "Identity" },
-  { id: "7", service_type: "jamb_result", service_name: "JAMB Result Check", price: 500, description: "Check JAMB UTME/DE results", is_active: true, category: "Education" },
-  { id: "8", service_type: "waec_result", service_name: "WAEC Result Check", price: 1000, description: "Check WAEC examination results", is_active: true, category: "Education" },
-  { id: "9", service_type: "neco_result", service_name: "NECO Result Check", price: 800, description: "Check NECO examination results", is_active: true, category: "Education" },
-  { id: "10", service_type: "nabteb_result", service_name: "NABTEB Result Check", price: 800, description: "Check NABTEB examination results", is_active: true, category: "Education" },
-  { id: "11", service_type: "nbais_result", service_name: "NBAIS Result Check", price: 800, description: "Check NBAIS examination results", is_active: true, category: "Education" },
-];
+const SERVICE_CATEGORIES: Record<string, string> = {
+  nin_verification: 'Identity',
+  nin_phone: 'Identity',
+  nin_recovery: 'Identity',
+  nin_slip_information: 'Identity',
+  nin_slip_regular: 'Identity',
+  nin_slip_standard: 'Identity',
+  nin_slip_premium: 'Identity',
+  bvn_verification: 'Identity',
+  birth_attestation: 'Identity',
+  jamb_result: 'Education',
+  waec_result: 'Education',
+  neco_result: 'Education',
+  nabteb_result: 'Education',
+  nbais_result: 'Education',
+  cac_business_name: 'CAC',
+  cac_limited_company: 'CAC',
+  cac_incorporated_trustees: 'CAC',
+};
+
+const getAuthToken = () => localStorage.getItem('accessToken');
 
 export default function AdminPricing() {
   const { toast } = useToast();
-  const [pricing, setPricing] = useState<ServicePrice[]>(MOCK_PRICING);
+  const [pricing, setPricing] = useState<ServicePrice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [newService, setNewService] = useState({ serviceType: '', serviceName: '', price: 0, description: '' });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetchPricing();
+  }, []);
+
+  const fetchPricing = async () => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/admin/pricing', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setPricing(data.data.pricing.map((p: any) => ({
+          ...p,
+          price: parseFloat(p.price)
+        })));
+      }
+    } catch (error) {
+      console.error('Failed to fetch pricing:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<ServicePrice | null>(null);
   const [filter, setFilter] = useState<string>("all");
 
-  const filteredPricing = filter === "all" ? pricing : pricing.filter(p => p.category === filter);
-  
-  const categories = ["all", ...Array.from(new Set(pricing.map(p => p.category)))];
+  const getCategory = (serviceType: string) => SERVICE_CATEGORIES[serviceType] || 'Other';
+  const pricingWithCategory = pricing.map(p => ({ ...p, category: getCategory(p.serviceType) }));
+  const filteredPricing = filter === "all" ? pricingWithCategory : pricingWithCategory.filter(p => p.category === filter);
+  const categories = ["all", ...Array.from(new Set(pricingWithCategory.map(p => p.category)))];
 
   const totalServices = pricing.length;
-  const activeServices = pricing.filter(p => p.is_active).length;
-  const averagePrice = Math.round(pricing.reduce((sum, p) => sum + p.price, 0) / pricing.length);
+  const activeServices = pricing.filter(p => p.isActive).length;
+  const averagePrice = pricing.length > 0 ? Math.round(pricing.reduce((sum, p) => sum + p.price, 0) / pricing.length) : 0;
 
   const handleEdit = (item: ServicePrice) => {
     setEditingId(item.id);
     setEditForm({ ...item });
   };
 
-  const handleSave = () => {
-    if (editForm) {
-      setPricing(prev => prev.map(p => p.id === editForm.id ? editForm : p));
-      toast({
-        title: "Price Updated",
-        description: `${editForm.service_name} price has been updated to ₦${editForm.price.toLocaleString()}`,
+  const handleSave = async () => {
+    if (!editForm) return;
+    setSaving(true);
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`/api/admin/pricing/${editForm.id}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ price: editForm.price, isActive: editForm.isActive, description: editForm.description })
       });
+      const data = await res.json();
+      if (data.status === 'success') {
+        toast({ title: "Price Updated", description: `${editForm.serviceName} price has been updated to ₦${editForm.price.toLocaleString()}` });
+        fetchPricing();
+      } else {
+        toast({ title: "Error", description: data.message, variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to update price", variant: "destructive" });
+    } finally {
+      setSaving(false);
       setEditingId(null);
       setEditForm(null);
     }
@@ -68,18 +120,62 @@ export default function AdminPricing() {
     setEditForm(null);
   };
 
-  const toggleActive = (id: string) => {
-    setPricing(prev => prev.map(p => {
-      if (p.id === id) {
-        toast({
-          title: p.is_active ? "Service Disabled" : "Service Enabled",
-          description: `${p.service_name} has been ${p.is_active ? "disabled" : "enabled"}`,
-        });
-        return { ...p, is_active: !p.is_active };
+  const toggleActive = async (id: string) => {
+    const item = pricing.find(p => p.id === id);
+    if (!item) return;
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`/api/admin/pricing/${id}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !item.isActive })
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        toast({ title: item.isActive ? "Service Disabled" : "Service Enabled", description: `${item.serviceName} has been ${item.isActive ? "disabled" : "enabled"}` });
+        fetchPricing();
       }
-      return p;
-    }));
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
+    }
   };
+
+  const handleAddService = async () => {
+    if (!newService.serviceType || !newService.serviceName || newService.price <= 0) {
+      toast({ title: "Error", description: "Please fill all required fields", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/admin/pricing', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(newService)
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        toast({ title: "Service Added", description: `${newService.serviceName} has been added` });
+        setShowAddDialog(false);
+        setNewService({ serviceType: '', serviceName: '', price: 0, description: '' });
+        fetchPricing();
+      } else {
+        toast({ title: "Error", description: data.message, variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to add service", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -172,12 +268,12 @@ export default function AdminPricing() {
                     <td className="p-3 font-medium">
                       {editingId === item.id ? (
                         <Input
-                          value={editForm?.service_name || ""}
-                          onChange={(e) => setEditForm(prev => prev ? { ...prev, service_name: e.target.value } : null)}
+                          value={editForm?.serviceName || ""}
+                          onChange={(e) => setEditForm(prev => prev ? { ...prev, serviceName: e.target.value } : null)}
                           className="w-full h-8"
                         />
                       ) : (
-                        item.service_name
+                        item.serviceName
                       )}
                     </td>
                     <td className="p-3">
@@ -208,7 +304,7 @@ export default function AdminPricing() {
                     </td>
                     <td className="p-3">
                       <Switch
-                        checked={item.is_active}
+                        checked={item.isActive}
                         onCheckedChange={() => toggleActive(item.id)}
                       />
                     </td>
@@ -242,12 +338,12 @@ export default function AdminPricing() {
                     <div className="min-w-0 flex-1">
                       {editingId === item.id ? (
                         <Input
-                          value={editForm?.service_name || ""}
-                          onChange={(e) => setEditForm(prev => prev ? { ...prev, service_name: e.target.value } : null)}
+                          value={editForm?.serviceName || ""}
+                          onChange={(e) => setEditForm(prev => prev ? { ...prev, serviceName: e.target.value } : null)}
                           className="w-full h-8 text-sm mb-2"
                         />
                       ) : (
-                        <h3 className="font-semibold text-sm truncate">{item.service_name}</h3>
+                        <h3 className="font-semibold text-sm truncate">{item.serviceName}</h3>
                       )}
                       <Badge variant="outline" className="capitalize text-[10px] mt-1">{item.category}</Badge>
                     </div>
@@ -299,9 +395,9 @@ export default function AdminPricing() {
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-muted-foreground">{item.is_active ? "Active" : "Inactive"}</span>
+                      <span className="text-[10px] text-muted-foreground">{item.isActive ? "Active" : "Inactive"}</span>
                       <Switch
-                        checked={item.is_active}
+                        checked={item.isActive}
                         onCheckedChange={() => toggleActive(item.id)}
                         className="scale-90"
                       />

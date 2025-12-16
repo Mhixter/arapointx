@@ -92,9 +92,14 @@ router.put('/pricing/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
     const { price, isActive, description } = req.body;
 
+    const numericPrice = typeof price === 'string' ? parseFloat(price) : price;
+    if (isNaN(numericPrice) || numericPrice < 0) {
+      return res.status(400).json(formatErrorResponse(400, 'Invalid price value'));
+    }
+
     const [updated] = await db.update(servicePricing)
       .set({ 
-        price: price?.toString(),
+        price: numericPrice.toFixed(2),
         isActive,
         description,
         updatedAt: new Date()
@@ -111,6 +116,40 @@ router.put('/pricing/:id', async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error('Update pricing error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to update pricing'));
+  }
+});
+
+router.post('/pricing', async (req: Request, res: Response) => {
+  try {
+    const { serviceType, serviceName, price, description } = req.body;
+
+    if (!serviceType || !serviceName || price === undefined) {
+      return res.status(400).json(formatErrorResponse(400, 'Service type, name, and price are required'));
+    }
+
+    const numericPrice = typeof price === 'string' ? parseFloat(price) : price;
+    if (isNaN(numericPrice) || numericPrice < 0) {
+      return res.status(400).json(formatErrorResponse(400, 'Invalid price value'));
+    }
+
+    const [existing] = await db.select().from(servicePricing).where(eq(servicePricing.serviceType, serviceType)).limit(1);
+    if (existing) {
+      return res.status(400).json(formatErrorResponse(400, 'Service type already exists'));
+    }
+
+    const [newPricing] = await db.insert(servicePricing).values({
+      serviceType,
+      serviceName,
+      price: numericPrice.toFixed(2),
+      description,
+      isActive: true,
+    }).returning();
+
+    logger.info('Pricing added', { serviceType, adminId: req.userId });
+    res.status(201).json(formatResponse('success', 201, 'Service pricing added', newPricing));
+  } catch (error: any) {
+    logger.error('Add pricing error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to add pricing'));
   }
 });
 

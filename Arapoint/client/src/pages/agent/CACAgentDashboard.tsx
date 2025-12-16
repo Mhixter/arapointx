@@ -6,11 +6,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2, Loader2, Clock, CheckCircle2, XCircle, User, LogOut, FileText, RefreshCw, Eye, MessageCircle, Send } from "lucide-react";
+import { Building2, Loader2, Clock, CheckCircle2, XCircle, User, LogOut, FileText, RefreshCw, Eye, MessageCircle, Send, Upload } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { FileUploader } from "@/components/FileUploader";
 
 const STATUS_OPTIONS = [
   { value: 'in_review', label: 'In Review', color: 'bg-yellow-100 text-yellow-700' },
@@ -33,7 +34,7 @@ export default function CACAgentDashboard() {
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showStatusUpdate, setShowStatusUpdate] = useState(false);
-  const [updateData, setUpdateData] = useState({ status: '', comment: '', cacRegistrationNumber: '', rejectionReason: '', certificateUrl: '', statusReportUrl: '' });
+  const [updateData, setUpdateData] = useState({ status: '', comment: '', cacRegistrationNumber: '', rejectionReason: '', certificateUrl: '', statusReportUrl: '', certificateFileName: '', statusReportFileName: '' });
   const [showChat, setShowChat] = useState(false);
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -188,7 +189,7 @@ export default function CACAgentDashboard() {
         toast({ title: "Updated!", description: "Request status has been updated." });
         setShowStatusUpdate(false);
         setShowDetails(false);
-        setUpdateData({ status: '', comment: '', cacRegistrationNumber: '', rejectionReason: '', certificateUrl: '', statusReportUrl: '' });
+        setUpdateData({ status: '', comment: '', cacRegistrationNumber: '', rejectionReason: '', certificateUrl: '', statusReportUrl: '', certificateFileName: '', statusReportFileName: '' });
         fetchRequests();
         fetchStats();
       } else {
@@ -501,22 +502,40 @@ export default function CACAgentDashboard() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>CAC Certificate URL</Label>
-                  <Input 
-                    placeholder="https://... or upload file URL" 
-                    value={updateData.certificateUrl}
-                    onChange={(e) => setUpdateData(prev => ({ ...prev, certificateUrl: e.target.value }))}
+                  <Label>CAC Certificate (PDF) *</Label>
+                  <FileUploader
+                    accept=".pdf"
+                    label="Upload CAC Certificate"
+                    getUploadUrl={async () => {
+                      const token = getAgentToken();
+                      const res = await fetch('/api/upload/get-url', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({ prefix: 'cac-certificates' })
+                      });
+                      return res.json();
+                    }}
+                    onFileUploaded={(path, name) => setUpdateData(prev => ({ ...prev, certificateUrl: path, certificateFileName: name }))}
+                    currentFile={updateData.certificateUrl ? { name: updateData.certificateFileName || 'certificate.pdf', path: updateData.certificateUrl } : null}
                   />
-                  <p className="text-xs text-muted-foreground">Paste the URL of the uploaded CAC certificate document</p>
                 </div>
                 <div className="space-y-2">
-                  <Label>Status Report URL</Label>
-                  <Input 
-                    placeholder="https://... or upload file URL" 
-                    value={updateData.statusReportUrl}
-                    onChange={(e) => setUpdateData(prev => ({ ...prev, statusReportUrl: e.target.value }))}
+                  <Label>Status Report (PDF)</Label>
+                  <FileUploader
+                    accept=".pdf"
+                    label="Upload Status Report"
+                    getUploadUrl={async () => {
+                      const token = getAgentToken();
+                      const res = await fetch('/api/upload/get-url', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({ prefix: 'cac-status-reports' })
+                      });
+                      return res.json();
+                    }}
+                    onFileUploaded={(path, name) => setUpdateData(prev => ({ ...prev, statusReportUrl: path, statusReportFileName: name }))}
+                    currentFile={updateData.statusReportUrl ? { name: updateData.statusReportFileName || 'status-report.pdf', path: updateData.statusReportUrl } : null}
                   />
-                  <p className="text-xs text-muted-foreground">Paste the URL of the status report document</p>
                 </div>
               </div>
             )}
