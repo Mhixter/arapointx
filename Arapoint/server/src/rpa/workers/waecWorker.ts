@@ -38,9 +38,9 @@ export class WAECWorker extends BaseWorker {
   private readonly DEFAULT_SELECTORS = {
     examYearSelect: 'select[name="ExamYear"], select[name="examYear"], select#ExamYear, select#examYear',
     examTypeSelect: 'select[name="ExamType"], select[name="examType"], select#ExamType, select#examType',
-    examNumberInput: 'input[name="CandNo"], input[name="examNumber"], input#CandNo, input#examNumber',
-    cardSerialInput: 'input[name="Serial"], input[name="serialNumber"], input#Serial, input#serialNumber',
-    cardPinInput: 'input[name="Pin"], input[name="pin"], input#Pin, input#pin',
+    examNumberInput: 'input[name="ExamNumber"], input[name="examnumber"], input[name="CandNo"], input[name="examNumber"], input#ExamNumber, input#examnumber, input#CandNo, input#examNumber',
+    cardSerialInput: 'input[name="SerialNumber"], input[name="serialNumber"], input[name="Serial"], input#SerialNumber, input#serialNumber, input#Serial',
+    cardPinInput: 'input[name="Pin"], input[name="pin"], input[name="PIN"], input#Pin, input#pin, input#PIN',
     submitButton: 'input[type="submit"], button[type="submit"], button.submit, input.submit, button[name="submit"], .btn-submit, #submit, button:contains("Submit"), button:contains("Check"), input[value="Submit"], input[value="Check"]',
     resultTable: 'table.resultTable, table#resultTable, .result-table, table',
     candidateName: '.candidate-name, .name, td:contains("Name")+td',
@@ -338,20 +338,81 @@ export class WAECWorker extends BaseWorker {
     }
 
     if (data.cardSerialNumber) {
-      try {
-        await page.type(selectors.cardSerialInput, data.cardSerialNumber);
-        logger.info('Entered card serial number');
-      } catch {
-        logger.warn('Could not enter card serial number');
+      let serialEntered = false;
+      const serialSelectors = [
+        'input[name="SerialNumber"]',
+        'input[name="serialNumber"]', 
+        'input[name="Serial"]',
+        'input#SerialNumber',
+        'input#serialNumber',
+        'input#Serial'
+      ];
+      
+      for (const selector of serialSelectors) {
+        try {
+          const input = await page.$(selector);
+          if (input) {
+            await input.type(data.cardSerialNumber);
+            logger.info('Entered card serial number', { selector });
+            serialEntered = true;
+            break;
+          }
+        } catch {
+          continue;
+        }
+      }
+      
+      if (!serialEntered) {
+        const textInputs = await page.$$('input[type="text"]');
+        if (textInputs.length >= 2) {
+          await textInputs[1].type(data.cardSerialNumber);
+          logger.info('Used fallback for card serial number (2nd text input)');
+          serialEntered = true;
+        }
+      }
+      
+      if (!serialEntered) {
+        logger.warn('Could not enter card serial number - field not found');
       }
     }
 
     if (data.cardPin) {
-      try {
-        await page.type(selectors.cardPinInput, data.cardPin);
-        logger.info('Entered card PIN');
-      } catch {
-        logger.warn('Could not enter card PIN');
+      let pinEntered = false;
+      const pinSelectors = [
+        'input[name="Pin"]',
+        'input[name="pin"]',
+        'input[name="PIN"]',
+        'input#Pin',
+        'input#pin',
+        'input#PIN',
+        'input[type="password"]'
+      ];
+      
+      for (const selector of pinSelectors) {
+        try {
+          const input = await page.$(selector);
+          if (input) {
+            await input.type(data.cardPin);
+            logger.info('Entered card PIN', { selector });
+            pinEntered = true;
+            break;
+          }
+        } catch {
+          continue;
+        }
+      }
+      
+      if (!pinEntered) {
+        const textInputs = await page.$$('input[type="text"]');
+        if (textInputs.length >= 3) {
+          await textInputs[2].type(data.cardPin);
+          logger.info('Used fallback for card PIN (3rd text input)');
+          pinEntered = true;
+        }
+      }
+      
+      if (!pinEntered) {
+        logger.warn('Could not enter card PIN - field not found');
       }
     }
 
