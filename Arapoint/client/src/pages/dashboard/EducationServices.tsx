@@ -251,8 +251,18 @@ export default function EducationServices() {
       
       toast({
         title: "Result Retrieved Successfully",
-        description: "Your examination result has been verified.",
+        description: "Your examination result has been verified. Opening PDF for printing...",
       });
+      
+      setTimeout(async () => {
+        const opened = await openPdfForPrint(jobResponse.jobId);
+        if (!opened) {
+          toast({
+            title: "PDF Ready",
+            description: "Click the Download button to view your result.",
+          });
+        }
+      }, 1000);
     } catch (err: any) {
       const errorMessage = err?.response?.data?.message || err.message || 'Failed to process request';
       setError(errorMessage);
@@ -280,6 +290,34 @@ export default function EducationServices() {
         description: `Your ${service?.name} request has been submitted successfully.`,
       });
     }, 2000);
+  };
+
+  const openPdfForPrint = async (jobId: string) => {
+    try {
+      const response = await fetch(`/api/education/job/${jobId}/download`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (!response.ok) {
+        return false;
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const printWindow = window.open(url, '_blank');
+      if (printWindow) {
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print();
+          }, 500);
+        };
+      }
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const handleDownloadResult = async () => {
