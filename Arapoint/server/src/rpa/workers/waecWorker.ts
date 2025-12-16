@@ -28,6 +28,7 @@ interface WAECResult {
   subjects: WAECSubject[];
   verificationStatus: 'verified' | 'not_found' | 'error';
   message: string;
+  errorMessage?: string;
   screenshotBase64?: string;
   pdfBase64?: string;
 }
@@ -594,13 +595,15 @@ export class WAECWorker extends BaseWorker {
 
     if (isStillOnFormPage && !popupCaptured) {
       logger.error('Still on form page - form submission did not work');
+      const errorMsg = 'Could not submit form to WAEC portal. Please try again later.';
       return {
         registrationNumber: data.registrationNumber,
         examYear: data.examYear,
         examType: data.examType,
         subjects: [],
         verificationStatus: 'error',
-        message: 'Could not submit form to WAEC portal. Please try again later.',
+        message: errorMsg,
+        errorMessage: errorMsg,
       };
     }
 
@@ -663,18 +666,21 @@ export class WAECWorker extends BaseWorker {
         subjects: [],
         verificationStatus: hasCardError ? 'error' : 'not_found',
         message: waecError,
+        errorMessage: waecError,
       };
     }
 
     if (!hasResults) {
       const waecError = extractWaecError();
+      const errorMsg = waecError || 'Could not find results on WAEC response page. The portal may be experiencing issues.';
       return {
         registrationNumber: data.registrationNumber,
         examYear: data.examYear,
         examType: data.examType,
         subjects: [],
         verificationStatus: 'error',
-        message: waecError || 'Could not find results on WAEC response page. The portal may be experiencing issues.',
+        message: errorMsg,
+        errorMessage: errorMsg,
       };
     }
 
