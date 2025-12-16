@@ -515,68 +515,110 @@ export class WAECWorker extends BaseWorker {
       throw new Error('Could not find submit button on WAEC portal');
     }
 
-    logger.info('Clicking submit and waiting for navigation...');
+    logger.info('Clicking submit - waiting for popup or navigation...');
+
+    const browser = page.browser();
+    let resultPage: Page = page;
+    let popupCaptured = false;
+
+    const popupPromise = new Promise<Page>((resolve) => {
+      const handler = async (target: any) => {
+        if (target.type() === 'page') {
+          const newPage = await target.page();
+          if (newPage && newPage !== page) {
+            logger.info('Popup window detected', { url: newPage.url() });
+            browser.off('targetcreated', handler);
+            resolve(newPage);
+          }
+        }
+      };
+      browser.on('targetcreated', handler);
+      
+      setTimeout(() => {
+        browser.off('targetcreated', handler);
+        resolve(page);
+      }, 20000);
+    });
 
     try {
-      await Promise.all([
-        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }),
-        submitButton.click()
-      ]);
-      logger.info('Navigation completed after submit');
+      await submitButton.click();
+      logger.info('Submit button clicked');
     } catch (e: any) {
-      logger.warn('Navigation timeout, checking page state', { error: e.message });
+      logger.warn('Click failed, trying JavaScript click', { error: e.message });
+      await page.evaluate(() => {
+        const btn = document.querySelector('input[type="submit"]') as HTMLElement;
+        if (btn) btn.click();
+      });
+    }
+
+    resultPage = await popupPromise;
+    popupCaptured = resultPage !== page;
+    
+    logger.info('Result page determined', { 
+      popupCaptured, 
+      resultPageUrl: resultPage.url(),
+      originalPageUrl: page.url()
+    });
+
+    if (popupCaptured) {
+      await resultPage.waitForSelector('body', { timeout: 10000 }).catch(() => {});
+      await this.sleep(3000);
+    } else {
+      try {
+        await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 });
+      } catch {
+        logger.info('No navigation detected on main page');
+      }
       await this.sleep(3000);
     }
 
-    const urlAfterSubmit = page.url();
-    logger.info('URL after submit', { url: urlAfterSubmit, changed: urlBeforeSubmit !== urlAfterSubmit });
+    const resultUrl = resultPage.url();
+    logger.info('Result page URL', { url: resultUrl });
 
-    if (urlBeforeSubmit === urlAfterSubmit) {
-      logger.warn('URL unchanged - trying alternative submit methods');
-      
+    const isStillOnFormPage = resultUrl === urlBeforeSubmit || 
+                              resultUrl.includes('waecdirect.org/') && !resultUrl.includes('Result') && !resultUrl.includes('Error');
+
+    if (isStillOnFormPage && !popupCaptured) {
+      logger.error('Still on form page - form submission did not work');
+      return {
+        registrationNumber: data.registrationNumber,
+        examYear: data.examYear,
+        examType: data.examType,
+        subjects: [],
+        verificationStatus: 'error',
+        message: 'Could not submit form to WAEC portal. Please try again later.',
+      };
+    }
+
+    const pageContent = await resultPage.content();
+    const pageText = await resultPage.evaluate(() => document.body.innerText);
+    
+    const hasResults = pageContent.includes('Subject') || pageContent.includes('Grade') || 
+                       pageContent.includes('RESULT') || pageContent.includes('Score') ||
+                       pageContent.includes('ENGLISH') || pageContent.includes('MATHEMATICS') ||
+                       pageText.includes('Subject') || pageText.includes('Grade');
+    const hasCardError = pageText.includes('card usage has exceeded') || 
+                         pageText.includes('purchase another card') ||
+                         pageText.includes('card has been used') ||
+                         pageText.includes('maximum allowed');
+    const hasInvalidError = pageText.toLowerCase().includes('invalid') || 
+                            pageText.toLowerCase().includes('not found') ||
+                            pageText.toLowerCase().includes('incorrect') ||
+                            pageText.toLowerCase().includes('does not exist');
+    
+    logger.info('Page analysis', { hasResults, hasCardError, hasInvalidError, popupCaptured, url: resultUrl });
+    
+    const screenshot = await resultPage.screenshot({ encoding: 'base64', fullPage: true });
+
+    if (popupCaptured) {
       try {
-        await page.evaluate(() => {
-          const form = document.querySelector('form') as HTMLFormElement;
-          if (form) {
-            form.submit();
-          }
-        });
-        await this.sleep(5000);
+        await resultPage.close();
       } catch {
-        logger.warn('Form.submit() fallback failed');
-      }
-
-      const urlRetry = page.url();
-      if (urlBeforeSubmit === urlRetry) {
-        try {
-          await page.keyboard.press('Enter');
-          await this.sleep(5000);
-        } catch {
-          logger.warn('Enter key fallback failed');
-        }
+        logger.warn('Could not close popup');
       }
     }
 
-    await this.sleep(3000);
-
-    const finalUrl = page.url();
-    logger.info('Final URL', { url: finalUrl, changed: urlBeforeSubmit !== finalUrl });
-    
-    const pageContent = await page.content();
-    const hasResults = pageContent.includes('Subject') || pageContent.includes('Grade') || 
-                       pageContent.includes('RESULT') || pageContent.includes('Score') ||
-                       pageContent.includes('ENGLISH') || pageContent.includes('MATHEMATICS');
-    const hasCardError = pageContent.includes('card usage has exceeded') || 
-                         pageContent.includes('purchase another card') ||
-                         pageContent.includes('card has been used');
-    const hasError = pageContent.includes('Invalid') || pageContent.includes('Error') || 
-                     pageContent.includes('not found') || pageContent.includes('incorrect') ||
-                     hasCardError;
-    
-    logger.info('Page analysis', { hasResults, hasError, hasCardError, urlChanged: urlBeforeSubmit !== finalUrl });
-    
     if (hasCardError) {
-      const screenshot = await page.screenshot({ encoding: 'base64', fullPage: true });
       return {
         registrationNumber: data.registrationNumber,
         examYear: data.examYear,
@@ -588,19 +630,32 @@ export class WAECWorker extends BaseWorker {
       };
     }
 
-    const errorText = await this.checkForError(page, selectors.errorMessage);
-    if (errorText) {
+    if (hasInvalidError) {
+      const errorMatch = pageText.match(/(?:invalid|not found|incorrect|does not exist)[^.]*\.?/i);
       return {
         registrationNumber: data.registrationNumber,
         examYear: data.examYear,
         examType: data.examType,
         subjects: [],
         verificationStatus: 'not_found',
-        message: errorText,
+        message: errorMatch ? errorMatch[0].trim() : 'The registration number or card details are invalid.',
+        screenshotBase64: screenshot as string,
       };
     }
 
-    const result = await this.extractResults(page, data);
+    if (!hasResults) {
+      return {
+        registrationNumber: data.registrationNumber,
+        examYear: data.examYear,
+        examType: data.examType,
+        subjects: [],
+        verificationStatus: 'error',
+        message: 'Could not find results on WAEC response page. The portal may be experiencing issues.',
+        screenshotBase64: screenshot as string,
+      };
+    }
+
+    const result = await this.extractResultsFromPage(resultPage, data, screenshot as string);
     return result;
   }
 
@@ -626,8 +681,8 @@ export class WAECWorker extends BaseWorker {
     return null;
   }
 
-  private async extractResults(page: Page, data: WAECQueryData): Promise<WAECResult> {
-    logger.info('Extracting WAEC results');
+  private async extractResultsFromPage(page: Page, data: WAECQueryData, screenshotBase64: string): Promise<WAECResult> {
+    logger.info('Extracting WAEC results from result page');
 
     let candidateName: string | undefined;
     try {
@@ -644,6 +699,7 @@ export class WAECWorker extends BaseWorker {
         const nameEl = document.querySelector('.candidate-name, .name');
         return nameEl?.textContent?.trim();
       });
+      logger.info('Extracted candidate name', { candidateName });
     } catch {
       logger.warn('Could not extract candidate name');
     }
@@ -678,31 +734,17 @@ export class WAECWorker extends BaseWorker {
     }
 
     let pdfBase64: string | undefined;
-    let screenshotBase64: string | undefined;
-
-    // Always capture screenshot/PDF so users can see what happened (even if no subjects found)
     try {
-      logger.info('Capturing PDF of result page');
+      logger.info('Generating PDF from result page');
       const pdfBuffer = await (page as any).pdf({
         format: 'A4',
         printBackground: true,
         margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' },
       });
       pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
-      logger.info('PDF captured successfully', { size: pdfBase64.length });
+      logger.info('PDF generated', { size: pdfBase64.length });
     } catch (pdfError: any) {
-      logger.warn('Could not generate PDF, falling back to screenshot', { error: pdfError.message });
-      
-      try {
-        const screenshotBuffer = await (page as any).screenshot({ 
-          fullPage: true, 
-          type: 'png',
-        });
-        screenshotBase64 = Buffer.from(screenshotBuffer).toString('base64');
-        logger.info('Screenshot captured successfully', { size: screenshotBase64.length });
-      } catch (ssError: any) {
-        logger.warn('Could not capture screenshot', { error: ssError.message });
-      }
+      logger.warn('PDF generation failed, using screenshot', { error: pdfError.message });
     }
 
     return {
@@ -711,10 +753,8 @@ export class WAECWorker extends BaseWorker {
       examType: data.examType || 'WASSCE',
       examYear: data.examYear,
       subjects,
-      verificationStatus: subjects.length > 0 ? 'verified' : 'not_found',
-      message: subjects.length > 0 
-        ? 'WAEC result verification completed successfully' 
-        : 'Could not extract results from page',
+      verificationStatus: 'verified',
+      message: 'WAEC result verification completed successfully',
       pdfBase64,
       screenshotBase64,
     };
