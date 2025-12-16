@@ -62,6 +62,7 @@ class VTpassService {
   private getClient(): AxiosInstance {
     const apiKey = process.env.VTPASS_API_KEY;
     const secretKey = process.env.VTPASS_SECRET_KEY;
+    const publicKey = process.env.VTPASS_PUBLIC_KEY;
     const useSandbox = process.env.VTPASS_SANDBOX === 'true';
 
     if (!apiKey || !secretKey) {
@@ -78,6 +79,7 @@ class VTpassService {
           'Content-Type': 'application/json',
           'api-key': apiKey,
           'secret-key': secretKey,
+          ...(publicKey && { 'public-key': publicKey }),
         },
       });
     }
