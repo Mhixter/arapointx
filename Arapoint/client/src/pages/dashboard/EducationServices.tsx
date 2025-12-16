@@ -149,7 +149,12 @@ export default function EducationServices() {
         if (jobStatus.status === 'completed') {
           return jobStatus.resultData;
         } else if (jobStatus.status === 'failed') {
-          throw new Error(jobStatus.errorMessage || 'Verification failed');
+          return {
+            ...jobStatus.resultData,
+            verificationStatus: jobStatus.resultData?.verificationStatus || 'error',
+            errorMessage: jobStatus.errorMessage || jobStatus.resultData?.errorMessage || 'Verification failed',
+            error: true,
+          };
         }
         
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -231,8 +236,10 @@ export default function EducationServices() {
       
       const resultData = await pollJobStatus(jobResponse.jobId);
       
-      if (resultData?.error || resultData?.errorMessage) {
-        const errorMsg = resultData.errorMessage || 'Verification failed. Please check your details and try again.';
+      if (resultData?.error || resultData?.errorMessage || resultData?.verificationStatus === 'error' || resultData?.verificationStatus === 'not_found') {
+        const errorMsg = resultData.errorMessage || resultData.message || 'Verification failed. Please check your details and try again.';
+        setResult(resultData);
+        setCurrentJobId(jobResponse.jobId);
         setError(errorMsg);
         setStatusMessage('');
         toast({
@@ -240,6 +247,7 @@ export default function EducationServices() {
           description: errorMsg,
           variant: "destructive",
         });
+        queryClient.invalidateQueries({ queryKey: ['wallet'] });
         return;
       }
       
