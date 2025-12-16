@@ -151,6 +151,7 @@ router.get('/requests', async (req: Request, res: Response) => {
       status: cacRegistrationRequests.status,
       fee: cacRegistrationRequests.fee,
       cacRegistrationNumber: cacRegistrationRequests.cacRegistrationNumber,
+      certificateUrl: cacRegistrationRequests.certificateUrl,
       createdAt: cacRegistrationRequests.createdAt,
       completedAt: cacRegistrationRequests.completedAt,
     })
