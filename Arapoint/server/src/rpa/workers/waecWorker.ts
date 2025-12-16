@@ -473,74 +473,120 @@ export class WAECWorker extends BaseWorker {
     const urlBeforeSubmit = page.url();
     logger.info('URL before submit', { url: urlBeforeSubmit });
 
-    try {
-      await page.evaluate(() => {
-        const submitBtn = document.querySelector('input[type="submit"]') as HTMLInputElement;
-        if (submitBtn) {
-          submitBtn.click();
-          return true;
-        }
-        
-        const allInputs = Array.from(document.querySelectorAll('input'));
-        for (let i = 0; i < allInputs.length; i++) {
-          const inp = allInputs[i] as HTMLInputElement;
-          if (inp.type === 'submit' || inp.value?.toLowerCase().includes('submit') || inp.value?.toLowerCase().includes('check')) {
-            inp.click();
-            return true;
-          }
-        }
-        
-        const form = document.querySelector('form') as HTMLFormElement;
-        if (form) {
-          form.submit();
-          return true;
-        }
-        
-        return false;
-      });
-      logger.info('Form submit triggered via page.evaluate');
-    } catch (e: any) {
-      logger.warn('page.evaluate submit failed', { error: e.message });
+    const submitSelectors = [
+      'input[type="submit"]',
+      'button[type="submit"]',
+      'input[value="Submit"]',
+      'input[value="Check Result"]',
+      '.btn-submit',
+      '#btnSubmit',
+      '#Submit'
+    ];
+
+    let submitButton = null;
+    for (const selector of submitSelectors) {
+      submitButton = await page.$(selector);
+      if (submitButton) {
+        logger.info('Found submit button', { selector });
+        break;
+      }
     }
 
-    logger.info('Waiting for WAEC response...');
-    
-    const resultSelectors = [
-      'table.resultTable',
-      'table#resultTable', 
-      '.result-table',
-      '.result-container',
-      '.error-message',
-      '.alert-danger',
-      '.alert-success',
-      'table tbody tr td',
-      '.subject-row'
-    ];
-    
+    if (!submitButton) {
+      const allButtons = await page.$$('input, button');
+      for (const btn of allButtons) {
+        const props = await btn.evaluate(el => ({
+          type: (el as HTMLInputElement).type,
+          value: (el as HTMLInputElement).value || '',
+          text: el.textContent || ''
+        }));
+        if (props.type === 'submit' || 
+            props.value.toLowerCase().includes('submit') || 
+            props.value.toLowerCase().includes('check') ||
+            props.text.toLowerCase().includes('submit')) {
+          submitButton = btn;
+          logger.info('Found submit button via search', { props });
+          break;
+        }
+      }
+    }
+
+    if (!submitButton) {
+      throw new Error('Could not find submit button on WAEC portal');
+    }
+
+    logger.info('Clicking submit and waiting for navigation...');
+
     try {
-      await Promise.race([
-        page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 20000 }),
-        page.waitForSelector(resultSelectors.join(', '), { timeout: 20000 }),
-        new Promise(resolve => setTimeout(resolve, 15000))
+      await Promise.all([
+        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 }),
+        submitButton.click()
       ]);
-      logger.info('Navigation or result element detected');
-    } catch (e) {
-      logger.info('Wait completed (timeout or success)');
+      logger.info('Navigation completed after submit');
+    } catch (e: any) {
+      logger.warn('Navigation timeout, checking page state', { error: e.message });
+      await this.sleep(3000);
     }
 
     const urlAfterSubmit = page.url();
-    logger.info('URL after submit', { url: urlAfterSubmit });
-    
+    logger.info('URL after submit', { url: urlAfterSubmit, changed: urlBeforeSubmit !== urlAfterSubmit });
+
+    if (urlBeforeSubmit === urlAfterSubmit) {
+      logger.warn('URL unchanged - trying alternative submit methods');
+      
+      try {
+        await page.evaluate(() => {
+          const form = document.querySelector('form') as HTMLFormElement;
+          if (form) {
+            form.submit();
+          }
+        });
+        await this.sleep(5000);
+      } catch {
+        logger.warn('Form.submit() fallback failed');
+      }
+
+      const urlRetry = page.url();
+      if (urlBeforeSubmit === urlRetry) {
+        try {
+          await page.keyboard.press('Enter');
+          await this.sleep(5000);
+        } catch {
+          logger.warn('Enter key fallback failed');
+        }
+      }
+    }
+
     await this.sleep(3000);
+
+    const finalUrl = page.url();
+    logger.info('Final URL', { url: finalUrl, changed: urlBeforeSubmit !== finalUrl });
     
     const pageContent = await page.content();
     const hasResults = pageContent.includes('Subject') || pageContent.includes('Grade') || 
                        pageContent.includes('RESULT') || pageContent.includes('Score') ||
                        pageContent.includes('ENGLISH') || pageContent.includes('MATHEMATICS');
+    const hasCardError = pageContent.includes('card usage has exceeded') || 
+                         pageContent.includes('purchase another card') ||
+                         pageContent.includes('card has been used');
     const hasError = pageContent.includes('Invalid') || pageContent.includes('Error') || 
-                     pageContent.includes('not found') || pageContent.includes('incorrect');
+                     pageContent.includes('not found') || pageContent.includes('incorrect') ||
+                     hasCardError;
     
-    logger.info('Page analysis', { hasResults, hasError, urlChanged: urlBeforeSubmit !== urlAfterSubmit });
+    logger.info('Page analysis', { hasResults, hasError, hasCardError, urlChanged: urlBeforeSubmit !== finalUrl });
+    
+    if (hasCardError) {
+      const screenshot = await page.screenshot({ encoding: 'base64', fullPage: true });
+      return {
+        registrationNumber: data.registrationNumber,
+        examYear: data.examYear,
+        examType: data.examType,
+        subjects: [],
+        verificationStatus: 'error',
+        message: 'The scratch card has been exhausted. Please purchase a new card.',
+        screenshotBase64: screenshot as string,
+      };
+    }
 
     const errorText = await this.checkForError(page, selectors.errorMessage);
     if (errorText) {
