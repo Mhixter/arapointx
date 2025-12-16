@@ -363,4 +363,32 @@ router.get('/requests/:id/unread-count', async (req: Request, res: Response) => 
   }
 });
 
+router.get('/requests/:id/documents', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const [request] = await db.select()
+      .from(cacRegistrationRequests)
+      .where(and(
+        eq(cacRegistrationRequests.id, id),
+        eq(cacRegistrationRequests.userId, req.userId!)
+      ))
+      .limit(1);
+
+    if (!request) {
+      return res.status(404).json(formatErrorResponse(404, 'Request not found'));
+    }
+
+    const documents = await db.select()
+      .from(cacRequestDocuments)
+      .where(eq(cacRequestDocuments.requestId, id))
+      .orderBy(desc(cacRequestDocuments.createdAt));
+
+    res.json(formatResponse('success', 200, 'Documents retrieved', { documents }));
+  } catch (error: any) {
+    logger.error('Get documents error', { error: error.message, userId: req.userId });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get documents'));
+  }
+});
+
 export default router;

@@ -33,7 +33,7 @@ export default function CACAgentDashboard() {
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showStatusUpdate, setShowStatusUpdate] = useState(false);
-  const [updateData, setUpdateData] = useState({ status: '', comment: '', cacRegistrationNumber: '', rejectionReason: '' });
+  const [updateData, setUpdateData] = useState({ status: '', comment: '', cacRegistrationNumber: '', rejectionReason: '', certificateUrl: '', statusReportUrl: '' });
   const [showChat, setShowChat] = useState(false);
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -147,17 +147,48 @@ export default function CACAgentDashboard() {
 
     try {
       const token = getAgentToken();
+      
       const response = await fetch(`/api/cac-agent/requests/${selectedRequest.id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(updateData)
+        body: JSON.stringify({
+          status: updateData.status,
+          comment: updateData.comment,
+          cacRegistrationNumber: updateData.cacRegistrationNumber,
+          rejectionReason: updateData.rejectionReason,
+          certificateUrl: updateData.certificateUrl,
+        })
       });
       const data = await response.json();
+      
       if (data.status === 'success') {
+        if (updateData.status === 'completed' && updateData.certificateUrl) {
+          await fetch(`/api/cac-agent/requests/${selectedRequest.id}/upload-document`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({
+              documentType: 'cac_certificate',
+              fileName: 'CAC Certificate',
+              fileUrl: updateData.certificateUrl,
+            })
+          });
+        }
+        if (updateData.status === 'completed' && updateData.statusReportUrl) {
+          await fetch(`/api/cac-agent/requests/${selectedRequest.id}/upload-document`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({
+              documentType: 'status_report',
+              fileName: 'Status Report',
+              fileUrl: updateData.statusReportUrl,
+            })
+          });
+        }
+        
         toast({ title: "Updated!", description: "Request status has been updated." });
         setShowStatusUpdate(false);
         setShowDetails(false);
-        setUpdateData({ status: '', comment: '', cacRegistrationNumber: '', rejectionReason: '' });
+        setUpdateData({ status: '', comment: '', cacRegistrationNumber: '', rejectionReason: '', certificateUrl: '', statusReportUrl: '' });
         fetchRequests();
         fetchStats();
       } else {
@@ -460,13 +491,33 @@ export default function CACAgentDashboard() {
             </div>
 
             {updateData.status === 'completed' && (
-              <div className="space-y-2">
-                <Label>CAC Registration Number</Label>
-                <Input 
-                  placeholder="e.g., RC123456" 
-                  value={updateData.cacRegistrationNumber}
-                  onChange={(e) => setUpdateData(prev => ({ ...prev, cacRegistrationNumber: e.target.value }))}
-                />
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>CAC Registration Number *</Label>
+                  <Input 
+                    placeholder="e.g., RC123456" 
+                    value={updateData.cacRegistrationNumber}
+                    onChange={(e) => setUpdateData(prev => ({ ...prev, cacRegistrationNumber: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>CAC Certificate URL</Label>
+                  <Input 
+                    placeholder="https://... or upload file URL" 
+                    value={updateData.certificateUrl}
+                    onChange={(e) => setUpdateData(prev => ({ ...prev, certificateUrl: e.target.value }))}
+                  />
+                  <p className="text-xs text-muted-foreground">Paste the URL of the uploaded CAC certificate document</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Status Report URL</Label>
+                  <Input 
+                    placeholder="https://... or upload file URL" 
+                    value={updateData.statusReportUrl}
+                    onChange={(e) => setUpdateData(prev => ({ ...prev, statusReportUrl: e.target.value }))}
+                  />
+                  <p className="text-xs text-muted-foreground">Paste the URL of the status report document</p>
+                </div>
               </div>
             )}
 

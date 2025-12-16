@@ -44,6 +44,20 @@ router.get('/stats', async (req: Request, res: Response) => {
       total: sql<string>`COALESCE(SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END), 0)`
     }).from(transactions);
 
+    const weeklyData = await db.select({
+      day: sql<string>`TRIM(TO_CHAR(created_at, 'Dy'))`,
+      services: sql<number>`COUNT(*)::int`
+    })
+    .from(transactions)
+    .where(sql`created_at >= NOW() - INTERVAL '7 days'`)
+    .groupBy(sql`TRIM(TO_CHAR(created_at, 'Dy'))`);
+
+    const dayOrder = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const chartData = dayOrder.map(day => ({
+      name: day,
+      services: weeklyData.find(w => w.day === day)?.services || 0
+    }));
+
     logger.info('Admin stats request', { userId: req.userId });
 
     res.json(formatResponse('success', 200, 'Admin statistics retrieved', {
@@ -55,6 +69,7 @@ router.get('/stats', async (req: Request, res: Response) => {
       bvnServices: bvnCount?.count || 0,
       educationServices: educationCount?.count || 0,
       vtuServices: (airtimeCount?.count || 0) + (dataCount?.count || 0),
+      chartData,
     }));
   } catch (error: any) {
     logger.error('Admin stats error', { error: error.message, userId: req.userId });

@@ -9,6 +9,7 @@ export interface AdminStats {
   bvnServices: number;
   educationServices: number;
   vtuServices: number;
+  chartData?: Array<{ name: string; services: number }>;
 }
 
 export interface AdminUser {

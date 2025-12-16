@@ -322,7 +322,7 @@ router.put('/requests/:id/status', cacAgentAuthMiddleware, async (req: Request, 
   try {
     const { id } = req.params;
     const agentId = (req as any).agentId;
-    const { status, comment, cacRegistrationNumber, certificateUrl, rejectionReason } = req.body;
+    const { status, comment, cacRegistrationNumber, certificateUrl, statusReportUrl, rejectionReason } = req.body;
 
     const validStatuses = Object.values(CAC_STATUS);
     if (!validStatuses.includes(status)) {
@@ -535,6 +535,94 @@ router.get('/requests/:id/unread-count', cacAgentAuthMiddleware, async (req: Req
   } catch (error: any) {
     logger.error('Get unread count error (agent)', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to get unread count'));
+  }
+});
+
+router.post('/requests/:id/upload-document', cacAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const agentId = (req as any).agentId;
+    const { documentType, fileName, fileUrl, fileSize, mimeType } = req.body;
+
+    const validDocTypes = ['cac_certificate', 'status_report', 'incorporation_document', 'other'];
+    if (!validDocTypes.includes(documentType)) {
+      return res.status(400).json(formatErrorResponse(400, 'Invalid document type'));
+    }
+
+    if (!fileName || !fileUrl) {
+      return res.status(400).json(formatErrorResponse(400, 'File name and URL are required'));
+    }
+
+    try {
+      const url = new URL(fileUrl);
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        return res.status(400).json(formatErrorResponse(400, 'Invalid URL protocol - only http/https allowed'));
+      }
+    } catch {
+      return res.status(400).json(formatErrorResponse(400, 'Invalid URL format'));
+    }
+
+    const [request] = await db.select()
+      .from(cacRegistrationRequests)
+      .where(eq(cacRegistrationRequests.id, id))
+      .limit(1);
+
+    if (!request) {
+      return res.status(404).json(formatErrorResponse(404, 'Request not found'));
+    }
+
+    if (request.assignedAgentId !== agentId) {
+      return res.status(403).json(formatErrorResponse(403, 'Not assigned to this request'));
+    }
+
+    const [document] = await db.insert(cacRequestDocuments).values({
+      requestId: id,
+      documentType,
+      fileName,
+      fileUrl,
+      fileSize: fileSize || 0,
+      mimeType: mimeType || 'application/pdf',
+      verifiedBy: agentId,
+      verifiedAt: new Date(),
+      isVerified: true,
+    }).returning();
+
+    if (documentType === 'cac_certificate') {
+      await db.update(cacRegistrationRequests)
+        .set({ certificateUrl: fileUrl, updatedAt: new Date() })
+        .where(eq(cacRegistrationRequests.id, id));
+    }
+
+    await db.insert(cacRequestActivity).values({
+      requestId: id,
+      actorType: 'agent',
+      actorId: agentId,
+      action: 'document_uploaded',
+      comment: `Document uploaded: ${documentType} - ${fileName}`,
+    });
+
+    logger.info('Agent uploaded document', { agentId, requestId: id, documentType });
+
+    res.status(201).json(formatResponse('success', 201, 'Document uploaded successfully', { document }));
+  } catch (error: any) {
+    logger.error('Agent document upload error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to upload document'));
+  }
+});
+
+router.get('/requests/:id/documents', cacAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const documents = await db.select()
+      .from(cacRequestDocuments)
+      .where(eq(cacRequestDocuments.requestId, id))
+      .orderBy(desc(cacRequestDocuments.createdAt));
+
+    res.json(formatResponse('success', 200, 'Documents retrieved', { documents }));
+  } catch (error: any) {
+    logger.error('Get documents error (agent)', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get documents'));
   }
 });
 

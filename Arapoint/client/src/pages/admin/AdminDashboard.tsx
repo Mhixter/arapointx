@@ -5,16 +5,6 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { useQuery } from "@tanstack/react-query";
 import { adminApi } from "@/lib/api";
 
-const CHART_DATA = [
-  { name: 'Mon', services: 400 },
-  { name: 'Tue', services: 300 },
-  { name: 'Wed', services: 550 },
-  { name: 'Thu', services: 450 },
-  { name: 'Fri', services: 600 },
-  { name: 'Sat', services: 200 },
-  { name: 'Sun', services: 150 },
-];
-
 export default function AdminDashboard() {
   const [, navigate] = useLocation();
 
@@ -188,7 +178,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent className="h-[200px] sm:h-[250px] lg:h-[300px] p-2 sm:p-4 lg:p-6 pt-0">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={CHART_DATA}>
+              <BarChart data={stats?.chartData || []}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                 <YAxis tick={{ fontSize: 10 }} width={30} />

@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Loader2, AlertCircle, ArrowLeft, Check, History, FileText, Clock, CheckCircle2, XCircle, MessageCircle, Send, X } from "lucide-react";
+import { Building2, Loader2, AlertCircle, ArrowLeft, Check, History, FileText, Clock, CheckCircle2, XCircle, MessageCircle, Send, X, Download, Shield } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
@@ -215,6 +215,20 @@ export default function CACServices() {
             CAC Registration
           </h2>
           <p className="text-xs sm:text-sm text-muted-foreground">Register your business with the Corporate Affairs Commission</p>
+        </div>
+      </div>
+
+      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <Shield className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-semibold text-amber-800 dark:text-amber-200">Legal Disclaimer</p>
+            <p className="text-amber-700 dark:text-amber-300 mt-1">
+              Arapoint is an independent service provider and is <strong>NOT</strong> an official partner or affiliate of the Corporate Affairs Commission (CAC). 
+              We act as authorized agents to assist you with business registration processes. Your data is protected and handled in compliance with Nigerian data protection regulations. 
+              By using this service, you agree to our terms and conditions.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -431,6 +445,14 @@ export default function CACServices() {
                             <MessageCircle className="h-4 w-4" />
                             Chat
                           </Button>
+                          {req.status === 'completed' && req.certificateUrl && (
+                            <Button variant="outline" size="sm" asChild className="flex items-center gap-1">
+                              <a href={req.certificateUrl} target="_blank" rel="noopener noreferrer">
+                                <Download className="h-4 w-4" />
+                                Certificate
+                              </a>
+                            </Button>
+                          )}
                           <div className="text-right">
                             <p className="font-bold">₦{parseFloat(req.fee).toLocaleString()}</p>
                             <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${statusConfig.bg} ${statusConfig.text}`}>

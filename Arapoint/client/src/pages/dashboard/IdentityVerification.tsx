@@ -22,7 +22,8 @@ import {
   History,
   ListChecks,
   Activity,
-  ChevronRight
+  ChevronRight,
+  Shield
 } from "lucide-react";
 
 export const SERVICES = [
@@ -51,6 +52,20 @@ export default function IdentityVerification() {
       <div>
         <h2 className="text-3xl font-heading font-bold tracking-tight">Identity Services</h2>
         <p className="text-muted-foreground">Select a service to proceed with verification or management.</p>
+      </div>
+
+      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <Shield className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-semibold text-amber-800 dark:text-amber-200">Legal Disclaimer</p>
+            <p className="text-amber-700 dark:text-amber-300 mt-1">
+              Arapoint is an independent service provider and is <strong>NOT</strong> an official partner or affiliate of the National Identity Management Commission (NIMC). 
+              We act as authorized agents to assist you with NIN verification and retrieval services. Your personal data is protected and handled in compliance with Nigerian data protection regulations (NDPR). 
+              By using this service, you agree to our terms and conditions.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Stats Section */}
