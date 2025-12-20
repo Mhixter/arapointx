@@ -9,7 +9,7 @@ import { ninLookupSchema, ninPhoneSchema, lostNinSchema } from '../validators/id
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { identityVerifications, users } from '../../db/schema';
+import { identityVerifications } from '../../db/schema';
 import { eq, desc } from 'drizzle-orm';
 
 const getConfiguredProviders = (): ('prembly' | 'youverify')[] => {
@@ -143,15 +143,6 @@ router.post('/nin', async (req: Request, res: Response) => {
       status: 'completed',
       verificationData: result.data,
     });
-
-    // Update user nin and kycStatus after successful verification
-    await db.update(users)
-      .set({
-        nin: validation.data.nin,
-        kycStatus: 'verified',
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, req.userId!));
 
     // Auto-generate PayVessel virtual account after successful NIN verification
     let virtualAccount = null;
