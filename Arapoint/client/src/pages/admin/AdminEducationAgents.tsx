@@ -31,13 +31,11 @@ export default function AdminEducationAgents() {
   const [agents, setAgents] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
   const [showAgentModal, setShowAgentModal] = useState(false);
-  const [agentForm, setAgentForm] = useState({ adminUserId: '', employeeId: '' });
-  const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [agentForm, setAgentForm] = useState({ name: '', email: '', password: '', employeeId: '' });
 
   useEffect(() => {
     fetchAgents();
     fetchRequests();
-    fetchAdminUsers();
   }, []);
 
   const fetchAgents = async () => {
@@ -70,24 +68,9 @@ export default function AdminEducationAgents() {
     }
   };
 
-  const fetchAdminUsers = async () => {
-    try {
-      const token = getAdminToken();
-      const response = await fetch('/api/admin/admin-users', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
-      if (data.status === 'success') {
-        setAdminUsers(data.data.adminUsers || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch admin users:', error);
-    }
-  };
-
   const handleCreateAgent = async () => {
-    if (!agentForm.adminUserId) {
-      toast({ title: "Error", description: "Please select an admin user", variant: "destructive" });
+    if (!agentForm.name || !agentForm.email || !agentForm.password) {
+      toast({ title: "Error", description: "Name, email, and password are required", variant: "destructive" });
       return;
     }
     setLoading(true);
@@ -102,7 +85,7 @@ export default function AdminEducationAgents() {
       if (data.status === 'success') {
         toast({ title: "Success", description: "Education agent created successfully" });
         setShowAgentModal(false);
-        setAgentForm({ adminUserId: '', employeeId: '' });
+        setAgentForm({ name: '', email: '', password: '', employeeId: '' });
         fetchAgents();
       } else {
         toast({ title: "Error", description: data.message, variant: "destructive" });
@@ -159,10 +142,6 @@ export default function AdminEducationAgents() {
     return <Badge className={info.color}>{info.label}</Badge>;
   };
 
-  const availableAdminUsers = adminUsers.filter(
-    au => !agents.some(agent => agent.adminUserId === au.id)
-  );
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -197,7 +176,7 @@ export default function AdminEducationAgents() {
                     <RefreshCw className="h-4 w-4 mr-2" />
                     Refresh
                   </Button>
-                  <Button onClick={() => { setAgentForm({ adminUserId: '', employeeId: '' }); setShowAgentModal(true); }}>
+                  <Button onClick={() => { setAgentForm({ name: '', email: '', password: '', employeeId: '' }); setShowAgentModal(true); }}>
                     <UserPlus className="h-4 w-4 mr-2" />
                     Add Agent
                   </Button>
@@ -326,25 +305,35 @@ export default function AdminEducationAgents() {
       <Dialog open={showAgentModal} onOpenChange={setShowAgentModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Education Agent</DialogTitle>
-            <DialogDescription>Select an admin user to grant education agent access</DialogDescription>
+            <DialogTitle>Create Education Agent</DialogTitle>
+            <DialogDescription>Create a new education agent account with login credentials</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Admin User</Label>
-              <Select value={agentForm.adminUserId} onValueChange={(v) => setAgentForm(prev => ({ ...prev, adminUserId: v }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select admin user" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableAdminUsers.map(user => (
-                    <SelectItem key={user.id} value={user.id}>{user.name} ({user.email})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {availableAdminUsers.length === 0 && (
-                <p className="text-sm text-muted-foreground">No available admin users. Create an admin user first in Admin Roles.</p>
-              )}
+              <Label>Full Name *</Label>
+              <Input 
+                placeholder="Agent name" 
+                value={agentForm.name}
+                onChange={(e) => setAgentForm(prev => ({ ...prev, name: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email *</Label>
+              <Input 
+                type="email"
+                placeholder="agent@example.com" 
+                value={agentForm.email}
+                onChange={(e) => setAgentForm(prev => ({ ...prev, email: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Password *</Label>
+              <Input 
+                type="password"
+                placeholder="Enter password" 
+                value={agentForm.password}
+                onChange={(e) => setAgentForm(prev => ({ ...prev, password: e.target.value }))}
+              />
             </div>
             <div className="space-y-2">
               <Label>Employee ID (Optional)</Label>
@@ -357,7 +346,7 @@ export default function AdminEducationAgents() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAgentModal(false)}>Cancel</Button>
-            <Button onClick={handleCreateAgent} disabled={loading || !agentForm.adminUserId}>
+            <Button onClick={handleCreateAgent} disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Create Agent
             </Button>

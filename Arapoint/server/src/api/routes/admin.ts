@@ -1518,45 +1518,45 @@ router.get('/identity-agents', async (req: Request, res: Response) => {
 
 router.post('/identity-agents', async (req: Request, res: Response) => {
   try {
-    const { adminUserId, employeeId, specializations } = req.body;
+    const { name, email, password, employeeId, specializations } = req.body;
 
-    if (!adminUserId) {
-      return res.status(400).json(formatErrorResponse(400, 'Admin User ID is required'));
+    if (!name || !email || !password) {
+      return res.status(400).json(formatErrorResponse(400, 'Name, email, and password are required'));
     }
 
-    const [existingAgent] = await db.select()
-      .from(identityAgents)
-      .where(eq(identityAgents.adminUserId, adminUserId))
-      .limit(1);
-
-    if (existingAgent) {
-      return res.status(409).json(formatErrorResponse(409, 'Admin user is already an identity agent'));
-    }
-
-    const [adminUser] = await db.select()
+    const [existingEmail] = await db.select()
       .from(adminUsers)
-      .where(eq(adminUsers.id, adminUserId))
+      .where(eq(adminUsers.email, email.toLowerCase()))
       .limit(1);
 
-    if (!adminUser) {
-      return res.status(404).json(formatErrorResponse(404, 'Admin user not found'));
+    if (existingEmail) {
+      return res.status(409).json(formatErrorResponse(409, 'Email already exists'));
     }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const [newAdminUser] = await db.insert(adminUsers).values({
+      name,
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      isActive: true,
+    }).returning();
 
     const [agent] = await db.insert(identityAgents).values({
-      adminUserId,
+      adminUserId: newAdminUser.id,
       employeeId: employeeId || null,
       specializations: specializations || ['nin_validation', 'ipe_clearance', 'nin_personalization'],
       isAvailable: true,
     }).returning();
 
-    logger.info('Identity agent created', { agentId: agent.id, adminUserId, createdBy: req.userId });
+    logger.info('Identity agent created', { agentId: agent.id, adminUserId: newAdminUser.id, createdBy: req.userId });
 
     res.status(201).json(formatResponse('success', 201, 'Identity agent created', {
       agent: {
         id: agent.id,
-        adminUserId,
-        adminName: adminUser.name,
-        adminEmail: adminUser.email,
+        adminUserId: newAdminUser.id,
+        adminName: newAdminUser.name,
+        adminEmail: newAdminUser.email,
         isAvailable: agent.isAvailable,
       },
     }));
@@ -1684,45 +1684,45 @@ router.get('/education-agents', async (req: Request, res: Response) => {
 
 router.post('/education-agents', async (req: Request, res: Response) => {
   try {
-    const { adminUserId, employeeId, specializations } = req.body;
+    const { name, email, password, employeeId, specializations } = req.body;
 
-    if (!adminUserId) {
-      return res.status(400).json(formatErrorResponse(400, 'Admin User ID is required'));
+    if (!name || !email || !password) {
+      return res.status(400).json(formatErrorResponse(400, 'Name, email, and password are required'));
     }
 
-    const [existingAgent] = await db.select()
-      .from(educationAgents)
-      .where(eq(educationAgents.adminUserId, adminUserId))
-      .limit(1);
-
-    if (existingAgent) {
-      return res.status(409).json(formatErrorResponse(409, 'Admin user is already an education agent'));
-    }
-
-    const [adminUser] = await db.select()
+    const [existingEmail] = await db.select()
       .from(adminUsers)
-      .where(eq(adminUsers.id, adminUserId))
+      .where(eq(adminUsers.email, email.toLowerCase()))
       .limit(1);
 
-    if (!adminUser) {
-      return res.status(404).json(formatErrorResponse(404, 'Admin user not found'));
+    if (existingEmail) {
+      return res.status(409).json(formatErrorResponse(409, 'Email already exists'));
     }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const [newAdminUser] = await db.insert(adminUsers).values({
+      name,
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      isActive: true,
+    }).returning();
 
     const [agent] = await db.insert(educationAgents).values({
-      adminUserId,
+      adminUserId: newAdminUser.id,
       employeeId: employeeId || null,
       specializations: specializations || ['jamb', 'waec', 'neco'],
       isAvailable: true,
     }).returning();
 
-    logger.info('Education agent created', { agentId: agent.id, adminUserId, createdBy: req.userId });
+    logger.info('Education agent created', { agentId: agent.id, adminUserId: newAdminUser.id, createdBy: req.userId });
 
     res.status(201).json(formatResponse('success', 201, 'Education agent created', {
       agent: {
         id: agent.id,
-        adminUserId,
-        adminName: adminUser.name,
-        adminEmail: adminUser.email,
+        adminUserId: newAdminUser.id,
+        adminName: newAdminUser.name,
+        adminEmail: newAdminUser.email,
         isAvailable: agent.isAvailable,
       },
     }));
