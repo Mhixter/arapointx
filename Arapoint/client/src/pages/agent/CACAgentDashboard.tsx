@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { Building2, Loader2, Clock, CheckCircle2, XCircle, User, LogOut, FileText, RefreshCw, Eye, MessageCircle, Send, Upload, DollarSign, Settings, Save } from "lucide-react";
+import { Building2, Loader2, Clock, CheckCircle2, XCircle, User, LogOut, FileText, RefreshCw, Eye, MessageCircle, Send, Upload, DollarSign, Settings, Save, Plus, Trash2 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -47,6 +47,10 @@ export default function CACAgentDashboard() {
   const [loadingServiceTypes, setLoadingServiceTypes] = useState(false);
   const [editingService, setEditingService] = useState<any>(null);
   const [savingService, setSavingService] = useState(false);
+  const [showCreateService, setShowCreateService] = useState(false);
+  const [newService, setNewService] = useState({ code: '', name: '', description: '', price: '', processingDays: 7 });
+  const [creatingService, setCreatingService] = useState(false);
+  const [deletingServiceId, setDeletingServiceId] = useState<string | null>(null);
 
   useEffect(() => {
     const token = getAgentToken();
@@ -103,6 +107,58 @@ export default function CACAgentDashboard() {
       toast({ title: "Error", description: "Failed to update service", variant: "destructive" });
     } finally {
       setSavingService(false);
+    }
+  };
+
+  const handleCreateService = async () => {
+    if (!newService.code || !newService.name || !newService.price) {
+      toast({ title: "Missing fields", description: "Code, name, and price are required", variant: "destructive" });
+      return;
+    }
+    setCreatingService(true);
+    try {
+      const token = getAgentToken();
+      const response = await fetch('/api/cac-agent/service-types', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(newService)
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        toast({ title: "Created!", description: "New service type created successfully." });
+        fetchServiceTypes();
+        setShowCreateService(false);
+        setNewService({ code: '', name: '', description: '', price: '', processingDays: 7 });
+      } else {
+        toast({ title: "Failed", description: data.message, variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to create service", variant: "destructive" });
+    } finally {
+      setCreatingService(false);
+    }
+  };
+
+  const handleDeleteService = async (serviceId: string) => {
+    if (!confirm('Are you sure you want to delete this service? This action cannot be undone.')) return;
+    setDeletingServiceId(serviceId);
+    try {
+      const token = getAgentToken();
+      const response = await fetch(`/api/cac-agent/service-types/${serviceId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        toast({ title: "Deleted!", description: "Service type deleted successfully." });
+        fetchServiceTypes();
+      } else {
+        toast({ title: "Failed", description: data.message, variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to delete service", variant: "destructive" });
+    } finally {
+      setDeletingServiceId(null);
     }
   };
 
@@ -460,20 +516,89 @@ export default function CACAgentDashboard() {
                       <Settings className="h-5 w-5" />
                       Service Pricing
                     </CardTitle>
-                    <CardDescription>Manage prices and processing times for CAC services</CardDescription>
+                    <CardDescription>Create, edit, and delete CAC services</CardDescription>
                   </div>
-                  <Button variant="outline" size="icon" onClick={fetchServiceTypes}>
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button onClick={() => setShowCreateService(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      New Service
+                    </Button>
+                    <Button variant="outline" size="icon" onClick={fetchServiceTypes}>
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
+                {showCreateService && (
+                  <div className="mb-6 p-4 rounded-lg border-2 border-dashed border-primary/50 bg-primary/5">
+                    <h4 className="font-semibold mb-4 flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      Create New Service
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div className="space-y-2">
+                        <Label>Service Code *</Label>
+                        <Input
+                          placeholder="e.g., business_name"
+                          value={newService.code}
+                          onChange={(e) => setNewService({ ...newService, code: e.target.value.toLowerCase().replace(/\s+/g, '_') })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Service Name *</Label>
+                        <Input
+                          placeholder="e.g., Business Name Registration"
+                          value={newService.name}
+                          onChange={(e) => setNewService({ ...newService, name: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Price (₦) *</Label>
+                        <Input
+                          type="number"
+                          placeholder="e.g., 15000"
+                          value={newService.price}
+                          onChange={(e) => setNewService({ ...newService, price: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Processing Days</Label>
+                        <Input
+                          type="number"
+                          placeholder="e.g., 7"
+                          value={newService.processingDays}
+                          onChange={(e) => setNewService({ ...newService, processingDays: parseInt(e.target.value) || 7 })}
+                        />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label>Description</Label>
+                        <Input
+                          placeholder="Brief description of the service"
+                          value={newService.description}
+                          onChange={(e) => setNewService({ ...newService, description: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={handleCreateService} disabled={creatingService}>
+                        {creatingService ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                        Create Service
+                      </Button>
+                      <Button variant="outline" onClick={() => { setShowCreateService(false); setNewService({ code: '', name: '', description: '', price: '', processingDays: 7 }); }}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {loadingServiceTypes ? (
                   <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
                 ) : serviceTypes.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <DollarSign className="h-12 w-12 mx-auto mb-3 opacity-50" />
                     <p>No service types configured</p>
+                    <p className="text-sm">Click "New Service" to create your first service</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -531,14 +656,25 @@ export default function CACAgentDashboard() {
                               </div>
                               <p className="text-sm text-muted-foreground">{service.description || service.code}</p>
                             </div>
-                            <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-4">
                               <div className="text-right">
                                 <p className="text-xl font-bold text-primary">₦{parseInt(service.price).toLocaleString()}</p>
                                 <p className="text-xs text-muted-foreground">{service.processingDays} days processing</p>
                               </div>
-                              <Button variant="outline" size="sm" onClick={() => setEditingService({ ...service })}>
-                                Edit
-                              </Button>
+                              <div className="flex items-center gap-2">
+                                <Button variant="outline" size="sm" onClick={() => setEditingService({ ...service })}>
+                                  Edit
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  onClick={() => handleDeleteService(service.id)}
+                                  disabled={deletingServiceId === service.id}
+                                >
+                                  {deletingServiceId === service.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         )}

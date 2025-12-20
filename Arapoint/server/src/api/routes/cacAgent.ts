@@ -715,4 +715,30 @@ router.post('/service-types', cacAgentAuthMiddleware, async (req: Request, res: 
   }
 });
 
+router.delete('/service-types/:id', cacAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const agentId = (req as any).agentId;
+
+    const [existingService] = await db.select()
+      .from(cacServiceTypes)
+      .where(eq(cacServiceTypes.id, id))
+      .limit(1);
+
+    if (!existingService) {
+      return res.status(404).json(formatErrorResponse(404, 'Service type not found'));
+    }
+
+    await db.delete(cacServiceTypes)
+      .where(eq(cacServiceTypes.id, id));
+
+    logger.info('CAC service type deleted', { agentId, serviceId: id, serviceName: existingService.name });
+
+    res.json(formatResponse('success', 200, 'Service type deleted successfully', { deletedId: id }));
+  } catch (error: any) {
+    logger.error('Delete service type error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to delete service type'));
+  }
+});
+
 export default router;
