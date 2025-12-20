@@ -1538,7 +1538,7 @@ router.post('/identity-agents', async (req: Request, res: Response) => {
     const [newAdminUser] = await db.insert(adminUsers).values({
       name,
       email: email.toLowerCase(),
-      password: hashedPassword,
+      passwordHash: hashedPassword,
       isActive: true,
     }).returning();
 
@@ -1704,7 +1704,7 @@ router.post('/education-agents', async (req: Request, res: Response) => {
     const [newAdminUser] = await db.insert(adminUsers).values({
       name,
       email: email.toLowerCase(),
-      password: hashedPassword,
+      passwordHash: hashedPassword,
       isActive: true,
     }).returning();
 
