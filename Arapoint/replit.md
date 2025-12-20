@@ -165,6 +165,11 @@ npm run dev
 - Maximum 20 concurrent RPA jobs with exponential backoff retry
 
 ## Recent Changes
+- 2025-12-20: Added Identity Agent Services system for manual identity processing (NIN Validation, IPE Clearance, NIN Personalization)
+  - New tables: identityAgents, identityServiceRequests, identityRequestActivity
+  - Agent dashboard at `/agent/identity` for request pickup and completion
+  - User request flow at `/dashboard/identity/agent-services` for submitting manual service requests
+  - API endpoints: `/api/identity-agent/*` for user requests and agent workflows
 - 2025-12-20: Fixed CAC service type CRUD endpoints to handle UUID string IDs correctly (removed incorrect parseInt conversion)
 - 2025-12-20: Added CAC agent price management UI with tabbed interface for managing service pricing
 - 2025-12-20: Added searchable business nature dropdown with 120+ CAC approved categories
