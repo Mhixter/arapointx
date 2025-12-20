@@ -24,7 +24,8 @@ import {
   identityAgents,
   identityServiceRequests,
   educationAgents,
-  educationServiceRequests
+  educationServiceRequests,
+  identityVerifications
 } from '../../db/schema';
 import bcrypt from 'bcryptjs';
 import { eq, desc, count, sql } from 'drizzle-orm';
@@ -182,6 +183,69 @@ router.delete('/pricing/:id', async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error('Delete pricing error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to delete pricing'));
+  }
+});
+
+router.get('/identity-services', async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const offset = (page - 1) * limit;
+
+    const services = await db.select({
+      id: identityVerifications.id,
+      userId: identityVerifications.userId,
+      verificationType: identityVerifications.verificationType,
+      nin: identityVerifications.nin,
+      phone: identityVerifications.phone,
+      secondEnrollmentId: identityVerifications.secondEnrollmentId,
+      status: identityVerifications.status,
+      verificationData: identityVerifications.verificationData,
+      createdAt: identityVerifications.createdAt,
+      userName: users.name,
+      userEmail: users.email,
+    })
+      .from(identityVerifications)
+      .leftJoin(users, eq(identityVerifications.userId, users.id))
+      .orderBy(desc(identityVerifications.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const [totalCount] = await db.select({ count: count() }).from(identityVerifications);
+
+    res.json(formatResponse('success', 200, 'Identity services retrieved', {
+      services,
+      pagination: {
+        page,
+        limit,
+        total: totalCount?.count || 0,
+        totalPages: Math.ceil((totalCount?.count || 0) / limit),
+      },
+    }));
+  } catch (error: any) {
+    logger.error('Get identity services error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get identity services'));
+  }
+});
+
+router.put('/identity-services/:id/status', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const [updated] = await db.update(identityVerifications)
+      .set({ status })
+      .where(eq(identityVerifications.id, id))
+      .returning();
+
+    if (!updated) {
+      return res.status(404).json(formatErrorResponse(404, 'Identity service not found'));
+    }
+
+    res.json(formatResponse('success', 200, 'Identity service status updated', updated));
+  } catch (error: any) {
+    logger.error('Update identity service status error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to update status'));
   }
 });
 
