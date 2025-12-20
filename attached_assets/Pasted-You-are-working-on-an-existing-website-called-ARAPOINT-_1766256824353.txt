@@ -1,0 +1,83 @@
+You are working on an existing website called ARAPOINT.
+Do NOT rebuild the entire website.
+Only extend the current education service.
+
+GOAL:
+Implement an automated Education PIN Inventory System for:
+- WAEC
+- NECO
+- NABTEB
+- NBAIS
+
+IMPORTANT RULES:
+- This system must use PRE-UPLOADED PIN INVENTORY.
+- Do NOT use any external API for PIN generation.
+- Do NOT implement JAMB e-PIN.
+- One PIN must be sold to ONE customer only.
+- No PIN must ever be reused.
+
+DATABASE:
+Create two tables if they do not exist:
+
+1) education_pins
+Fields:
+- id (primary key)
+- exam_type (waec, neco, nabtet, nbais)
+- pin_code
+- serial_number
+- status (unused, used)
+- used_by_order_id
+- used_by_user_id
+- used_at
+- created_at
+
+2) education_orders
+Fields:
+- id
+- user_id
+- exam_type
+- amount
+- status (pending, paid, completed, failed, refunded)
+- pin_id
+- created_at
+
+ADMIN PANEL:
+- Allow admin to upload PINs manually and via CSV.
+- Admin must see PIN stock count per exam type.
+- Disable purchase automatically when stock = 0.
+- Admin can view used and unused PINs.
+- Admin cannot reuse or edit used PINs.
+
+CUSTOMER FLOW:
+- Customer selects exam type and pays.
+- After successful payment, create an order with status = "paid".
+- Trigger ARP Robot to auto-assign a PIN.
+
+ARP ROBOT LOGIC:
+- When an order status becomes "paid":
+    - Start a database transaction.
+    - Select ONE unused PIN matching the exam type.
+    - Lock the selected PIN row.
+    - Mark the PIN as "used".
+    - Link PIN to the order and user.
+    - Mark order as "completed".
+    - Deliver PIN instantly to the user dashboard and email.
+- If no unused PIN exists:
+    - Mark order as "failed".
+    - Refund the user wallet automatically.
+    - Notify admin that stock is empty.
+
+SECURITY:
+- Use database transactions and row locking.
+- Assign PIN before sending to customer.
+- Prevent race conditions.
+- Never expose the PIN list publicly.
+
+FRONTEND:
+- Show "Instant Delivery" for WAEC, NECO, NABTEB, NBAIS.
+- Show warning: "No refund after PIN delivery".
+
+OUTPUT:
+- Implement clean, maintainable code.
+- Integrate smoothly into the existing Arapoint system.
+- Do not break existing services.

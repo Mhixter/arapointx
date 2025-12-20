@@ -479,3 +479,32 @@ export const identityRequestActivity = pgTable('identity_request_activity', {
   metadata: jsonb('metadata'),
   createdAt: timestamp('created_at').defaultNow(),
 });
+
+// Education PIN Inventory
+export const educationPins = pgTable('education_pins', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  examType: varchar('exam_type', { length: 20 }).notNull(), // waec, neco, nabteb, nbais
+  pinCode: varchar('pin_code', { length: 100 }).notNull(),
+  serialNumber: varchar('serial_number', { length: 100 }),
+  status: varchar('status', { length: 20 }).default('unused').notNull(), // unused, used
+  usedByOrderId: uuid('used_by_order_id'),
+  usedByUserId: uuid('used_by_user_id').references(() => users.id),
+  usedAt: timestamp('used_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Education PIN Orders
+export const educationPinOrders = pgTable('education_pin_orders', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  examType: varchar('exam_type', { length: 20 }).notNull(), // waec, neco, nabteb, nbais
+  amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
+  status: varchar('status', { length: 20 }).default('pending').notNull(), // pending, paid, completed, failed, refunded
+  pinId: uuid('pin_id').references(() => educationPins.id),
+  paymentReference: varchar('payment_reference', { length: 100 }),
+  deliveredPin: varchar('delivered_pin', { length: 100 }),
+  deliveredSerial: varchar('delivered_serial', { length: 100 }),
+  failureReason: text('failure_reason'),
+  createdAt: timestamp('created_at').defaultNow(),
+  completedAt: timestamp('completed_at'),
+});
