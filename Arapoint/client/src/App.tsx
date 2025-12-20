@@ -61,6 +61,64 @@ function Router() {
       <Route path="/agent/login" component={CACAgentLogin} />
       <Route path="/agent/dashboard" component={CACAgentDashboard} />
       
+      {/* Admin Routes - outside MainLayout */}
+      <Route path="/admin/login" component={AdminLogin} />
+      <Route path="/admin">
+        <AdminCRUDLayout>
+          <AdminDashboard />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/identity">
+        <AdminCRUDLayout>
+          <AdminIdentityServices />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/bvn">
+        <AdminCRUDLayout>
+          <AdminBVNServices />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/education">
+        <AdminCRUDLayout>
+          <AdminEducationServices />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/vtu">
+        <AdminCRUDLayout>
+          <AdminVTUServices />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/users">
+        <AdminCRUDLayout>
+          <AdminUserManagement />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/analytics">
+        <AdminCRUDLayout>
+          <AdminAnalytics />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/pricing">
+        <AdminCRUDLayout>
+          <AdminPricing />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/roles">
+        <AdminCRUDLayout>
+          <AdminRoles />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/settings">
+        <AdminCRUDLayout>
+          <AdminSettings />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/cac">
+        <AdminCRUDLayout>
+          <AdminCACServices />
+        </AdminCRUDLayout>
+      </Route>
+      
       {/* Main routes with header/footer */}
       <Route>
         <MainLayout>
@@ -68,7 +126,6 @@ function Router() {
             <Route path="/" component={Home} />
             <Route path="/auth/login" component={Login} />
             <Route path="/auth/signup" component={Signup} />
-            <Route path="/admin/login" component={AdminLogin} />
         
         {/* Dashboard Routes */}
         <Route path="/dashboard">
@@ -177,72 +234,6 @@ function Router() {
           <DashboardLayout>
             <Chat />
           </DashboardLayout>
-        </Route>
-        {/* Admin Routes */}
-        <Route path="/admin">
-          <AdminCRUDLayout>
-            <AdminDashboard />
-          </AdminCRUDLayout>
-        </Route>
-        
-        <Route path="/admin/identity">
-          <AdminCRUDLayout>
-            <AdminIdentityServices />
-          </AdminCRUDLayout>
-        </Route>
-
-        <Route path="/admin/bvn">
-          <AdminCRUDLayout>
-            <AdminBVNServices />
-          </AdminCRUDLayout>
-        </Route>
-
-        <Route path="/admin/education">
-          <AdminCRUDLayout>
-            <AdminEducationServices />
-          </AdminCRUDLayout>
-        </Route>
-
-        <Route path="/admin/vtu">
-          <AdminCRUDLayout>
-            <AdminVTUServices />
-          </AdminCRUDLayout>
-        </Route>
-
-        <Route path="/admin/users">
-          <AdminCRUDLayout>
-            <AdminUserManagement />
-          </AdminCRUDLayout>
-        </Route>
-
-        <Route path="/admin/analytics">
-          <AdminCRUDLayout>
-            <AdminAnalytics />
-          </AdminCRUDLayout>
-        </Route>
-
-        <Route path="/admin/pricing">
-          <AdminCRUDLayout>
-            <AdminPricing />
-          </AdminCRUDLayout>
-        </Route>
-
-        <Route path="/admin/roles">
-          <AdminCRUDLayout>
-            <AdminRoles />
-          </AdminCRUDLayout>
-        </Route>
-
-        <Route path="/admin/settings">
-          <AdminCRUDLayout>
-            <AdminSettings />
-          </AdminCRUDLayout>
-        </Route>
-
-        <Route path="/admin/cac">
-          <AdminCRUDLayout>
-            <AdminCACServices />
-          </AdminCRUDLayout>
         </Route>
 
             <Route component={NotFound} />
