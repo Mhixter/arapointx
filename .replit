@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "web"]
+modules = ["nodejs-20", "web", "postgresql-16"]
 [nix]
 channel = "stable-25_05"
 packages = ["unzip", "chromium", "glib", "nspr", "nss", "dbus", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXrandr", "xorg.libxcb", "cups", "expat", "at-spi2-atk", "alsa-lib", "pango", "cairo", "libxkbcommon", "mesa", "gtk3", "libgbm"]
