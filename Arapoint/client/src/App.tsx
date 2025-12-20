@@ -60,6 +60,7 @@ import AdminSettings from "@/pages/admin/AdminSettings";
 import AdminCACServices from "@/pages/admin/AdminCACServices";
 import AdminIdentityAgents from "@/pages/admin/AdminIdentityAgents";
 import AdminEducationAgents from "@/pages/admin/AdminEducationAgents";
+import AdminEducationPins from "@/pages/admin/AdminEducationPins";
 import AdminCRUDLayout from "@/components/layout/AdminCRUDLayout";
 
 function Router() {
@@ -138,6 +139,11 @@ function Router() {
       <Route path="/admin/education-agents">
         <AdminCRUDLayout>
           <AdminEducationAgents />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/education-pins">
+        <AdminCRUDLayout>
+          <AdminEducationPins />
         </AdminCRUDLayout>
       </Route>
       

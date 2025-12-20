@@ -25,7 +25,9 @@ import {
   identityServiceRequests,
   educationAgents,
   educationServiceRequests,
-  identityVerifications
+  identityVerifications,
+  educationPins,
+  educationPinOrders
 } from '../../db/schema';
 import bcrypt from 'bcryptjs';
 import { eq, desc, count, sql } from 'drizzle-orm';
@@ -1823,6 +1825,262 @@ router.get('/education-requests', async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error('Get education requests error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to get education requests'));
+  }
+});
+
+// ============================================
+// EDUCATION PIN INVENTORY MANAGEMENT
+// ============================================
+
+// Get PIN stock summary
+router.get('/education-pins/stock', async (req: Request, res: Response) => {
+  try {
+    const examTypes = ['waec', 'neco', 'nabteb', 'nbais'];
+    const stockSummary: any[] = [];
+
+    for (const examType of examTypes) {
+      const [unused] = await db.select({ count: count() })
+        .from(educationPins)
+        .where(sql`${educationPins.examType} = ${examType} AND ${educationPins.status} = 'unused'`);
+      
+      const [used] = await db.select({ count: count() })
+        .from(educationPins)
+        .where(sql`${educationPins.examType} = ${examType} AND ${educationPins.status} = 'used'`);
+
+      stockSummary.push({
+        examType: examType.toUpperCase(),
+        available: unused?.count || 0,
+        used: used?.count || 0,
+        total: (unused?.count || 0) + (used?.count || 0),
+      });
+    }
+
+    res.json(formatResponse('success', 200, 'PIN stock retrieved', { stock: stockSummary }));
+  } catch (error: any) {
+    logger.error('Get PIN stock error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get PIN stock'));
+  }
+});
+
+// Get all PINs with pagination
+router.get('/education-pins', async (req: Request, res: Response) => {
+  try {
+    const { examType, status, limit = '50', offset = '0' } = req.query;
+
+    let baseQuery = db.select({
+      id: educationPins.id,
+      examType: educationPins.examType,
+      pinCode: educationPins.pinCode,
+      serialNumber: educationPins.serialNumber,
+      status: educationPins.status,
+      usedAt: educationPins.usedAt,
+      createdAt: educationPins.createdAt,
+      userName: users.name,
+      userEmail: users.email,
+    })
+      .from(educationPins)
+      .leftJoin(users, eq(educationPins.usedByUserId, users.id))
+      .orderBy(desc(educationPins.createdAt))
+      .limit(parseInt(limit as string))
+      .offset(parseInt(offset as string));
+
+    let conditions: any[] = [];
+    if (examType) {
+      conditions.push(eq(educationPins.examType, (examType as string).toLowerCase()));
+    }
+    if (status) {
+      conditions.push(eq(educationPins.status, status as string));
+    }
+
+    let pins;
+    if (conditions.length > 0) {
+      pins = await baseQuery.where(sql`${conditions.map((c, i) => i === 0 ? c : sql` AND ${c}`).reduce((a, b) => sql`${a}${b}`)}`);
+    } else {
+      pins = await baseQuery;
+    }
+
+    // Mask PIN codes for security (show first 4 and last 4 characters)
+    const maskedPins = pins.map(pin => ({
+      ...pin,
+      pinCode: pin.status === 'unused' 
+        ? `${pin.pinCode.substring(0, 4)}****${pin.pinCode.substring(pin.pinCode.length - 4)}`
+        : pin.pinCode,
+    }));
+
+    res.json(formatResponse('success', 200, 'PINs retrieved', { pins: maskedPins }));
+  } catch (error: any) {
+    logger.error('Get PINs error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get PINs'));
+  }
+});
+
+// Add single PIN
+router.post('/education-pins', async (req: Request, res: Response) => {
+  try {
+    const { examType, pinCode, serialNumber } = req.body;
+
+    if (!examType || !pinCode) {
+      return res.status(400).json(formatErrorResponse(400, 'Exam type and PIN code are required'));
+    }
+
+    const validExamTypes = ['waec', 'neco', 'nabteb', 'nbais'];
+    if (!validExamTypes.includes(examType.toLowerCase())) {
+      return res.status(400).json(formatErrorResponse(400, 'Invalid exam type'));
+    }
+
+    // Check for duplicate PIN
+    const [existing] = await db.select()
+      .from(educationPins)
+      .where(sql`${educationPins.examType} = ${examType.toLowerCase()} AND ${educationPins.pinCode} = ${pinCode}`)
+      .limit(1);
+
+    if (existing) {
+      return res.status(400).json(formatErrorResponse(400, 'PIN already exists'));
+    }
+
+    const [newPin] = await db.insert(educationPins).values({
+      examType: examType.toLowerCase(),
+      pinCode,
+      serialNumber: serialNumber || null,
+      status: 'unused',
+    }).returning();
+
+    logger.info('PIN added', { examType, adminId: req.userId });
+    res.status(201).json(formatResponse('success', 201, 'PIN added successfully', { pin: newPin }));
+  } catch (error: any) {
+    logger.error('Add PIN error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to add PIN'));
+  }
+});
+
+// Bulk upload PINs via CSV data
+router.post('/education-pins/bulk', async (req: Request, res: Response) => {
+  try {
+    const { examType, pins } = req.body;
+
+    if (!examType || !pins || !Array.isArray(pins)) {
+      return res.status(400).json(formatErrorResponse(400, 'Exam type and pins array are required'));
+    }
+
+    const validExamTypes = ['waec', 'neco', 'nabteb', 'nbais'];
+    if (!validExamTypes.includes(examType.toLowerCase())) {
+      return res.status(400).json(formatErrorResponse(400, 'Invalid exam type'));
+    }
+
+    let successCount = 0;
+    let duplicateCount = 0;
+    const errors: string[] = [];
+
+    for (const pin of pins) {
+      try {
+        const pinCode = typeof pin === 'string' ? pin : pin.pinCode || pin.pin;
+        const serialNumber = typeof pin === 'object' ? (pin.serialNumber || pin.serial) : null;
+
+        if (!pinCode) {
+          errors.push('Empty PIN code skipped');
+          continue;
+        }
+
+        // Check for duplicate
+        const [existing] = await db.select({ id: educationPins.id })
+          .from(educationPins)
+          .where(sql`${educationPins.examType} = ${examType.toLowerCase()} AND ${educationPins.pinCode} = ${pinCode}`)
+          .limit(1);
+
+        if (existing) {
+          duplicateCount++;
+          continue;
+        }
+
+        await db.insert(educationPins).values({
+          examType: examType.toLowerCase(),
+          pinCode,
+          serialNumber,
+          status: 'unused',
+        });
+
+        successCount++;
+      } catch (pinError: any) {
+        errors.push(pinError.message);
+      }
+    }
+
+    logger.info('Bulk PIN upload', { examType, successCount, duplicateCount, adminId: req.userId });
+    
+    res.json(formatResponse('success', 200, 'Bulk upload completed', {
+      successCount,
+      duplicateCount,
+      errorCount: errors.length,
+      errors: errors.slice(0, 10),
+    }));
+  } catch (error: any) {
+    logger.error('Bulk PIN upload error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to upload PINs'));
+  }
+});
+
+// Delete unused PIN
+router.delete('/education-pins/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const [pin] = await db.select()
+      .from(educationPins)
+      .where(eq(educationPins.id, id))
+      .limit(1);
+
+    if (!pin) {
+      return res.status(404).json(formatErrorResponse(404, 'PIN not found'));
+    }
+
+    if (pin.status === 'used') {
+      return res.status(400).json(formatErrorResponse(400, 'Cannot delete used PIN'));
+    }
+
+    await db.delete(educationPins).where(eq(educationPins.id, id));
+
+    logger.info('PIN deleted', { pinId: id, adminId: req.userId });
+    res.json(formatResponse('success', 200, 'PIN deleted successfully'));
+  } catch (error: any) {
+    logger.error('Delete PIN error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to delete PIN'));
+  }
+});
+
+// Get PIN orders
+router.get('/education-pin-orders', async (req: Request, res: Response) => {
+  try {
+    const { status, limit = '50' } = req.query;
+
+    let query = db.select({
+      id: educationPinOrders.id,
+      examType: educationPinOrders.examType,
+      amount: educationPinOrders.amount,
+      status: educationPinOrders.status,
+      deliveredPin: educationPinOrders.deliveredPin,
+      deliveredSerial: educationPinOrders.deliveredSerial,
+      failureReason: educationPinOrders.failureReason,
+      createdAt: educationPinOrders.createdAt,
+      completedAt: educationPinOrders.completedAt,
+      userName: users.name,
+      userEmail: users.email,
+    })
+      .from(educationPinOrders)
+      .leftJoin(users, eq(educationPinOrders.userId, users.id))
+      .orderBy(desc(educationPinOrders.createdAt))
+      .limit(parseInt(limit as string));
+
+    let orders;
+    if (status && status !== 'all') {
+      orders = await query.where(eq(educationPinOrders.status, status as string));
+    } else {
+      orders = await query;
+    }
+
+    res.json(formatResponse('success', 200, 'PIN orders retrieved', { orders }));
+  } catch (error: any) {
+    logger.error('Get PIN orders error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get PIN orders'));
   }
 });
 

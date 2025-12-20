@@ -25,6 +25,10 @@ const pricingRecords = [
   { serviceType: 'airtime_to_cash', serviceName: 'Airtime to Cash', price: '0.00', description: 'Convert airtime to wallet balance', isActive: true },
   { serviceType: 'nin_personalization', serviceName: 'NIN Personalization', price: '1500.00', description: 'Customize NIN identity data', isActive: true },
   { serviceType: 'birth_attestation', serviceName: 'Birth Attestation', price: '2000.00', description: 'NPC Birth Certificate attestation', isActive: true },
+  { serviceType: 'waec_pin', serviceName: 'WAEC PIN', price: '4000.00', description: 'WAEC examination PIN - Instant Delivery', isActive: true },
+  { serviceType: 'neco_pin', serviceName: 'NECO PIN', price: '1500.00', description: 'NECO examination PIN - Instant Delivery', isActive: true },
+  { serviceType: 'nabteb_pin', serviceName: 'NABTEB PIN', price: '3000.00', description: 'NABTEB examination PIN - Instant Delivery', isActive: true },
+  { serviceType: 'nbais_pin', serviceName: 'NBAIS PIN', price: '2500.00', description: 'NBAIS examination PIN - Instant Delivery', isActive: true },
 ];
 
 export async function seedPricing() {

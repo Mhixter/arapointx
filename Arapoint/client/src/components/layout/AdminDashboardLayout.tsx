@@ -7,7 +7,8 @@ import {
   LogOut, 
   Menu,
   Users,
-  BarChart3
+  BarChart3,
+  Package
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -24,6 +25,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     { href: "/admin/identity", label: "Identity Services", icon: ShieldCheck },
     { href: "/admin/bvn", label: "BVN Services", icon: ShieldCheck },
     { href: "/admin/education", label: "Education Services", icon: GraduationCap },
+    { href: "/admin/education-pins", label: "Education PINs", icon: Package },
     { href: "/admin/vtu", label: "VTU Services", icon: Smartphone },
     { href: "/admin/users", label: "User Management", icon: Users },
     { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },

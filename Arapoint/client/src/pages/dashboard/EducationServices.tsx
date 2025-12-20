@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -109,6 +109,13 @@ const JAMB_SUB_SERVICES = [
   { id: "reprinting-caps", name: "Reprinting & Caps", icon: RotateCw, desc: "Request reprinting of documents", price: 3000 },
 ];
 
+const PIN_SERVICES = [
+  { id: "waec-pin", examType: "waec", name: "WAEC PIN", logo: waecLogo, color: "text-orange-600", bg: "bg-orange-100 dark:bg-orange-900/20", desc: "Buy WAEC result checker PIN", instant: true },
+  { id: "neco-pin", examType: "neco", name: "NECO PIN", logo: necoLogo, color: "text-purple-600", bg: "bg-purple-100 dark:bg-purple-900/20", desc: "Buy NECO result checker PIN", instant: true },
+  { id: "nabteb-pin", examType: "nabteb", name: "NABTEB PIN", logo: nabtebLogo, color: "text-pink-600", bg: "bg-pink-100 dark:bg-pink-900/20", desc: "Buy NABTEB result checker PIN", instant: true },
+  { id: "nbais-pin", examType: "nbais", name: "NBAIS PIN", logo: nbaisLogo, color: "text-indigo-600", bg: "bg-indigo-100 dark:bg-indigo-900/20", desc: "Buy NBAIS result checker PIN", instant: true },
+];
+
 export default function EducationServices() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -121,6 +128,9 @@ export default function EducationServices() {
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [pinStock, setPinStock] = useState<Record<string, { available: boolean; price: number }>>({});
+  const [purchasedPin, setPurchasedPin] = useState<any>(null);
+  const [pinLoading, setPinLoading] = useState(false);
   
   const [waecYear, setWaecYear] = useState(new Date().getFullYear().toString());
   const [waecType, setWaecType] = useState('WASSCE');
@@ -138,6 +148,71 @@ export default function EducationServices() {
 
   const educationTotal = dashboardData?.stats?.educationVerifications || 0;
   const educationSuccess = dashboardData?.stats?.educationVerifications || 0;
+
+  // Fetch PIN stock on component mount
+  const fetchPinStock = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('/api/education/pins/stock', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const result = await response.json();
+      if (result.status === 'success') {
+        setPinStock(result.data?.stock || {});
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch PIN stock', error);
+    }
+  };
+
+  // Handle PIN purchase
+  const handlePinPurchase = async (examType: string) => {
+    try {
+      setPinLoading(true);
+      setError(null);
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('/api/education/pins/purchase', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ examType }),
+      });
+
+      const result = await response.json();
+      if (response.ok && result.status === 'success') {
+        setPurchasedPin(result.data);
+        toast({
+          title: "PIN Delivered!",
+          description: `Your ${examType.toUpperCase()} PIN has been delivered successfully.`,
+        });
+        queryClient.invalidateQueries({ queryKey: ['wallet'] });
+        fetchPinStock();
+      } else {
+        setError(result.message || 'Failed to purchase PIN');
+        toast({
+          title: "Purchase Failed",
+          description: result.message || 'Failed to purchase PIN',
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      setError(error.message || 'Failed to purchase PIN');
+      toast({
+        title: "Error",
+        description: "Failed to purchase PIN. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setPinLoading(false);
+    }
+  };
+
+  // Load PIN stock on mount
+  useEffect(() => {
+    fetchPinStock();
+  }, []);
 
   const pollJobStatus = async (jobId: string, maxAttempts = 60): Promise<any> => {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -382,6 +457,145 @@ export default function EducationServices() {
     window.print();
   };
 
+  // PIN Purchase Flow
+  const pinService = PIN_SERVICES.find(p => p.id === selectedService);
+  if (pinService) {
+    const stock = pinStock[pinService.examType];
+    
+    if (purchasedPin) {
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-3xl font-heading font-bold tracking-tight">PIN Delivered!</h2>
+              <p className="text-muted-foreground">Your {pinService.name} has been delivered</p>
+            </div>
+            <Button variant="outline" onClick={() => { setSelectedService(null); setPurchasedPin(null); }}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Services
+            </Button>
+          </div>
+
+          <Card className="max-w-lg border-green-200 bg-green-50 dark:bg-green-900/10">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                <CheckCircle2 className="h-6 w-6" />
+                PIN Successfully Delivered
+              </CardTitle>
+              <CardDescription>Keep this information safe - No refunds after delivery</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-4">
+                <img src={pinService.logo} alt={pinService.name} className="h-16 w-16 object-contain" />
+                <div>
+                  <p className="font-bold text-lg">{purchasedPin.examType?.toUpperCase()} PIN</p>
+                  <p className="text-sm text-muted-foreground">Order ID: {purchasedPin.orderId?.substring(0, 8)}...</p>
+                </div>
+              </div>
+              
+              <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+                <Label className="text-xs text-muted-foreground">PIN Code</Label>
+                <p className="font-mono text-xl font-bold tracking-wider">{purchasedPin.pin}</p>
+              </div>
+              
+              {purchasedPin.serialNumber && (
+                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+                  <Label className="text-xs text-muted-foreground">Serial Number</Label>
+                  <p className="font-mono text-lg font-medium">{purchasedPin.serialNumber}</p>
+                </div>
+              )}
+              
+              <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg">
+                <AlertCircle className="h-4 w-4" />
+                <span>This PIN has been sent to your registered email as well.</span>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button onClick={() => { setSelectedService(null); setPurchasedPin(null); }} className="w-full">
+                Done
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-heading font-bold tracking-tight">Buy {pinService.name}</h2>
+            <p className="text-muted-foreground">{pinService.desc}</p>
+          </div>
+          <Button variant="outline" onClick={() => setSelectedService(null)}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+        </div>
+
+        <Card className="max-w-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3">
+              <img src={pinService.logo} alt={pinService.name} className="h-12 w-12 object-contain" />
+              <span>{pinService.name}</span>
+            </CardTitle>
+            <CardDescription>Instant delivery to your account and email</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+              <span className="text-muted-foreground">Price:</span>
+              <span className="text-2xl font-bold text-primary">
+                ₦{(stock?.price || 0).toLocaleString()}
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {stock?.available ? (
+                <div className="flex items-center gap-2 text-green-600">
+                  <CheckCircle2 className="h-5 w-5" />
+                  <span className="font-medium">In Stock - Instant Delivery</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-red-600">
+                  <AlertCircle className="h-5 w-5" />
+                  <span className="font-medium">Out of Stock</span>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+              <p className="text-sm text-red-700 dark:text-red-400 font-medium">
+                No refund after PIN delivery. Please confirm before proceeding.
+              </p>
+            </div>
+
+            {error && (
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            )}
+          </CardContent>
+          <CardFooter>
+            <Button 
+              onClick={() => handlePinPurchase(pinService.examType)}
+              disabled={pinLoading || !stock?.available}
+              className="w-full"
+            >
+              {pinLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>Buy Now - ₦{(stock?.price || 0).toLocaleString()}</>
+              )}
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
   // Service selection hub
   if (!selectedService) {
     return (
@@ -454,6 +668,44 @@ export default function EducationServices() {
               </CardContent>
             </Card>
           ))}
+        </div>
+
+        {/* Buy Exam PINs Section */}
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-xl font-heading font-bold tracking-tight">Buy Exam PINs</h3>
+              <p className="text-muted-foreground text-sm">Instant delivery - No refunds after delivery</p>
+            </div>
+            <div className="flex items-center gap-2 bg-green-100 dark:bg-green-900/20 px-3 py-1.5 rounded-full">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <span className="text-sm font-medium text-green-700 dark:text-green-400">Instant Delivery</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {PIN_SERVICES.map((pin) => (
+              <Card 
+                key={pin.id}
+                className="cursor-pointer hover:shadow-lg transition-all hover:-translate-y-1 group border-2 border-dashed hover:border-primary"
+                onClick={() => setSelectedService(pin.id)}
+              >
+                <CardContent className="p-4 flex flex-col items-center text-center gap-3">
+                  <img src={pin.logo} alt={pin.name} className="h-12 w-12 object-contain" />
+                  <div>
+                    <h4 className="font-bold text-sm">{pin.name}</h4>
+                    <p className="text-xs text-muted-foreground mt-0.5">{pin.desc}</p>
+                  </div>
+                  <div className="flex items-center gap-1 text-green-600 text-xs">
+                    <Activity className="h-3 w-3" />
+                    <span>Instant</span>
+                  </div>
+                  <Button size="sm" className="w-full" variant="outline">
+                    Buy Now
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       </div>
     );

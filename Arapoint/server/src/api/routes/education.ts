@@ -6,8 +6,9 @@ import { jambSchema, waecSchema, necoSchema, nabtebSchema, nbaisSchema } from '.
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { educationServices, servicePricing } from '../../db/schema';
-import { eq, desc, and } from 'drizzle-orm';
+import { educationServices, servicePricing, educationPins, educationPinOrders, users } from '../../db/schema';
+import { eq, desc, and, sql, count } from 'drizzle-orm';
+import { sendEmail } from '../../services/emailService';
 
 const router = Router();
 router.use(authMiddleware);
@@ -378,6 +379,227 @@ router.get('/job/:jobId/has-download', async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error('Check download availability error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to check download availability'));
+  }
+});
+
+// ============================================
+// EDUCATION PIN PURCHASE ENDPOINTS
+// ============================================
+
+// Get PIN stock availability for customer
+router.get('/pins/stock', async (req: Request, res: Response) => {
+  try {
+    const examTypes = ['waec', 'neco', 'nabteb', 'nbais'];
+    const stock: Record<string, { available: boolean; price: number }> = {};
+
+    for (const examType of examTypes) {
+      const [stockCount] = await db.select({ count: count() })
+        .from(educationPins)
+        .where(sql`${educationPins.examType} = ${examType} AND ${educationPins.status} = 'unused'`);
+      
+      const price = await getServicePrice(`${examType}_pin`);
+      
+      stock[examType] = {
+        available: (stockCount?.count || 0) > 0,
+        price,
+      };
+    }
+
+    res.json(formatResponse('success', 200, 'PIN stock retrieved', { stock }));
+  } catch (error: any) {
+    logger.error('Get PIN stock error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get PIN stock'));
+  }
+});
+
+// Purchase education PIN
+router.post('/pins/purchase', async (req: Request, res: Response) => {
+  try {
+    const { examType } = req.body;
+
+    if (!examType) {
+      return res.status(400).json(formatErrorResponse(400, 'Exam type is required'));
+    }
+
+    const validExamTypes = ['waec', 'neco', 'nabteb', 'nbais'];
+    if (!validExamTypes.includes(examType.toLowerCase())) {
+      return res.status(400).json(formatErrorResponse(400, 'Invalid exam type. Supported: WAEC, NECO, NABTEB, NBAIS'));
+    }
+
+    const normalizedExamType = examType.toLowerCase();
+    const price = await getServicePrice(`${normalizedExamType}_pin`);
+
+    // Check stock availability first
+    const [stockCount] = await db.select({ count: count() })
+      .from(educationPins)
+      .where(sql`${educationPins.examType} = ${normalizedExamType} AND ${educationPins.status} = 'unused'`);
+
+    if (!stockCount?.count || stockCount.count === 0) {
+      return res.status(400).json(formatErrorResponse(400, `No ${examType.toUpperCase()} PINs available. Please try again later.`));
+    }
+
+    // Deduct wallet balance first
+    await walletService.deductBalance(req.userId!, price, `${examType.toUpperCase()} PIN Purchase`);
+
+    // Create order with status 'paid'
+    const [order] = await db.insert(educationPinOrders).values({
+      userId: req.userId!,
+      examType: normalizedExamType,
+      amount: price.toFixed(2),
+      status: 'paid',
+    }).returning();
+
+    // ARP Robot: Auto-assign PIN within transaction
+    try {
+      // Start transaction - select and lock one unused PIN
+      const [selectedPin] = await db.select()
+        .from(educationPins)
+        .where(sql`${educationPins.examType} = ${normalizedExamType} AND ${educationPins.status} = 'unused'`)
+        .limit(1)
+        .for('update');
+
+      if (!selectedPin) {
+        // No PIN available - refund and fail order
+        await walletService.addBalance(req.userId!, price, `Refund: ${examType.toUpperCase()} PIN - Out of stock`);
+        await db.update(educationPinOrders)
+          .set({ status: 'failed', failureReason: 'Out of stock' })
+          .where(eq(educationPinOrders.id, order.id));
+
+        logger.warn('PIN purchase failed - out of stock', { examType, userId: req.userId, orderId: order.id });
+        return res.status(400).json(formatErrorResponse(400, `${examType.toUpperCase()} PINs are currently out of stock. Your wallet has been refunded.`));
+      }
+
+      // Mark PIN as used
+      await db.update(educationPins)
+        .set({
+          status: 'used',
+          usedByOrderId: order.id,
+          usedByUserId: req.userId!,
+          usedAt: new Date(),
+        })
+        .where(eq(educationPins.id, selectedPin.id));
+
+      // Update order to completed with PIN details
+      await db.update(educationPinOrders)
+        .set({
+          status: 'completed',
+          pinId: selectedPin.id,
+          deliveredPin: selectedPin.pinCode,
+          deliveredSerial: selectedPin.serialNumber,
+          completedAt: new Date(),
+        })
+        .where(eq(educationPinOrders.id, order.id));
+
+      // Get user email for notification
+      const [user] = await db.select({ email: users.email, name: users.name })
+        .from(users)
+        .where(eq(users.id, req.userId!))
+        .limit(1);
+
+      // Send email notification (async, don't block response)
+      if (user?.email) {
+        sendEmail(
+          user.email,
+          `Your ${examType.toUpperCase()} PIN - Arapoint`,
+          `
+            <h2>Your ${examType.toUpperCase()} PIN</h2>
+            <p>Dear ${user.name || 'Customer'},</p>
+            <p>Your ${examType.toUpperCase()} examination PIN has been successfully delivered:</p>
+            <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <p><strong>PIN:</strong> ${selectedPin.pinCode}</p>
+              ${selectedPin.serialNumber ? `<p><strong>Serial Number:</strong> ${selectedPin.serialNumber}</p>` : ''}
+            </div>
+            <p><strong>Important:</strong> This PIN cannot be refunded after delivery. Please keep it safe.</p>
+            <p>Thank you for using Arapoint!</p>
+          `
+        ).catch((err: any) => logger.error('Failed to send PIN email', { error: err.message }));
+      }
+
+      logger.info('PIN delivered successfully', { 
+        examType: normalizedExamType, 
+        userId: req.userId, 
+        orderId: order.id,
+        pinId: selectedPin.id 
+      });
+
+      res.json(formatResponse('success', 200, `${examType.toUpperCase()} PIN delivered successfully`, {
+        orderId: order.id,
+        examType: normalizedExamType.toUpperCase(),
+        pin: selectedPin.pinCode,
+        serialNumber: selectedPin.serialNumber,
+        amount: price,
+        deliveredAt: new Date().toISOString(),
+        warning: 'This PIN cannot be refunded after delivery.',
+      }));
+
+    } catch (pinError: any) {
+      // PIN assignment failed - refund customer
+      logger.error('PIN assignment failed', { error: pinError.message, orderId: order.id });
+      
+      await walletService.addBalance(req.userId!, price, `Refund: ${examType.toUpperCase()} PIN - System error`);
+      await db.update(educationPinOrders)
+        .set({ status: 'failed', failureReason: pinError.message })
+        .where(eq(educationPinOrders.id, order.id));
+
+      return res.status(500).json(formatErrorResponse(500, 'Failed to assign PIN. Your wallet has been refunded.'));
+    }
+
+  } catch (error: any) {
+    logger.error('PIN purchase error', { error: error.message, userId: req.userId });
+    
+    if (error.message === 'Insufficient wallet balance') {
+      return res.status(402).json(formatErrorResponse(402, error.message));
+    }
+    
+    res.status(500).json(formatErrorResponse(500, 'Failed to process PIN purchase'));
+  }
+});
+
+// Get user's PIN orders
+router.get('/pins/orders', async (req: Request, res: Response) => {
+  try {
+    const orders = await db.select()
+      .from(educationPinOrders)
+      .where(eq(educationPinOrders.userId, req.userId!))
+      .orderBy(desc(educationPinOrders.createdAt))
+      .limit(50);
+
+    // Mask PIN for security in listing (only show first 4 chars)
+    const maskedOrders = orders.map(order => ({
+      ...order,
+      deliveredPin: order.deliveredPin 
+        ? `${order.deliveredPin.substring(0, 4)}****${order.deliveredPin.substring(order.deliveredPin.length - 4)}`
+        : null,
+    }));
+
+    res.json(formatResponse('success', 200, 'PIN orders retrieved', { orders: maskedOrders }));
+  } catch (error: any) {
+    logger.error('Get PIN orders error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get PIN orders'));
+  }
+});
+
+// Get specific PIN order details (shows full PIN)
+router.get('/pins/orders/:orderId', async (req: Request, res: Response) => {
+  try {
+    const { orderId } = req.params;
+
+    const [order] = await db.select()
+      .from(educationPinOrders)
+      .where(and(
+        eq(educationPinOrders.id, orderId),
+        eq(educationPinOrders.userId, req.userId!)
+      ))
+      .limit(1);
+
+    if (!order) {
+      return res.status(404).json(formatErrorResponse(404, 'Order not found'));
+    }
+
+    res.json(formatResponse('success', 200, 'PIN order retrieved', { order }));
+  } catch (error: any) {
+    logger.error('Get PIN order error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get PIN order'));
   }
 });
 
