@@ -1,108 +1,74 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, AlertCircle, CheckCircle2, ShoppingCart, Plus, Minus, Zap } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, CheckCircle2, ShoppingCart, Plus, Minus, AlertTriangle, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-interface PIN {
-  id: string;
-  service: string;
-  name: string;
-  description: string;
+interface PINStock {
+  available: boolean;
   price: number;
-  category: "exam" | "utility";
-  icon?: string;
 }
 
-const ALL_PINS: PIN[] = [
-  // Exam Services
-  {
-    id: "waec",
-    service: "WAEC",
-    name: "WAEC Scratch Card",
-    description: "West African Examinations Council Result Checker PIN",
-    price: 3500,
-    category: "exam",
-  },
-  {
-    id: "neco",
-    service: "NECO",
-    name: "NECO Token",
-    description: "National Examinations Council Result Checker Token",
-    price: 1200,
-    category: "exam",
-  },
-  {
-    id: "jamb",
-    service: "JAMB",
-    name: "JAMB Result Pin",
-    description: "Joint Admissions & Matriculation Board Result PIN",
-    price: 1500,
-    category: "exam",
-  },
-  {
-    id: "nabteb",
-    service: "NABTEB",
-    name: "NABTEB PIN",
-    description: "National Board of Technical Education Result PIN",
-    price: 2000,
-    category: "exam",
-  },
-  {
-    id: "nbais",
-    service: "NBAIS",
-    name: "NBAIS PIN",
-    description: "National Board for Arabic & Islamic Studies PIN",
-    price: 1800,
-    category: "exam",
-  },
-  // Utility Services
-  {
-    id: "airtime-mtn",
-    service: "MTN",
-    name: "MTN Airtime Pin",
-    description: "Purchase MTN airtime credit",
-    price: 500,
-    category: "utility",
-  },
-  {
-    id: "airtime-airtel",
-    service: "Airtel",
-    name: "Airtel Airtime Pin",
-    description: "Purchase Airtel airtime credit",
-    price: 500,
-    category: "utility",
-  },
-  {
-    id: "data-mtn",
-    service: "MTN",
-    name: "MTN Data Bundle Pin",
-    description: "Purchase MTN data packages",
-    price: 1000,
-    category: "utility",
-  },
-  {
-    id: "data-airtel",
-    service: "Airtel",
-    name: "Airtel Data Bundle Pin",
-    description: "Purchase Airtel data packages",
-    price: 1000,
-    category: "utility",
-  },
-];
-
-interface PinWithQuantity extends PIN {
+interface PINItem {
+  id: string;
+  name: string;
+  description: string;
+  examType: string;
+  price: number;
+  available: boolean;
   quantity: number;
 }
 
+const PIN_INFO: Record<string, { name: string; description: string }> = {
+  waec: { name: "WAEC Scratch Card", description: "West African Examinations Council Result Checker PIN" },
+  neco: { name: "NECO Token", description: "National Examinations Council Result Checker Token" },
+  nabteb: { name: "NABTEB PIN", description: "National Board of Technical Education Result PIN" },
+  nbais: { name: "NBAIS PIN", description: "National Board for Arabic & Islamic Studies PIN" },
+};
+
 export default function BuyPINs() {
   const { toast } = useToast();
-  const [pins, setPins] = useState<PinWithQuantity[]>(
-    ALL_PINS.map(pin => ({ ...pin, quantity: 0 }))
-  );
-  const [isLoading, setIsLoading] = useState(false);
+  const [pins, setPins] = useState<PINItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPurchasing, setIsPurchasing] = useState(false);
   const [purchaseComplete, setPurchaseComplete] = useState(false);
+  const [purchasedPins, setPurchasedPins] = useState<{ examType: string; pin: string; serial?: string }[]>([]);
+
+  const fetchStock = async () => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const res = await fetch('/api/education/pins/stock', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      
+      if (data.status === 'success') {
+        const stock: Record<string, PINStock> = data.data.stock;
+        const pinItems: PINItem[] = Object.entries(stock).map(([examType, info]) => ({
+          id: examType,
+          examType,
+          name: PIN_INFO[examType]?.name || `${examType.toUpperCase()} PIN`,
+          description: PIN_INFO[examType]?.description || `${examType.toUpperCase()} examination PIN`,
+          price: info.price,
+          available: info.available,
+          quantity: 0,
+        }));
+        setPins(pinItems);
+      } else {
+        toast({ title: "Error", description: "Failed to load PIN stock", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to load PIN stock", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStock();
+  }, []);
 
   const updateQuantity = (id: string, delta: number) => {
     setPins(pins.map(pin =>
@@ -113,7 +79,7 @@ export default function BuyPINs() {
   const getTotalItems = () => pins.reduce((sum, pin) => sum + pin.quantity, 0);
   const getTotalAmount = () => pins.reduce((sum, pin) => sum + (pin.price * pin.quantity), 0);
 
-  const handlePurchase = () => {
+  const handlePurchase = async () => {
     if (getTotalItems() === 0) {
       toast({
         title: "No Items Selected",
@@ -123,23 +89,80 @@ export default function BuyPINs() {
       return;
     }
 
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    setIsPurchasing(true);
+    const token = localStorage.getItem('accessToken');
+    const purchased: { examType: string; pin: string; serial?: string }[] = [];
+    let hasError = false;
+
+    for (const pin of pins) {
+      if (pin.quantity > 0) {
+        for (let i = 0; i < pin.quantity; i++) {
+          try {
+            const res = await fetch('/api/education/pins/purchase', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ examType: pin.examType })
+            });
+            const data = await res.json();
+            
+            if (data.status === 'success' && data.data.pin) {
+              purchased.push({
+                examType: pin.examType,
+                pin: data.data.pin.pinCode,
+                serial: data.data.pin.serialNumber
+              });
+            } else {
+              hasError = true;
+              toast({
+                title: "Purchase Failed",
+                description: data.message || `Failed to purchase ${pin.name}`,
+                variant: "destructive",
+              });
+              break;
+            }
+          } catch (error) {
+            hasError = true;
+            toast({
+              title: "Error",
+              description: "Failed to complete purchase. Please try again.",
+              variant: "destructive",
+            });
+            break;
+          }
+        }
+        if (hasError) break;
+      }
+    }
+
+    setIsPurchasing(false);
+    
+    if (purchased.length > 0) {
+      setPurchasedPins(purchased);
       setPurchaseComplete(true);
       toast({
         title: "Purchase Successful",
-        description: `You have purchased ${getTotalItems()} PIN(s) for ₦${getTotalAmount().toLocaleString()}`,
+        description: `You have purchased ${purchased.length} PIN(s)`,
       });
-    }, 2000);
+    }
   };
 
   const handleReset = () => {
     setPins(pins.map(pin => ({ ...pin, quantity: 0 })));
     setPurchaseComplete(false);
+    setPurchasedPins([]);
+    fetchStock();
   };
 
-  const examPins = pins.filter(p => p.category === "exam");
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (purchaseComplete) {
     return (
@@ -156,21 +179,21 @@ export default function BuyPINs() {
             </div>
             <h3 className="text-2xl font-bold text-green-800 dark:text-green-400">Purchase Completed!</h3>
             <p className="text-green-700 dark:text-green-300 max-w-xs mx-auto">
-              Your PINs have been purchased successfully and will be delivered to your email shortly.
+              Your PINs have been purchased successfully. Here are your PIN details:
             </p>
-            <div className="bg-white dark:bg-slate-900 rounded-lg p-4 my-6 space-y-2 text-left max-h-96 overflow-y-auto">
-              {pins.map(pin => (
-                pin.quantity > 0 && (
-                  <div key={pin.id} className="flex justify-between items-center text-sm border-b pb-2">
-                    <span className="font-medium">{pin.name} ×{pin.quantity}</span>
-                    <span className="font-bold">₦{(pin.price * pin.quantity).toLocaleString()}</span>
+            <div className="bg-white dark:bg-slate-900 rounded-lg p-4 my-6 space-y-3 text-left max-h-96 overflow-y-auto">
+              {purchasedPins.map((item, idx) => (
+                <div key={idx} className="border-b pb-3 last:border-b-0">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="font-bold text-primary">{item.examType.toUpperCase()}</span>
+                    <Badge variant="outline">PIN #{idx + 1}</Badge>
                   </div>
-                )
+                  <div className="bg-muted p-2 rounded font-mono text-sm break-all">
+                    <div><span className="text-muted-foreground">PIN:</span> {item.pin}</div>
+                    {item.serial && <div><span className="text-muted-foreground">Serial:</span> {item.serial}</div>}
+                  </div>
+                </div>
               ))}
-              <div className="border-t pt-2 flex justify-between items-center font-bold">
-                <span>Total</span>
-                <span className="text-lg text-primary">₦{getTotalAmount().toLocaleString()}</span>
-              </div>
             </div>
             <Button onClick={handleReset} className="w-full">
               <ShoppingCart className="mr-2 h-4 w-4" />
@@ -184,21 +207,27 @@ export default function BuyPINs() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl sm:text-3xl md:text-4xl font-heading font-bold tracking-tight">Buy Exam Result PINs</h2>
-        <p className="text-sm sm:text-base text-muted-foreground mt-2">Purchase result checker PINs for all major examination bodies.</p>
-      </div>
-
-      {/* Exam Services Section */}
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {examPins.map((pin) => (
-            <PinCard key={pin.id} pin={pin} onUpdateQuantity={updateQuantity} />
-          ))}
+      <div className="flex justify-between items-start">
+        <div>
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-heading font-bold tracking-tight">Buy Exam Result PINs</h2>
+          <p className="text-sm sm:text-base text-muted-foreground mt-2">Purchase result checker PINs for all major examination bodies.</p>
         </div>
+        <Button variant="outline" size="sm" onClick={fetchStock}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh
+        </Button>
       </div>
 
-      {/* Order Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {pins.map((pin) => (
+          <PinCard 
+            key={pin.id} 
+            pin={pin} 
+            onUpdateQuantity={updateQuantity} 
+          />
+        ))}
+      </div>
+
       {getTotalItems() > 0 && (
         <Card className="sticky bottom-4 bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
           <CardContent className="pt-6">
@@ -210,10 +239,10 @@ export default function BuyPINs() {
               <Button
                 onClick={handlePurchase}
                 size="lg"
-                disabled={isLoading}
+                disabled={isPurchasing}
                 className="w-full sm:w-auto"
               >
-                {isLoading ? (
+                {isPurchasing ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Processing...
@@ -229,55 +258,74 @@ export default function BuyPINs() {
           </CardContent>
         </Card>
       )}
-
     </div>
   );
 }
 
-function PinCard({ pin, onUpdateQuantity }: { pin: PinWithQuantity; onUpdateQuantity: (id: string, delta: number) => void }) {
+function PinCard({ pin, onUpdateQuantity }: { pin: PINItem; onUpdateQuantity: (id: string, delta: number) => void }) {
   return (
-    <Card className="h-full flex flex-col hover:shadow-md transition-shadow">
+    <Card className={`h-full flex flex-col hover:shadow-md transition-shadow ${!pin.available ? 'opacity-60' : ''}`}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               <CardTitle className="text-sm">{pin.name}</CardTitle>
-              <span className="text-xs bg-muted px-2 py-0.5 rounded font-medium">{pin.service}</span>
             </div>
             <CardDescription className="text-xs">{pin.description}</CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent className="flex-1 space-y-4">
-        <div className="text-2xl font-bold text-primary">
-          ₦{pin.price.toLocaleString()}
+        <div className="flex items-center justify-between">
+          <div className="text-2xl font-bold text-primary">
+            ₦{pin.price.toLocaleString()}
+          </div>
+          {!pin.available && (
+            <Badge variant="destructive" className="text-xs">
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              Out of Stock
+            </Badge>
+          )}
+          {pin.available && (
+            <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
+              In Stock
+            </Badge>
+          )}
         </div>
 
-        <div className="flex items-center justify-between bg-muted/30 rounded-lg p-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={() => onUpdateQuantity(pin.id, -1)}
-            disabled={pin.quantity === 0}
-          >
-            <Minus className="h-3 w-3" />
-          </Button>
-          <span className="font-bold text-sm w-8 text-center">{pin.quantity}</span>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={() => onUpdateQuantity(pin.id, 1)}
-          >
-            <Plus className="h-3 w-3" />
-          </Button>
-        </div>
+        {pin.available ? (
+          <>
+            <div className="flex items-center justify-between bg-muted/30 rounded-lg p-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 w-7 p-0"
+                onClick={() => onUpdateQuantity(pin.id, -1)}
+                disabled={pin.quantity === 0}
+              >
+                <Minus className="h-3 w-3" />
+              </Button>
+              <span className="font-bold text-sm w-8 text-center">{pin.quantity}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 w-7 p-0"
+                onClick={() => onUpdateQuantity(pin.id, 1)}
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
+            </div>
 
-        {pin.quantity > 0 && (
-          <div className="bg-primary/10 rounded p-2 text-center">
-            <p className="text-xs text-muted-foreground">Subtotal</p>
-            <p className="font-bold text-primary">₦{(pin.price * pin.quantity).toLocaleString()}</p>
+            {pin.quantity > 0 && (
+              <div className="bg-primary/10 rounded p-2 text-center">
+                <p className="text-xs text-muted-foreground">Subtotal</p>
+                <p className="font-bold text-primary">₦{(pin.price * pin.quantity).toLocaleString()}</p>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-center text-sm text-muted-foreground py-2">
+            Currently unavailable
           </div>
         )}
       </CardContent>
