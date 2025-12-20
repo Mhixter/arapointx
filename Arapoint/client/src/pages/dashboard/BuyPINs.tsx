@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, CheckCircle2, ShoppingCart, Plus, Minus, AlertTriangle, RefreshCw, History, CreditCard, Clock, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -341,31 +340,37 @@ export default function BuyPINs() {
                   <p>No PIN purchases yet</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Exam Type</TableHead>
-                        <TableHead>PIN Code</TableHead>
-                        <TableHead>Serial</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Date</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {history.map((order) => (
-                        <TableRow key={order.id}>
-                          <TableCell className="font-medium">{order.examType?.toUpperCase()}</TableCell>
-                          <TableCell className="font-mono text-xs">{order.pinCode || '-'}</TableCell>
-                          <TableCell className="text-xs">{order.serialNumber || '-'}</TableCell>
-                          <TableCell>₦{parseFloat(String(order.amount || 0)).toLocaleString()}</TableCell>
-                          <TableCell>{getStatusBadge(order.status)}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{formatDate(order.createdAt)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                <div className="space-y-3">
+                  {history.map((order) => (
+                    <div key={order.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                          order.status === 'completed' || order.status === 'delivered' ? 'bg-green-100' : 
+                          order.status === 'failed' ? 'bg-red-100' : 'bg-yellow-100'
+                        }`}>
+                          <CreditCard className={`h-5 w-5 ${
+                            order.status === 'completed' || order.status === 'delivered' ? 'text-green-600' : 
+                            order.status === 'failed' ? 'text-red-600' : 'text-yellow-600'
+                          }`} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium">{order.examType?.toUpperCase()} PIN</p>
+                          {order.pinCode && (
+                            <p className="text-xs font-mono text-muted-foreground truncate">PIN: {order.pinCode}</p>
+                          )}
+                          {order.serialNumber && (
+                            <p className="text-xs text-muted-foreground">Serial: {order.serialNumber}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground sm:hidden">{formatDate(order.createdAt)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between sm:flex-col sm:items-end gap-2">
+                        <p className="font-bold">₦{parseFloat(String(order.amount || 0)).toLocaleString()}</p>
+                        {getStatusBadge(order.status)}
+                        <p className="text-xs text-muted-foreground hidden sm:block">{formatDate(order.createdAt)}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
