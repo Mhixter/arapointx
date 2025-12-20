@@ -1,62 +1,131 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { MOCK_EDUCATION_SERVICES, EducationService } from "@/lib/mockData";
-import { ArrowLeft, CheckCircle, XCircle, Plus, Download } from "lucide-react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ArrowLeft, CheckCircle, XCircle, Download, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { downloadCSV } from "@/lib/downloadUtils";
 import { ResponsiveServiceTable, ResponsiveTabs } from "@/components/admin/ResponsiveServiceTable";
 
+interface EducationService {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail?: string;
+  serviceType: "jamb" | "waec" | "neco" | "nabteb" | "nbais";
+  registrationNumber: string;
+  examYear?: string;
+  status: "pending" | "completed" | "rejected";
+  resultData?: any;
+  createdAt: string;
+}
+
+const getAuthToken = () => localStorage.getItem('accessToken');
+
 export default function AdminEducationServices() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
-  const [services, setServices] = useState(MOCK_EDUCATION_SERVICES);
+  const [services, setServices] = useState<EducationService[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedRequest, setSelectedRequest] = useState<EducationService | null>(null);
-  const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [formData, setFormData] = useState<Partial<EducationService>>({});
   const [activeTab, setActiveTab] = useState("jamb");
 
-  const handleUpdateStatus = (id: string, status: "completed" | "rejected") => {
-    setServices(services.map(s => s.id === id ? { ...s, status } : s));
-    setSelectedRequest(null);
-    toast({ title: "Status Updated", description: `Service marked as ${status}.` });
+  useEffect(() => {
+    fetchServices();
+  }, []);
+
+  const fetchServices = async () => {
+    try {
+      setLoading(true);
+      const token = getAuthToken();
+      const response = await fetch('/api/admin/education-services', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch education services');
+      }
+      
+      const result = await response.json();
+      if (result.status === 'success' && result.data?.services) {
+        const mappedServices = result.data.services.map((s: any) => ({
+          id: s.id,
+          userId: s.userId,
+          userName: s.userName || 'Unknown',
+          userEmail: s.userEmail,
+          serviceType: s.serviceType?.toLowerCase() || 'jamb',
+          registrationNumber: s.registrationNumber || '',
+          examYear: s.examYear,
+          status: s.status === 'completed' ? 'completed' : s.status === 'rejected' ? 'rejected' : 'pending',
+          resultData: s.resultData,
+          createdAt: s.createdAt,
+        }));
+        setServices(mappedServices);
+      }
+    } catch (error: any) {
+      console.error('Error fetching education services:', error);
+      toast({ title: "Error", description: "Failed to load education services", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDelete = (item: any) => {
+  const handleUpdateStatus = async (id: string, status: "completed" | "rejected") => {
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`/api/admin/education-services/${id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status }),
+      });
+      
+      if (response.ok) {
+        setServices(services.map(s => s.id === id ? { ...s, status } : s));
+        setSelectedRequest(null);
+        toast({ title: "Status Updated", description: `Service marked as ${status}.` });
+      } else {
+        toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async (item: any) => {
     if (window.confirm("Delete this record?")) {
-      setServices(services.filter(s => s.id !== item.id));
-      toast({ title: "Deleted", description: "Education service record deleted." });
+      try {
+        const token = getAuthToken();
+        const response = await fetch(`/api/admin/education-services/${item.id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        
+        if (response.ok) {
+          setServices(services.filter(s => s.id !== item.id));
+          toast({ title: "Deleted", description: "Education service record deleted." });
+        } else {
+          toast({ title: "Error", description: "Failed to delete record", variant: "destructive" });
+        }
+      } catch (error) {
+        toast({ title: "Error", description: "Failed to delete record", variant: "destructive" });
+      }
     }
-  };
-
-  const handleCreateService = () => {
-    if (!formData.userName || !formData.regNumber || !formData.serviceType || !formData.amount) {
-      toast({ title: "Missing Fields", description: "Please fill all required fields.", variant: "destructive" });
-      return;
-    }
-    const newService: EducationService = {
-      id: `edu_${Date.now()}`,
-      userId: `usr_${Date.now()}`,
-      userName: formData.userName || "",
-      serviceType: formData.serviceType as any,
-      regNumber: formData.regNumber || "",
-      status: "pending",
-      date: new Date().toISOString(),
-      amount: formData.amount || 0,
-      isVerified: false,
-    };
-    setServices([...services, newService]);
-    setOpenCreateDialog(false);
-    setFormData({});
-    toast({ title: "Created", description: "New education service record created." });
   };
 
   const handleEditService = () => {
@@ -69,7 +138,9 @@ export default function AdminEducationServices() {
 
   const filteredServices = services.filter(s => 
     (statusFilter === "all" || s.status === statusFilter) &&
-    (searchTerm === "" || s.userName.toLowerCase().includes(searchTerm.toLowerCase()) || s.regNumber.includes(searchTerm))
+    (searchTerm === "" || 
+      (s.userName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
+      (s.registrationNumber || '').includes(searchTerm))
   );
 
   const jambRequests = filteredServices.filter(s => s.serviceType === "jamb");
@@ -97,19 +168,45 @@ export default function AdminEducationServices() {
     }
   };
 
+  const formatDate = (dateStr: string) => {
+    try {
+      return new Date(dateStr).toLocaleDateString('en-NG', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
   const columns = [
-    { key: "id", label: "Request ID", render: (v: string) => <span className="font-mono text-xs">{v}</span> },
-    { key: "userName", label: "User", render: (v: string) => <span className="font-medium">{v}</span> },
-    { key: "regNumber", label: "Reg. Number", render: (v: string) => <span className="font-mono text-xs">{v}</span> },
-    { key: "amount", label: "Amount" },
-    { key: "status", label: "Status" },
-    { key: "isVerified", label: "Verified", render: (v: boolean) => (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${v ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-        {v ? "Verified" : "Pending"}
+    { key: "id", label: "Request ID", render: (v: string) => <span className="font-mono text-xs">{v?.slice(0, 8)}...</span> },
+    { key: "userName", label: "User", render: (v: string) => <span className="font-medium">{v || 'Unknown'}</span> },
+    { key: "registrationNumber", label: "Reg. Number", render: (v: string) => <span className="font-mono text-xs">{v}</span> },
+    { key: "examYear", label: "Year" },
+    { key: "status", label: "Status", render: (v: string) => (
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+        v === 'completed' ? 'bg-green-100 text-green-700' : 
+        v === 'rejected' ? 'bg-red-100 text-red-700' : 
+        'bg-yellow-100 text-yellow-700'
+      }`}>
+        {v}
       </span>
     )},
-    { key: "date", label: "Date" },
+    { key: "createdAt", label: "Date", render: (v: string) => formatDate(v) },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading education services...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -118,10 +215,15 @@ export default function AdminEducationServices() {
           <h2 className="text-xl sm:text-2xl lg:text-3xl font-heading font-bold tracking-tight">Education Services</h2>
           <p className="text-sm sm:text-base text-muted-foreground">Manage JAMB, WAEC, NECO, NABTEB, NBAIS</p>
         </div>
-        <Button variant="outline" onClick={() => navigate("/admin")} size="sm" className="w-fit h-8 sm:h-9 text-xs sm:text-sm">
-          <ArrowLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
-          Back
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchServices} size="sm" className="h-8 sm:h-9 text-xs sm:text-sm">
+            Refresh
+          </Button>
+          <Button variant="outline" onClick={() => navigate("/admin")} size="sm" className="h-8 sm:h-9 text-xs sm:text-sm">
+            <ArrowLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+            Back
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -137,52 +239,6 @@ export default function AdminEducationServices() {
                   <Download className="h-3.5 w-3.5 mr-1.5" />
                   CSV
                 </Button>
-                <Dialog open={openCreateDialog} onOpenChange={setOpenCreateDialog}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" className="h-8 text-xs">
-                      <Plus className="h-3.5 w-3.5 mr-1.5" />
-                      Create
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-[95vw] sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle className="text-base sm:text-lg">Create Education Service</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-3 py-4">
-                      <div>
-                        <Label className="text-xs sm:text-sm">User Name</Label>
-                        <Input className="h-8 sm:h-9 text-sm mt-1" placeholder="Enter user name" value={formData.userName || ""} onChange={(e) => setFormData({...formData, userName: e.target.value})} />
-                      </div>
-                      <div>
-                        <Label className="text-xs sm:text-sm">Service Type</Label>
-                        <Select value={formData.serviceType || ""} onValueChange={(val) => setFormData({...formData, serviceType: val as any})}>
-                          <SelectTrigger className="h-8 sm:h-9 text-sm mt-1">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="jamb">JAMB</SelectItem>
-                            <SelectItem value="waec">WAEC</SelectItem>
-                            <SelectItem value="neco">NECO</SelectItem>
-                            <SelectItem value="nabteb">NABTEB</SelectItem>
-                            <SelectItem value="nbais">NBAIS</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label className="text-xs sm:text-sm">Registration Number</Label>
-                        <Input className="h-8 sm:h-9 text-sm mt-1" placeholder="Enter reg number" value={formData.regNumber || ""} onChange={(e) => setFormData({...formData, regNumber: e.target.value})} />
-                      </div>
-                      <div>
-                        <Label className="text-xs sm:text-sm">Amount (₦)</Label>
-                        <Input className="h-8 sm:h-9 text-sm mt-1" type="number" placeholder="0" value={formData.amount || ""} onChange={(e) => setFormData({...formData, amount: parseInt(e.target.value)})} />
-                      </div>
-                    </div>
-                    <DialogFooter className="gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setOpenCreateDialog(false)}>Cancel</Button>
-                      <Button size="sm" onClick={handleCreateService}>Create</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
@@ -231,43 +287,48 @@ export default function AdminEducationServices() {
         </CardContent>
       </Card>
 
-      <Dialog open={!!selectedRequest && !openEditDialog} onOpenChange={(open) => !open && setSelectedRequest(null)}>
+      <Dialog open={!!selectedRequest && !openEditDialog} onOpenChange={() => setSelectedRequest(null)}>
         <DialogContent className="max-w-[95vw] sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base sm:text-lg">Request Details</DialogTitle>
+            <DialogTitle className="text-base sm:text-lg">Education Service Details</DialogTitle>
           </DialogHeader>
           {selectedRequest && (
-            <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">Request ID</p>
-                  <p className="font-mono font-bold text-xs sm:text-sm mt-1">{selectedRequest.id}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">User</p>
-                  <p className="font-bold text-xs sm:text-sm mt-1">{selectedRequest.userName}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">Reg Number</p>
-                  <p className="font-mono text-xs sm:text-sm mt-1">{selectedRequest.regNumber}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">Amount</p>
-                  <p className="font-bold text-green-600 text-xs sm:text-sm mt-1">₦{selectedRequest.amount?.toLocaleString()}</p>
-                </div>
+            <div className="space-y-3 py-4 text-sm">
+              <div className="grid grid-cols-2 gap-2">
+                <span className="text-muted-foreground">User:</span>
+                <span className="font-medium">{selectedRequest.userName}</span>
+                <span className="text-muted-foreground">Service:</span>
+                <span className="uppercase">{selectedRequest.serviceType}</span>
+                <span className="text-muted-foreground">Reg. Number:</span>
+                <span className="font-mono text-xs">{selectedRequest.registrationNumber}</span>
+                {selectedRequest.examYear && (
+                  <>
+                    <span className="text-muted-foreground">Year:</span>
+                    <span>{selectedRequest.examYear}</span>
+                  </>
+                )}
+                <span className="text-muted-foreground">Status:</span>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium w-fit ${
+                  selectedRequest.status === 'completed' ? 'bg-green-100 text-green-700' : 
+                  selectedRequest.status === 'rejected' ? 'bg-red-100 text-red-700' : 
+                  'bg-yellow-100 text-yellow-700'
+                }`}>{selectedRequest.status}</span>
+                <span className="text-muted-foreground">Date:</span>
+                <span>{formatDate(selectedRequest.createdAt)}</span>
               </div>
             </div>
           )}
           <DialogFooter className="gap-2">
-            {selectedRequest?.status === "pending" && (
+            <Button variant="outline" size="sm" onClick={() => setSelectedRequest(null)}>Close</Button>
+            {selectedRequest?.status === 'pending' && (
               <>
-                <Button variant="outline" size="sm" onClick={() => handleUpdateStatus(selectedRequest.id, "rejected")}>
+                <Button size="sm" variant="destructive" onClick={() => handleUpdateStatus(selectedRequest.id, "rejected")}>
                   <XCircle className="h-3.5 w-3.5 mr-1.5" />
                   Reject
                 </Button>
                 <Button size="sm" onClick={() => handleUpdateStatus(selectedRequest.id, "completed")}>
                   <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
-                  Approve
+                  Complete
                 </Button>
               </>
             )}
@@ -278,17 +339,9 @@ export default function AdminEducationServices() {
       <Dialog open={openEditDialog} onOpenChange={setOpenEditDialog}>
         <DialogContent className="max-w-[95vw] sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base sm:text-lg">Edit Service</DialogTitle>
+            <DialogTitle className="text-base sm:text-lg">Edit Education Service</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-4">
-            <div>
-              <Label className="text-xs sm:text-sm">User Name</Label>
-              <Input className="h-8 sm:h-9 text-sm mt-1" value={formData.userName || ""} onChange={(e) => setFormData({...formData, userName: e.target.value})} />
-            </div>
-            <div>
-              <Label className="text-xs sm:text-sm">Amount (₦)</Label>
-              <Input className="h-8 sm:h-9 text-sm mt-1" type="number" value={formData.amount || ""} onChange={(e) => setFormData({...formData, amount: parseInt(e.target.value)})} />
-            </div>
             <div>
               <Label className="text-xs sm:text-sm">Status</Label>
               <Select value={formData.status || ""} onValueChange={(val) => setFormData({...formData, status: val as any})}>
@@ -305,7 +358,7 @@ export default function AdminEducationServices() {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" size="sm" onClick={() => setOpenEditDialog(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleEditService}>Update</Button>
+            <Button size="sm" onClick={handleEditService}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

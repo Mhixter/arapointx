@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,16 +7,17 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Edit, Trash2, Shield, ShieldCheck, ShieldAlert, Eye, Users } from "lucide-react";
+import { Plus, Edit, Trash2, Shield, ShieldCheck, ShieldAlert, Eye, Users, Loader2, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 
 interface AdminRole {
   id: string;
   name: string;
   description: string;
   permissions: string[];
-  is_active: boolean;
-  user_count: number;
+  isActive: boolean;
+  userCount: number;
 }
 
 const ALL_PERMISSIONS = [
@@ -25,57 +26,66 @@ const ALL_PERMISSIONS = [
   { key: "bvn", label: "BVN Services", description: "Manage BVN retrieval and modification" },
   { key: "education", label: "Education Services", description: "Manage exam result checks" },
   { key: "vtu", label: "VTU Services", description: "Manage airtime, data, and bills" },
+  { key: "cac", label: "CAC Services", description: "Manage CAC registration requests" },
   { key: "pricing", label: "Pricing Management", description: "Edit service prices" },
   { key: "analytics", label: "Analytics", description: "View platform statistics" },
   { key: "settings", label: "Settings", description: "Configure platform settings" },
   { key: "roles", label: "Role Management", description: "Manage admin roles and permissions" },
 ];
 
-const MOCK_ROLES: AdminRole[] = [
-  { 
-    id: "1", 
-    name: "super_admin", 
-    description: "Full access to all system features", 
-    permissions: ALL_PERMISSIONS.map(p => p.key),
-    is_active: true,
-    user_count: 1
-  },
-  { 
-    id: "2", 
-    name: "admin", 
-    description: "Standard admin access", 
-    permissions: ["users", "identity", "bvn", "education", "vtu", "analytics"],
-    is_active: true,
-    user_count: 3
-  },
-  { 
-    id: "3", 
-    name: "operator", 
-    description: "Limited access for service operations", 
-    permissions: ["identity", "bvn", "education", "vtu"],
-    is_active: true,
-    user_count: 5
-  },
-  { 
-    id: "4", 
-    name: "viewer", 
-    description: "Read-only access", 
-    permissions: ["analytics"],
-    is_active: true,
-    user_count: 2
-  },
-];
+const getAuthToken = () => localStorage.getItem('accessToken');
 
 export default function AdminRoles() {
   const { toast } = useToast();
-  const [roles, setRoles] = useState<AdminRole[]>(MOCK_ROLES);
+  const [, navigate] = useLocation();
+  const [roles, setRoles] = useState<AdminRole[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<AdminRole | null>(null);
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     permissions: [] as string[],
   });
+
+  useEffect(() => {
+    fetchRoles();
+  }, []);
+
+  const fetchRoles = async () => {
+    try {
+      setLoading(true);
+      const token = getAuthToken();
+      const response = await fetch('/api/admin/roles', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch roles');
+      }
+      
+      const result = await response.json();
+      if (result.status === 'success' && result.data?.roles) {
+        setRoles(result.data.roles.map((r: any) => ({
+          id: r.id,
+          name: r.name,
+          description: r.description || '',
+          permissions: Array.isArray(r.permissions) ? r.permissions : [],
+          isActive: r.isActive ?? true,
+          userCount: r.userCount || 0,
+        })));
+      }
+    } catch (error: any) {
+      console.error('Error fetching roles:', error);
+      toast({ title: "Error", description: "Failed to load roles", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getRoleIcon = (name: string) => {
     switch (name) {
@@ -103,251 +113,341 @@ export default function AdminRoles() {
     }
   };
 
-  const togglePermission = (key: string) => {
+  const handlePermissionToggle = (permission: string) => {
     setFormData(prev => ({
       ...prev,
-      permissions: prev.permissions.includes(key)
-        ? prev.permissions.filter(p => p !== key)
-        : [...prev.permissions, key]
+      permissions: prev.permissions.includes(permission)
+        ? prev.permissions.filter(p => p !== permission)
+        : [...prev.permissions, permission]
     }));
   };
 
-  const handleCreate = () => {
+  const handleSelectAllPermissions = () => {
+    if (formData.permissions.length === ALL_PERMISSIONS.length) {
+      setFormData(prev => ({ ...prev, permissions: [] }));
+    } else {
+      setFormData(prev => ({ ...prev, permissions: ALL_PERMISSIONS.map(p => p.key) }));
+    }
+  };
+
+  const handleCreateRole = async () => {
     if (!formData.name.trim()) {
       toast({ title: "Error", description: "Role name is required", variant: "destructive" });
       return;
     }
 
-    const newRole: AdminRole = {
-      id: String(Date.now()),
-      name: formData.name.toLowerCase().replace(/\s+/g, "_"),
-      description: formData.description,
-      permissions: formData.permissions,
-      is_active: true,
-      user_count: 0,
-    };
+    try {
+      setSaving(true);
+      const token = getAuthToken();
+      const response = await fetch('/api/admin/roles', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
 
-    setRoles(prev => [...prev, newRole]);
-    setFormData({ name: "", description: "", permissions: [] });
-    setIsCreateOpen(false);
-    toast({ title: "Role Created", description: `${newRole.name} has been created successfully` });
+      const result = await response.json();
+      
+      if (response.ok && result.status === 'success') {
+        toast({ title: "Success", description: "Role created successfully" });
+        setIsCreateOpen(false);
+        setFormData({ name: "", description: "", permissions: [] });
+        fetchRoles();
+      } else {
+        toast({ title: "Error", description: result.message || "Failed to create role", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to create role", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleEdit = (role: AdminRole) => {
+  const handleUpdateRole = async () => {
+    if (!editingRole) return;
+
+    try {
+      setSaving(true);
+      const token = getAuthToken();
+      const response = await fetch(`/api/admin/roles/${editingRole.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const result = await response.json();
+      
+      if (response.ok && result.status === 'success') {
+        toast({ title: "Success", description: "Role updated successfully" });
+        setEditingRole(null);
+        setFormData({ name: "", description: "", permissions: [] });
+        fetchRoles();
+      } else {
+        toast({ title: "Error", description: result.message || "Failed to update role", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to update role", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteRole = async (role: AdminRole) => {
+    if (!window.confirm(`Are you sure you want to delete the "${role.name}" role?`)) return;
+
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`/api/admin/roles/${role.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const result = await response.json();
+      
+      if (response.ok && result.status === 'success') {
+        toast({ title: "Success", description: "Role deleted successfully" });
+        fetchRoles();
+      } else {
+        toast({ title: "Error", description: result.message || "Failed to delete role", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to delete role", variant: "destructive" });
+    }
+  };
+
+  const openEditDialog = (role: AdminRole) => {
     setEditingRole(role);
     setFormData({
       name: role.name,
       description: role.description,
-      permissions: [...role.permissions],
+      permissions: role.permissions,
     });
   };
 
-  const handleUpdate = () => {
-    if (!editingRole) return;
-
-    setRoles(prev => prev.map(r => 
-      r.id === editingRole.id 
-        ? { ...r, name: formData.name, description: formData.description, permissions: formData.permissions }
-        : r
-    ));
-    setEditingRole(null);
-    setFormData({ name: "", description: "", permissions: [] });
-    toast({ title: "Role Updated", description: "Role has been updated successfully" });
-  };
-
-  const handleDelete = (id: string) => {
-    const role = roles.find(r => r.id === id);
-    if (role?.name === "super_admin") {
-      toast({ title: "Error", description: "Cannot delete super admin role", variant: "destructive" });
-      return;
-    }
-
-    setRoles(prev => prev.filter(r => r.id !== id));
-    toast({ title: "Role Deleted", description: "Role has been deleted" });
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading roles...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl sm:text-2xl font-heading font-bold tracking-tight">Role Management</h2>
-          <p className="text-sm sm:text-base text-muted-foreground">Configure admin roles and their permissions</p>
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-heading font-bold tracking-tight">Admin Roles</h2>
+          <p className="text-sm sm:text-base text-muted-foreground">Manage roles and permissions for admin users</p>
         </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchRoles} size="sm" className="h-8 sm:h-9 text-xs sm:text-sm">
+            Refresh
+          </Button>
+          <Button variant="outline" onClick={() => navigate("/admin")} size="sm" className="h-8 sm:h-9 text-xs sm:text-sm">
+            <ArrowLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+            Back
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
             <Button size="sm" className="h-8 sm:h-9 text-xs sm:text-sm">
-              <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
               Create Role
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-base sm:text-lg">Create New Role</DialogTitle>
-              <DialogDescription className="text-xs sm:text-sm">Define a new admin role with specific permissions</DialogDescription>
+              <DialogTitle>Create New Role</DialogTitle>
+              <DialogDescription>Define a new admin role with specific permissions</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 sm:space-y-6 py-3 sm:py-4">
-              <div className="space-y-1.5 sm:space-y-2">
-                <Label htmlFor="role-name" className="text-xs sm:text-sm">Role Name</Label>
-                <Input
-                  id="role-name"
+            <div className="space-y-4 py-4">
+              <div>
+                <Label className="text-sm">Role Name</Label>
+                <Input 
+                  className="mt-1" 
+                  placeholder="e.g., operator, viewer" 
                   value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="e.g., content_manager"
-                  className="h-8 sm:h-9 text-sm"
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
                 />
               </div>
-              <div className="space-y-1.5 sm:space-y-2">
-                <Label htmlFor="role-desc" className="text-xs sm:text-sm">Description</Label>
-                <Textarea
-                  id="role-desc"
+              <div>
+                <Label className="text-sm">Description</Label>
+                <Textarea 
+                  className="mt-1" 
+                  placeholder="Describe this role's purpose"
                   value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Describe what this role can do..."
-                  className="text-sm min-h-[60px] sm:min-h-[80px]"
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
                 />
               </div>
-              <div className="space-y-2 sm:space-y-3">
-                <Label className="text-xs sm:text-sm">Permissions</Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                  {ALL_PERMISSIONS.map((perm) => (
-                    <div
-                      key={perm.key}
-                      className={`flex items-start space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-lg border transition-colors cursor-pointer touch-manipulation ${
-                        formData.permissions.includes(perm.key)
-                          ? "bg-primary/10 border-primary"
-                          : "hover:bg-muted/50 active:bg-muted"
-                      }`}
-                      onClick={() => togglePermission(perm.key)}
-                    >
-                      <Checkbox
-                        checked={formData.permissions.includes(perm.key)}
-                        onCheckedChange={() => togglePermission(perm.key)}
-                        className="mt-0.5"
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-sm">Permissions</Label>
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-6 text-xs"
+                    onClick={handleSelectAllPermissions}
+                  >
+                    {formData.permissions.length === ALL_PERMISSIONS.length ? "Deselect All" : "Select All"}
+                  </Button>
+                </div>
+                <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-3">
+                  {ALL_PERMISSIONS.map((permission) => (
+                    <div key={permission.key} className="flex items-start gap-2">
+                      <Checkbox 
+                        id={permission.key}
+                        checked={formData.permissions.includes(permission.key)}
+                        onCheckedChange={() => handlePermissionToggle(permission.key)}
                       />
-                      <div className="min-w-0">
-                        <p className="font-medium text-xs sm:text-sm truncate">{perm.label}</p>
-                        <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-2">{perm.description}</p>
+                      <div>
+                        <label htmlFor={permission.key} className="text-sm font-medium cursor-pointer">{permission.label}</label>
+                        <p className="text-xs text-muted-foreground">{permission.description}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button variant="outline" onClick={() => setIsCreateOpen(false)} size="sm" className="h-8 sm:h-9">Cancel</Button>
-              <Button onClick={handleCreate} size="sm" className="h-8 sm:h-9">Create Role</Button>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
+              <Button onClick={handleCreateRole} disabled={saving}>
+                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Create Role
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
-        {roles.map(role => (
-          <Card key={role.id} className="hover:shadow-lg transition-shadow">
-            <CardHeader className="p-3 sm:p-4 pb-2 sm:pb-3">
-              <div className="flex items-center justify-between gap-2">
-                {getRoleIcon(role.name)}
-                <Badge className={`${getRoleBadgeColor(role.name)} text-[10px] sm:text-xs truncate max-w-[120px]`}>
-                  {role.name.replace(/_/g, " ")}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="p-3 sm:p-4 pt-0 space-y-3 sm:space-y-4">
-              <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">{role.description}</p>
-              <div className="flex items-center justify-between text-xs sm:text-sm">
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <Users className="h-3 w-3 sm:h-4 sm:w-4" />
-                  <span>{role.user_count} users</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-muted-foreground">{role.permissions.length} perms</span>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {role.permissions.slice(0, 2).map(perm => (
-                  <Badge key={perm} variant="outline" className="text-[10px] sm:text-xs">
-                    {perm}
-                  </Badge>
-                ))}
-                {role.permissions.length > 2 && (
-                  <Badge variant="outline" className="text-[10px] sm:text-xs">
-                    +{role.permissions.length - 2}
-                  </Badge>
-                )}
-              </div>
-              <div className="flex gap-2 pt-1 sm:pt-2">
-                <Button variant="outline" size="sm" className="flex-1 h-7 sm:h-8 text-xs" onClick={() => handleEdit(role)}>
-                  <Edit className="h-3 w-3 mr-1" />
-                  Edit
-                </Button>
-                {role.name !== "super_admin" && (
-                  <Button variant="destructive" size="sm" className="h-7 sm:h-8 px-2 sm:px-3" onClick={() => handleDelete(role.id)}>
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                )}
-              </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {roles.length === 0 ? (
+          <Card className="col-span-full">
+            <CardContent className="p-8 text-center">
+              <p className="text-muted-foreground">No roles found. Create your first role to get started.</p>
             </CardContent>
           </Card>
-        ))}
+        ) : (
+          roles.map((role) => (
+            <Card key={role.id} className="relative">
+              <CardHeader className="pb-2">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    {getRoleIcon(role.name)}
+                    <div>
+                      <CardTitle className="text-base capitalize">{role.name.replace(/_/g, ' ')}</CardTitle>
+                      <Badge className={`mt-1 text-xs ${getRoleBadgeColor(role.name)}`}>
+                        {role.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(role)}>
+                      <Edit className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-red-500 hover:text-red-700" 
+                      onClick={() => handleDeleteRole(role)}
+                      disabled={role.name === 'super_admin'}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+                <CardDescription className="text-xs mt-2">{role.description}</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-2">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
+                  <Users className="h-3.5 w-3.5" />
+                  <span>{role.userCount} user{role.userCount !== 1 ? 's' : ''}</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {role.permissions.slice(0, 4).map((p) => (
+                    <Badge key={p} variant="outline" className="text-xs">{p}</Badge>
+                  ))}
+                  {role.permissions.length > 4 && (
+                    <Badge variant="secondary" className="text-xs">+{role.permissions.length - 4} more</Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
 
       <Dialog open={!!editingRole} onOpenChange={(open) => !open && setEditingRole(null)}>
-        <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-base sm:text-lg">Edit Role: {editingRole?.name}</DialogTitle>
-            <DialogDescription className="text-xs sm:text-sm">Modify role permissions and details</DialogDescription>
+            <DialogTitle>Edit Role</DialogTitle>
+            <DialogDescription>Modify the role's permissions and settings</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 sm:space-y-6 py-3 sm:py-4">
-            <div className="space-y-1.5 sm:space-y-2">
-              <Label htmlFor="edit-role-name" className="text-xs sm:text-sm">Role Name</Label>
-              <Input
-                id="edit-role-name"
+          <div className="space-y-4 py-4">
+            <div>
+              <Label className="text-sm">Role Name</Label>
+              <Input 
+                className="mt-1" 
                 value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                disabled={editingRole?.name === "super_admin"}
-                className="h-8 sm:h-9 text-sm"
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                disabled={editingRole?.name === 'super_admin'}
               />
             </div>
-            <div className="space-y-1.5 sm:space-y-2">
-              <Label htmlFor="edit-role-desc" className="text-xs sm:text-sm">Description</Label>
-              <Textarea
-                id="edit-role-desc"
+            <div>
+              <Label className="text-sm">Description</Label>
+              <Textarea 
+                className="mt-1" 
                 value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                className="text-sm min-h-[60px] sm:min-h-[80px]"
+                onChange={(e) => setFormData({...formData, description: e.target.value})}
               />
             </div>
-            <div className="space-y-2 sm:space-y-3">
-              <Label className="text-xs sm:text-sm">Permissions</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                {ALL_PERMISSIONS.map((perm) => (
-                  <div
-                    key={perm.key}
-                    className={`flex items-start space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-lg border transition-colors cursor-pointer touch-manipulation ${
-                      formData.permissions.includes(perm.key)
-                        ? "bg-primary/10 border-primary"
-                        : "hover:bg-muted/50 active:bg-muted"
-                    }`}
-                    onClick={() => editingRole?.name !== "super_admin" && togglePermission(perm.key)}
-                  >
-                    <Checkbox
-                      checked={formData.permissions.includes(perm.key)}
-                      onCheckedChange={() => editingRole?.name !== "super_admin" && togglePermission(perm.key)}
-                      disabled={editingRole?.name === "super_admin"}
-                      className="mt-0.5"
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-sm">Permissions</Label>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-6 text-xs"
+                  onClick={handleSelectAllPermissions}
+                >
+                  {formData.permissions.length === ALL_PERMISSIONS.length ? "Deselect All" : "Select All"}
+                </Button>
+              </div>
+              <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-3">
+                {ALL_PERMISSIONS.map((permission) => (
+                  <div key={permission.key} className="flex items-start gap-2">
+                    <Checkbox 
+                      id={`edit-${permission.key}`}
+                      checked={formData.permissions.includes(permission.key)}
+                      onCheckedChange={() => handlePermissionToggle(permission.key)}
                     />
-                    <div className="min-w-0">
-                      <p className="font-medium text-xs sm:text-sm truncate">{perm.label}</p>
-                      <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-2">{perm.description}</p>
+                    <div>
+                      <label htmlFor={`edit-${permission.key}`} className="text-sm font-medium cursor-pointer">{permission.label}</label>
+                      <p className="text-xs text-muted-foreground">{permission.description}</p>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
           </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setEditingRole(null)} size="sm" className="h-8 sm:h-9">Cancel</Button>
-            <Button onClick={handleUpdate} size="sm" className="h-8 sm:h-9">Save Changes</Button>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingRole(null)}>Cancel</Button>
+            <Button onClick={handleUpdateRole} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Save Changes
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1248,4 +1248,107 @@ router.get('/cac/requests', async (req: Request, res: Response) => {
   }
 });
 
+router.get('/roles', async (req: Request, res: Response) => {
+  try {
+    const roles = await db.select().from(adminRoles).orderBy(adminRoles.name);
+    
+    const rolesWithCount = await Promise.all(roles.map(async (role) => {
+      const [userCount] = await db.select({ count: count() })
+        .from(adminUsers)
+        .where(eq(adminUsers.roleId, role.id));
+      return {
+        ...role,
+        userCount: userCount?.count || 0,
+      };
+    }));
+
+    res.json(formatResponse('success', 200, 'Roles retrieved', { roles: rolesWithCount }));
+  } catch (error: any) {
+    logger.error('Get roles error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get roles'));
+  }
+});
+
+router.post('/roles', async (req: Request, res: Response) => {
+  try {
+    const { name, description, permissions } = req.body;
+
+    if (!name) {
+      return res.status(400).json(formatErrorResponse(400, 'Role name is required'));
+    }
+
+    const [newRole] = await db.insert(adminRoles).values({
+      name,
+      description,
+      permissions: permissions || [],
+      isActive: true,
+    }).returning();
+
+    logger.info('Role created', { roleId: newRole.id, name });
+    res.status(201).json(formatResponse('success', 201, 'Role created', { role: newRole }));
+  } catch (error: any) {
+    if (error.code === '23505') {
+      return res.status(400).json(formatErrorResponse(400, 'Role name already exists'));
+    }
+    logger.error('Create role error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to create role'));
+  }
+});
+
+router.put('/roles/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, description, permissions, isActive } = req.body;
+
+    const updateData: any = { updatedAt: new Date() };
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (permissions !== undefined) updateData.permissions = permissions;
+    if (isActive !== undefined) updateData.isActive = isActive;
+
+    const [updated] = await db.update(adminRoles)
+      .set(updateData)
+      .where(eq(adminRoles.id, id))
+      .returning();
+
+    if (!updated) {
+      return res.status(404).json(formatErrorResponse(404, 'Role not found'));
+    }
+
+    logger.info('Role updated', { roleId: id });
+    res.json(formatResponse('success', 200, 'Role updated', { role: updated }));
+  } catch (error: any) {
+    logger.error('Update role error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to update role'));
+  }
+});
+
+router.delete('/roles/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const [usersWithRole] = await db.select({ count: count() })
+      .from(adminUsers)
+      .where(eq(adminUsers.roleId, id));
+
+    if (usersWithRole && usersWithRole.count > 0) {
+      return res.status(400).json(formatErrorResponse(400, 'Cannot delete role with assigned users'));
+    }
+
+    const [deleted] = await db.delete(adminRoles)
+      .where(eq(adminRoles.id, id))
+      .returning();
+
+    if (!deleted) {
+      return res.status(404).json(formatErrorResponse(404, 'Role not found'));
+    }
+
+    logger.info('Role deleted', { roleId: id });
+    res.json(formatResponse('success', 200, 'Role deleted'));
+  } catch (error: any) {
+    logger.error('Delete role error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to delete role'));
+  }
+});
+
 export default router;
