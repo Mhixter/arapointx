@@ -41,7 +41,7 @@ export default function EducationAgentDashboard() {
   const [pinStock, setPinStock] = useState<any>({});
   const [pins, setPins] = useState<any[]>([]);
   const [pinOrders, setPinOrders] = useState<any[]>([]);
-  const [pinFilter, setPinFilter] = useState({ examType: '', status: '' });
+  const [pinFilter, setPinFilter] = useState({ examType: 'all', status: 'all' });
   const [showAddPin, setShowAddPin] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [showPricing, setShowPricing] = useState(false);
@@ -547,7 +547,7 @@ export default function EducationAgentDashboard() {
                       <SelectValue placeholder="Exam Type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Types</SelectItem>
+                      <SelectItem value="all">All Types</SelectItem>
                       {EXAM_TYPES.map(e => <SelectItem key={e} value={e}>{e.toUpperCase()}</SelectItem>)}
                     </SelectContent>
                   </Select>
@@ -556,7 +556,7 @@ export default function EducationAgentDashboard() {
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Status</SelectItem>
+                      <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="unused">Unused</SelectItem>
                       <SelectItem value="used">Used</SelectItem>
                     </SelectContent>
