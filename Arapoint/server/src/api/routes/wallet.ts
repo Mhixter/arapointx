@@ -80,6 +80,7 @@ router.get('/virtual-account', async (req: Request, res: Response) => {
     res.json(formatResponse('success', 200, result.message, {
       configured: result.configured,
       account: result.account,
+      requiresKyc: result.requiresKyc,
     }));
   } catch (error: any) {
     logger.error('Get virtual account error', { error: error.message, userId: req.userId });
