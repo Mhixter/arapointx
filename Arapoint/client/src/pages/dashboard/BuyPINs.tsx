@@ -2,8 +2,12 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle2, ShoppingCart, Plus, Minus, AlertTriangle, RefreshCw } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Loader2, CheckCircle2, ShoppingCart, Plus, Minus, AlertTriangle, RefreshCw, History, CreditCard, Clock, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+const getAuthToken = () => localStorage.getItem('accessToken');
 
 interface PINStock {
   available: boolean;
@@ -20,6 +24,16 @@ interface PINItem {
   quantity: number;
 }
 
+interface PINOrder {
+  id: string;
+  examType: string;
+  status: string;
+  amount: number;
+  pinCode?: string;
+  serialNumber?: string;
+  createdAt: string;
+}
+
 const PIN_INFO: Record<string, { name: string; description: string }> = {
   waec: { name: "WAEC Scratch Card", description: "West African Examinations Council Result Checker PIN" },
   neco: { name: "NECO Token", description: "National Examinations Council Result Checker Token" },
@@ -34,11 +48,13 @@ export default function BuyPINs() {
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [purchaseComplete, setPurchaseComplete] = useState(false);
   const [purchasedPins, setPurchasedPins] = useState<{ examType: string; pin: string; serial?: string }[]>([]);
+  const [history, setHistory] = useState<PINOrder[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   const fetchStock = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = getAuthToken();
       const res = await fetch('/api/education/pins/stock', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -66,6 +82,24 @@ export default function BuyPINs() {
     }
   };
 
+  const fetchHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/education/pins/orders?limit=50', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setHistory(data.data.orders || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch PIN history:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
   useEffect(() => {
     fetchStock();
   }, []);
@@ -90,7 +124,7 @@ export default function BuyPINs() {
     }
 
     setIsPurchasing(true);
-    const token = localStorage.getItem('accessToken');
+    const token = getAuthToken();
     const purchased: { examType: string; pin: string; serial?: string }[] = [];
     let hasError = false;
 
@@ -156,6 +190,30 @@ export default function BuyPINs() {
     fetchStock();
   };
 
+  const getStatusBadge = (status: string) => {
+    const s = status?.toLowerCase();
+    if (s === 'completed' || s === 'delivered') {
+      return <Badge className="bg-green-500 hover:bg-green-600"><CheckCircle2 className="h-3 w-3 mr-1" /> Completed</Badge>;
+    }
+    if (s === 'failed') {
+      return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" /> Failed</Badge>;
+    }
+    if (s === 'pending' || s === 'paid') {
+      return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" /> {s === 'paid' ? 'Processing' : 'Pending'}</Badge>;
+    }
+    return <Badge variant="outline">{status}</Badge>;
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-NG', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -207,57 +265,113 @@ export default function BuyPINs() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-heading font-bold tracking-tight">Buy Exam Result PINs</h2>
-          <p className="text-sm sm:text-base text-muted-foreground mt-2">Purchase result checker PINs for all major examination bodies.</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={fetchStock}>
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
+      <div>
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-heading font-bold tracking-tight">Buy Exam Result PINs</h2>
+        <p className="text-sm sm:text-base text-muted-foreground mt-2">Purchase result checker PINs for all major examination bodies.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {pins.map((pin) => (
-          <PinCard 
-            key={pin.id} 
-            pin={pin} 
-            onUpdateQuantity={updateQuantity} 
-          />
-        ))}
-      </div>
+      <Tabs defaultValue="buy" onValueChange={(val) => val === 'history' && fetchHistory()}>
+        <TabsList>
+          <TabsTrigger value="buy"><CreditCard className="h-4 w-4 mr-2" />Buy PINs</TabsTrigger>
+          <TabsTrigger value="history"><History className="h-4 w-4 mr-2" />Purchase History</TabsTrigger>
+        </TabsList>
 
-      {getTotalItems() > 0 && (
-        <Card className="sticky bottom-4 bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
-          <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Items: <span className="font-bold text-primary">{getTotalItems()}</span></p>
-                <p className="text-2xl font-bold">₦{getTotalAmount().toLocaleString()}</p>
-              </div>
-              <Button
-                onClick={handlePurchase}
-                size="lg"
-                disabled={isPurchasing}
-                className="w-full sm:w-auto"
-              >
-                {isPurchasing ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <ShoppingCart className="mr-2 h-4 w-4" />
-                    Checkout Now
-                  </>
-                )}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        <TabsContent value="buy" className="mt-4">
+          <div className="flex justify-end mb-4">
+            <Button variant="outline" size="sm" onClick={fetchStock}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {pins.map((pin) => (
+              <PinCard 
+                key={pin.id} 
+                pin={pin} 
+                onUpdateQuantity={updateQuantity} 
+              />
+            ))}
+          </div>
+
+          {getTotalItems() > 0 && (
+            <Card className="sticky bottom-4 mt-6 bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
+              <CardContent className="pt-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Items: <span className="font-bold text-primary">{getTotalItems()}</span></p>
+                    <p className="text-2xl font-bold">₦{getTotalAmount().toLocaleString()}</p>
+                  </div>
+                  <Button
+                    onClick={handlePurchase}
+                    size="lg"
+                    disabled={isPurchasing}
+                    className="w-full sm:w-auto"
+                  >
+                    {isPurchasing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        Checkout Now
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="history" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><History className="h-5 w-5" />Purchase History</CardTitle>
+              <CardDescription>View your PIN purchase history</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingHistory ? (
+                <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin" /></div>
+              ) : history.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <CreditCard className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>No PIN purchases yet</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Exam Type</TableHead>
+                        <TableHead>PIN Code</TableHead>
+                        <TableHead>Serial</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {history.map((order) => (
+                        <TableRow key={order.id}>
+                          <TableCell className="font-medium">{order.examType?.toUpperCase()}</TableCell>
+                          <TableCell className="font-mono text-xs">{order.pinCode || '-'}</TableCell>
+                          <TableCell className="text-xs">{order.serialNumber || '-'}</TableCell>
+                          <TableCell>₦{parseFloat(String(order.amount || 0)).toLocaleString()}</TableCell>
+                          <TableCell>{getStatusBadge(order.status)}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{formatDate(order.createdAt)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
