@@ -147,9 +147,6 @@ function ServiceContent({ service }: { service: any }) {
           statusType: selectedStatus,
           slipType: selectedSlip 
         };
-        setIsLoading(false);
-        setRequestStatus("pending");
-        return;
       } else if (service.id === "validation") {
         endpoint = '/api/identity/validation';
         body = { 
@@ -157,13 +154,15 @@ function ServiceContent({ service }: { service: any }) {
           validationType: selectedStatus,
           slipType: selectedSlip 
         };
-        setIsLoading(false);
-        setRequestStatus("pending");
-        return;
-      } else if (service.id === "personalization" || service.id === "birth-attestation") {
-        setIsLoading(false);
-        setRequestStatus("pending");
-        return;
+      } else if (service.id === "personalization") {
+        endpoint = '/api/identity/personalization';
+        body = { trackingId: inputValue };
+      } else if (service.id === "birth-attestation") {
+        const fullName = formData.get("fullName") as string;
+        const dateOfBirth = formData.get("dateOfBirth") as string;
+        const placeOfBirth = formData.get("placeOfBirth") as string;
+        endpoint = '/api/identity/birth-attestation';
+        body = { fullName, dateOfBirth, placeOfBirth };
       } else {
         throw new Error("Unknown service type");
       }
@@ -187,12 +186,21 @@ function ServiceContent({ service }: { service: any }) {
       if (data.data?.slip?.html) {
         setSlipHtml(data.data.slip.html);
       }
-      setRequestStatus("completed");
-
-      toast({
-        title: "Verification Successful",
-        description: `${service.name} completed successfully`,
-      });
+      
+      const agentProcessedServices = ['ipe-clearance', 'validation', 'personalization', 'birth-attestation', 'nin-tracking'];
+      if (agentProcessedServices.includes(service.id)) {
+        setRequestStatus("pending");
+        toast({
+          title: "Request Submitted",
+          description: data.data?.message || `Your ${service.name} request has been submitted`,
+        });
+      } else {
+        setRequestStatus("completed");
+        toast({
+          title: "Verification Successful",
+          description: `${service.name} completed successfully`,
+        });
+      }
 
     } catch (err: any) {
       setError(err.message || 'Verification failed');

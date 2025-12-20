@@ -7,9 +7,9 @@ import { virtualAccountService } from '../../services/virtualAccountService';
 import { generateNINSlip } from '../../utils/slipGenerator';
 import { ninLookupSchema, ninPhoneSchema, lostNinSchema } from '../validators/identity';
 import { logger } from '../../utils/logger';
-import { formatResponse, formatErrorResponse } from '../../utils/helpers';
+import { formatResponse, formatErrorResponse, generateReferenceId } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { identityVerifications } from '../../db/schema';
+import { identityVerifications, identityServiceRequests, servicePricing } from '../../db/schema';
 import { eq, desc } from 'drizzle-orm';
 
 const getConfiguredProviders = (): ('prembly' | 'youverify')[] => {
@@ -388,6 +388,269 @@ router.post('/lost-nin', async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error('Lost NIN recovery error', { error: error.message, userId: req.userId });
     res.status(500).json(formatErrorResponse(500, 'Failed to process request'));
+  }
+});
+
+const generateTrackingId = (): string => {
+  const prefix = 'ARP';
+  const timestamp = Date.now().toString(36).toUpperCase();
+  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return `${prefix}${timestamp}${random}`.substring(0, 15);
+};
+
+const getServicePrice = async (serviceType: string, defaultPrice: number): Promise<number> => {
+  try {
+    const [pricing] = await db.select()
+      .from(servicePricing)
+      .where(eq(servicePricing.serviceType, serviceType))
+      .limit(1);
+    return pricing ? parseFloat(pricing.price) : defaultPrice;
+  } catch {
+    return defaultPrice;
+  }
+};
+
+router.post('/ipe-clearance', async (req: Request, res: Response) => {
+  try {
+    const { trackingId, statusType, slipType, customerNotes } = req.body;
+    
+    if (!trackingId || !statusType) {
+      return res.status(400).json(formatErrorResponse(400, 'Tracking ID and status type are required'));
+    }
+
+    const basePrice = await getServicePrice('ipe_clearance', 1000);
+    const slipPrice = slipType === 'premium' ? 150 : 0;
+    const totalPrice = basePrice + slipPrice;
+
+    const balance = await walletService.getBalance(req.userId!);
+    if (balance.balance < totalPrice) {
+      return res.status(402).json(formatErrorResponse(402, 'Insufficient wallet balance'));
+    }
+
+    const requestTrackingId = generateTrackingId();
+
+    await walletService.deductBalance(req.userId!, totalPrice, 'IPE Clearance Request', 'ipe_clearance');
+
+    await db.insert(identityServiceRequests).values({
+      userId: req.userId!,
+      trackingId: requestTrackingId,
+      serviceType: 'ipe_clearance',
+      newTrackingId: trackingId,
+      updateFields: { statusType, slipType },
+      status: 'pending',
+      fee: totalPrice.toFixed(2),
+      isPaid: true,
+      customerNotes,
+    });
+
+    logger.info('IPE Clearance request submitted', { userId: req.userId, trackingId: requestTrackingId });
+
+    res.status(202).json(formatResponse('success', 202, 'IPE Clearance request submitted successfully', {
+      trackingId: requestTrackingId,
+      statusType,
+      slipType,
+      price: totalPrice,
+      message: 'Your request has been submitted and will be processed within 1-30 minutes.',
+    }));
+  } catch (error: any) {
+    logger.error('IPE Clearance error', { error: error.message, userId: req.userId });
+    if (error.message === 'Insufficient wallet balance') {
+      return res.status(402).json(formatErrorResponse(402, error.message));
+    }
+    res.status(500).json(formatErrorResponse(500, 'Failed to submit IPE Clearance request'));
+  }
+});
+
+router.post('/validation', async (req: Request, res: Response) => {
+  try {
+    const { nin, validationType, slipType, customerNotes } = req.body;
+    
+    if (!nin || !validationType) {
+      return res.status(400).json(formatErrorResponse(400, 'NIN and validation type are required'));
+    }
+
+    if (nin.length !== 11 || !/^\d+$/.test(nin)) {
+      return res.status(400).json(formatErrorResponse(400, 'NIN must be exactly 11 digits'));
+    }
+
+    const basePrice = await getServicePrice('validation_nin', 1000);
+    const slipPrice = slipType === 'regular' ? 150 : 0;
+    const totalPrice = basePrice + slipPrice;
+
+    const balance = await walletService.getBalance(req.userId!);
+    if (balance.balance < totalPrice) {
+      return res.status(402).json(formatErrorResponse(402, 'Insufficient wallet balance'));
+    }
+
+    const requestTrackingId = generateTrackingId();
+
+    await walletService.deductBalance(req.userId!, totalPrice, 'NIN Validation Request', 'nin_validation');
+
+    await db.insert(identityServiceRequests).values({
+      userId: req.userId!,
+      trackingId: requestTrackingId,
+      serviceType: 'nin_validation',
+      nin,
+      updateFields: { validationType, slipType },
+      status: 'pending',
+      fee: totalPrice.toFixed(2),
+      isPaid: true,
+      customerNotes,
+    });
+
+    logger.info('NIN Validation request submitted', { userId: req.userId, trackingId: requestTrackingId });
+
+    res.status(202).json(formatResponse('success', 202, 'NIN Validation request submitted successfully', {
+      trackingId: requestTrackingId,
+      validationType,
+      slipType,
+      price: totalPrice,
+      message: 'Your request has been submitted and will be processed within 1-30 minutes.',
+    }));
+  } catch (error: any) {
+    logger.error('NIN Validation error', { error: error.message, userId: req.userId });
+    if (error.message === 'Insufficient wallet balance') {
+      return res.status(402).json(formatErrorResponse(402, error.message));
+    }
+    res.status(500).json(formatErrorResponse(500, 'Failed to submit NIN Validation request'));
+  }
+});
+
+router.post('/personalization', async (req: Request, res: Response) => {
+  try {
+    const { trackingId, customerNotes } = req.body;
+    
+    if (!trackingId) {
+      return res.status(400).json(formatErrorResponse(400, 'Tracking ID is required'));
+    }
+
+    const price = await getServicePrice('nin_personalization', 1500);
+
+    const balance = await walletService.getBalance(req.userId!);
+    if (balance.balance < price) {
+      return res.status(402).json(formatErrorResponse(402, 'Insufficient wallet balance'));
+    }
+
+    const requestTrackingId = generateTrackingId();
+
+    await walletService.deductBalance(req.userId!, price, 'NIN Personalization Request', 'nin_personalization');
+
+    await db.insert(identityServiceRequests).values({
+      userId: req.userId!,
+      trackingId: requestTrackingId,
+      serviceType: 'nin_personalization',
+      newTrackingId: trackingId,
+      status: 'pending',
+      fee: price.toFixed(2),
+      isPaid: true,
+      customerNotes,
+    });
+
+    logger.info('NIN Personalization request submitted', { userId: req.userId, trackingId: requestTrackingId });
+
+    res.status(202).json(formatResponse('success', 202, 'NIN Personalization request submitted successfully', {
+      trackingId: requestTrackingId,
+      price,
+      message: 'Your request has been submitted and will be processed within 1-30 minutes.',
+    }));
+  } catch (error: any) {
+    logger.error('NIN Personalization error', { error: error.message, userId: req.userId });
+    if (error.message === 'Insufficient wallet balance') {
+      return res.status(402).json(formatErrorResponse(402, error.message));
+    }
+    res.status(500).json(formatErrorResponse(500, 'Failed to submit NIN Personalization request'));
+  }
+});
+
+router.post('/birth-attestation', async (req: Request, res: Response) => {
+  try {
+    const { fullName, dateOfBirth, placeOfBirth, customerNotes } = req.body;
+    
+    if (!fullName || !dateOfBirth || !placeOfBirth) {
+      return res.status(400).json(formatErrorResponse(400, 'Full name, date of birth, and place of birth are required'));
+    }
+
+    const price = await getServicePrice('birth_attestation', 2000);
+
+    const balance = await walletService.getBalance(req.userId!);
+    if (balance.balance < price) {
+      return res.status(402).json(formatErrorResponse(402, 'Insufficient wallet balance'));
+    }
+
+    const requestTrackingId = generateTrackingId();
+
+    await walletService.deductBalance(req.userId!, price, 'Birth Attestation Request', 'birth_attestation');
+
+    await db.insert(identityServiceRequests).values({
+      userId: req.userId!,
+      trackingId: requestTrackingId,
+      serviceType: 'birth_attestation',
+      updateFields: { fullName, dateOfBirth, placeOfBirth },
+      status: 'pending',
+      fee: price.toFixed(2),
+      isPaid: true,
+      customerNotes,
+    });
+
+    logger.info('Birth Attestation request submitted', { userId: req.userId, trackingId: requestTrackingId });
+
+    res.status(202).json(formatResponse('success', 202, 'Birth Attestation request submitted successfully', {
+      trackingId: requestTrackingId,
+      price,
+      message: 'Your request has been submitted and will be processed within 24-48 hours.',
+    }));
+  } catch (error: any) {
+    logger.error('Birth Attestation error', { error: error.message, userId: req.userId });
+    if (error.message === 'Insufficient wallet balance') {
+      return res.status(402).json(formatErrorResponse(402, error.message));
+    }
+    res.status(500).json(formatErrorResponse(500, 'Failed to submit Birth Attestation request'));
+  }
+});
+
+router.post('/nin-tracking', async (req: Request, res: Response) => {
+  try {
+    const { trackingId, slipType } = req.body;
+    
+    if (!trackingId) {
+      return res.status(400).json(formatErrorResponse(400, 'Tracking ID is required'));
+    }
+
+    const price = await getServicePrice('nin_tracking', 250);
+
+    const balance = await walletService.getBalance(req.userId!);
+    if (balance.balance < price) {
+      return res.status(402).json(formatErrorResponse(402, 'Insufficient wallet balance'));
+    }
+
+    const requestTrackingId = generateTrackingId();
+
+    await walletService.deductBalance(req.userId!, price, 'NIN With Tracking ID', 'nin_tracking');
+
+    await db.insert(identityServiceRequests).values({
+      userId: req.userId!,
+      trackingId: requestTrackingId,
+      serviceType: 'nin_tracking',
+      newTrackingId: trackingId,
+      updateFields: { slipType: slipType || 'standard' },
+      status: 'pending',
+      fee: price.toFixed(2),
+      isPaid: true,
+    });
+
+    logger.info('NIN Tracking request submitted', { userId: req.userId, trackingId: requestTrackingId });
+
+    res.status(202).json(formatResponse('success', 202, 'NIN With Tracking ID request submitted successfully', {
+      trackingId: requestTrackingId,
+      price,
+      message: 'Your request has been submitted and will be processed within 1-30 minutes.',
+    }));
+  } catch (error: any) {
+    logger.error('NIN Tracking error', { error: error.message, userId: req.userId });
+    if (error.message === 'Insufficient wallet balance') {
+      return res.status(402).json(formatErrorResponse(402, error.message));
+    }
+    res.status(500).json(formatErrorResponse(500, 'Failed to submit NIN Tracking request'));
   }
 });
 

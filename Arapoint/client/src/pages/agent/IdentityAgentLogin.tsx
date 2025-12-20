@@ -1,4 +1,10 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,32 +17,38 @@ export default function IdentityAgentLogin() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({ email: '', password: '' });
-  const [error, setError] = useState('');
+  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
-      const response = await fetch('/api/identity-agent/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+      const response = await fetch("/api/identity-agent/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
       });
       const data = await response.json();
 
-      if (data.status === 'success') {
-        localStorage.setItem('identityAgentToken', data.data.token);
-        localStorage.setItem('identityAgentInfo', JSON.stringify(data.data.agent));
-        toast({ title: "Welcome!", description: `Logged in as ${data.data.agent.name}` });
-        setLocation('/agent/identity/dashboard');
+      if (data.status === "success") {
+        localStorage.setItem("identityAgentToken", data.data.token);
+        localStorage.setItem(
+          "identityAgentInfo",
+          JSON.stringify(data.data.agent),
+        );
+        toast({
+          title: "Welcome!",
+          description: `Logged in as ${data.data.agent.name}`,
+        });
+        setLocation("/agent/identity/dashboard");
       } else {
-        setError(data.message || 'Login failed');
+        setError(data.message || "Login failed");
       }
     } catch (error: any) {
-      setError('Connection error. Please try again.');
+      setError("Connection error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -50,7 +62,9 @@ export default function IdentityAgentLogin() {
             <IdCard className="h-8 w-8 text-blue-600" />
           </div>
           <CardTitle className="text-2xl">Identity Agent Portal</CardTitle>
-          <CardDescription>Sign in to process identity service requests</CardDescription>
+          <CardDescription>
+            Sign in to process identity service requests
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -63,28 +77,34 @@ export default function IdentityAgentLogin() {
 
             <div className="space-y-2">
               <Label>Email Address</Label>
-              <Input 
+              <Input
                 type="email"
-                placeholder="agent@arapoint.com" 
+                placeholder="agent@arapoint.com"
                 value={formData.email}
-                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, email: e.target.value }))
+                }
                 required
               />
             </div>
 
             <div className="space-y-2">
               <Label>Password</Label>
-              <Input 
+              <Input
                 type="password"
-                placeholder="Enter your password" 
+                placeholder="Enter your password"
                 value={formData.password}
-                onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, password: e.target.value }))
+                }
                 required
               />
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
               Sign In
             </Button>
           </form>

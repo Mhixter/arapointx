@@ -23,6 +23,8 @@ const pricingRecords = [
   { serviceType: 'cac_limited_company', serviceName: 'CAC Limited Company', price: '35000.00', description: 'Register limited liability company', isActive: true },
   { serviceType: 'cac_incorporated_trustees', serviceName: 'CAC Incorporated Trustees', price: '55000.00', description: 'Register incorporated trustees/NGO', isActive: true },
   { serviceType: 'airtime_to_cash', serviceName: 'Airtime to Cash', price: '0.00', description: 'Convert airtime to wallet balance', isActive: true },
+  { serviceType: 'nin_personalization', serviceName: 'NIN Personalization', price: '1500.00', description: 'Customize NIN identity data', isActive: true },
+  { serviceType: 'birth_attestation', serviceName: 'Birth Attestation', price: '2000.00', description: 'NPC Birth Certificate attestation', isActive: true },
 ];
 
 export async function seedPricing() {
