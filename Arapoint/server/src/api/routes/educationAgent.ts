@@ -6,9 +6,12 @@ import {
   educationAgents,
   educationServiceRequests, 
   adminUsers,
-  users
+  users,
+  educationPins,
+  educationPinOrders,
+  servicePricing
 } from '../../db/schema';
-import { eq, desc, count, sql } from 'drizzle-orm';
+import { eq, desc, count, sql, and } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
@@ -248,6 +251,308 @@ router.put('/requests/:id/status', educationAgentAuthMiddleware, async (req: Req
   } catch (error: any) {
     logger.error('Update education request error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to update request'));
+  }
+});
+
+// ===== PIN INVENTORY MANAGEMENT =====
+
+// Get PIN stock summary
+router.get('/pins/stock', educationAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const examTypes = ['waec', 'neco', 'nabteb', 'nbais'];
+    const stockSummary: any = {};
+
+    for (const examType of examTypes) {
+      const [stockCount] = await db.select({
+        total: count(),
+        unused: sql<number>`COUNT(*) FILTER (WHERE status = 'unused')`,
+        used: sql<number>`COUNT(*) FILTER (WHERE status = 'used')`,
+      }).from(educationPins).where(eq(educationPins.examType, examType));
+
+      const [pricing] = await db.select()
+        .from(servicePricing)
+        .where(and(
+          eq(servicePricing.serviceType, `${examType}_pin`),
+          eq(servicePricing.isActive, true)
+        ))
+        .limit(1);
+
+      stockSummary[examType] = {
+        total: stockCount?.total || 0,
+        unused: stockCount?.unused || 0,
+        used: stockCount?.used || 0,
+        price: pricing?.price ? parseFloat(pricing.price) : 0,
+      };
+    }
+
+    res.json(formatResponse('success', 200, 'PIN stock retrieved', { stock: stockSummary }));
+  } catch (error: any) {
+    logger.error('Get PIN stock error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get PIN stock'));
+  }
+});
+
+// Get all PINs with pagination
+router.get('/pins', educationAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { examType, status, page = '1', limit = '50' } = req.query;
+    const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
+
+    let whereConditions: any[] = [];
+    if (examType) whereConditions.push(eq(educationPins.examType, examType as string));
+    if (status) whereConditions.push(eq(educationPins.status, status as string));
+
+    let pinsQuery = db.select({
+      id: educationPins.id,
+      examType: educationPins.examType,
+      pinCode: educationPins.pinCode,
+      serialNumber: educationPins.serialNumber,
+      status: educationPins.status,
+      usedAt: educationPins.usedAt,
+      createdAt: educationPins.createdAt,
+    }).from(educationPins);
+
+    if (whereConditions.length > 0) {
+      pinsQuery = pinsQuery.where(and(...whereConditions)) as any;
+    }
+
+    const pins = await pinsQuery
+      .orderBy(desc(educationPins.createdAt))
+      .limit(parseInt(limit as string))
+      .offset(offset);
+
+    // Mask PIN codes for security (show first 4 and last 4 chars)
+    const maskedPins = pins.map(pin => ({
+      ...pin,
+      pinCode: pin.status === 'unused' 
+        ? `${pin.pinCode.slice(0, 4)}****${pin.pinCode.slice(-4)}`
+        : pin.pinCode,
+    }));
+
+    let countQuery = db.select({ count: count() }).from(educationPins);
+    if (whereConditions.length > 0) {
+      countQuery = countQuery.where(and(...whereConditions)) as any;
+    }
+    const [totalCount] = await countQuery;
+
+    res.json(formatResponse('success', 200, 'PINs retrieved', {
+      pins: maskedPins,
+      pagination: {
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        total: totalCount?.count || 0,
+        totalPages: Math.ceil((totalCount?.count || 0) / parseInt(limit as string)),
+      }
+    }));
+  } catch (error: any) {
+    logger.error('Get PINs error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get PINs'));
+  }
+});
+
+// Add single PIN
+router.post('/pins', educationAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { examType, pinCode, serialNumber } = req.body;
+
+    if (!examType || !pinCode) {
+      return res.status(400).json(formatErrorResponse(400, 'Exam type and PIN code are required'));
+    }
+
+    if (!['waec', 'neco', 'nabteb', 'nbais'].includes(examType)) {
+      return res.status(400).json(formatErrorResponse(400, 'Invalid exam type'));
+    }
+
+    // Check if PIN already exists
+    const [existingPin] = await db.select()
+      .from(educationPins)
+      .where(and(
+        eq(educationPins.examType, examType),
+        eq(educationPins.pinCode, pinCode)
+      ))
+      .limit(1);
+
+    if (existingPin) {
+      return res.status(409).json(formatErrorResponse(409, 'This PIN already exists in the system'));
+    }
+
+    const [newPin] = await db.insert(educationPins)
+      .values({
+        examType,
+        pinCode,
+        serialNumber: serialNumber || null,
+        status: 'unused',
+      })
+      .returning();
+
+    logger.info('PIN added', { examType, agentId: (req as any).agentId });
+
+    res.status(201).json(formatResponse('success', 201, 'PIN added successfully', { pin: newPin }));
+  } catch (error: any) {
+    logger.error('Add PIN error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to add PIN'));
+  }
+});
+
+// Bulk upload PINs
+router.post('/pins/bulk', educationAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { examType, pins } = req.body;
+
+    if (!examType || !pins || !Array.isArray(pins) || pins.length === 0) {
+      return res.status(400).json(formatErrorResponse(400, 'Exam type and pins array are required'));
+    }
+
+    if (!['waec', 'neco', 'nabteb', 'nbais'].includes(examType)) {
+      return res.status(400).json(formatErrorResponse(400, 'Invalid exam type'));
+    }
+
+    let added = 0;
+    let duplicates = 0;
+    const errors: string[] = [];
+
+    for (const pin of pins) {
+      try {
+        const pinCode = pin.pinCode || pin.pin || pin.code;
+        const serialNumber = pin.serialNumber || pin.serial || null;
+
+        if (!pinCode) {
+          errors.push(`Missing PIN code in entry`);
+          continue;
+        }
+
+        // Check if PIN exists
+        const [existing] = await db.select()
+          .from(educationPins)
+          .where(and(
+            eq(educationPins.examType, examType),
+            eq(educationPins.pinCode, pinCode)
+          ))
+          .limit(1);
+
+        if (existing) {
+          duplicates++;
+          continue;
+        }
+
+        await db.insert(educationPins).values({
+          examType,
+          pinCode,
+          serialNumber,
+          status: 'unused',
+        });
+        added++;
+      } catch (e: any) {
+        errors.push(e.message);
+      }
+    }
+
+    logger.info('Bulk PINs upload', { examType, added, duplicates, agentId: (req as any).agentId });
+
+    res.json(formatResponse('success', 200, 'Bulk upload completed', {
+      added,
+      duplicates,
+      errors: errors.slice(0, 5), // Return first 5 errors only
+    }));
+  } catch (error: any) {
+    logger.error('Bulk PIN upload error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to upload PINs'));
+  }
+});
+
+// Get PIN orders
+router.get('/pins/orders', educationAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { status, page = '1', limit = '20' } = req.query;
+    const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
+
+    let whereConditions: any[] = [];
+    if (status && status !== 'all') {
+      whereConditions.push(eq(educationPinOrders.status, status as string));
+    }
+
+    let ordersQuery = db.select({
+      id: educationPinOrders.id,
+      examType: educationPinOrders.examType,
+      status: educationPinOrders.status,
+      amount: educationPinOrders.amount,
+      createdAt: educationPinOrders.createdAt,
+      completedAt: educationPinOrders.completedAt,
+      userName: users.name,
+      userEmail: users.email,
+    })
+      .from(educationPinOrders)
+      .leftJoin(users, eq(educationPinOrders.userId, users.id));
+    
+    if (whereConditions.length > 0) {
+      ordersQuery = ordersQuery.where(and(...whereConditions)) as any;
+    }
+
+    const orders = await ordersQuery
+      .orderBy(desc(educationPinOrders.createdAt))
+      .limit(parseInt(limit as string))
+      .offset(offset);
+
+    let ordersCountQuery = db.select({ count: count() }).from(educationPinOrders);
+    if (whereConditions.length > 0) {
+      ordersCountQuery = ordersCountQuery.where(and(...whereConditions)) as any;
+    }
+    const [totalCount] = await ordersCountQuery;
+
+    res.json(formatResponse('success', 200, 'Orders retrieved', {
+      orders,
+      pagination: {
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        total: totalCount?.count || 0,
+      }
+    }));
+  } catch (error: any) {
+    logger.error('Get PIN orders error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get orders'));
+  }
+});
+
+// Update PIN pricing
+router.put('/pins/pricing', educationAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { examType, price } = req.body;
+
+    if (!examType || price === undefined) {
+      return res.status(400).json(formatErrorResponse(400, 'Exam type and price are required'));
+    }
+
+    if (!['waec', 'neco', 'nabteb', 'nbais'].includes(examType)) {
+      return res.status(400).json(formatErrorResponse(400, 'Invalid exam type'));
+    }
+
+    const serviceType = `${examType}_pin`;
+
+    // Update or insert pricing
+    const [existingPricing] = await db.select()
+      .from(servicePricing)
+      .where(eq(servicePricing.serviceType, serviceType))
+      .limit(1);
+
+    if (existingPricing) {
+      await db.update(servicePricing)
+        .set({ price: price.toString(), updatedAt: new Date() })
+        .where(eq(servicePricing.id, existingPricing.id));
+    } else {
+      await db.insert(servicePricing).values({
+        serviceType,
+        serviceName: `${examType.toUpperCase()} PIN`,
+        price: price.toString(),
+        isActive: true,
+      });
+    }
+
+    logger.info('PIN pricing updated', { examType, price, agentId: (req as any).agentId });
+
+    res.json(formatResponse('success', 200, 'Pricing updated'));
+  } catch (error: any) {
+    logger.error('Update PIN pricing error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to update pricing'));
   }
 });
 
