@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Loader2, Search, CheckCircle2, Download, Printer, Clock, FileText, AlertCircle, AlertTriangle } from "lucide-react";
 import { SERVICES } from "../IdentityVerification";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -928,6 +928,14 @@ function ServiceContent({ service }: { service: any }) {
     );
   }
 
+  if (service.id === "transactions") {
+    return <TransactionsHistory />;
+  }
+
+  if (service.id === "verifications") {
+    return <VerificationsHistory />;
+  }
+
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center border rounded-lg bg-muted/10 border-dashed">
       <div className={`h-16 w-16 rounded-full flex items-center justify-center mb-4 ${service.bg} ${service.color}`}>
@@ -940,6 +948,178 @@ function ServiceContent({ service }: { service: any }) {
       <Link href="/dashboard/identity">
         <Button variant="outline">Back to Services</Button>
       </Link>
+    </div>
+  );
+}
+
+function TransactionsHistory() {
+  const [requests, setRequests] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchRequests = async () => {
+      try {
+        const token = localStorage.getItem('accessToken');
+        const response = await fetch('/api/identity/service-requests', {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        const data = await response.json();
+        if (response.ok) {
+          setRequests(data.data?.requests || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch requests', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchRequests();
+  }, []);
+
+  const getStatusBadge = (status: string) => {
+    const colors: Record<string, string> = {
+      pending: 'bg-yellow-100 text-yellow-800',
+      pickup: 'bg-blue-100 text-blue-800',
+      completed: 'bg-green-100 text-green-800',
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getServiceName = (type: string) => {
+    const names: Record<string, string> = {
+      ipe_clearance: 'IPE Clearance',
+      nin_validation: 'NIN Validation',
+      nin_personalization: 'Personalization',
+      birth_attestation: 'Birth Attestation',
+      nin_tracking: 'NIN Tracking',
+    };
+    return names[type] || type;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Service Requests</CardTitle>
+          <CardDescription>Track the status of your identity service requests</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {requests.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No service requests yet</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {requests.map((req: any) => (
+                <div key={req.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <p className="font-semibold">{getServiceName(req.serviceType)}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Tracking: {req.trackingId}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(req.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(req.status)}`}>
+                      {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                    </span>
+                    <p className="text-sm font-semibold mt-1">₦{parseFloat(req.fee).toLocaleString()}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function VerificationsHistory() {
+  const [verifications, setVerifications] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchVerifications = async () => {
+      try {
+        const token = localStorage.getItem('accessToken');
+        const response = await fetch('/api/identity/history', {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        const data = await response.json();
+        if (response.ok) {
+          setVerifications(data.data?.history || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch verifications', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchVerifications();
+  }, []);
+
+  const getStatusBadge = (status: string) => {
+    const colors: Record<string, string> = {
+      pending: 'bg-yellow-100 text-yellow-800',
+      completed: 'bg-green-100 text-green-800',
+      failed: 'bg-red-100 text-red-800',
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Verification History</CardTitle>
+          <CardDescription>Your past identity verifications</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {verifications.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <CheckCircle2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No verifications yet</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {verifications.map((v: any) => (
+                <div key={v.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <p className="font-semibold">{v.verificationType?.toUpperCase().replace('_', ' ')}</p>
+                    {v.nin && <p className="text-sm text-muted-foreground">NIN: {v.nin.substring(0, 4)}****</p>}
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(v.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(v.status)}`}>
+                    {v.status.charAt(0).toUpperCase() + v.status.slice(1)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

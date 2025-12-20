@@ -686,6 +686,38 @@ router.get('/history', async (req: Request, res: Response) => {
   }
 });
 
+router.get('/service-requests', async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const offset = (page - 1) * limit;
+
+    const requests = await db.select()
+      .from(identityServiceRequests)
+      .where(eq(identityServiceRequests.userId, req.userId!))
+      .orderBy(desc(identityServiceRequests.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const allRecords = await db.select()
+      .from(identityServiceRequests)
+      .where(eq(identityServiceRequests.userId, req.userId!));
+
+    res.json(formatResponse('success', 200, 'Identity service requests retrieved', {
+      requests,
+      pagination: { 
+        page, 
+        limit,
+        total: allRecords.length,
+        totalPages: Math.ceil(allRecords.length / limit),
+      },
+    }));
+  } catch (error: any) {
+    logger.error('Identity service requests error', { error: error.message, userId: req.userId });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get service requests'));
+  }
+});
+
 router.get('/slip/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;

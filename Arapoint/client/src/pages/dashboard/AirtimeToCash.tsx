@@ -3,20 +3,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Smartphone, ArrowRight, CheckCircle2, Clock, AlertCircle, Info } from "lucide-react";
+import { Loader2, Smartphone, ArrowRight, Clock, Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+const MTN_LOGO = "https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/New-mtn-logo.svg/512px-New-mtn-logo.svg.png";
+
 const NETWORKS = [
-  { id: "mtn", name: "MTN", color: "bg-yellow-500", rate: 80 },
-  { id: "airtel", name: "Airtel", color: "bg-red-500", rate: 75 },
-  { id: "glo", name: "Glo", color: "bg-green-500", rate: 70 },
-  { id: "9mobile", name: "9Mobile", color: "bg-green-600", rate: 70 },
+  { id: "mtn", name: "MTN", color: "bg-yellow-500", rate: 80, logo: MTN_LOGO },
 ];
 
 export default function AirtimeToCash() {
-  const [selectedNetwork, setSelectedNetwork] = useState("");
+  const [selectedNetwork, setSelectedNetwork] = useState("mtn");
   const [amount, setAmount] = useState("");
   const [phone, setPhone] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -146,35 +144,25 @@ export default function AirtimeToCash() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <Label className="text-sm font-medium mb-3 block">1. Select Network</Label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {NETWORKS.map((network) => (
-                  <div
-                    key={network.id}
-                    onClick={() => setSelectedNetwork(network.id)}
-                    className={`relative cursor-pointer rounded-lg border-2 p-4 transition-all text-center ${
-                      selectedNetwork === network.id
-                        ? 'border-primary bg-primary/5'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className={`w-10 h-10 rounded-full mx-auto mb-2 ${network.color}`} />
-                    <p className="font-semibold text-sm">{network.name}</p>
-                    <p className="text-xs text-muted-foreground">{network.rate}% rate</p>
-                    <div className="flex justify-center mt-2">
-                      <div className={`w-4 h-4 rounded-full border-2 ${
-                        selectedNetwork === network.id ? 'border-primary bg-primary' : 'border-gray-300'
-                      }`}>
-                        {selectedNetwork === network.id && (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <div className="w-2 h-2 bg-white rounded-full" />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <Label className="text-sm font-medium mb-3 block">1. Network</Label>
+              <div className="flex items-center gap-4 p-4 rounded-lg border-2 border-primary bg-yellow-50 dark:bg-yellow-900/20">
+                <img 
+                  src={MTN_LOGO} 
+                  alt="MTN Logo" 
+                  className="w-16 h-16 object-contain"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+                <div className="flex-1">
+                  <p className="font-bold text-lg text-yellow-700">MTN Nigeria</p>
+                  <p className="text-sm text-muted-foreground">Conversion Rate: <span className="font-semibold text-primary">80%</span></p>
+                </div>
+                <div className="w-6 h-6 rounded-full border-2 border-primary bg-primary flex items-center justify-center">
+                  <div className="w-3 h-3 bg-white rounded-full" />
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground mt-2">Currently only MTN airtime is supported</p>
             </div>
 
             <div>
