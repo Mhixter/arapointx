@@ -1,6 +1,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { objectStorageService, ObjectNotFoundError } from "./src/services/objectStorage";
+import { db } from "./src/config/database";
+import { servicePricing } from "./src/db/schema";
+import { eq } from "drizzle-orm";
 
 import authRoutes from "./src/api/routes/auth";
 import otpRoutes from "./src/api/routes/otp";
@@ -43,6 +46,51 @@ export async function registerRoutes(
 
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
+  // Public endpoint to get all active services from pricing management
+  app.get('/api/public/services', publicRateLimiter, async (req, res) => {
+    try {
+      const services = await db.select().from(servicePricing)
+        .where(eq(servicePricing.isActive, true))
+        .orderBy(servicePricing.serviceName);
+      
+      // Categorize services by type
+      const categorizedServices = {
+        identity: services.filter((s: typeof services[0]) => 
+          s.serviceType.startsWith('nin_') || 
+          s.serviceType.startsWith('bvn_') ||
+          s.serviceType === 'nin_phone'
+        ),
+        education: services.filter((s: typeof services[0]) => 
+          s.serviceType.startsWith('jamb_') || 
+          s.serviceType.startsWith('waec_') || 
+          s.serviceType.startsWith('neco_') ||
+          s.serviceType.startsWith('nabteb_') ||
+          s.serviceType.startsWith('nbais_')
+        ),
+        cac: services.filter((s: typeof services[0]) => s.serviceType.startsWith('cac_')),
+        vtu: services.filter((s: typeof services[0]) => 
+          s.serviceType.startsWith('airtime_') || 
+          s.serviceType.startsWith('data_') ||
+          s.serviceType.startsWith('electricity_') ||
+          s.serviceType.startsWith('cable_')
+        ),
+      };
+      
+      res.json({ 
+        status: 'success', 
+        code: 200, 
+        message: 'Services retrieved',
+        data: { services, categorizedServices }
+      });
+    } catch (error: any) {
+      res.status(500).json({ 
+        status: 'error', 
+        code: 500, 
+        message: 'Failed to get services' 
+      });
+    }
   });
 
   app.get('/objects/*', async (req, res) => {
