@@ -184,21 +184,21 @@ class RPABot {
       case 'neco_service':
         const necoUrl = await this.getPortalUrl('neco');
         if (!necoUrl) return { success: false, error: 'NECO portal URL not configured' };
-        return await waecWorker.execute({ ...queryData, portalUrl: necoUrl }); // Using waecWorker as base for now if selectors match
+        return await waecWorker.execute({ ...queryData, portalUrl: necoUrl, provider: 'neco' }); 
 
       case 'nabteb':
       case 'nabteb_result':
       case 'nabteb_service':
         const nabtebUrl = await this.getPortalUrl('nabteb');
         if (!nabtebUrl) return { success: false, error: 'NABTEB portal URL not configured' };
-        return { success: true, data: { message: 'NABTEB verification logic implementation in progress', registrationNumber: queryData.registrationNumber } };
+        return await waecWorker.execute({ ...queryData, portalUrl: nabtebUrl, provider: 'nabteb' });
 
       case 'nbais':
       case 'nbais_result':
       case 'nbais_service':
         const mbaisUrl = await this.getPortalUrl('mbais');
         if (!mbaisUrl) return { success: false, error: 'MBAIS portal URL not configured' };
-        return { success: true, data: { message: 'MBAIS verification logic implementation in progress', registrationNumber: queryData.registrationNumber } };
+        return await waecWorker.execute({ ...queryData, portalUrl: mbaisUrl, provider: 'nbais' });
 
       default:
         logger.warn(`Unknown service type: ${serviceType}`);

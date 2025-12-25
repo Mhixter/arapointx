@@ -50,8 +50,9 @@ export class WAECWorker extends BaseWorker {
   };
 
   async execute(queryData: Record<string, unknown>): Promise<WorkerResult> {
-    const data = queryData as unknown as WAECQueryData;
-    logger.info('WAEC Worker starting job', { 
+    const data = queryData as unknown as WAECQueryData & { portalUrl?: string; provider?: string };
+    const provider = data.provider || 'waec';
+    logger.info(`${provider.toUpperCase()} Worker starting job`, { 
       registrationNumber: data.registrationNumber,
       examYear: data.examYear 
     });
@@ -61,12 +62,12 @@ export class WAECWorker extends BaseWorker {
     let timeoutHandle: NodeJS.Timeout | null = null;
 
     try {
-      const portalUrl = await this.getPortalUrl();
+      const portalUrl = data.portalUrl || await this.getPortalUrl();
       if (!portalUrl) {
-        return this.createErrorResult('WAEC portal URL not configured. Please configure in admin settings.');
+        return this.createErrorResult(`${provider.toUpperCase()} portal URL not configured. Please configure in admin settings.`);
       }
 
-      const customSelectors = await this.getCustomSelectors();
+      const customSelectors = await this.getCustomSelectors(provider);
       const selectors = { ...this.DEFAULT_SELECTORS, ...customSelectors };
 
       pooledResource = await browserPool.acquire();
@@ -129,12 +130,12 @@ export class WAECWorker extends BaseWorker {
     }
   }
 
-  private async getCustomSelectors(): Promise<Record<string, string>> {
+  private async getCustomSelectors(provider: string = 'waec'): Promise<Record<string, string>> {
     try {
       const [setting] = await db
         .select()
         .from(adminSettings)
-        .where(eq(adminSettings.settingKey, 'rpa_selectors_waec'))
+        .where(eq(adminSettings.settingKey, `rpa_selectors_${provider}`))
         .limit(1);
 
       if (setting?.settingValue) {
@@ -142,7 +143,7 @@ export class WAECWorker extends BaseWorker {
       }
       return {};
     } catch (error: any) {
-      logger.warn('Failed to get custom WAEC selectors', { error: error.message });
+      logger.warn(`Failed to get custom ${provider.toUpperCase()} selectors`, { error: error.message });
       return {};
     }
   }
@@ -595,7 +596,7 @@ export class WAECWorker extends BaseWorker {
 
     if (isStillOnFormPage && !popupCaptured) {
       logger.error('Still on form page - form submission did not work');
-      const errorMsg = 'Could not submit form to WAEC portal. Please try again later.';
+      const errorMsg = `Could not submit form to ${provider.toUpperCase()} portal. Please try again later.`;
       return {
         registrationNumber: data.registrationNumber,
         examYear: data.examYear,
