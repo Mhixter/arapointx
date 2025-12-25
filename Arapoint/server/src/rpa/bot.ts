@@ -4,7 +4,7 @@ import { config } from '../config/env';
 import { jambWorker } from './workers/jambWorker';
 import { waecWorker } from './workers/waecWorker';
 import { db } from '../config/database';
-import { rpaJobs, educationServices, servicePricing } from '../db/schema';
+import { rpaJobs, educationServices, servicePricing, adminSettings } from '../db/schema';
 import { eq, asc, and } from 'drizzle-orm';
 import { browserPool } from './browserPool';
 import { walletService } from '../services/walletService';
