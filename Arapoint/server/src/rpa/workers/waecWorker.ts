@@ -37,12 +37,12 @@ export class WAECWorker extends BaseWorker {
   protected serviceName = 'waec_service';
 
   private readonly DEFAULT_SELECTORS = {
-    examYearSelect: 'select[name="ExamYear"], select[name="examYear"], select#ExamYear, select#examYear',
-    examTypeSelect: 'select[name="ExamType"], select[name="examType"], select#ExamType, select#examType',
-    examNumberInput: 'input[name="ExamNumber"], input[name="examnumber"], input[name="CandNo"], input[name="examNumber"], input#ExamNumber, input#examnumber, input#CandNo, input#examNumber',
-    cardSerialInput: 'input[name="SerialNumber"], input[name="serialNumber"], input[name="Serial"], input#SerialNumber, input#serialNumber, input#Serial',
-    cardPinInput: 'input[name="Pin"], input[name="pin"], input[name="PIN"], input#Pin, input#pin, input#PIN',
-    submitButton: 'input[type="submit"], button[type="submit"], button.submit, input.submit, button[name="submit"], .btn-submit, #submit, button:contains("Submit"), button:contains("Check"), input[value="Submit"], input[value="Check"]',
+    examYearSelect: 'select[name="ExamYear"], select[name="examYear"], select#ExamYear, select#examYear, select[name="exam_year"]',
+    examTypeSelect: 'select[name="ExamType"], select[name="examType"], select#ExamType, select#examType, select[name="exam_type"]',
+    examNumberInput: 'input[name="ExamNumber"], input[name="examnumber"], input[name="CandNo"], input[name="examNumber"], input#ExamNumber, input#examnumber, input#CandNo, input#examNumber, input[name="exam_no"], input[name="registrationNumber"]',
+    cardSerialInput: 'input[name="SerialNumber"], input[name="serialNumber"], input[name="Serial"], input#SerialNumber, input#serialNumber, input#Serial, input[name="serial_no"]',
+    cardPinInput: 'input[name="Pin"], input[name="pin"], input[name="PIN"], input#Pin, input#pin, input#PIN, input[name="pin_no"]',
+    submitButton: 'input[type="submit"], button[type="submit"], button.submit, input.submit, button[name="submit"], .btn-submit, #submit, button:contains("Submit"), button:contains("Check"), input[value="Submit"], input[value="Check"], button.btn-primary',
     resultTable: 'table.resultTable, table#resultTable, .result-table, table',
     candidateName: '.candidate-name, .name, td:contains("Name")+td',
     errorMessage: '.error, .alert-danger, .error-message',
@@ -76,14 +76,14 @@ export class WAECWorker extends BaseWorker {
       }
 
       const { page } = pooledResource;
-      logger.info('WAEC Worker acquired browser from pool');
+      logger.info(`${provider.toUpperCase()} Worker acquired browser from pool`);
 
       const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutHandle = setTimeout(() => reject(new Error('Request timeout exceeded')), requestTimeout);
       });
 
       const result = await Promise.race([
-        this.performVerification(page, portalUrl, data, selectors),
+        this.performVerification(page, portalUrl, data, selectors, provider),
         timeoutPromise
       ]);
 
@@ -148,8 +148,8 @@ export class WAECWorker extends BaseWorker {
     }
   }
 
-  private async closePrivacyPopup(page: Page): Promise<void> {
-    logger.info('Checking for WAEC privacy/data instruction popup');
+  private async closePrivacyPopup(page: Page, provider: string = 'waec'): Promise<void> {
+    logger.info(`Checking for ${provider.toUpperCase()} privacy/data instruction popup`);
     
     try {
       // Common selectors for popup close buttons on WAEC portal
@@ -289,22 +289,23 @@ export class WAECWorker extends BaseWorker {
     page: Page,
     portalUrl: string,
     data: WAECQueryData,
-    selectors: Record<string, string>
+    selectors: Record<string, string>,
+    provider: string = 'waec'
   ): Promise<WAECResult> {
-    logger.info('Navigating to WAEC Direct portal', { url: portalUrl });
+    logger.info(`Navigating to ${provider.toUpperCase()} portal`, { url: portalUrl });
     await page.goto(portalUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
     await this.sleep(1500);
 
-    // Handle WAEC Data Privacy popup - close it if present
-    await this.closePrivacyPopup(page);
+    // Handle Data Privacy popup - close it if present
+    await this.closePrivacyPopup(page, provider);
 
     try {
       await page.waitForSelector('form, input, select', { timeout: 10000 });
     } catch {
-      throw new Error('Could not find form on WAEC portal. The page may have changed.');
+      throw new Error(`Could not find form on ${provider.toUpperCase()} portal. The page may have changed.`);
     }
 
-    logger.info('Filling WAEC form fields');
+    logger.info(`Filling ${provider.toUpperCase()} form fields`);
 
     try {
       await page.select(selectors.examYearSelect, data.examYear.toString());
@@ -331,12 +332,12 @@ export class WAECWorker extends BaseWorker {
     }
 
     const examTypeToSelect = data.examType || 'WASSCE';
-    logger.info('Attempting to select exam type', { requestedType: examTypeToSelect });
+    logger.info('Attempting to select exam type', { requestedType: examTypeToSelect, provider });
     
     try {
-      const selected = await page.evaluate((examType) => {
+      const selected = await page.evaluate((examType, prov) => {
         const selects = Array.from(document.querySelectorAll('select'));
-        const isSchoolCandidate = examType.toUpperCase() === 'WASSCE' || examType.toLowerCase().includes('school') || examType.toLowerCase().includes('internal');
+        const isNeco = prov === 'neco';
         
         for (const select of selects) {
           const options = Array.from(select.querySelectorAll('option'));
@@ -346,32 +347,36 @@ export class WAECWorker extends BaseWorker {
             const optText = option.textContent?.toLowerCase() || '';
             const optValue = option.value?.toLowerCase() || '';
             
-            if (isSchoolCandidate) {
-              if (optText.includes('school') || optValue.includes('school') || 
-                  optText.includes('wassce') || optValue === '1' || optValue === 'sc') {
+            if (isNeco) {
+              // NECO specific logic
+              if (optText.includes('internal') || optValue.includes('int')) {
                 (select as HTMLSelectElement).selectedIndex = i;
                 select.dispatchEvent(new Event('change', { bubbles: true }));
                 return { success: true, selectedText: option.textContent, selectedValue: option.value };
               }
             } else {
-              if (optText.includes('private') || optValue.includes('private') || 
-                  optText.includes('gce') || optValue === '2' || optValue === 'pc') {
-                (select as HTMLSelectElement).selectedIndex = i;
-                select.dispatchEvent(new Event('change', { bubbles: true }));
-                return { success: true, selectedText: option.textContent, selectedValue: option.value };
+              // WAEC specific logic
+              const isSchoolCandidate = examType.toUpperCase() === 'WASSCE' || examType.toLowerCase().includes('school') || examType.toLowerCase().includes('internal');
+              if (isSchoolCandidate) {
+                if (optText.includes('school') || optValue.includes('school') || 
+                    optText.includes('wassce') || optValue === '1' || optValue === 'sc') {
+                  (select as HTMLSelectElement).selectedIndex = i;
+                  select.dispatchEvent(new Event('change', { bubbles: true }));
+                  return { success: true, selectedText: option.textContent, selectedValue: option.value };
+                }
+              } else {
+                if (optText.includes('private') || optValue.includes('private') || 
+                    optText.includes('gce') || optValue === '2' || optValue === 'pc') {
+                  (select as HTMLSelectElement).selectedIndex = i;
+                  select.dispatchEvent(new Event('change', { bubbles: true }));
+                  return { success: true, selectedText: option.textContent, selectedValue: option.value };
+                }
               }
             }
           }
         }
-        
-        const allSelects = document.querySelectorAll('select');
-        const selectInfo = Array.from(allSelects).map(s => ({
-          name: s.getAttribute('name'),
-          id: s.id,
-          options: Array.from(s.querySelectorAll('option')).map(o => ({ text: o.textContent, value: o.value }))
-        }));
-        return { success: false, selectInfo };
-      }, examTypeToSelect);
+        return { success: false, selectedText: null, selectedValue: '' };
+      }, examTypeToSelect, provider);
       
       if (selected.success) {
         logger.info('Successfully selected exam type', { selectedText: selected.selectedText, selectedValue: selected.selectedValue });
@@ -591,8 +596,10 @@ export class WAECWorker extends BaseWorker {
     const resultUrl = resultPage.url();
     logger.info('Result page URL', { url: resultUrl });
 
+    // For NECO, the URL structure is different, so we adjust the check
     const isStillOnFormPage = resultUrl === urlBeforeSubmit || 
-                              resultUrl.includes('waecdirect.org/') && !resultUrl.includes('Result') && !resultUrl.includes('Error');
+                              (provider === 'waec' && resultUrl.includes('waecdirect.org/') && !resultUrl.includes('Result') && !resultUrl.includes('Error')) ||
+                              (provider === 'neco' && resultUrl.includes('results.neco.gov.ng') && resultUrl.endsWith('/'));
 
     if (isStillOnFormPage && !popupCaptured) {
       logger.error('Still on form page - form submission did not work');
