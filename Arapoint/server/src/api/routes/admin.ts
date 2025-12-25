@@ -498,7 +498,11 @@ router.get('/settings', async (req: Request, res: Response) => {
     
     settingsList.forEach(s => {
       try {
-        settings[s.settingKey] = JSON.parse(s.settingValue || "");
+        if (s.settingValue && (s.settingValue.startsWith('{') || s.settingValue.startsWith('['))) {
+          settings[s.settingKey] = JSON.parse(s.settingValue);
+        } else {
+          settings[s.settingKey] = s.settingValue;
+        }
       } catch {
         settings[s.settingKey] = s.settingValue;
       }

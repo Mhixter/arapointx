@@ -75,9 +75,9 @@ export default function AdminSettings() {
       const payload: any = { ...settings };
       // Map local keys to DB keys for RPA URLs
       Object.entries(settingsMap).forEach(([localKey, dbKey]) => {
-        if (payload[localKey]) {
+        if (payload[localKey] !== undefined) {
           payload[dbKey] = payload[localKey];
-          delete payload[localKey];
+          // We don't delete the localKey here to avoid state mismatch if the UI relies on it
         }
       });
 
