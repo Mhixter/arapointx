@@ -279,8 +279,15 @@ export default function EducationServices() {
         }
         case 'neco-result': {
           const regNumber = (form.querySelector('#neco-reg') as HTMLInputElement)?.value;
+          const examYear = (form.querySelector('#neco-year') as HTMLSelectElement)?.value;
+          const examType = (form.querySelector('#neco-type') as HTMLSelectElement)?.value;
+          const token = (form.querySelector('#neco-token') as HTMLInputElement)?.value;
+          
           jobResponse = await servicesApi.education.checkNECO({
             registrationNumber: regNumber,
+            examYear: parseInt(examYear || new Date().getFullYear().toString()),
+            examType: examType || 'school_candidate',
+            cardPin: token,
           });
           break;
         }
@@ -1038,9 +1045,36 @@ export default function EducationServices() {
                     <Label htmlFor="neco-reg">Registration Number</Label>
                     <Input id="neco-reg" placeholder="e.g., 1234567890" required />
                   </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="neco-year">Exam Year</Label>
+                      <Select name="neco-year" defaultValue={new Date().getFullYear().toString()}>
+                        <SelectTrigger id="neco-year">
+                          <SelectValue placeholder="Select Year" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 25 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                            <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="neco-type">Exam Type</Label>
+                      <Select name="neco-type" defaultValue="school_candidate">
+                        <SelectTrigger id="neco-type">
+                          <SelectValue placeholder="Select Type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="school_candidate">School Candidate (Internal)</SelectItem>
+                          <SelectItem value="private_candidate">Private Candidate (GCE)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                   <div className="space-y-2">
-                    <Label htmlFor="neco-pin">PIN</Label>
-                    <Input id="neco-pin" placeholder="Enter PIN" required />
+                    <Label htmlFor="neco-token">Token</Label>
+                    <Input id="neco-token" placeholder="Enter 12-digit Token" required />
                   </div>
                 </>
               )}
