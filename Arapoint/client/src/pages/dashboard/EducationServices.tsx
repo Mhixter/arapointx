@@ -410,17 +410,63 @@ export default function EducationServices() {
   };
 
   const handleDownloadResult = async () => {
-    if (!currentJobId) {
-      toast({
-        title: "Download Error",
-        description: "No result available for download.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setDownloading(true);
     try {
+      // If PDF is already in the result, download directly
+      if (result?.pdfBase64) {
+        const byteCharacters = atob(result.pdfBase64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${selectedService}_result_${result?.registrationNumber || 'download'}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        toast({
+          title: "Download Successful",
+          description: "Your result PDF has been downloaded.",
+        });
+        return;
+      }
+
+      // Fallback to screenshot if no PDF
+      if (result?.screenshotBase64) {
+        const byteCharacters = atob(result.screenshotBase64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'image/png' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${selectedService}_result_${result?.registrationNumber || 'download'}.png`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        toast({
+          title: "Download Successful",
+          description: "Your result screenshot has been downloaded.",
+        });
+        return;
+      }
+
+      // If no local data, try API endpoint
+      if (!currentJobId) {
+        throw new Error("No result available for download.");
+      }
+
       const response = await fetch(`/api/education/job/${currentJobId}/download`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,

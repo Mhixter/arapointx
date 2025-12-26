@@ -402,10 +402,27 @@ export class EducationWorker extends BaseWorker {
     logger.info('Page debug info after form submission', pageDebugInfo);
 
     let screenshotBase64: string | undefined;
+    let pdfBase64: string | undefined;
+    
     try {
       const screenshotBuffer = await page.screenshot({ fullPage: true, type: 'png' });
       screenshotBase64 = screenshotBuffer.toString('base64');
-    } catch {}
+    } catch (e) {
+      logger.warn('Failed to capture screenshot', { error: (e as Error).message });
+    }
+    
+    // Generate PDF of the result page for download
+    try {
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' }
+      });
+      pdfBase64 = pdfBuffer.toString('base64');
+      logger.info('PDF generated successfully', { size: pdfBuffer.length });
+    } catch (e) {
+      logger.warn('Failed to generate PDF', { error: (e as Error).message });
+    }
 
     const subjects = await this.extractSubjects(page);
     const candidateName = await this.extractCandidateName(page);
@@ -419,6 +436,7 @@ export class EducationWorker extends BaseWorker {
       verificationStatus: subjects.length > 0 ? 'verified' : 'not_found',
       message: subjects.length > 0 ? `${this.profile.name} result retrieved successfully` : 'No results found for this candidate',
       screenshotBase64,
+      pdfBase64,
     };
   }
 
