@@ -414,13 +414,13 @@ export default function EducationServices() {
     try {
       // If PDF is already in the result, download directly
       if (result?.pdfBase64) {
-        const byteCharacters = atob(result.pdfBase64);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: 'application/pdf' });
+        // Clean the base64 string - remove any whitespace or invalid characters
+        const cleanBase64 = result.pdfBase64.replace(/[\s\r\n]/g, '');
+        
+        // Convert base64 to binary using fetch API (more robust than atob)
+        const response = await fetch(`data:application/pdf;base64,${cleanBase64}`);
+        const blob = await response.blob();
+        
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -1347,11 +1347,8 @@ export default function EducationServices() {
               
               <div className="space-y-2">
                 <h3 className="text-2xl font-bold text-green-700 dark:text-green-400">
-                  Result Retrieved Successfully!
+                  Successfully! thanks
                 </h3>
-                <p className="text-muted-foreground max-w-md">
-                  Your official {serviceName} result has been retrieved from the exam portal.
-                </p>
               </div>
 
               <div className="bg-muted/50 rounded-lg p-4 w-full max-w-sm text-left space-y-2">
