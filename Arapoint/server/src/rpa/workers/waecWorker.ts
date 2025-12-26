@@ -152,42 +152,17 @@ export class WAECWorker extends BaseWorker {
     logger.info(`Checking for ${provider.toUpperCase()} privacy/data instruction popup`);
     
     try {
-      // Common selectors for popup close buttons on WAEC portal
       const closeButtonSelectors = [
-        // Modal close buttons
-        'button.close',
-        '.modal .close',
-        '.modal-header .close',
-        '[data-dismiss="modal"]',
-        'button[aria-label="Close"]',
-        '.btn-close',
-        // Common close/accept/OK buttons
-        'button:contains("Close")',
-        'button:contains("OK")',
-        'button:contains("Accept")',
-        'button:contains("I Agree")',
-        'button:contains("Continue")',
-        'button:contains("Proceed")',
-        'a:contains("Close")',
-        'a:contains("OK")',
-        // Generic modal backdrop/overlay click
-        '.modal-footer button',
-        '.modal button.btn-primary',
-        '.modal button.btn-secondary',
-        // X button
-        '.close-btn',
-        '.closeBtn',
-        '[class*="close"]',
-        // Swal/sweetalert style
-        '.swal-button',
-        '.swal2-confirm',
-        '.swal2-close',
+        'button.close', '.modal .close', '.modal-header .close', '[data-dismiss="modal"]',
+        'button[aria-label="Close"]', '.btn-close', 'button:contains("Close")', 'button:contains("OK")',
+        'button:contains("Accept")', 'button:contains("I Agree")', 'button:contains("Continue")',
+        'button:contains("Proceed")', 'a:contains("Close")', 'a:contains("OK")', '.modal-footer button',
+        '.modal button.btn-primary', '.modal button.btn-secondary', '.close-btn', '.closeBtn',
+        '[class*="close"]', '.swal-button', '.swal2-confirm', '.swal2-close',
       ];
 
-      // Wait briefly for any popup to appear
       await this.sleep(1000);
 
-      // Check if there's a modal/popup visible
       const hasPopup = await page.evaluate(() => {
         const modals = document.querySelectorAll('.modal, .popup, .overlay, [role="dialog"], .swal2-container, .swal-overlay');
         for (const modal of Array.from(modals)) {
@@ -196,7 +171,6 @@ export class WAECWorker extends BaseWorker {
             return true;
           }
         }
-        // Also check for any element that might be a privacy notice
         const privacyElements = document.querySelectorAll('[class*="privacy"], [class*="notice"], [class*="instruction"], [class*="disclaimer"]');
         for (const el of Array.from(privacyElements)) {
           const style = window.getComputedStyle(el);
@@ -209,12 +183,9 @@ export class WAECWorker extends BaseWorker {
 
       if (hasPopup) {
         logger.info('Popup/modal detected, attempting to close');
-        
-        // Try clicking close buttons
         for (const selector of closeButtonSelectors) {
           try {
             const clicked = await page.evaluate((sel) => {
-              // Handle :contains pseudo-selector manually
               if (sel.includes(':contains(')) {
                 const match = sel.match(/(.+):contains\("(.+)"\)/);
                 if (match) {
@@ -232,7 +203,6 @@ export class WAECWorker extends BaseWorker {
                 }
                 return false;
               }
-              
               const btn = document.querySelector(sel);
               if (btn) {
                 const style = window.getComputedStyle(btn);
@@ -253,30 +223,17 @@ export class WAECWorker extends BaseWorker {
             continue;
           }
         }
-
-        // If still visible, try pressing Escape key
         try {
           await page.keyboard.press('Escape');
-          logger.info('Pressed Escape key to close popup');
           await this.sleep(300);
-        } catch {
-          // Ignore
-        }
-
-        // Final attempt: click outside the modal (on backdrop)
+        } catch {}
         try {
           await page.evaluate(() => {
             const backdrop = document.querySelector('.modal-backdrop, .overlay, .fade');
-            if (backdrop) {
-              (backdrop as HTMLElement).click();
-            }
+            if (backdrop) (backdrop as HTMLElement).click();
           });
-        } catch {
-          // Ignore
-        }
-
+        } catch {}
         await this.sleep(500);
-        logger.info('Popup handling completed');
       } else {
         logger.info('No popup detected, proceeding with form');
       }
@@ -290,13 +247,11 @@ export class WAECWorker extends BaseWorker {
     portalUrl: string,
     data: WAECQueryData,
     selectors: Record<string, string>,
-    provider: string = "waec"
+    provider: string = 'waec'
   ): Promise<WAECResult> {
     logger.info(`Navigating to ${provider.toUpperCase()} portal`, { url: portalUrl });
     await page.goto(portalUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
     await this.sleep(1500);
-
-    // Handle Data Privacy popup - close it if present
     await this.closePrivacyPopup(page, provider);
 
     try {
@@ -310,69 +265,62 @@ export class WAECWorker extends BaseWorker {
     try {
       const yearStr = data.examYear ? data.examYear.toString() : '';
       if (!yearStr) {
-    try {
-      const yearStr = data.examYear ? data.examYear.toString() : "";
-      if (!yearStr) {
-        logger.warn("Exam year is missing or invalid");
+        logger.warn('Exam year is missing or invalid');
       } else {
         await page.select(selectors.examYearSelect, yearStr);
-        logger.info("Selected exam year", { year: data.examYear });
+        logger.info('Selected exam year', { year: data.examYear });
       }
     } catch (e: any) {
-      logger.warn("Could not select exam year dropdown, trying alternative", { error: e.message });
+      logger.warn('Could not select exam year dropdown, trying alternative', { error: e.message });
       try {
         await page.evaluate((year) => {
           if (!year) return;
-          const selects = Array.from(document.querySelectorAll("select"));
+          const selects = Array.from(document.querySelectorAll('select'));
           for (const select of selects) {
-            const options = Array.from(select.querySelectorAll("option"));
+            const options = Array.from(select.querySelectorAll('option'));
             for (const option of options) {
               if (option.value === year || option.textContent?.includes(year)) {
                 (select as HTMLSelectElement).value = option.value;
-                select.dispatchEvent(new Event("change", { bubbles: true }));
+                select.dispatchEvent(new Event('change', { bubbles: true }));
                 break;
               }
             }
           }
-        }, data.examYear ? data.examYear.toString() : "");
+        }, data.examYear ? data.examYear.toString() : '');
       } catch {
-        logger.warn("Year selection fallback also failed, continuing");
+        logger.warn('Year selection fallback also failed, continuing');
       }
     }
+
+    const examTypeToSelect = data.examType || 'WASSCE';
+    logger.info('Attempting to select exam type', { requestedType: examTypeToSelect, provider });
     
     try {
       const selected = await page.evaluate((examType, prov) => {
         const selects = Array.from(document.querySelectorAll('select'));
         const isNeco = prov === 'neco';
-        
         for (const select of selects) {
           const options = Array.from(select.querySelectorAll('option'));
-          
           for (let i = 0; i < options.length; i++) {
             const option = options[i];
             const optText = option.textContent?.toLowerCase() || '';
             const optValue = option.value?.toLowerCase() || '';
-            
             if (isNeco) {
-              // NECO specific logic
               if (optText.includes('internal') || optValue.includes('int')) {
                 (select as HTMLSelectElement).selectedIndex = i;
                 select.dispatchEvent(new Event('change', { bubbles: true }));
                 return { success: true, selectedText: option.textContent, selectedValue: option.value };
               }
             } else {
-              // WAEC specific logic
               const isSchoolCandidate = examType.toUpperCase() === 'WASSCE' || examType.toLowerCase().includes('school') || examType.toLowerCase().includes('internal');
               if (isSchoolCandidate) {
-                if (optText.includes('school') || optValue.includes('school') || 
-                    optText.includes('wassce') || optValue === '1' || optValue === 'sc') {
+                if (optText.includes('school') || optValue.includes('school') || optText.includes('wassce') || optValue === '1' || optValue === 'sc') {
                   (select as HTMLSelectElement).selectedIndex = i;
                   select.dispatchEvent(new Event('change', { bubbles: true }));
                   return { success: true, selectedText: option.textContent, selectedValue: option.value };
                 }
               } else {
-                if (optText.includes('private') || optValue.includes('private') || 
-                    optText.includes('gce') || optValue === '2' || optValue === 'pc') {
+                if (optText.includes('private') || optValue.includes('private') || optText.includes('gce') || optValue === '2' || optValue === 'pc') {
                   (select as HTMLSelectElement).selectedIndex = i;
                   select.dispatchEvent(new Event('change', { bubbles: true }));
                   return { success: true, selectedText: option.textContent, selectedValue: option.value };
@@ -386,8 +334,6 @@ export class WAECWorker extends BaseWorker {
       
       if (selected.success) {
         logger.info('Successfully selected exam type', { selectedText: selected.selectedText, selectedValue: selected.selectedValue });
-      } else {
-        logger.warn('Could not find matching exam type option');
       }
     } catch (e: any) {
       logger.warn('Error selecting exam type', { error: e.message });
@@ -411,85 +357,49 @@ export class WAECWorker extends BaseWorker {
 
     if (data.cardSerialNumber) {
       let serialEntered = false;
-      const serialSelectors = [
-        'input[name="SerialNumber"]',
-        'input[name="serialNumber"]', 
-        'input[name="Serial"]',
-        'input#SerialNumber',
-        'input#serialNumber',
-        'input#Serial'
-      ];
-      
+      const serialSelectors = ['input[name="SerialNumber"]', 'input[name="serialNumber"]', 'input[name="Serial"]', 'input#SerialNumber', 'input#serialNumber', 'input#Serial'];
       for (const selector of serialSelectors) {
         try {
           const input = await page.$(selector);
           if (input) {
             await input.type(data.cardSerialNumber);
-            logger.info('Entered card serial number', { selector });
             serialEntered = true;
             break;
           }
-        } catch {
-          continue;
-        }
+        } catch { continue; }
       }
-      
       if (!serialEntered) {
         const textInputs = await page.$$('input[type="text"]');
         if (textInputs.length >= 2) {
           await textInputs[1].type(data.cardSerialNumber);
-          logger.info('Used fallback for card serial number (2nd text input)');
           serialEntered = true;
         }
-      }
-      
-      if (!serialEntered) {
-        logger.warn('Could not enter card serial number - field not found');
       }
     }
 
     if (data.cardPin) {
       let pinEntered = false;
-      const pinSelectors = [
-        'input[name="Pin"]',
-        'input[name="pin"]',
-        'input[name="PIN"]',
-        'input#Pin',
-        'input#pin',
-        'input#PIN',
-        'input[type="password"]'
-      ];
-      
+      const pinSelectors = ['input[name="Pin"]', 'input[name="pin"]', 'input[name="PIN"]', 'input#Pin', 'input#pin', 'input#PIN', 'input[type="password"]'];
       for (const selector of pinSelectors) {
         try {
           const input = await page.$(selector);
           if (input) {
             await input.type(data.cardPin);
-            logger.info('Entered card PIN', { selector });
             pinEntered = true;
             break;
           }
-        } catch {
-          continue;
-        }
+        } catch { continue; }
       }
-      
       if (!pinEntered) {
         const textInputs = await page.$$('input[type="text"]');
         if (textInputs.length >= 3) {
           await textInputs[2].type(data.cardPin);
-          logger.info('Used fallback for card PIN (3rd text input)');
           pinEntered = true;
         }
-      }
-      
-      if (!pinEntered) {
-        logger.warn('Could not enter card PIN - field not found');
       }
     }
 
     await this.sleep(1000);
-
     logger.info('Submitting WAEC form');
     
     page.on('dialog', async (dialog) => {
@@ -498,25 +408,12 @@ export class WAECWorker extends BaseWorker {
     });
 
     const urlBeforeSubmit = page.url();
-    logger.info('URL before submit', { url: urlBeforeSubmit });
-
-    const submitSelectors = [
-      'input[type="submit"]',
-      'button[type="submit"]',
-      'input[value="Submit"]',
-      'input[value="Check Result"]',
-      '.btn-submit',
-      '#btnSubmit',
-      '#Submit'
-    ];
+    const submitSelectors = ['input[type="submit"]', 'button[type="submit"]', 'input[value="Submit"]', 'input[value="Check Result"]', '.btn-submit', '#btnSubmit', '#Submit'];
 
     let submitButton = null;
     for (const selector of submitSelectors) {
       submitButton = await page.$(selector);
-      if (submitButton) {
-        logger.info('Found submit button', { selector });
-        break;
-      }
+      if (submitButton) break;
     }
 
     if (!submitButton) {
@@ -527,22 +424,14 @@ export class WAECWorker extends BaseWorker {
           value: (el as HTMLInputElement).value || '',
           text: el.textContent || ''
         }));
-        if (props.type === 'submit' || 
-            props.value.toLowerCase().includes('submit') || 
-            props.value.toLowerCase().includes('check') ||
-            props.text.toLowerCase().includes('submit')) {
+        if (props.type === 'submit' || props.value.toLowerCase().includes('submit') || props.value.toLowerCase().includes('check') || props.text.toLowerCase().includes('submit')) {
           submitButton = btn;
-          logger.info('Found submit button via search', { props });
           break;
         }
       }
     }
 
-    if (!submitButton) {
-      throw new Error('Could not find submit button on WAEC portal');
-    }
-
-    logger.info('Clicking submit - waiting for popup or navigation...');
+    if (!submitButton) throw new Error('Could not find submit button on WAEC portal');
 
     const browser = page.browser();
     let resultPage: Page = page;
@@ -553,14 +442,12 @@ export class WAECWorker extends BaseWorker {
         if (target.type() === 'page') {
           const newPage = await target.page();
           if (newPage && newPage !== page) {
-            logger.info('Popup window detected', { url: newPage.url() });
             browser.off('targetcreated', handler);
             resolve(newPage);
           }
         }
       };
       browser.on('targetcreated', handler);
-      
       setTimeout(() => {
         browser.off('targetcreated', handler);
         resolve(page);
@@ -569,11 +456,9 @@ export class WAECWorker extends BaseWorker {
 
     try {
       await submitButton.click();
-      logger.info('Submit button clicked');
     } catch (e: any) {
-      logger.warn('Click failed, trying JavaScript click', { error: e.message });
       await page.evaluate(() => {
-        const btn = document.querySelector('input[type="submit"]') as HTMLElement;
+        const btn = (document.querySelector('input[type="submit"]') || document.querySelector('button[type="submit"]')) as HTMLElement;
         if (btn) btn.click();
       });
     }
@@ -581,121 +466,61 @@ export class WAECWorker extends BaseWorker {
     resultPage = await popupPromise;
     popupCaptured = resultPage !== page;
     
-    logger.info('Result page determined', { 
-      popupCaptured, 
-      resultPageUrl: resultPage.url(),
-      originalPageUrl: page.url()
-    });
-
     if (popupCaptured) {
       await resultPage.waitForSelector('body', { timeout: 10000 }).catch(() => {});
       await this.sleep(3000);
     } else {
       try {
         await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 });
-      } catch {
-        logger.info('No navigation detected on main page');
-      }
+      } catch {}
       await this.sleep(3000);
     }
 
     const resultUrl = resultPage.url();
-    logger.info('Result page URL', { url: resultUrl });
-
-    // For NECO, the URL structure is different, so we adjust the check
     const isStillOnFormPage = resultUrl === urlBeforeSubmit || 
                               (provider === 'waec' && resultUrl.includes('waecdirect.org/') && !resultUrl.includes('Result') && !resultUrl.includes('Error')) ||
                               (provider === 'neco' && (resultUrl.includes('results.neco.gov.ng') && (resultUrl.endsWith('/') || resultUrl.endsWith('/home') || resultUrl.endsWith('/dashboard') || resultUrl.includes('token'))));
 
     if (isStillOnFormPage && !popupCaptured) {
-      // Check for validation messages or visible errors
       const pageError = await resultPage.evaluate(() => {
-        const errSelectors = [
-          '.alert-danger', '.error', '.text-danger', '.err-msg', '#lblError', 
-          '.validation-summary-errors', '.errorMessage', '[id*="Error"]', '[class*="error"]',
-          '.toast-error', '.notification-error'
-        ];
+        const errSelectors = ['.alert-danger', '.error', '.text-danger', '.err-msg', '#lblError', '.validation-summary-errors', '.errorMessage', '[id*="Error"]', '[class*="error"]', '.toast-error', '.notification-error'];
         for (const sel of errSelectors) {
           const elements = document.querySelectorAll(sel);
           for (const el of Array.from(elements)) {
             const style = window.getComputedStyle(el);
-            if (style.display !== 'none' && style.visibility !== 'hidden' && el.textContent?.trim()) {
-              return el.textContent.trim();
-            }
+            if (style.display !== 'none' && style.visibility !== 'hidden' && el.textContent?.trim()) return el.textContent.trim();
           }
         }
-        
-        // Check for common error text in body if selectors fail
         const bodyText = document.body.innerText;
         const errorKeywords = ['Invalid', 'Incorrect', 'Expired', 'Used', 'Wrong', 'Not Found'];
         for (const kw of errorKeywords) {
-           if (bodyText.includes(kw) && bodyText.length < 500) { // Small text usually means an error page
-             return bodyText.trim();
-           }
+           if (bodyText.includes(kw) && bodyText.length < 500) return bodyText.trim();
         }
-
         return null;
       });
 
       if (!pageError) {
-        // Try one more time to click submit if we are still on the form
-        logger.info('Still on form but no error found, trying one more submit click');
         try {
            await resultPage.click(selectors.submitButton);
            await this.sleep(5000);
-        } catch (e) {
-           logger.warn('Retry click failed');
-        }
+        } catch {}
       }
       
-      const finalError = pageError || `Could not submit form to ${provider.toUpperCase()} portal. Please verify your details (Exam Number, PIN, Serial) and try again.`;
+      const finalError = pageError || `Could not submit form to ${provider.toUpperCase()} portal. Please verify your details and try again.`;
       throw new Error(finalError);
     }
-        // Final attempt to find any input that might be the registration number to confirm we are still on form
-        const stillOnForm = await resultPage.evaluate((sel) => {
-          return !!document.querySelector(sel);
-        }, selectors.examNumberInput);
 
-        if (stillOnForm) {
-        logger.error('Still on form page - form submission did not work');
-        const errorMsg = `Could not submit form to ${provider.toUpperCase()} portal. Please try again later.`;
-        return {
-          registrationNumber: data.registrationNumber,
-          examYear: data.examYear,
-          examType: data.examType,
-          subjects: [],
-          verificationStatus: "error" as any as any as any,
-          message: errorMsg,
-          errorMessage: errorMsg,
-        };
-      }
-    }
-
+    const pageContent = await resultPage.content();
     const pageText = await resultPage.evaluate(() => document.body.innerText);
     
-    const hasResults = pageContent.includes('Subject') || pageContent.includes('Grade') || 
-                       pageContent.includes('RESULT') || pageContent.includes('Score') ||
-                       pageContent.includes('ENGLISH') || pageContent.includes('MATHEMATICS') ||
-                       pageText.includes('Subject') || pageText.includes('Grade');
-    const hasCardError = pageText.includes('card usage has exceeded') || 
-                         pageText.includes('purchase another card') ||
-                         pageText.includes('card has been used') ||
-                         pageText.includes('maximum allowed');
-    const hasInvalidError = pageText.toLowerCase().includes('invalid') || 
-                            pageText.toLowerCase().includes('not found') ||
-                            pageText.toLowerCase().includes('incorrect') ||
-                            pageText.toLowerCase().includes('does not exist');
-    
-    logger.info('Page analysis', { hasResults, hasCardError, hasInvalidError, popupCaptured, url: resultUrl });
+    const hasResults = pageContent.includes('Subject') || pageContent.includes('Grade') || pageContent.includes('RESULT') || pageContent.includes('Score') || pageContent.includes('ENGLISH') || pageContent.includes('MATHEMATICS') || pageText.includes('Subject') || pageText.includes('Grade');
+    const hasCardError = pageText.includes('card usage has exceeded') || pageText.includes('purchase another card') || pageText.includes('card has been used') || pageText.includes('maximum allowed');
+    const hasInvalidError = pageText.toLowerCase().includes('invalid') || pageText.toLowerCase().includes('not found') || pageText.toLowerCase().includes('incorrect') || pageText.toLowerCase().includes('does not exist');
     
     const screenshot = await resultPage.screenshot({ encoding: 'base64', fullPage: true });
 
     if (popupCaptured) {
-      try {
-        await resultPage.close();
-      } catch {
-        logger.warn('Could not close popup');
-      }
+      try { await resultPage.close(); } catch {}
     }
 
     const extractWaecError = (): string => {
@@ -706,22 +531,12 @@ export class WAECWorker extends BaseWorker {
         if (errTitle) return decodeURIComponent(errTitle).replace(/&amp;/g, '&');
         if (errMsg) return decodeURIComponent(errMsg).replace(/&amp;/g, '&');
       } catch {}
-      
-      const errorLines = pageText.split('\n').filter(line => 
-        line.toLowerCase().includes('error') || 
-        line.toLowerCase().includes('invalid') || 
-        line.toLowerCase().includes('exceeded') ||
-        line.toLowerCase().includes('purchase')
-      );
-      if (errorLines.length > 0) {
-        return errorLines[0].trim();
-      }
-      return pageText.substring(0, 200).trim();
+      const errorLines = pageText.split('\n').filter(line => line.toLowerCase().includes('error') || line.toLowerCase().includes('invalid') || line.toLowerCase().includes('exceeded') || line.toLowerCase().includes('purchase'));
+      return errorLines.length > 0 ? errorLines[0].trim() : pageText.substring(0, 200).trim();
     };
 
     if (hasCardError || hasInvalidError) {
       const waecError = extractWaecError();
-      logger.info('Extracted WAEC error', { waecError });
       return {
         registrationNumber: data.registrationNumber,
         examYear: data.examYear,
@@ -735,13 +550,13 @@ export class WAECWorker extends BaseWorker {
 
     if (!hasResults) {
       const waecError = extractWaecError();
-      const errorMsg = waecError || 'Could not find results on WAEC response page. The portal may be experiencing issues.';
+      const errorMsg = waecError || 'Could not find results on response page.';
       return {
         registrationNumber: data.registrationNumber,
         examYear: data.examYear,
         examType: data.examType,
         subjects: [],
-        verificationStatus: "error" as any as any,
+        verificationStatus: 'error' as any,
         message: errorMsg,
         errorMessage: errorMsg,
       };
@@ -752,29 +567,22 @@ export class WAECWorker extends BaseWorker {
   }
 
   private async checkForError(page: Page, errorSelector: string): Promise<string | null> {
-      const errorElement = await page.$(errorSelector);
     try {
+      const errorElement = await page.$(errorSelector);
+      if (errorElement) {
         const errorText = await page.evaluate((el: Element) => el.textContent, errorElement);
         return errorText?.trim() || null;
       }
-
       const pageText = await page.evaluate(() => document.body.innerText);
-      if (pageText.toLowerCase().includes('not found') || 
-          pageText.toLowerCase().includes('invalid') ||
-          pageText.toLowerCase().includes('error')) {
-        const errorMatch = pageText.match(/(not found|invalid|error)[^.]*\./i);
-        if (errorMatch) {
-          return errorMatch[0];
-        }
+      if (pageText.toLowerCase().includes("not found") || pageText.toLowerCase().includes("invalid") || pageText.toLowerCase().includes("error")) {
+        const errorMatch = pageText.match(/(not found|invalid|error)[^.]*\\./i);
+        if (errorMatch) return errorMatch[0];
       }
-    } catch {
-    }
+    } catch {}
     return null;
   }
 
   private async extractResultsFromPage(page: Page, data: WAECQueryData, screenshotBase64: string): Promise<WAECResult> {
-    logger.info('Extracting WAEC results from result page');
-
     let candidateName: string | undefined;
     try {
       candidateName = await page.evaluate(() => {
@@ -782,61 +590,37 @@ export class WAECWorker extends BaseWorker {
         for (const label of nameLabels) {
           const cells = document.querySelectorAll('td, th');
           for (let i = 0; i < cells.length; i++) {
-            if (cells[i].textContent?.includes(label) && cells[i + 1]) {
-              return cells[i + 1].textContent?.trim();
-            }
+            if (cells[i].textContent?.includes(label) && cells[i + 1]) return cells[i + 1].textContent?.trim();
           }
         }
-        const nameEl = document.querySelector('.candidate-name, .name');
-        return nameEl?.textContent?.trim();
+        return (document.querySelector('.candidate-name, .name') as HTMLElement)?.textContent?.trim();
       });
-      logger.info('Extracted candidate name', { candidateName });
-    } catch {
-      logger.warn('Could not extract candidate name');
-    }
+    } catch {}
 
     let subjects: WAECSubject[] = [];
     try {
       subjects = await page.evaluate(() => {
-        const results: { subject: string; grade: string }[] = [];
-        const tables = Array.from(document.querySelectorAll('table'));
-        
-        for (const table of tables) {
-          const rows = Array.from(table.querySelectorAll('tr'));
-          for (const row of rows) {
-            const cells = row.querySelectorAll('td');
-            if (cells.length >= 2) {
-              const subject = cells[0]?.textContent?.trim();
-              const grade = cells[cells.length - 1]?.textContent?.trim();
-              
-              if (subject && grade && 
-                  !subject.toLowerCase().includes('subject') &&
-                  subject.length > 1 && grade.length <= 3) {
-                results.push({ subject, grade });
-              }
+        const results: WAECSubject[] = [];
+        const rows = document.querySelectorAll('tr');
+        for (const row of Array.from(rows)) {
+          const cells = row.querySelectorAll('td');
+          if (cells.length >= 2) {
+            const subject = cells[0]?.textContent?.trim();
+            const grade = cells[cells.length - 1]?.textContent?.trim();
+            if (subject && grade && !subject.toLowerCase().includes('subject') && subject.length > 1 && grade.length <= 3) {
+              results.push({ subject, grade });
             }
           }
         }
         return results;
       });
-      logger.info('Extracted subjects', { count: subjects.length });
-    } catch {
-      logger.warn('Could not extract subjects');
-    }
+    } catch {}
 
     let pdfBase64: string | undefined;
     try {
-      logger.info('Generating PDF from result page');
-      const pdfBuffer = await (page as any).pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' },
-      });
+      const pdfBuffer = await (page as any).pdf({ format: 'A4', printBackground: true });
       pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
-      logger.info('PDF generated', { size: pdfBase64.length });
-    } catch (pdfError: any) {
-      logger.warn('PDF generation failed, using screenshot', { error: pdfError.message });
-    }
+    } catch {}
 
     return {
       registrationNumber: data.registrationNumber,
@@ -845,12 +629,11 @@ export class WAECWorker extends BaseWorker {
       examYear: data.examYear,
       subjects,
       verificationStatus: 'verified',
-      message: 'WAEC result verification completed successfully',
+      message: 'Verification completed successfully',
       pdfBase64,
       screenshotBase64,
     };
   }
-
 }
 
 export const waecWorker = new WAECWorker();
