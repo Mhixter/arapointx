@@ -39,9 +39,9 @@ export class WAECWorker extends BaseWorker {
   private readonly DEFAULT_SELECTORS = {
     examYearSelect: 'select[name="ExamYear"], select[name="examYear"], select#ExamYear, select#examYear, select[name="exam_year"]',
     examTypeSelect: 'select[name="ExamType"], select[name="examType"], select#ExamType, select#examType, select[name="exam_type"]',
-    examNumberInput: 'input[name="ExamNumber"], input[name="examnumber"], input[name="CandNo"], input[name="examNumber"], input#ExamNumber, input#examnumber, input#CandNo, input#examNumber, input[name="exam_no"], input[name="registrationNumber"]',
-    cardSerialInput: 'input[name="SerialNumber"], input[name="serialNumber"], input[name="Serial"], input#SerialNumber, input#serialNumber, input#Serial, input[name="serial_no"]',
-    cardPinInput: 'input[name="Pin"], input[name="pin"], input[name="PIN"], input#Pin, input#pin, input#PIN, input[name="pin_no"]',
+    examNumberInput: 'input[name="ExamNumber"], input[name="examnumber"], input[name="CandNo"], input[name="examNumber"], input#ExamNumber, input#examnumber, input#CandNo, input#examNumber, input[name="exam_no"], input[name="registrationNumber"], input[name="exam_year_no"], input[placeholder*="Registration"], input[placeholder*="Examination Number"], input[name="reg_no"], input[name="regNumber"], input[name="exam_no"]',
+    cardSerialInput: 'input[name="SerialNumber"], input[name="serialNumber"], input[name="Serial"], input#SerialNumber, input#serialNumber, input#Serial, input[name="serial_no"], input[name="serial"], input[name="token"], input[name="cardSerialNumber"]',
+    cardPinInput: 'input[name="Pin"], input[name="pin"], input[name="PIN"], input#Pin, input#pin, input#PIN, input[name="pin_no"], input[name="pin"], input[name="cardPin"]',
     submitButton: 'input[type="submit"], button[type="submit"], button.submit, input.submit, button[name="submit"], .btn-submit, #submit, button:contains("Submit"), button:contains("Check"), input[value="Submit"], input[value="Check"], button.btn-primary',
     resultTable: 'table.resultTable, table#resultTable, .result-table, table',
     candidateName: '.candidate-name, .name, td:contains("Name")+td',
@@ -381,7 +381,7 @@ export class WAECWorker extends BaseWorker {
       if (selected.success) {
         logger.info('Successfully selected exam type', { selectedText: selected.selectedText, selectedValue: selected.selectedValue });
       } else {
-        logger.warn('Could not find matching exam type option', { availableSelects: JSON.stringify(selected.selectInfo) });
+        logger.warn('Could not find matching exam type option');
       }
     } catch (e: any) {
       logger.warn('Error selecting exam type', { error: e.message });
@@ -599,20 +599,42 @@ export class WAECWorker extends BaseWorker {
     // For NECO, the URL structure is different, so we adjust the check
     const isStillOnFormPage = resultUrl === urlBeforeSubmit || 
                               (provider === 'waec' && resultUrl.includes('waecdirect.org/') && !resultUrl.includes('Result') && !resultUrl.includes('Error')) ||
-                              (provider === 'neco' && resultUrl.includes('results.neco.gov.ng') && resultUrl.endsWith('/'));
+                              (provider === 'neco' && (resultUrl.includes('results.neco.gov.ng') && (resultUrl.endsWith('/') || resultUrl.endsWith('/home') || resultUrl.endsWith('/dashboard'))));
 
     if (isStillOnFormPage && !popupCaptured) {
-      logger.error('Still on form page - form submission did not work');
-      const errorMsg = `Could not submit form to ${provider.toUpperCase()} portal. Please try again later.`;
-      return {
-        registrationNumber: data.registrationNumber,
-        examYear: data.examYear,
-        examType: data.examType,
-        subjects: [],
-        verificationStatus: 'error',
-        message: errorMsg,
-        errorMessage: errorMsg,
-      };
+      // Check for common error message elements on various portals
+      const pageError = await resultPage.evaluate(() => {
+        const errSelectors = [
+          '.alert-danger', '.error', '.text-danger', '.err-msg', '#lblError', 
+          '.validation-summary-errors', '.errorMessage', '[id*="Error"]', '[class*="error"]'
+        ];
+        for (const sel of errSelectors) {
+          const el = document.querySelector(sel);
+          if (el && el.textContent?.trim()) return el.textContent.trim();
+        }
+        return null;
+      });
+
+      if (!pageError) {
+        // Final attempt to find any input that might be the registration number to confirm we are still on form
+        const stillOnForm = await resultPage.evaluate((sel) => {
+          return !!document.querySelector(sel);
+        }, selectors.examNumberInput);
+
+        if (stillOnForm) {
+          logger.error('Still on form page - form submission did not work');
+          const errorMsg = `Could not submit form to ${provider.toUpperCase()} portal. Please try again later.`;
+          return {
+            registrationNumber: data.registrationNumber,
+            examYear: data.examYear,
+            examType: data.examType,
+            subjects: [],
+            verificationStatus: 'error',
+            message: errorMsg,
+            errorMessage: errorMsg,
+          };
+        }
+      }
     }
 
     const pageContent = await resultPage.content();
