@@ -1336,6 +1336,60 @@ export default function EducationServices() {
             </div>
           </CardContent>
         </Card>
+      ) : result?.isOfficialPdf ? (
+        // Official PDF Download View - Simple interface for official exam body PDFs
+        <Card className="max-w-2xl border-2 border-green-500/30">
+          <CardContent className="pt-8 pb-8">
+            <div className="flex flex-col items-center gap-6 text-center">
+              <div className="h-20 w-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <CheckCircle2 className="h-10 w-10 text-green-600" />
+              </div>
+              
+              <div className="space-y-2">
+                <h3 className="text-2xl font-bold text-green-700 dark:text-green-400">
+                  Result Retrieved Successfully!
+                </h3>
+                <p className="text-muted-foreground max-w-md">
+                  Your official {serviceName} result has been retrieved from the exam portal.
+                </p>
+              </div>
+
+              <div className="bg-muted/50 rounded-lg p-4 w-full max-w-sm text-left space-y-2">
+                {result?.candidateName && (
+                  <p className="text-sm"><span className="font-medium">Candidate:</span> {result.candidateName}</p>
+                )}
+                <p className="text-sm"><span className="font-medium">Registration Number:</span> {result?.registrationNumber}</p>
+                <p className="text-sm"><span className="font-medium">Exam Year:</span> {result?.examYear}</p>
+                {result?.subjects && result.subjects.length > 0 && (
+                  <p className="text-sm"><span className="font-medium">Subjects:</span> {result.subjects.length} subjects found</p>
+                )}
+              </div>
+
+              <Button 
+                size="lg" 
+                className="mt-4 gap-2" 
+                onClick={handleDownloadResult}
+                disabled={downloading}
+              >
+                {downloading ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Downloading...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-5 w-5" />
+                    Download Official {serviceName} Result (PDF)
+                  </>
+                )}
+              </Button>
+
+              <p className="text-xs text-muted-foreground">
+                This is the official result document from {serviceName}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       ) : (
         <Card className="max-w-4xl border-2 border-primary/20 overflow-hidden print:border-none print:shadow-none">
           <CardHeader className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground print:bg-primary print:text-white">

@@ -377,55 +377,71 @@ export class EducationWorker extends BaseWorker {
     
     logger.info('Form submitted, checking for results', { contentChanged, urlChanged: resultUrl !== urlBeforeSubmit });
 
-    // Debug: Capture page structure to understand result format
-    const pageDebugInfo = await page.evaluate(() => {
-      const tables = document.querySelectorAll('table');
-      const tableInfo = Array.from(tables).map((t, i) => ({
-        index: i,
-        rows: t.querySelectorAll('tr').length,
-        innerHTML: t.innerHTML.substring(0, 500)
-      }));
-      
-      // Look for any result-like content
-      const bodyText = document.body.innerText.substring(0, 2000);
-      const hasResultKeywords = bodyText.includes('Subject') || bodyText.includes('Grade') || bodyText.includes('Score');
-      
-      return {
-        url: window.location.href,
-        tablesFound: tables.length,
-        tableInfo,
-        bodyTextPreview: bodyText.substring(0, 1000),
-        hasResultKeywords
-      };
+    // Check if we have results by looking for subject/grade content
+    const hasResults = await page.evaluate(() => {
+      const bodyText = document.body.innerText;
+      return bodyText.includes('Subject') || bodyText.includes('SUBJECT') || 
+             bodyText.includes('Grade') || bodyText.includes('GRADE');
     });
-    
-    logger.info('Page debug info after form submission', pageDebugInfo);
 
-    let screenshotBase64: string | undefined;
+    if (!hasResults) {
+      throw new Error('No results found for this candidate');
+    }
+
+    // Extract candidate info before clicking print
+    const candidateName = await this.extractCandidateName(page);
+    const subjects = await this.extractSubjects(page);
+    
+    logger.info('Results found', { candidateName, subjectCount: subjects.length });
+
     let pdfBase64: string | undefined;
     
+    // Click NECO's "Print result" or "Print" button to get the official print view
     try {
-      const screenshotBuffer = await page.screenshot({ fullPage: true, type: 'png' });
-      screenshotBase64 = screenshotBuffer.toString('base64');
+      const printClicked = await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button, a'));
+        for (const btn of buttons) {
+          const text = (btn.textContent || '').trim().toLowerCase();
+          if (text.includes('print')) {
+            (btn as HTMLElement).click();
+            console.log('Clicked print button:', btn.textContent);
+            return true;
+          }
+        }
+        return false;
+      });
+
+      if (printClicked) {
+        logger.info('Clicked NECO print button');
+        await this.sleep(2000); // Wait for print view to load
+      }
     } catch (e) {
-      logger.warn('Failed to capture screenshot', { error: (e as Error).message });
+      logger.warn('Could not click print button', { error: (e as Error).message });
     }
-    
-    // Generate PDF of the result page for download
+
+    // Generate PDF of the official NECO result page
     try {
+      // Use emulateMediaType to ensure we get print styles
+      await page.emulateMediaType('print');
+      
       const pdfBuffer = await page.pdf({
         format: 'A4',
         printBackground: true,
-        margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' }
+        margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' },
+        preferCSSPageSize: true
       });
       pdfBase64 = pdfBuffer.toString('base64');
-      logger.info('PDF generated successfully', { size: pdfBuffer.length });
+      logger.info('Official NECO PDF generated successfully', { size: pdfBuffer.length });
+      
+      // Reset media type
+      await page.emulateMediaType('screen');
     } catch (e) {
       logger.warn('Failed to generate PDF', { error: (e as Error).message });
     }
 
-    const subjects = await this.extractSubjects(page);
-    const candidateName = await this.extractCandidateName(page);
+    if (!pdfBase64) {
+      throw new Error('Failed to generate result PDF');
+    }
 
     return {
       registrationNumber: data.registrationNumber,
@@ -433,10 +449,10 @@ export class EducationWorker extends BaseWorker {
       examType: data.examType,
       examYear: data.examYear,
       subjects,
-      verificationStatus: subjects.length > 0 ? 'verified' : 'not_found',
-      message: subjects.length > 0 ? `${this.profile.name} result retrieved successfully` : 'No results found for this candidate',
-      screenshotBase64,
+      verificationStatus: 'verified',
+      message: `${this.profile.name} result retrieved successfully`,
       pdfBase64,
+      isOfficialPdf: true,
     };
   }
 
