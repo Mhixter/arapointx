@@ -290,7 +290,7 @@ export class WAECWorker extends BaseWorker {
     portalUrl: string,
     data: WAECQueryData,
     selectors: Record<string, string>,
-    provider: string = 'waec'
+    provider: string = "waec"
   ): Promise<WAECResult> {
     logger.info(`Navigating to ${provider.toUpperCase()} portal`, { url: portalUrl });
     await page.goto(portalUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
@@ -308,31 +308,37 @@ export class WAECWorker extends BaseWorker {
     logger.info(`Filling ${provider.toUpperCase()} form fields`);
 
     try {
-      await page.select(selectors.examYearSelect, data.examYear.toString());
-      logger.info('Selected exam year', { year: data.examYear });
+      const yearStr = data.examYear ? data.examYear.toString() : '';
+      if (!yearStr) {
+    try {
+      const yearStr = data.examYear ? data.examYear.toString() : "";
+      if (!yearStr) {
+        logger.warn("Exam year is missing or invalid");
+      } else {
+        await page.select(selectors.examYearSelect, yearStr);
+        logger.info("Selected exam year", { year: data.examYear });
+      }
     } catch (e: any) {
-      logger.warn('Could not select exam year dropdown, trying alternative', { error: e.message });
+      logger.warn("Could not select exam year dropdown, trying alternative", { error: e.message });
       try {
         await page.evaluate((year) => {
-          const selects = Array.from(document.querySelectorAll('select'));
+          if (!year) return;
+          const selects = Array.from(document.querySelectorAll("select"));
           for (const select of selects) {
-            const options = Array.from(select.querySelectorAll('option'));
+            const options = Array.from(select.querySelectorAll("option"));
             for (const option of options) {
               if (option.value === year || option.textContent?.includes(year)) {
                 (select as HTMLSelectElement).value = option.value;
-                select.dispatchEvent(new Event('change', { bubbles: true }));
+                select.dispatchEvent(new Event("change", { bubbles: true }));
                 break;
               }
             }
           }
-        }, data.examYear.toString());
+        }, data.examYear ? data.examYear.toString() : "");
       } catch {
-        logger.warn('Year selection fallback also failed, continuing');
+        logger.warn("Year selection fallback also failed, continuing");
       }
     }
-
-    const examTypeToSelect = data.examType || 'WASSCE';
-    logger.info('Attempting to select exam type', { requestedType: examTypeToSelect, provider });
     
     try {
       const selected = await page.evaluate((examType, prov) => {
@@ -599,45 +605,72 @@ export class WAECWorker extends BaseWorker {
     // For NECO, the URL structure is different, so we adjust the check
     const isStillOnFormPage = resultUrl === urlBeforeSubmit || 
                               (provider === 'waec' && resultUrl.includes('waecdirect.org/') && !resultUrl.includes('Result') && !resultUrl.includes('Error')) ||
-                              (provider === 'neco' && (resultUrl.includes('results.neco.gov.ng') && (resultUrl.endsWith('/') || resultUrl.endsWith('/home') || resultUrl.endsWith('/dashboard'))));
+                              (provider === 'neco' && (resultUrl.includes('results.neco.gov.ng') && (resultUrl.endsWith('/') || resultUrl.endsWith('/home') || resultUrl.endsWith('/dashboard') || resultUrl.includes('token'))));
 
     if (isStillOnFormPage && !popupCaptured) {
-      // Check for common error message elements on various portals
+      // Check for validation messages or visible errors
       const pageError = await resultPage.evaluate(() => {
         const errSelectors = [
           '.alert-danger', '.error', '.text-danger', '.err-msg', '#lblError', 
-          '.validation-summary-errors', '.errorMessage', '[id*="Error"]', '[class*="error"]'
+          '.validation-summary-errors', '.errorMessage', '[id*="Error"]', '[class*="error"]',
+          '.toast-error', '.notification-error'
         ];
         for (const sel of errSelectors) {
-          const el = document.querySelector(sel);
-          if (el && el.textContent?.trim()) return el.textContent.trim();
+          const elements = document.querySelectorAll(sel);
+          for (const el of Array.from(elements)) {
+            const style = window.getComputedStyle(el);
+            if (style.display !== 'none' && style.visibility !== 'hidden' && el.textContent?.trim()) {
+              return el.textContent.trim();
+            }
+          }
         }
+        
+        // Check for common error text in body if selectors fail
+        const bodyText = document.body.innerText;
+        const errorKeywords = ['Invalid', 'Incorrect', 'Expired', 'Used', 'Wrong', 'Not Found'];
+        for (const kw of errorKeywords) {
+           if (bodyText.includes(kw) && bodyText.length < 500) { // Small text usually means an error page
+             return bodyText.trim();
+           }
+        }
+
         return null;
       });
 
       if (!pageError) {
+        // Try one more time to click submit if we are still on the form
+        logger.info('Still on form but no error found, trying one more submit click');
+        try {
+           await resultPage.click(selectors.submitButton);
+           await this.sleep(5000);
+        } catch (e) {
+           logger.warn('Retry click failed');
+        }
+      }
+      
+      const finalError = pageError || `Could not submit form to ${provider.toUpperCase()} portal. Please verify your details (Exam Number, PIN, Serial) and try again.`;
+      throw new Error(finalError);
+    }
         // Final attempt to find any input that might be the registration number to confirm we are still on form
         const stillOnForm = await resultPage.evaluate((sel) => {
           return !!document.querySelector(sel);
         }, selectors.examNumberInput);
 
         if (stillOnForm) {
-          logger.error('Still on form page - form submission did not work');
-          const errorMsg = `Could not submit form to ${provider.toUpperCase()} portal. Please try again later.`;
-          return {
-            registrationNumber: data.registrationNumber,
-            examYear: data.examYear,
-            examType: data.examType,
-            subjects: [],
-            verificationStatus: 'error',
-            message: errorMsg,
-            errorMessage: errorMsg,
-          };
-        }
+        logger.error('Still on form page - form submission did not work');
+        const errorMsg = `Could not submit form to ${provider.toUpperCase()} portal. Please try again later.`;
+        return {
+          registrationNumber: data.registrationNumber,
+          examYear: data.examYear,
+          examType: data.examType,
+          subjects: [],
+          verificationStatus: "error" as any as any as any,
+          message: errorMsg,
+          errorMessage: errorMsg,
+        };
       }
     }
 
-    const pageContent = await resultPage.content();
     const pageText = await resultPage.evaluate(() => document.body.innerText);
     
     const hasResults = pageContent.includes('Subject') || pageContent.includes('Grade') || 
@@ -708,7 +741,7 @@ export class WAECWorker extends BaseWorker {
         examYear: data.examYear,
         examType: data.examType,
         subjects: [],
-        verificationStatus: 'error',
+        verificationStatus: "error" as any as any,
         message: errorMsg,
         errorMessage: errorMsg,
       };
@@ -719,9 +752,8 @@ export class WAECWorker extends BaseWorker {
   }
 
   private async checkForError(page: Page, errorSelector: string): Promise<string | null> {
-    try {
       const errorElement = await page.$(errorSelector);
-      if (errorElement) {
+    try {
         const errorText = await page.evaluate((el: Element) => el.textContent, errorElement);
         return errorText?.trim() || null;
       }
