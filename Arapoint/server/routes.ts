@@ -3,7 +3,8 @@ import { createServer, type Server } from "http";
 import { objectStorageService, ObjectNotFoundError } from "./src/services/objectStorage";
 import { db } from "./src/config/database";
 import { servicePricing } from "./src/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
+import { adminSettings } from "./src/db/schema";
 
 import authRoutes from "./src/api/routes/auth";
 import otpRoutes from "./src/api/routes/otp";
@@ -47,6 +48,39 @@ export async function registerRoutes(
 
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
+  app.get('/api/settings/public', publicRateLimiter, async (req, res) => {
+    try {
+      const publicKeys = [
+        'siteName', 'siteEmail', 'sitePhone', 'siteAddress',
+        'maintenanceMode', 'currency', 'timezone'
+      ];
+      
+      const settings = await db.select().from(adminSettings)
+        .where(inArray(adminSettings.settingKey, publicKeys));
+      
+      const settingsMap: Record<string, any> = {};
+      for (const setting of settings) {
+        let value: any = setting.settingValue;
+        if (value === 'true') value = true;
+        else if (value === 'false') value = false;
+        settingsMap[setting.settingKey] = value;
+      }
+      
+      res.json({
+        status: 'success',
+        code: 200,
+        message: 'Public settings retrieved',
+        data: settingsMap
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        status: 'error',
+        code: 500,
+        message: 'Failed to get settings'
+      });
+    }
   });
 
   // Public endpoint to get all active services from pricing management

@@ -4,12 +4,14 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { SettingsProvider } from "@/contexts/SettingsContext";
 import NotFound from "@/pages/not-found";
 import { MainLayout } from "@/components/layout/MainLayout";
 
 import Home from "@/pages/Home";
 import Login from "@/pages/auth/Login";
 import Signup from "@/pages/auth/Signup";
+import ForgotPassword from "@/pages/auth/ForgotPassword";
 
 // Dashboard Imports
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -164,6 +166,7 @@ function Router() {
             <Route path="/" component={Home} />
             <Route path="/auth/login" component={Login} />
             <Route path="/auth/signup" component={Signup} />
+            <Route path="/auth/forgot-password" component={ForgotPassword} />
         
         {/* Dashboard Routes */}
         <Route path="/dashboard">
@@ -298,10 +301,12 @@ function App() {
   return (
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
+        <SettingsProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </SettingsProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );

@@ -9,9 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Bell, Shield, Database, Globe, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useSettings } from "@/contexts/SettingsContext";
 
 export default function AdminSettings() {
   const { toast } = useToast();
+  const { refetchSettings } = useSettings();
   const [settings, setSettings] = useState({
     siteName: "Arapoint Solutions",
     siteEmail: "support@arapoint.com.ng",
@@ -92,6 +94,8 @@ export default function AdminSettings() {
       
       if (!response.ok) throw new Error('Failed to save settings');
 
+      await refetchSettings();
+      
       toast({
         title: "Settings Saved",
         description: "Your settings have been updated successfully.",

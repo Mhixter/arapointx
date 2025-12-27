@@ -4,9 +4,11 @@ import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import arapointLogo from "@assets/generated_images/arapoint_solution_logo.png";
+import { useSettings } from "@/contexts/SettingsContext";
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+  const { settings } = useSettings();
   const isAuthPage = location.startsWith("/auth");
   const isDashboardPage = location.startsWith("/dashboard");
 
@@ -115,14 +117,14 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           <div>
             <h4 className="font-bold mb-4">Contact</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>support@araverify.ng</li>
-              <li>+234 800 ARA VERIFY</li>
-              <li>Lagos, Nigeria</li>
+              <li>{settings.siteEmail}</li>
+              <li>{settings.sitePhone}</li>
+              <li>{settings.siteAddress}</li>
             </ul>
           </div>
         </div>
         <div className="container mt-12 pt-8 border-t text-center text-sm text-muted-foreground">
-          © 2025 ARA Verify. All rights reserved. NDPA Compliant.
+          © {new Date().getFullYear()} {settings.siteName}. All rights reserved. NDPA Compliant.
         </div>
       </footer>
     </div>
