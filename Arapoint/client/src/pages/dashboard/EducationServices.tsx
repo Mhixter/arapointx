@@ -1196,11 +1196,11 @@ export default function EducationServices() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="nbais-state">State</Label>
-                      <Select>
+                      <Select value={nbaisState} onValueChange={setNbaisState}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select State" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="max-h-[300px] overflow-y-auto">
                           {NIGERIAN_STATES.map(state => (
                             <SelectItem key={state} value={state}>{state}</SelectItem>
                           ))}
