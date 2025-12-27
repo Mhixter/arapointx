@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, CheckCircle, XCircle, Download, Loader2 } from "lucide-react";
+import { ArrowLeft, CheckCircle, XCircle, Download, Loader2, School, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { downloadCSV } from "@/lib/downloadUtils";
@@ -37,10 +37,53 @@ export default function AdminEducationServices() {
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [formData, setFormData] = useState<Partial<EducationService>>({});
   const [activeTab, setActiveTab] = useState("jamb");
+  const [nbaisSchoolCount, setNbaisSchoolCount] = useState<number | null>(null);
+  const [scrapingSchools, setScrapingSchools] = useState(false);
 
   useEffect(() => {
     fetchServices();
+    fetchNbaisSchoolStats();
   }, []);
+
+  const fetchNbaisSchoolStats = async () => {
+    try {
+      const token = getAuthToken();
+      const response = await fetch('/api/admin/nbais-schools/stats', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const result = await response.json();
+      if (result.status === 'success') {
+        setNbaisSchoolCount(result.data?.totalSchools || 0);
+      }
+    } catch (error) {
+      console.error('Failed to fetch NBAIS school stats:', error);
+    }
+  };
+
+  const handleScrapeNbaisSchools = async () => {
+    if (!window.confirm('This will scrape schools from the NBAIS portal. This may take a few minutes. Continue?')) {
+      return;
+    }
+    setScrapingSchools(true);
+    try {
+      const token = getAuthToken();
+      const response = await fetch('/api/admin/nbais-schools/scrape', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const result = await response.json();
+      if (result.status === 'success') {
+        toast({ title: "Schools Updated", description: `Successfully scraped ${result.data?.schoolsScraped || 0} schools.` });
+        fetchNbaisSchoolStats();
+      } else {
+        toast({ title: "Scraping Failed", description: result.message || 'Failed to scrape schools', variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to scrape NBAIS schools", variant: "destructive" });
+    } finally {
+      setScrapingSchools(false);
+    }
+  };
 
   const fetchServices = async () => {
     try {
@@ -265,6 +308,46 @@ export default function AdminEducationServices() {
       </Card>
 
       <ResponsiveTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
+
+      {activeTab === 'nbais' && (
+        <Card className="border-indigo-200 dark:border-indigo-800">
+          <CardHeader className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
+                  <School className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-base sm:text-lg">NBAIS Schools Database</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
+                    {nbaisSchoolCount !== null 
+                      ? `${nbaisSchoolCount} schools in database` 
+                      : 'Loading...'}
+                  </CardDescription>
+                </div>
+              </div>
+              <Button 
+                onClick={handleScrapeNbaisSchools} 
+                disabled={scrapingSchools}
+                size="sm"
+                className="h-8 sm:h-9"
+              >
+                {scrapingSchools ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    Scraping...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                    Update Schools
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardHeader>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="p-4 sm:p-6">
