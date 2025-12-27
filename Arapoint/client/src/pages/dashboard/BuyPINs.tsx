@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, CheckCircle2, ShoppingCart, Plus, Minus, AlertTriangle, RefreshCw, History, CreditCard, Clock, XCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Loader2, CheckCircle2, ShoppingCart, Plus, Minus, AlertTriangle, RefreshCw, History, CreditCard, Clock, XCircle, Printer, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import QRCode from "react-qr-code";
 
 const getAuthToken = () => localStorage.getItem('accessToken');
 
@@ -40,6 +42,11 @@ const PIN_INFO: Record<string, { name: string; description: string }> = {
   nbais: { name: "NBAIS PIN", description: "National Board for Arabic & Islamic Studies PIN" },
 };
 
+interface FullPINOrder extends PINOrder {
+  deliveredPin: string;
+  deliveredSerial?: string;
+}
+
 export default function BuyPINs() {
   const { toast } = useToast();
   const [pins, setPins] = useState<PINItem[]>([]);
@@ -50,6 +57,10 @@ export default function BuyPINs() {
   const [history, setHistory] = useState<PINOrder[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [activeTab, setActiveTab] = useState("buy");
+  const [selectedOrder, setSelectedOrder] = useState<FullPINOrder | null>(null);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [loadingOrder, setLoadingOrder] = useState(false);
+  const receiptRef = useRef<HTMLDivElement>(null);
 
   const fetchStock = async () => {
     setIsLoading(true);
@@ -103,6 +114,66 @@ export default function BuyPINs() {
   useEffect(() => {
     fetchStock();
   }, []);
+
+  const fetchOrderDetails = async (orderId: string) => {
+    setLoadingOrder(true);
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`/api/education/pins/orders/${orderId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.status === 'success' && data.data.order) {
+        setSelectedOrder(data.data.order);
+        setShowReceipt(true);
+      } else {
+        toast({ title: "Error", description: "Failed to load order details", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to load order details", variant: "destructive" });
+    } finally {
+      setLoadingOrder(false);
+    }
+  };
+
+  const handlePrint = () => {
+    if (!receiptRef.current) return;
+    const printContent = receiptRef.current.innerHTML;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>PIN Receipt - ${selectedOrder?.examType?.toUpperCase()}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; max-width: 400px; margin: 0 auto; }
+          .receipt { border: 2px dashed #333; padding: 20px; }
+          .header { text-align: center; border-bottom: 1px dashed #333; padding-bottom: 15px; margin-bottom: 15px; }
+          .logo { font-size: 24px; font-weight: bold; color: #16a34a; }
+          .title { font-size: 14px; color: #666; margin-top: 5px; }
+          .content { margin: 15px 0; }
+          .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dotted #ddd; }
+          .label { color: #666; font-size: 12px; }
+          .value { font-weight: bold; font-size: 14px; }
+          .pin-section { background: #f5f5f5; padding: 15px; margin: 15px 0; border-radius: 8px; text-align: center; }
+          .pin-label { font-size: 12px; color: #666; margin-bottom: 5px; }
+          .pin-value { font-family: monospace; font-size: 20px; font-weight: bold; letter-spacing: 2px; color: #16a34a; }
+          .qr-section { text-align: center; margin: 20px 0; padding: 15px; border: 1px dashed #ddd; }
+          .qr-label { font-size: 10px; color: #999; margin-top: 10px; }
+          .footer { text-align: center; font-size: 10px; color: #999; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #333; }
+          @media print { body { padding: 0; } .receipt { border: none; } }
+        </style>
+      </head>
+      <body>${printContent}</body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
+  };
 
   const updateQuantity = (id: string, delta: number) => {
     setPins(pins.map(pin =>
@@ -375,10 +446,22 @@ export default function BuyPINs() {
                           <p className="text-xs text-muted-foreground sm:hidden">{formatDate(order.createdAt)}</p>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between sm:flex-col sm:items-end gap-2">
+                      <div className="flex items-center gap-2 sm:flex-col sm:items-end">
                         <p className="font-bold">₦{parseFloat(String(order.amount || 0)).toLocaleString()}</p>
                         {getStatusBadge(order.status)}
                         <p className="text-xs text-muted-foreground hidden sm:block">{formatDate(order.createdAt)}</p>
+                        {(order.status === 'completed' || order.status === 'delivered') && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="mt-1"
+                            onClick={() => fetchOrderDetails(order.id)}
+                            disabled={loadingOrder}
+                          >
+                            {loadingOrder ? <Loader2 className="h-3 w-3 animate-spin" /> : <Eye className="h-3 w-3 mr-1" />}
+                            View
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -388,6 +471,87 @@ export default function BuyPINs() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={showReceipt} onOpenChange={setShowReceipt}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              PIN Receipt
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedOrder && (
+            <div ref={receiptRef}>
+              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-5">
+                <div className="text-center border-b border-dashed border-gray-300 dark:border-gray-600 pb-4 mb-4">
+                  <div className="text-2xl font-bold text-primary">Arapoint</div>
+                  <div className="text-sm text-muted-foreground mt-1">Education PIN Receipt</div>
+                </div>
+                
+                <div className="space-y-3 mb-4">
+                  <div className="flex justify-between items-center py-2 border-b border-dotted border-gray-200 dark:border-gray-700">
+                    <span className="text-xs text-muted-foreground">Order ID</span>
+                    <span className="font-medium text-sm">{selectedOrder.id?.substring(0, 8)}...</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-dotted border-gray-200 dark:border-gray-700">
+                    <span className="text-xs text-muted-foreground">Exam Type</span>
+                    <span className="font-medium text-sm">{selectedOrder.examType?.toUpperCase()}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-dotted border-gray-200 dark:border-gray-700">
+                    <span className="text-xs text-muted-foreground">Amount</span>
+                    <span className="font-medium text-sm">₦{parseFloat(String(selectedOrder.amount || 0)).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-dotted border-gray-200 dark:border-gray-700">
+                    <span className="text-xs text-muted-foreground">Date</span>
+                    <span className="font-medium text-sm">{formatDate(selectedOrder.createdAt)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-dotted border-gray-200 dark:border-gray-700">
+                    <span className="text-xs text-muted-foreground">Status</span>
+                    <span className="font-medium text-sm text-green-600">Completed</span>
+                  </div>
+                </div>
+                
+                <div className="bg-muted/50 rounded-lg p-4 my-4 text-center">
+                  <div className="text-xs text-muted-foreground mb-1">Your PIN Code</div>
+                  <div className="font-mono text-xl font-bold text-primary tracking-wider">{selectedOrder.deliveredPin}</div>
+                  {selectedOrder.deliveredSerial && (
+                    <>
+                      <div className="text-xs text-muted-foreground mt-3 mb-1">Serial Number</div>
+                      <div className="font-mono text-sm font-bold">{selectedOrder.deliveredSerial}</div>
+                    </>
+                  )}
+                </div>
+                
+                <div className="text-center py-4 my-4 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
+                  <QRCode 
+                    value={`ARAPOINT-PIN:${selectedOrder.examType?.toUpperCase()}|${selectedOrder.deliveredPin}|${selectedOrder.id}`}
+                    size={120}
+                    level="M"
+                    style={{ margin: '0 auto' }}
+                  />
+                  <div className="text-xs text-muted-foreground mt-3">Scan to verify authenticity</div>
+                </div>
+                
+                <div className="text-center text-xs text-muted-foreground mt-4 pt-4 border-t border-dashed border-gray-300 dark:border-gray-600">
+                  <p>Thank you for choosing Arapoint</p>
+                  <p className="mt-1">Keep this receipt safe - No refunds after delivery</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div className="flex gap-3 mt-4">
+            <Button onClick={handlePrint} className="flex-1">
+              <Printer className="h-4 w-4 mr-2" />
+              Print Receipt
+            </Button>
+            <Button variant="outline" onClick={() => setShowReceipt(false)} className="flex-1">
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
