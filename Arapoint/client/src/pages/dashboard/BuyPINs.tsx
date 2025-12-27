@@ -28,8 +28,8 @@ interface PINOrder {
   examType: string;
   status: string;
   amount: number;
-  pinCode?: string;
-  serialNumber?: string;
+  deliveredPin?: string;
+  deliveredSerial?: string;
   createdAt: string;
 }
 
@@ -145,8 +145,8 @@ export default function BuyPINs() {
             if (data.status === 'success' && data.data.pin) {
               purchased.push({
                 examType: pin.examType,
-                pin: data.data.pin.pinCode,
-                serial: data.data.pin.serialNumber
+                pin: data.data.pin,
+                serial: data.data.serialNumber
               });
             } else {
               hasError = true;
@@ -366,11 +366,11 @@ export default function BuyPINs() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="font-medium">{order.examType?.toUpperCase()} PIN</p>
-                          {order.pinCode && (
-                            <p className="text-xs font-mono text-muted-foreground truncate">PIN: {order.pinCode}</p>
+                          {order.deliveredPin && (
+                            <p className="text-xs font-mono text-muted-foreground truncate">PIN: {order.deliveredPin}</p>
                           )}
-                          {order.serialNumber && (
-                            <p className="text-xs text-muted-foreground">Serial: {order.serialNumber}</p>
+                          {order.deliveredSerial && (
+                            <p className="text-xs text-muted-foreground">Serial: {order.deliveredSerial}</p>
                           )}
                           <p className="text-xs text-muted-foreground sm:hidden">{formatDate(order.createdAt)}</p>
                         </div>
