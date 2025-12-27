@@ -6,8 +6,7 @@ import { jambSchema, waecSchema, necoSchema, nabtebSchema, nbaisSchema } from '.
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { educationServices, servicePricing, educationPins, educationPinOrders, users } from '../../db/schema';
-import { nbais_schools } from '../../../../shared/schema';
+import { educationServices, servicePricing, educationPins, educationPinOrders, users, nbaisSchools } from '../../db/schema';
 import { eq, desc, and, sql, count } from 'drizzle-orm';
 import { sendEmail } from '../../services/emailService';
 import { getSchoolsByState, getSchoolsCount } from '../../rpa/workers/nbaisSchoolScraper';

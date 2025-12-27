@@ -493,6 +493,17 @@ export const educationPins = pgTable('education_pins', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+// NBAIS Schools
+export const nbaisSchools = pgTable('nbais_schools', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  state: varchar('state', { length: 100 }).notNull(),
+  schoolName: varchar('school_name', { length: 500 }).notNull(),
+  schoolValue: varchar('school_value', { length: 500 }),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
 // Education PIN Orders
 export const educationPinOrders = pgTable('education_pin_orders', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),

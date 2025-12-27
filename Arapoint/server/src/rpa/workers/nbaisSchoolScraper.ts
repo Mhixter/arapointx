@@ -1,6 +1,6 @@
 import { Browser, Page } from 'puppeteer';
 import { db } from '../../config/database';
-import { nbais_schools } from '../../../../shared/schema';
+import { nbaisSchools } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 
 interface SchoolRow {
@@ -101,17 +101,17 @@ export async function scrapeNbaisSchools(browser: Browser): Promise<{ success: b
     }
 
     if (allSchools.length > 0) {
-      await db.delete(nbais_schools);
+      await db.delete(nbaisSchools);
       
       const batchSize = 100;
       for (let i = 0; i < allSchools.length; i += batchSize) {
         const batch = allSchools.slice(i, i + batchSize);
-        await db.insert(nbais_schools).values(
+        await db.insert(nbaisSchools).values(
           batch.map(s => ({
             state: s.state,
-            school_name: s.schoolName,
-            school_value: s.schoolValue,
-            is_active: true
+            schoolName: s.schoolName,
+            schoolValue: s.schoolValue,
+            isActive: true
           }))
         );
       }
@@ -142,11 +142,11 @@ export async function scrapeNbaisSchools(browser: Browser): Promise<{ success: b
 export async function getSchoolsByState(state: string): Promise<{ schoolName: string; schoolValue: string }[]> {
   const schools: SchoolRow[] = await db
     .select({
-      schoolName: nbais_schools.school_name,
-      schoolValue: nbais_schools.school_value
+      schoolName: nbaisSchools.schoolName,
+      schoolValue: nbaisSchools.schoolValue
     })
-    .from(nbais_schools)
-    .where(eq(nbais_schools.state, state));
+    .from(nbaisSchools)
+    .where(eq(nbaisSchools.state, state));
 
   return schools.map((s: SchoolRow) => ({
     schoolName: s.schoolName,
@@ -155,6 +155,6 @@ export async function getSchoolsByState(state: string): Promise<{ schoolName: st
 }
 
 export async function getSchoolsCount(): Promise<number> {
-  const result = await db.select().from(nbais_schools);
+  const result = await db.select().from(nbaisSchools);
   return result.length;
 }
