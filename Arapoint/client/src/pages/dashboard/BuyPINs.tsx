@@ -4,9 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, CheckCircle2, ShoppingCart, Plus, Minus, AlertTriangle, RefreshCw, History, CreditCard, Clock, XCircle, Printer, Eye } from "lucide-react";
+import { Loader2, CheckCircle2, ShoppingCart, Plus, Minus, AlertTriangle, RefreshCw, History, CreditCard, Clock, XCircle, Printer, Eye, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import QRCode from "react-qr-code";
+import html2canvas from "html2canvas";
 
 const getAuthToken = () => localStorage.getItem('accessToken');
 
@@ -173,6 +174,24 @@ export default function BuyPINs() {
     printWindow.document.close();
     printWindow.focus();
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
+  };
+
+  const handleDownload = async () => {
+    if (!receiptRef.current || !selectedOrder) return;
+    try {
+      const canvas = await html2canvas(receiptRef.current, { 
+        scale: 2, 
+        backgroundColor: '#ffffff',
+        useCORS: true 
+      });
+      const link = document.createElement('a');
+      link.download = `${selectedOrder.examType?.toUpperCase()}_PIN_Receipt_${selectedOrder.id?.substring(0, 8)}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      toast({ title: "Downloaded", description: "Receipt saved as image" });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to download receipt", variant: "destructive" });
+    }
   };
 
   const updateQuantity = (id: string, delta: number) => {
@@ -473,81 +492,75 @@ export default function BuyPINs() {
       </Tabs>
 
       <Dialog open={showReceipt} onOpenChange={setShowReceipt}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5" />
+        <DialogContent className="max-w-sm p-4">
+          <DialogHeader className="pb-2">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <CreditCard className="h-4 w-4" />
               PIN Receipt
             </DialogTitle>
           </DialogHeader>
           
           {selectedOrder && (
             <div ref={receiptRef}>
-              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-5">
-                <div className="text-center border-b border-dashed border-gray-300 dark:border-gray-600 pb-4 mb-4">
-                  <div className="text-2xl font-bold text-primary">Arapoint</div>
-                  <div className="text-sm text-muted-foreground mt-1">Education PIN Receipt</div>
+              <div className="border border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-900">
+                <div className="text-center border-b border-dashed border-gray-300 dark:border-gray-600 pb-2 mb-2">
+                  <div className="text-lg font-bold text-primary">Arapoint</div>
+                  <div className="text-xs text-muted-foreground">Education PIN Receipt</div>
                 </div>
                 
-                <div className="space-y-3 mb-4">
-                  <div className="flex justify-between items-center py-2 border-b border-dotted border-gray-200 dark:border-gray-700">
-                    <span className="text-xs text-muted-foreground">Order ID</span>
-                    <span className="font-medium text-sm">{selectedOrder.id?.substring(0, 8)}...</span>
+                <div className="space-y-1 mb-2 text-xs">
+                  <div className="flex justify-between py-1 border-b border-dotted border-gray-200 dark:border-gray-700">
+                    <span className="text-muted-foreground">Order ID</span>
+                    <span className="font-medium">{selectedOrder.id?.substring(0, 8)}...</span>
                   </div>
-                  <div className="flex justify-between items-center py-2 border-b border-dotted border-gray-200 dark:border-gray-700">
-                    <span className="text-xs text-muted-foreground">Exam Type</span>
-                    <span className="font-medium text-sm">{selectedOrder.examType?.toUpperCase()}</span>
+                  <div className="flex justify-between py-1 border-b border-dotted border-gray-200 dark:border-gray-700">
+                    <span className="text-muted-foreground">Exam Type</span>
+                    <span className="font-medium">{selectedOrder.examType?.toUpperCase()}</span>
                   </div>
-                  <div className="flex justify-between items-center py-2 border-b border-dotted border-gray-200 dark:border-gray-700">
-                    <span className="text-xs text-muted-foreground">Amount</span>
-                    <span className="font-medium text-sm">₦{parseFloat(String(selectedOrder.amount || 0)).toLocaleString()}</span>
+                  <div className="flex justify-between py-1 border-b border-dotted border-gray-200 dark:border-gray-700">
+                    <span className="text-muted-foreground">Amount</span>
+                    <span className="font-medium">₦{parseFloat(String(selectedOrder.amount || 0)).toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between items-center py-2 border-b border-dotted border-gray-200 dark:border-gray-700">
-                    <span className="text-xs text-muted-foreground">Date</span>
-                    <span className="font-medium text-sm">{formatDate(selectedOrder.createdAt)}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-2 border-b border-dotted border-gray-200 dark:border-gray-700">
-                    <span className="text-xs text-muted-foreground">Status</span>
-                    <span className="font-medium text-sm text-green-600">Completed</span>
+                  <div className="flex justify-between py-1">
+                    <span className="text-muted-foreground">Date</span>
+                    <span className="font-medium">{formatDate(selectedOrder.createdAt)}</span>
                   </div>
                 </div>
                 
-                <div className="bg-muted/50 rounded-lg p-4 my-4 text-center">
+                <div className="bg-green-50 dark:bg-green-900/20 rounded p-3 my-2 text-center">
                   <div className="text-xs text-muted-foreground mb-1">Your PIN Code</div>
-                  <div className="font-mono text-xl font-bold text-primary tracking-wider">{selectedOrder.deliveredPin}</div>
+                  <div className="font-mono text-lg font-bold text-primary tracking-wider">{selectedOrder.deliveredPin}</div>
                   {selectedOrder.deliveredSerial && (
-                    <>
-                      <div className="text-xs text-muted-foreground mt-3 mb-1">Serial Number</div>
-                      <div className="font-mono text-sm font-bold">{selectedOrder.deliveredSerial}</div>
-                    </>
+                    <div className="font-mono text-xs mt-1 text-muted-foreground">Serial: {selectedOrder.deliveredSerial}</div>
                   )}
                 </div>
                 
-                <div className="text-center py-4 my-4 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
+                <div className="flex justify-center py-2">
                   <QRCode 
                     value={`ARAPOINT-PIN:${selectedOrder.examType?.toUpperCase()}|${selectedOrder.deliveredPin}|${selectedOrder.id}`}
-                    size={120}
+                    size={80}
                     level="M"
-                    style={{ margin: '0 auto' }}
                   />
-                  <div className="text-xs text-muted-foreground mt-3">Scan to verify authenticity</div>
                 </div>
                 
-                <div className="text-center text-xs text-muted-foreground mt-4 pt-4 border-t border-dashed border-gray-300 dark:border-gray-600">
-                  <p>Thank you for choosing Arapoint</p>
-                  <p className="mt-1">Keep this receipt safe - No refunds after delivery</p>
+                <div className="text-center text-[10px] text-muted-foreground pt-2 border-t border-dashed border-gray-300 dark:border-gray-600">
+                  <p>Keep this receipt safe - No refunds after delivery</p>
                 </div>
               </div>
             </div>
           )}
           
-          <div className="flex gap-3 mt-4">
-            <Button onClick={handlePrint} className="flex-1">
-              <Printer className="h-4 w-4 mr-2" />
-              Print Receipt
+          <div className="grid grid-cols-3 gap-2 mt-3">
+            <Button onClick={handleDownload} size="sm" variant="outline" className="text-xs">
+              <Download className="h-3 w-3 mr-1" />
+              Save
             </Button>
-            <Button variant="outline" onClick={() => setShowReceipt(false)} className="flex-1">
-              Close
+            <Button onClick={handlePrint} size="sm" variant="outline" className="text-xs">
+              <Printer className="h-3 w-3 mr-1" />
+              Print
+            </Button>
+            <Button size="sm" onClick={() => setShowReceipt(false)} className="text-xs">
+              Done
             </Button>
           </div>
         </DialogContent>
