@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Loader2, CheckCircle2, ShoppingCart, Plus, Minus, AlertTriangle, RefreshCw, History, CreditCard, Clock, XCircle, Printer, Eye, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import QRCode from "react-qr-code";
@@ -61,6 +62,8 @@ export default function BuyPINs() {
   const [selectedOrder, setSelectedOrder] = useState<FullPINOrder | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [loadingOrder, setLoadingOrder] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
 
   const fetchStock = async () => {
@@ -178,19 +181,31 @@ export default function BuyPINs() {
 
   const handleDownload = async () => {
     if (!receiptRef.current || !selectedOrder) return;
+    setIsDownloading(true);
     try {
-      const canvas = await html2canvas(receiptRef.current, { 
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const element = receiptRef.current;
+      const canvas = await html2canvas(element, { 
         scale: 2, 
         backgroundColor: '#ffffff',
-        useCORS: true 
+        useCORS: true,
+        logging: false,
+        allowTaint: true,
+        foreignObjectRendering: false,
       });
+      const dataUrl = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       link.download = `${selectedOrder.examType?.toUpperCase()}_PIN_Receipt_${selectedOrder.id?.substring(0, 8)}.png`;
-      link.href = canvas.toDataURL('image/png');
+      link.href = dataUrl;
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
       toast({ title: "Downloaded", description: "Receipt saved as image" });
     } catch (error) {
+      console.error('Download error:', error);
       toast({ title: "Error", description: "Failed to download receipt", variant: "destructive" });
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -203,7 +218,7 @@ export default function BuyPINs() {
   const getTotalItems = () => pins.reduce((sum, pin) => sum + pin.quantity, 0);
   const getTotalAmount = () => pins.reduce((sum, pin) => sum + (pin.price * pin.quantity), 0);
 
-  const handlePurchase = async () => {
+  const handleCheckout = () => {
     if (getTotalItems() === 0) {
       toast({
         title: "No Items Selected",
@@ -212,7 +227,11 @@ export default function BuyPINs() {
       });
       return;
     }
+    setShowConfirmDialog(true);
+  };
 
+  const handlePurchase = async () => {
+    setShowConfirmDialog(false);
     setIsPurchasing(true);
     const token = getAuthToken();
     const purchased: { examType: string; pin: string; serial?: string }[] = [];
@@ -403,7 +422,7 @@ export default function BuyPINs() {
                     <p className="text-2xl font-bold">₦{getTotalAmount().toLocaleString()}</p>
                   </div>
                   <Button
-                    onClick={handlePurchase}
+                    onClick={handleCheckout}
                     size="lg"
                     disabled={isPurchasing}
                     className="w-full sm:w-auto"
@@ -551,9 +570,9 @@ export default function BuyPINs() {
           )}
           
           <div className="grid grid-cols-3 gap-2 mt-3">
-            <Button onClick={handleDownload} size="sm" variant="outline" className="text-xs">
-              <Download className="h-3 w-3 mr-1" />
-              Save
+            <Button onClick={handleDownload} size="sm" variant="outline" className="text-xs" disabled={isDownloading}>
+              {isDownloading ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Download className="h-3 w-3 mr-1" />}
+              {isDownloading ? "Saving..." : "Save"}
             </Button>
             <Button onClick={handlePrint} size="sm" variant="outline" className="text-xs">
               <Printer className="h-3 w-3 mr-1" />
@@ -565,6 +584,41 @@ export default function BuyPINs() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Purchase</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                <p className="mb-3">
+                  You are about to purchase {getTotalItems()} PIN(s) for a total of <strong>₦{getTotalAmount().toLocaleString()}</strong>.
+                </p>
+                <div className="bg-muted/50 rounded-lg p-3 mb-3">
+                  <p className="font-medium text-sm mb-2">Items:</p>
+                  <div className="space-y-1">
+                    {pins.filter(p => p.quantity > 0).map(p => (
+                      <div key={p.id} className="text-sm flex justify-between">
+                        <span>{p.name} x {p.quantity}</span>
+                        <span>₦{(p.price * p.quantity).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  This amount will be deducted from your wallet. Do you want to proceed?
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handlePurchase}>
+              Confirm Purchase
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
