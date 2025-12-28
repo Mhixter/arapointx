@@ -27,10 +27,14 @@ export interface NINData {
   phone: string;
   email: string;
   address: string;
-  state: string;
+  town: string;
   lga: string;
+  state: string;
+  birthState: string;
+  birthLga: string;
+  birthCountry: string;
   photo: string;
-  nationality: string;
+  nationality?: string;
   maritalStatus?: string;
   height?: string;
   educationalLevel?: string;
@@ -108,14 +112,18 @@ class PremblyService {
           phone: rawData.telephoneno || rawData.phone || '',
           email: rawData.email || '',
           address: rawData.residence_address || rawData.residenceAddress || '',
-          state: rawData.residence_state || rawData.stateOfResidence || '',
+          town: rawData.residence_town || rawData.town || rawData.residence_lga || '',
           lga: rawData.residence_lga || rawData.lgaOfResidence || '',
+          state: rawData.residence_state || rawData.stateOfResidence || '',
+          birthState: rawData.birth_state || rawData.birthState || rawData.state_of_origin || rawData.stateOfOrigin || '',
+          birthLga: rawData.birth_lga || rawData.birthLga || rawData.lga_of_origin || rawData.lgaOfOrigin || '',
+          birthCountry: rawData.birthcountry || rawData.birth_country || 'Nigeria',
           photo: rawData.photo || '',
           nationality: rawData.birthcountry || 'Nigeria',
-          maritalStatus: rawData.maritalstatus || '',
+          maritalStatus: rawData.maritalstatus || rawData.marital_status || '',
           height: rawData.height || '',
-          educationalLevel: rawData.educationallevel || '',
-          employmentStatus: rawData.employmentstatus || '',
+          educationalLevel: rawData.educationallevel || rawData.educational_level || '',
+          employmentStatus: rawData.employmentstatus || rawData.employment_status || '',
         };
 
         logger.info('Prembly NIN verification successful', { reference });
@@ -255,8 +263,12 @@ class PremblyService {
           phone: rawData.telephoneno || rawData.phone || '',
           email: rawData.email || '',
           address: rawData.residence_address || rawData.residenceAddress || '',
-          state: rawData.residence_state || rawData.stateOfResidence || '',
+          town: rawData.residence_town || rawData.town || rawData.residence_lga || '',
           lga: rawData.residence_lga || rawData.lgaOfResidence || '',
+          state: rawData.residence_state || rawData.stateOfResidence || '',
+          birthState: rawData.birth_state || rawData.birthState || rawData.state_of_origin || '',
+          birthLga: rawData.birth_lga || rawData.birthLga || rawData.lga_of_origin || '',
+          birthCountry: rawData.birthcountry || rawData.birth_country || 'Nigeria',
           photo: rawData.photo || '',
           nationality: rawData.birthcountry || 'Nigeria',
           maritalStatus: rawData.maritalstatus || '',
@@ -321,8 +333,12 @@ class PremblyService {
           phone: rawData.telephoneno || rawData.phone || '',
           email: rawData.email || '',
           address: rawData.residence_address || rawData.residenceAddress || '',
-          state: rawData.residence_state || rawData.stateOfResidence || '',
+          town: rawData.residence_town || rawData.town || rawData.residence_lga || '',
           lga: rawData.residence_lga || rawData.lgaOfResidence || '',
+          state: rawData.residence_state || rawData.stateOfResidence || '',
+          birthState: rawData.birth_state || rawData.birthState || rawData.state_of_origin || '',
+          birthLga: rawData.birth_lga || rawData.birthLga || rawData.lga_of_origin || '',
+          birthCountry: rawData.birthcountry || rawData.birth_country || 'Nigeria',
           photo: rawData.photo || '',
           nationality: rawData.birthcountry || 'Nigeria',
         };
