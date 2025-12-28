@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Edit, Save, X, DollarSign, TrendingUp, Layers, AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
+import { Edit, Save, X, DollarSign, TrendingUp, Layers, AlertCircle, Loader2, Plus, Trash2, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -102,6 +102,7 @@ export default function AdminPricing() {
   const [saving, setSaving] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<ServicePrice | null>(null);
+  const [seeding, setSeeding] = useState(false);
 
   useEffect(() => {
     fetchPricing();
@@ -254,6 +255,31 @@ export default function AdminPricing() {
     }
   };
 
+  const handleSeedPricing = async () => {
+    setSeeding(true);
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/admin/pricing/seed', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        toast({ 
+          title: "Default Prices Seeded", 
+          description: `Created ${data.data.created} services, ${data.data.skipped} already existed` 
+        });
+        fetchPricing();
+      } else {
+        toast({ title: "Error", description: data.message, variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to seed pricing", variant: "destructive" });
+    } finally {
+      setSeeding(false);
+    }
+  };
+
   const getServicesForCategory = (category: string) => {
     return Object.entries(SERVICE_DEFINITIONS)
       .filter(([_, def]) => def.category === category)
@@ -339,10 +365,16 @@ export default function AdminPricing() {
                 <CardTitle className="text-base sm:text-lg">Service Pricing</CardTitle>
                 <CardDescription className="text-xs sm:text-sm">Manage prices for all platform services</CardDescription>
               </div>
-              <Button onClick={() => { setSelectedCategory(''); setNewService({ serviceType: '', serviceName: '', price: 0, description: '' }); setShowAddDialog(true); }} className="gap-2">
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Add Service</span>
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={handleSeedPricing} variant="outline" className="gap-2" disabled={seeding}>
+                  {seeding ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                  <span className="hidden sm:inline">Seed Defaults</span>
+                </Button>
+                <Button onClick={() => { setSelectedCategory(''); setNewService({ serviceType: '', serviceName: '', price: 0, description: '' }); setShowAddDialog(true); }} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  <span className="hidden sm:inline">Add Service</span>
+                </Button>
+              </div>
             </div>
             <div className="flex flex-wrap gap-1.5 sm:gap-2">
               {categories.map(cat => (

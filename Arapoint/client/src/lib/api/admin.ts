@@ -167,8 +167,27 @@ export const adminApi = {
     return response.data.data.pricing;
   },
 
+  getAllPricing: async (): Promise<ServicePricing[]> => {
+    const response = await apiClient.get<ApiResponse<{ pricing: ServicePricing[] }>>('/admin/pricing/all');
+    return response.data.data.pricing;
+  },
+
   updatePricing: async (id: string, data: Partial<ServicePricing>): Promise<void> => {
     await apiClient.put(`/admin/pricing/${id}`, data);
+  },
+
+  createPricing: async (data: { serviceType: string; serviceName: string; price: number; description?: string }): Promise<ServicePricing> => {
+    const response = await apiClient.post<ApiResponse<ServicePricing>>('/admin/pricing', data);
+    return response.data.data;
+  },
+
+  deletePricing: async (id: string): Promise<void> => {
+    await apiClient.delete(`/admin/pricing/${id}`);
+  },
+
+  seedPricing: async (): Promise<{ created: number; skipped: number }> => {
+    const response = await apiClient.post<ApiResponse<{ created: number; skipped: number }>>('/admin/pricing/seed');
+    return response.data.data;
   },
 
   getRpaJobs: async (page = 1, limit = 20, status?: string): Promise<{ jobs: RpaJob[]; pagination: any }> => {

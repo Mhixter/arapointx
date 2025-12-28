@@ -14,8 +14,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 const MTN_LOGO = "https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/New-mtn-logo.svg/512px-New-mtn-logo.svg.png";
 
-const NETWORKS = [
+const DEFAULT_NETWORKS = [
   { id: "mtn", name: "MTN", color: "bg-yellow-500", rate: 80, logo: MTN_LOGO },
+  { id: "airtel", name: "Airtel", color: "bg-red-500", rate: 75, logo: "" },
+  { id: "glo", name: "Glo", color: "bg-green-500", rate: 70, logo: "" },
+  { id: "9mobile", name: "9Mobile", color: "bg-green-600", rate: 70, logo: "" },
 ];
 
 const NIGERIAN_BANKS = [
@@ -110,16 +113,40 @@ export default function AirtimeToCash() {
   const [selectedRequestDetail, setSelectedRequestDetail] = useState<A2CRequest | null>(null);
   const [requestHistory, setRequestHistory] = useState<StatusHistory[]>([]);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [networks, setNetworks] = useState(DEFAULT_NETWORKS);
   const { toast } = useToast();
 
-  const selectedNetworkData = NETWORKS.find(n => n.id === selectedNetwork);
+  const selectedNetworkData = networks.find(n => n.id === selectedNetwork);
   const cashValue = selectedNetworkData ? (parseFloat(amount || "0") * selectedNetworkData.rate / 100) : 0;
+
+  useEffect(() => {
+    fetchRates();
+  }, []);
 
   useEffect(() => {
     if (activeTab === "history") {
       fetchHistory();
     }
   }, [activeTab]);
+
+  const fetchRates = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('/api/airtime/to-cash/rates', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (response.ok && data.data?.rates) {
+        const rates = data.data.rates;
+        setNetworks(prev => prev.map(n => ({
+          ...n,
+          rate: rates[n.id] || n.rate
+        })));
+      }
+    } catch (err) {
+      console.error('Failed to fetch rates', err);
+    }
+  };
 
   const fetchHistory = async () => {
     setIsLoadingHistory(true);
