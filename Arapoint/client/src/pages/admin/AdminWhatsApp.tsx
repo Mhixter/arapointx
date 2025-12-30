@@ -820,7 +820,7 @@ export default function AdminWhatsApp() {
                 </SelectTrigger>
                 <SelectContent>
                   {filteredAgents.length === 0 ? (
-                    <SelectItem value="" disabled>No agents of this type</SelectItem>
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">No agents of this type</div>
                   ) : filteredAgents.map(agent => (
                     <SelectItem key={agent.id} value={agent.id}>{agent.name}</SelectItem>
                   ))}
