@@ -66,6 +66,7 @@ import AdminIdentityAgents from "@/pages/admin/AdminIdentityAgents";
 import AdminEducationAgents from "@/pages/admin/AdminEducationAgents";
 import AdminA2CAgents from "@/pages/admin/AdminA2CAgents";
 import AdminEducationPins from "@/pages/admin/AdminEducationPins";
+import AdminWhatsApp from "@/pages/admin/AdminWhatsApp";
 import AdminCRUDLayout from "@/components/layout/AdminCRUDLayout";
 
 function Router() {
@@ -156,6 +157,11 @@ function Router() {
       <Route path="/admin/a2c-agents">
         <AdminCRUDLayout>
           <AdminA2CAgents />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/whatsapp">
+        <AdminCRUDLayout>
+          <AdminWhatsApp />
         </AdminCRUDLayout>
       </Route>
       

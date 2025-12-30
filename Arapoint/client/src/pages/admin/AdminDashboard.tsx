@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLocation } from "wouter";
-import { Users, DollarSign, AlertTriangle, FileCheck, ShieldCheck, BookOpen, Smartphone, Loader2 } from "lucide-react";
+import { Users, DollarSign, AlertTriangle, FileCheck, ShieldCheck, BookOpen, Smartphone, Loader2, MessageSquare } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useQuery } from "@tanstack/react-query";
 import { adminApi } from "@/lib/api";
@@ -108,6 +108,15 @@ export default function AdminDashboard() {
       desc: "Manage user accounts & status",
       href: "/admin/users",
       count: usersData?.users?.length || 0
+    },
+    { 
+      title: "WhatsApp Notifications", 
+      icon: MessageSquare, 
+      color: "text-green-600",
+      bg: "bg-green-100 dark:bg-green-900/20",
+      desc: "Configure agent WhatsApp alerts",
+      href: "/admin/whatsapp",
+      count: 0
     },
   ];
 
