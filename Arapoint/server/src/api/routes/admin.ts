@@ -31,8 +31,12 @@ import {
   educationPinOrders,
   a2cAgents,
   a2cRequests,
-  nbaisSchools
+  nbaisSchools,
+  whatsappTemplates,
+  agentChannels,
+  agentNotifications
 } from '../../db/schema';
+import { whatsappService } from '../../services/whatsappService';
 import { scrapeNbaisSchools, getSchoolsCount } from '../../rpa/workers/nbaisSchoolScraper';
 import { browserPool } from '../../rpa/browserPool';
 import bcrypt from 'bcryptjs';
@@ -2379,6 +2383,186 @@ router.post('/nbais-schools/scrape', async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error('NBAIS schools scraping error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to scrape NBAIS schools'));
+  }
+});
+
+// ============ WhatsApp Notification Management ============
+
+// Get WhatsApp templates
+router.get('/whatsapp/templates', async (req: Request, res: Response) => {
+  try {
+    const templates = await db.select().from(whatsappTemplates).orderBy(desc(whatsappTemplates.createdAt));
+    res.json(formatResponse('success', 200, 'Templates retrieved', { templates }));
+  } catch (error: any) {
+    logger.error('Get WhatsApp templates error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get templates'));
+  }
+});
+
+// Create/Update WhatsApp template
+router.post('/whatsapp/templates', async (req: Request, res: Response) => {
+  try {
+    const { id, templateName, displayName, description, templateContent, variables, category, metaTemplateId, isActive } = req.body;
+
+    if (!templateName || !displayName || !templateContent || !category) {
+      return res.status(400).json(formatErrorResponse(400, 'Missing required fields'));
+    }
+
+    if (id) {
+      await db.update(whatsappTemplates)
+        .set({
+          templateName,
+          displayName,
+          description,
+          templateContent,
+          variables: variables || [],
+          category,
+          metaTemplateId,
+          isActive: isActive ?? true,
+          updatedAt: new Date(),
+        })
+        .where(eq(whatsappTemplates.id, id));
+      res.json(formatResponse('success', 200, 'Template updated'));
+    } else {
+      await db.insert(whatsappTemplates).values({
+        templateName,
+        displayName,
+        description,
+        templateContent,
+        variables: variables || [],
+        category,
+        metaTemplateId,
+        isActive: isActive ?? true,
+      });
+      res.json(formatResponse('success', 201, 'Template created'));
+    }
+  } catch (error: any) {
+    logger.error('Save WhatsApp template error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to save template'));
+  }
+});
+
+// Delete WhatsApp template
+router.delete('/whatsapp/templates/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await db.delete(whatsappTemplates).where(eq(whatsappTemplates.id, id));
+    res.json(formatResponse('success', 200, 'Template deleted'));
+  } catch (error: any) {
+    logger.error('Delete WhatsApp template error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to delete template'));
+  }
+});
+
+// Initialize default WhatsApp templates
+router.post('/whatsapp/templates/init', async (req: Request, res: Response) => {
+  try {
+    await whatsappService.createDefaultTemplates();
+    res.json(formatResponse('success', 200, 'Default templates initialized'));
+  } catch (error: any) {
+    logger.error('Init WhatsApp templates error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to initialize templates'));
+  }
+});
+
+// Get agent channels (WhatsApp numbers)
+router.get('/whatsapp/channels', async (req: Request, res: Response) => {
+  try {
+    const { agentType } = req.query;
+    let channels;
+    if (agentType) {
+      channels = await db.select().from(agentChannels).where(eq(agentChannels.agentType, agentType as string));
+    } else {
+      channels = await db.select().from(agentChannels);
+    }
+    res.json(formatResponse('success', 200, 'Channels retrieved', { channels }));
+  } catch (error: any) {
+    logger.error('Get agent channels error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get channels'));
+  }
+});
+
+// Add/Update agent WhatsApp channel
+router.post('/whatsapp/channels', async (req: Request, res: Response) => {
+  try {
+    const { id, agentType, agentId, channelType, channelValue, isActive } = req.body;
+
+    if (!agentType || !agentId || !channelValue) {
+      return res.status(400).json(formatErrorResponse(400, 'Missing required fields'));
+    }
+
+    if (id) {
+      await db.update(agentChannels)
+        .set({
+          agentType,
+          agentId,
+          channelType: channelType || 'whatsapp',
+          channelValue,
+          isActive: isActive ?? true,
+          updatedAt: new Date(),
+        })
+        .where(eq(agentChannels.id, id));
+      res.json(formatResponse('success', 200, 'Channel updated'));
+    } else {
+      await db.insert(agentChannels).values({
+        agentType,
+        agentId,
+        channelType: channelType || 'whatsapp',
+        channelValue,
+        isActive: isActive ?? true,
+      });
+      res.json(formatResponse('success', 201, 'Channel added'));
+    }
+  } catch (error: any) {
+    logger.error('Save agent channel error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to save channel'));
+  }
+});
+
+// Delete agent channel
+router.delete('/whatsapp/channels/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await db.delete(agentChannels).where(eq(agentChannels.id, id));
+    res.json(formatResponse('success', 200, 'Channel deleted'));
+  } catch (error: any) {
+    logger.error('Delete agent channel error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to delete channel'));
+  }
+});
+
+// Get notification queue status
+router.get('/whatsapp/notifications', async (req: Request, res: Response) => {
+  try {
+    const { status, limit = '50' } = req.query;
+    let notifications;
+    if (status && status !== 'all') {
+      notifications = await db.select()
+        .from(agentNotifications)
+        .where(eq(agentNotifications.status, status as string))
+        .orderBy(desc(agentNotifications.createdAt))
+        .limit(parseInt(limit as string));
+    } else {
+      notifications = await db.select()
+        .from(agentNotifications)
+        .orderBy(desc(agentNotifications.createdAt))
+        .limit(parseInt(limit as string));
+    }
+    res.json(formatResponse('success', 200, 'Notifications retrieved', { notifications }));
+  } catch (error: any) {
+    logger.error('Get notifications error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get notifications'));
+  }
+});
+
+// Process queued notifications
+router.post('/whatsapp/notifications/process', async (req: Request, res: Response) => {
+  try {
+    const processed = await whatsappService.processQueuedNotifications(10);
+    res.json(formatResponse('success', 200, `Processed ${processed} notifications`, { processed }));
+  } catch (error: any) {
+    logger.error('Process notifications error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to process notifications'));
   }
 });
 

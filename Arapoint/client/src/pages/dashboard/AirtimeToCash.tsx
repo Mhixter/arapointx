@@ -411,10 +411,12 @@ export default function AirtimeToCash() {
                       <SelectTrigger className="h-11">
                         <SelectValue placeholder="Select your bank" />
                       </SelectTrigger>
-                      <SelectContent>
-                        {NIGERIAN_BANKS.map(bank => (
-                          <SelectItem key={bank} value={bank}>{bank}</SelectItem>
-                        ))}
+                      <SelectContent className="max-h-[280px]">
+                        <ScrollArea className="h-[240px]">
+                          {NIGERIAN_BANKS.map(bank => (
+                            <SelectItem key={bank} value={bank}>{bank}</SelectItem>
+                          ))}
+                        </ScrollArea>
                       </SelectContent>
                     </Select>
 

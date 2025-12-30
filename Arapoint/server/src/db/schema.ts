@@ -593,3 +593,54 @@ export const a2cStatusHistory = pgTable('a2c_status_history', {
   metadata: jsonb('metadata'),
   createdAt: timestamp('created_at').defaultNow(),
 });
+
+// Agent Channels - Stores agent WhatsApp/contact info for notifications
+export const agentChannels = pgTable('agent_channels', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  agentType: varchar('agent_type', { length: 30 }).notNull(), // cac, identity, education, a2c, bvn
+  agentId: uuid('agent_id').notNull(), // Reference to respective agent table
+  channelType: varchar('channel_type', { length: 20 }).default('whatsapp').notNull(), // whatsapp, sms, email
+  channelValue: varchar('channel_value', { length: 50 }).notNull(), // Phone number for WhatsApp/SMS
+  isVerified: boolean('is_verified').default(false),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Agent Notifications - Queue for WhatsApp/SMS notifications
+export const agentNotifications = pgTable('agent_notifications', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  agentType: varchar('agent_type', { length: 30 }).notNull(), // cac, identity, education, a2c, bvn
+  agentId: uuid('agent_id').notNull(),
+  userId: uuid('user_id').references(() => users.id),
+  requestType: varchar('request_type', { length: 50 }).notNull(), // bvn_modification, education_verification, a2c_request, etc.
+  requestId: varchar('request_id', { length: 100 }).notNull(),
+  templateName: varchar('template_name', { length: 100 }).notNull(), // WhatsApp template name
+  payload: jsonb('payload').notNull(), // Template variables
+  status: varchar('status', { length: 20 }).default('queued').notNull(), // queued, sent, failed, delivered, read
+  attempts: integer('attempts').default(0),
+  lastAttemptAt: timestamp('last_attempt_at'),
+  sentAt: timestamp('sent_at'),
+  deliveredAt: timestamp('delivered_at'),
+  readAt: timestamp('read_at'),
+  errorMessage: text('error_message'),
+  externalMessageId: varchar('external_message_id', { length: 100 }), // WhatsApp message ID
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// WhatsApp Templates - Admin-configurable message templates
+export const whatsappTemplates = pgTable('whatsapp_templates', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  templateName: varchar('template_name', { length: 100 }).unique().notNull(),
+  displayName: varchar('display_name', { length: 255 }).notNull(),
+  description: text('description'),
+  templateContent: text('template_content').notNull(), // Template with {{variable}} placeholders
+  variables: jsonb('variables').default('[]'), // List of required variables
+  category: varchar('category', { length: 50 }).notNull(), // transactional, marketing
+  isActive: boolean('is_active').default(true),
+  metaTemplateId: varchar('meta_template_id', { length: 100 }), // ID from Meta WhatsApp
+  metaStatus: varchar('meta_status', { length: 30 }), // APPROVED, PENDING, REJECTED
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});

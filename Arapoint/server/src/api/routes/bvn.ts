@@ -8,9 +8,10 @@ import { bvnRetrieveSchema, bvnDigitalCardSchema, bvnModifySchema } from '../val
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { bvnServices } from '../../db/schema';
+import { bvnServices, users, identityAgents } from '../../db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { generateReferenceId } from '../../utils/helpers';
+import { whatsappService } from '../../services/whatsappService';
 
 const getConfiguredProviders = (): ('prembly' | 'youverify')[] => {
   const providers: ('prembly' | 'youverify')[] = [];
@@ -239,6 +240,23 @@ router.post('/modify', async (req: Request, res: Response) => {
       requestId,
       status: 'pending',
     });
+
+    const availableAgents = await db.select()
+      .from(identityAgents)
+      .where(eq(identityAgents.isAvailable, true))
+      .limit(1);
+    
+    if (availableAgents.length > 0) {
+      const [user] = await db.select({ name: users.name }).from(users).where(eq(users.id, req.userId!)).limit(1);
+      whatsappService.notifyAgentOfNewRequest('bvn', availableAgents[0].id, {
+        requestId,
+        requestType: 'bvn_modification',
+        customerName: user?.name || 'Customer',
+        amount: price,
+        description: 'BVN Modification - Agent Enrollment',
+        userId: req.userId,
+      }).catch(err => logger.error('Failed to queue WhatsApp notification', { error: err.message }));
+    }
 
     logger.info('BVN modification request', { userId: req.userId, requestId, price });
 

@@ -7,7 +7,8 @@ import { airtimeBuySchema } from '../validators/vtu';
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { airtimeServices, a2cRequests, a2cPhoneInventory, a2cAgents, a2cStatusHistory } from '../../db/schema';
+import { airtimeServices, a2cRequests, a2cPhoneInventory, a2cAgents, a2cStatusHistory, users } from '../../db/schema';
+import { whatsappService } from '../../services/whatsappService';
 import { eq, desc, and, sql, asc, gte } from 'drizzle-orm';
 
 const router = Router();
@@ -298,6 +299,18 @@ router.post('/to-cash/:id/confirm-sent', async (req: Request, res: Response) => 
       newStatus: 'airtime_sent',
       note: 'User confirmed airtime sent',
     });
+
+    if (request.assignedAgentId) {
+      const [user] = await db.select({ name: users.name }).from(users).where(eq(users.id, req.userId!)).limit(1);
+      whatsappService.notifyAgentOfNewRequest('a2c', request.assignedAgentId, {
+        requestId: request.trackingId,
+        requestType: 'a2c_request',
+        customerName: user?.name || 'Customer',
+        amount: parseFloat(request.airtimeAmount),
+        description: `Airtime to Cash - ${request.network.toUpperCase()}`,
+        userId: req.userId,
+      }).catch(err => logger.error('Failed to queue WhatsApp notification', { error: err.message }));
+    }
 
     logger.info('A2C request confirmed by user', { requestId: id, userId: req.userId });
 
