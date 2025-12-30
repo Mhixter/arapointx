@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { 
   Loader2, 
   Download, 
@@ -13,7 +14,8 @@ import {
   Activity,
   Printer,
   AlertCircle,
-  Shield
+  Shield,
+  History
 } from "lucide-react";
 import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -24,11 +26,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const BVN_SERVICES = [
   { id: "retrieval", name: "BVN Retrieval", icon: FileSearch, color: "text-cyan-600", bg: "bg-cyan-100 dark:bg-cyan-900/20", desc: "Recover lost BVN details", price: 100 },
   { id: "card", name: "BVN Card", icon: CreditCard, color: "text-indigo-600", bg: "bg-indigo-100 dark:bg-indigo-900/20", desc: "Print BVN Digital Card", price: 500 },
-  { id: "modification", name: "BVN Modification", icon: FilePenLine, color: "text-violet-600", bg: "bg-violet-100 dark:bg-violet-900/20", desc: "Update your personal details", price: 1000 },
+  { id: "modification", name: "BVN Modification", icon: FilePenLine, color: "text-violet-600", bg: "bg-violet-100 dark:bg-violet-900/20", desc: "Update via Agent Enrollment", price: 0 },
 ];
 
 export default function BVNRetrieval() {
@@ -49,6 +52,9 @@ export default function BVNRetrieval() {
   const [newDOB, setNewDOB] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [address, setAddress] = useState("");
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [modificationHistory, setModificationHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   const getAuthToken = () => {
     return localStorage.getItem('accessToken');
@@ -118,16 +124,33 @@ export default function BVNRetrieval() {
     }
   };
 
-  const handleModificationSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const fetchModificationHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const token = getAuthToken();
+      const response = await fetch('/api/bvn/history', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        const modRequests = (data.data?.history || []).filter((h: any) => h.serviceType === 'modification');
+        setModificationHistory(modRequests);
+      }
+    } catch (err) {
+      console.error('Failed to fetch modification history:', err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
+  const validateModificationForm = () => {
     if (!bvn.trim() || bvn.length !== 11) {
       toast({
         title: "Invalid BVN",
         description: "BVN must be exactly 11 digits.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     if (!changeCategory) {
@@ -136,7 +159,7 @@ export default function BVNRetrieval() {
         description: "Please select a category of change.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     if (changeCategory === "name" && (!oldName.trim() || !newName.trim())) {
@@ -145,7 +168,7 @@ export default function BVNRetrieval() {
         description: "Please enter both old and new names.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     if (changeCategory === "dob" && (!oldDOB.trim() || !newDOB.trim())) {
@@ -154,7 +177,7 @@ export default function BVNRetrieval() {
         description: "Please enter both old and new dates of birth.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     if (!phoneNumber.trim()) {
@@ -163,9 +186,20 @@ export default function BVNRetrieval() {
         description: "Please enter your phone number.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
+    return true;
+  };
 
+  const handleModificationFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (validateModificationForm()) {
+      setShowConfirmDialog(true);
+    }
+  };
+
+  const handleModificationSubmit = async () => {
+    setShowConfirmDialog(false);
     setLoading(true);
     
     try {
@@ -313,7 +347,7 @@ export default function BVNRetrieval() {
                 <div>
                   <h3 className="font-bold text-lg">{service.name}</h3>
                   <p className="text-sm text-muted-foreground mt-1">{service.desc}</p>
-                  <p className="text-sm font-semibold text-primary mt-2">₦{service.price}</p>
+                  <p className="text-sm font-semibold text-primary mt-2">{service.price === 0 ? 'FREE' : `₦${service.price}`}</p>
                 </div>
                 <Button className="w-full mt-2" size="sm">
                   Select
@@ -332,7 +366,7 @@ export default function BVNRetrieval() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-3xl font-heading font-bold tracking-tight">BVN Modification</h2>
-            <p className="text-muted-foreground">Update your BVN personal details. Price: ₦1,000</p>
+            <p className="text-muted-foreground">Update your BVN via Agent Enrollment (FREE - No wallet deduction)</p>
           </div>
           <Button variant="outline" onClick={() => {
             setSelectedService(null);
@@ -350,122 +384,240 @@ export default function BVNRetrieval() {
           </Button>
         </div>
 
-        <Card className="w-full max-w-2xl">
-          <CardHeader>
-            <CardTitle>Submit Modification Request</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleModificationSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="bvn">Bank Verification Number</Label>
-                <Input
-                  id="bvn"
-                  placeholder="11-digit BVN"
-                  maxLength={11}
-                  value={bvn}
-                  onChange={(e) => setBvn(e.target.value.replace(/\D/g, ""))}
-                  className="h-11 font-mono text-lg tracking-widest"
-                />
-                <p className="text-xs text-muted-foreground">Format: 11 digits only</p>
-              </div>
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+          <div className="flex items-start gap-3">
+            <Shield className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-semibold text-blue-800 dark:text-blue-200">Agent Enrollment Process</p>
+              <p className="text-blue-700 dark:text-blue-300 mt-1">
+                Your request will be handled by our identity agents (not bank enrollment). 
+                Processing typically takes 3-5 business days. <strong>This service is FREE</strong> - no wallet deduction will be made.
+              </p>
+            </div>
+          </div>
+        </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="category">Category of Change</Label>
-                <Select value={changeCategory} onValueChange={(value: any) => setChangeCategory(value)}>
-                  <SelectTrigger className="h-11">
-                    <SelectValue placeholder="Select category of change" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="name">Change of Name</SelectItem>
-                    <SelectItem value="dob">Change of Date of Birth</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+        <Tabs defaultValue="request" className="w-full max-w-2xl" onValueChange={(value) => {
+          if (value === 'history') {
+            fetchModificationHistory();
+          }
+        }}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="request">New Request</TabsTrigger>
+            <TabsTrigger value="history">
+              <History className="h-4 w-4 mr-2" />
+              Request History
+            </TabsTrigger>
+          </TabsList>
 
-              {changeCategory === "name" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <TabsContent value="request">
+            <Card>
+              <CardHeader>
+                <CardTitle>Submit Modification Request</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleModificationFormSubmit} className="space-y-6">
                   <div className="space-y-2">
-                    <Label htmlFor="oldName">Old Name</Label>
+                    <Label htmlFor="bvn">BVN (Bank Verification Number)</Label>
                     <Input
-                      id="oldName"
-                      placeholder="Your current name"
-                      value={oldName}
-                      onChange={(e) => setOldName(e.target.value)}
+                      id="bvn"
+                      placeholder="11-digit BVN"
+                      maxLength={11}
+                      value={bvn}
+                      onChange={(e) => setBvn(e.target.value.replace(/\D/g, ""))}
+                      className="h-11 font-mono text-lg tracking-widest"
+                    />
+                    <p className="text-xs text-muted-foreground">Format: 11 digits only</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="category">Category of Change</Label>
+                    <Select value={changeCategory} onValueChange={(value: any) => setChangeCategory(value)}>
+                      <SelectTrigger className="h-11">
+                        <SelectValue placeholder="Select category of change" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="name">Change of Name</SelectItem>
+                        <SelectItem value="dob">Change of Date of Birth</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {changeCategory === "name" && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="oldName">Old Name</Label>
+                        <Input
+                          id="oldName"
+                          placeholder="Your current name"
+                          value={oldName}
+                          onChange={(e) => setOldName(e.target.value)}
+                          className="h-11"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="newName">New Name</Label>
+                        <Input
+                          id="newName"
+                          placeholder="Your new name"
+                          value={newName}
+                          onChange={(e) => setNewName(e.target.value)}
+                          className="h-11"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {changeCategory === "dob" && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="oldDOB">Old Date of Birth</Label>
+                        <Input
+                          id="oldDOB"
+                          type="date"
+                          value={oldDOB}
+                          onChange={(e) => setOldDOB(e.target.value)}
+                          className="h-11"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="newDOB">New Date of Birth</Label>
+                        <Input
+                          id="newDOB"
+                          type="date"
+                          value={newDOB}
+                          onChange={(e) => setNewDOB(e.target.value)}
+                          className="h-11"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="08012345678"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
                       className="h-11"
                     />
                   </div>
+
                   <div className="space-y-2">
-                    <Label htmlFor="newName">New Name</Label>
-                    <Input
-                      id="newName"
-                      placeholder="Your new name"
-                      value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
-                      className="h-11"
+                    <Label htmlFor="address">Address (Optional)</Label>
+                    <textarea
+                      id="address"
+                      placeholder="Enter your residential address"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 min-h-24 resize-none"
                     />
                   </div>
+
+                  <Button type="submit" className="w-full h-11 text-base" disabled={loading}>
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Submitting...
+                      </>
+                    ) : "Submit Modification Request (FREE)"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="history">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <History className="h-5 w-5" />
+                  Modification Request History
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loadingHistory ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  </div>
+                ) : modificationHistory.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <History className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>No modification requests yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {modificationHistory.map((request) => (
+                      <div key={request.id} className="flex items-center justify-between p-4 rounded-lg border">
+                        <div>
+                          <p className="font-medium">BVN: {request.bvn?.substring(0, 4)}****{request.bvn?.substring(8)}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(request.createdAt).toLocaleDateString('en-NG', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                            })}
+                          </p>
+                        </div>
+                        <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          request.status === 'completed' ? 'bg-green-100 text-green-700' :
+                          request.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
+                          {request.status?.charAt(0).toUpperCase() + request.status?.slice(1)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm BVN Modification Request</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div>
+                  <p className="mb-3">
+                    You are about to submit a BVN modification request for <strong>Agent Enrollment</strong>.
+                  </p>
+                  <div className="bg-muted/50 rounded-lg p-3 mb-3 space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>BVN:</span>
+                      <span className="font-mono">{bvn.substring(0, 4)}****{bvn.substring(8)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Change Type:</span>
+                      <span>{changeCategory === 'name' ? 'Name Change' : 'Date of Birth Change'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Phone:</span>
+                      <span>{phoneNumber}</span>
+                    </div>
+                    <div className="flex justify-between font-semibold text-green-600">
+                      <span>Cost:</span>
+                      <span>FREE (No Deduction)</span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Your request will be handled by our identity agents. Processing typically takes 3-5 business days.
+                  </p>
                 </div>
-              )}
-
-              {changeCategory === "dob" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="oldDOB">Old Date of Birth</Label>
-                    <Input
-                      id="oldDOB"
-                      type="date"
-                      value={oldDOB}
-                      onChange={(e) => setOldDOB(e.target.value)}
-                      className="h-11"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="newDOB">New Date of Birth</Label>
-                    <Input
-                      id="newDOB"
-                      type="date"
-                      value={newDOB}
-                      onChange={(e) => setNewDOB(e.target.value)}
-                      className="h-11"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="08012345678"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  className="h-11"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="address">Address (Optional)</Label>
-                <textarea
-                  id="address"
-                  placeholder="Enter your residential address"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 min-h-24 resize-none"
-                />
-              </div>
-
-              <Button type="submit" className="w-full h-11 text-base" disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Submitting...
-                  </>
-                ) : "Submit Modification Request (₦1,000)"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleModificationSubmit}>
+                Submit Request
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }

@@ -221,7 +221,6 @@ router.post('/modify', async (req: Request, res: Response) => {
       ));
     }
 
-    const price = await getServicePrice('bvn_modification', 1000);
     const requestId = generateReferenceId();
 
     await db.insert(bvnServices).values({
@@ -235,11 +234,11 @@ router.post('/modify', async (req: Request, res: Response) => {
 
     logger.info('BVN modification request', { userId: req.userId, requestId });
 
-    res.status(202).json(formatResponse('success', 202, 'BVN modification request submitted. This service requires manual processing.', {
+    res.status(202).json(formatResponse('success', 202, 'BVN modification request submitted. This service requires agent enrollment processing.', {
       requestId,
-      message: 'Our team will process your request. BVN modification typically takes 3-5 business days.',
+      message: 'Your request will be handled by our identity agents (not bank enrollment). Processing typically takes 3-5 business days.',
       estimatedTime: '3-5 business days',
-      price,
+      price: 0,
     }));
   } catch (error: any) {
     logger.error('BVN modification error', { error: error.message, userId: req.userId });

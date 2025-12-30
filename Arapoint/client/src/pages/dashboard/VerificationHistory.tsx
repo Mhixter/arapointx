@@ -93,7 +93,7 @@ export default function VerificationHistory() {
     try {
       const response = await fetch(`/api/education/job/${jobId}/download?format=${format}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
         },
       });
 
