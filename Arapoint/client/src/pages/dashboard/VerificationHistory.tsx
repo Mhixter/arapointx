@@ -135,28 +135,36 @@ export default function VerificationHistory() {
     }
   };
 
-  const handleDirectDownload = (record: EducationServiceRecord, type: 'pdf' | 'screenshot') => {
+  const handleDirectDownload = async (record: EducationServiceRecord, type: 'pdf' | 'screenshot') => {
     const data = type === 'pdf' ? record.resultData?.pdfBase64 : record.resultData?.screenshotBase64;
-    if (!data) return;
+    if (!data) {
+      toast({
+        title: "Download Failed",
+        description: "No file data available for download.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     try {
-      const byteCharacters = atob(data);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const mimeType = type === 'pdf' ? 'application/pdf' : 'image/png';
-      const blob = new Blob([byteArray], { type: mimeType });
-      const url = URL.createObjectURL(blob);
+      // Clean the base64 string - remove any whitespace or newlines
+      const cleanData = data.replace(/[\s\r\n]+/g, '');
       
+      // Use fetch to convert base64 to blob (more reliable than atob for large files)
+      const mimeType = type === 'pdf' ? 'application/pdf' : 'image/png';
+      const response = await fetch(`data:${mimeType};base64,${cleanData}`);
+      const blob = await response.blob();
+      
+      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = `${record.serviceType}_result_${record.registrationNumber}.${type === 'pdf' ? 'pdf' : 'png'}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      
+      // Delay revoking URL to ensure download starts
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
       
       toast({
         title: "Download Complete",
@@ -164,11 +172,38 @@ export default function VerificationHistory() {
       });
     } catch (error) {
       console.error('Download error:', error);
-      toast({
-        title: "Download Failed",
-        description: "Could not download the file. Please try again.",
-        variant: "destructive",
-      });
+      // Fallback: try alternative download method
+      try {
+        const mimeType = type === 'pdf' ? 'application/pdf' : 'image/png';
+        const byteCharacters = atob(data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${record.serviceType}_result_${record.registrationNumber}.${type === 'pdf' ? 'pdf' : 'png'}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        
+        toast({
+          title: "Download Complete",
+          description: `Your ${type.toUpperCase()} has been downloaded.`,
+        });
+      } catch (fallbackError) {
+        console.error('Fallback download error:', fallbackError);
+        toast({
+          title: "Download Failed",
+          description: "Could not process the file. The data may be corrupted.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
