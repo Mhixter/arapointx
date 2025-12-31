@@ -108,6 +108,55 @@ cd Arapoint
 npm run dev
 ```
 
+## Deploying to Railway
+
+### Prerequisites
+- Railway account (https://railway.app)
+- GitHub account with this repo pushed
+- PostgreSQL database (Railway provides one)
+
+### Step 1: Connect GitHub
+1. Go to Railway dashboard → New Project
+2. Select "Deploy from GitHub repo"
+3. Choose your Arapoint repository
+
+### Step 2: Add PostgreSQL Database
+1. In Railway project, click "+ New" → "Database" → "PostgreSQL"
+2. Railway auto-creates DATABASE_URL environment variable
+
+### Step 3: Configure Environment Variables
+In Railway dashboard, add these variables:
+- `NODE_ENV=production`
+- `PORT=5000`
+- `JWT_SECRET=your-secret-key`
+- `REFRESH_TOKEN_SECRET=your-refresh-secret`
+- `SESSION_SECRET=your-session-secret`
+- `ENCRYPTION_KEY=your-32-char-encryption-key`
+- `PREMBLY_API_KEY=your-key`
+- `PREMBLY_APP_ID=your-app-id`
+- `VTPASS_API_KEY=your-key`
+- `VTPASS_SECRET_KEY=your-secret`
+- `VTPASS_PUBLIC_KEY=your-public-key`
+- `VTPASS_SANDBOX=false`
+- `SENDGRID_API_KEY=your-sendgrid-key`
+- Add other payment/service API keys as needed
+
+### Step 4: Deploy
+Railway auto-deploys on push. Check logs for any issues.
+
+### Step 5: Connect Custom Domain
+1. In Railway project settings → Domains
+2. Add your domain (e.g., arapoint.com)
+3. Update DNS at your registrar (Truehost):
+   - Add CNAME record pointing to Railway domain
+   - Or A record with Railway IP
+
+### Files Created for Railway
+- `Dockerfile` - Docker configuration with Chrome for Puppeteer
+- `railway.toml` - Railway-specific configuration
+- `.dockerignore` - Excludes unnecessary files from build
+- `.env.example` - Template for environment variables
+
 ## PayVessel Webhook Configuration
 
 ### Webhook Endpoint
