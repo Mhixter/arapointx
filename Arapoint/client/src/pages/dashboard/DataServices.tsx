@@ -434,12 +434,12 @@ export default function DataServices() {
 
       <Dialog open={showReceipt} onOpenChange={setShowReceipt}>
         <DialogContent className="max-w-[340px] sm:max-w-[380px] p-4 max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="pb-2">
+          <DialogHeader className="pb-2 no-print">
             <DialogTitle className="flex items-center gap-2 text-green-600 text-base"><Receipt className="h-4 w-4" />Receipt</DialogTitle>
             <DialogDescription>Data purchase details</DialogDescription>
           </DialogHeader>
           {selectedTransaction && (
-            <div className="space-y-3 text-sm" id="receipt-content">
+            <div className="space-y-3 text-sm print-receipt" id="receipt-content">
               <div className="text-center border-b pb-2">
                 <h3 className="text-base font-bold">ARAPOINT</h3>
                 <p className="text-xs text-muted-foreground">Data Purchase</p>
@@ -459,7 +459,7 @@ export default function DataServices() {
               </div>
             </div>
           )}
-          <DialogFooter className="gap-2 pt-2">
+          <DialogFooter className="gap-2 pt-2 no-print">
             <Button variant="outline" size="sm" onClick={() => setShowReceipt(false)}>Close</Button>
             <Button size="sm" onClick={printReceipt}><Download className="h-3 w-3 mr-1" />Print</Button>
           </DialogFooter>

@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Loader2, AlertCircle, ArrowLeft, Check, History, FileText, Clock, CheckCircle2, XCircle, MessageCircle, Send, X, Download, Shield, Upload, Image } from "lucide-react";
+import { Building2, Loader2, AlertCircle, ArrowLeft, Check, History, FileText, Clock, CheckCircle2, XCircle, MessageCircle, Send, X, Download, Shield, Upload, Image, CheckCheck } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
@@ -193,6 +193,7 @@ export default function CACServices() {
   const [uploadingPassport, setUploadingPassport] = useState(false);
   const [uploadingSignature, setUploadingSignature] = useState(false);
   const [uploadingNinSlip, setUploadingNinSlip] = useState(false);
+  const [agentOnlineStatus, setAgentOnlineStatus] = useState<{ isOnline: boolean; lastSeen: string | null }>({ isOnline: false, lastSeen: null });
 
   const handleFileUpload = async (file: File, type: 'passport' | 'signature' | 'ninSlip') => {
     const setUploading = type === 'passport' ? setUploadingPassport : type === 'signature' ? setUploadingSignature : setUploadingNinSlip;
@@ -301,6 +302,19 @@ export default function CACServices() {
 
   const selectedService = serviceTypes.find(s => s.code === formData.serviceType);
 
+  const formatLastSeen = (dateStr: string | null) => {
+    if (!dateStr) return 'Never';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMs / 3600000);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return date.toLocaleDateString();
+  };
+
   const openChat = async (request: any) => {
     setChatRequest(request);
     setShowChat(true);
@@ -313,6 +327,9 @@ export default function CACServices() {
       const data = await response.json();
       if (data.status === 'success') {
         setMessages(data.data.messages || []);
+        if (data.data.agentStatus) {
+          setAgentOnlineStatus(data.data.agentStatus);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch messages:', error);
@@ -355,6 +372,9 @@ export default function CACServices() {
         const data = await response.json();
         if (data.status === 'success') {
           setMessages(data.data.messages || []);
+          if (data.data.agentStatus) {
+            setAgentOnlineStatus(data.data.agentStatus);
+          }
         }
       } catch (error) {}
     }, 5000);
@@ -850,8 +870,18 @@ export default function CACServices() {
               <MessageCircle className="h-5 w-5 text-primary" />
               Chat with Agent
             </DialogTitle>
-            <DialogDescription>
-              {chatRequest?.businessName} - {chatRequest?.serviceType?.replace(/_/g, ' ')}
+            <DialogDescription className="flex items-center justify-between">
+              <span>{chatRequest?.businessName} - {chatRequest?.serviceType?.replace(/_/g, ' ')}</span>
+              <span className="flex items-center gap-1.5 text-xs">
+                <span className={`h-2 w-2 rounded-full ${agentOnlineStatus.isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
+                {agentOnlineStatus.isOnline ? (
+                  <span className="text-green-600 dark:text-green-400 font-medium">Online</span>
+                ) : (
+                  <span className="text-muted-foreground">
+                    Last seen: {formatLastSeen(agentOnlineStatus.lastSeen)}
+                  </span>
+                )}
+              </span>
             </DialogDescription>
           </DialogHeader>
           <ScrollArea className="flex-1 min-h-[300px] max-h-[400px] border rounded-lg p-3">
@@ -869,9 +899,18 @@ export default function CACServices() {
                   <div key={msg.id} className={`flex ${msg.senderType === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[80%] rounded-lg px-3 py-2 ${msg.senderType === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                       <p className="text-sm">{msg.message}</p>
-                      <p className={`text-xs mt-1 ${msg.senderType === 'user' ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                        {new Date(msg.createdAt).toLocaleTimeString()}
-                      </p>
+                      <div className={`flex items-center justify-end gap-1 mt-1 ${msg.senderType === 'user' ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                        <span className="text-xs">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        {msg.senderType === 'user' && (
+                          <span className="flex items-center" title={msg.readAt ? 'Seen' : 'Delivered'}>
+                            {msg.readAt ? (
+                              <CheckCheck className="h-3.5 w-3.5 text-blue-400" />
+                            ) : (
+                              <CheckCheck className="h-3.5 w-3.5" />
+                            )}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

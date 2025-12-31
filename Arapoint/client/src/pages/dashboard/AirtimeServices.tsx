@@ -111,6 +111,15 @@ export default function AirtimeServices() {
       toast({ title: "Missing Information", description: "Please fill in all required fields.", variant: "destructive" });
       return;
     }
+    const amount = parseInt(formData.amount);
+    if (amount < 50) {
+      toast({ title: "Amount Too Low", description: "Minimum airtime purchase is ₦50.", variant: "destructive" });
+      return;
+    }
+    if (amount > 10000) {
+      toast({ title: "Amount Too High", description: "Maximum airtime purchase is ₦10,000 per transaction.", variant: "destructive" });
+      return;
+    }
     setShowConfirmation(true);
   };
 
@@ -278,14 +287,19 @@ export default function AirtimeServices() {
                       </Button>
                     ))}
                   </div>
-                  <Input 
-                    placeholder="Or enter custom amount" 
-                    className="w-full h-12" 
-                    type="number" 
-                    value={formData.amount || ''} 
-                    onChange={(e) => handleInputChange('amount', e.target.value)} 
-                    data-testid="input-amount" 
-                  />
+                  <div className="space-y-1">
+                    <Input 
+                      placeholder="Or enter custom amount (₦50 - ₦10,000)" 
+                      className="w-full h-12" 
+                      type="number" 
+                      min="50"
+                      max="10000"
+                      value={formData.amount || ''} 
+                      onChange={(e) => handleInputChange('amount', e.target.value)} 
+                      data-testid="input-amount" 
+                    />
+                    <p className="text-xs text-muted-foreground">Maximum ₦10,000 per transaction</p>
+                  </div>
                 </div>
 
                 <Button type="submit" className="w-full h-12 text-base font-semibold" disabled={loading || !formData.network} data-testid="button-continue">
@@ -358,7 +372,7 @@ export default function AirtimeServices() {
 
       <Dialog open={showReceipt} onOpenChange={setShowReceipt}>
         <DialogContent className="max-w-[340px] sm:max-w-md p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+          <DialogHeader className="no-print">
             <DialogTitle className="flex items-center gap-2">
               <Receipt className="h-5 w-5 text-primary" />
               Transaction Receipt
@@ -366,8 +380,9 @@ export default function AirtimeServices() {
             <DialogDescription>Airtime purchase details</DialogDescription>
           </DialogHeader>
           {selectedTransaction && (
-            <div className="space-y-4 py-4">
+            <div className="space-y-4 py-4 print-receipt">
               <div className="text-center pb-4 border-b">
+                <h3 className="text-base font-bold mb-2">ARAPOINT</h3>
                 <div className={`inline-flex h-16 w-16 rounded-full items-center justify-center ${
                   selectedTransaction.status === 'completed' ? 'bg-green-100' : 'bg-red-100'
                 }`}>
@@ -402,10 +417,14 @@ export default function AirtimeServices() {
                   <span className="font-medium">{new Date(selectedTransaction.createdAt).toLocaleString()}</span>
                 </div>
               </div>
+              <div className="text-center border-t pt-2 text-[10px] text-muted-foreground">
+                <p>Thank you for using Arapoint</p>
+              </div>
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowReceipt(false)}>Close</Button>
+          <DialogFooter className="gap-2 pt-2 no-print">
+            <Button variant="outline" size="sm" onClick={() => setShowReceipt(false)}>Close</Button>
+            <Button size="sm" onClick={() => window.print()}><Download className="h-3 w-3 mr-1" />Print</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

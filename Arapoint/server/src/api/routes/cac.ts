@@ -309,7 +309,17 @@ router.get('/requests/:id/messages', async (req: Request, res: Response) => {
         eq(cacRequestMessages.isRead, false)
       ));
 
-    res.json(formatResponse('success', 200, 'Messages retrieved', { messages }));
+    const agentMessages = messages.filter((m: any) => m.senderType === 'agent');
+    const lastAgentMessage = agentMessages.length > 0 ? agentMessages[agentMessages.length - 1] : null;
+    const lastSeenTime = lastAgentMessage?.createdAt || null;
+    const isOnline = lastSeenTime ? (Date.now() - new Date(lastSeenTime).getTime()) < 5 * 60 * 1000 : false;
+
+    const agentStatus = {
+      isOnline,
+      lastSeen: lastSeenTime ? new Date(lastSeenTime).toISOString() : null
+    };
+
+    res.json(formatResponse('success', 200, 'Messages retrieved', { messages, agentStatus }));
   } catch (error: any) {
     logger.error('Get CAC messages error', { error: error.message, userId: req.userId });
     res.status(500).json(formatErrorResponse(500, 'Failed to get messages'));

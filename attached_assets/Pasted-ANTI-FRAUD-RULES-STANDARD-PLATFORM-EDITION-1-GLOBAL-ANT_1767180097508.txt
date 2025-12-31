@@ -1,0 +1,263 @@
+ANTI-FRAUD RULES (STANDARD PLATFORM EDITION)
+1️⃣ GLOBAL ANTI-FRAUD RULES (APPLIES TO ALL SERVICES)
+Rule 1: Job Fingerprinting (Duplicate Prevention)
+
+Create a unique fingerprint for every request:
+
+fingerprint = hash(
+  service_type +
+  primary_identifier +
+  secondary_identifier +
+  date
+)
+
+
+Examples:
+
+WAEC → WAEC + exam_no + year + today
+
+A2C → A2C + sender_phone + amount + today
+
+NIN → NIN + nin_number + today
+
+🔒 Action
+
+If fingerprint exists → block request
+
+Allow retry only after admin approval
+
+Rule 2: Velocity & Rate Limits
+
+Max 5 jobs / hour / user
+
+Max 20 jobs / day / user
+
+Max 10 failed jobs / day / user
+
+🔒 Action
+
+Soft block → show warning
+
+Hard block → temporary suspension (24h)
+
+Rule 3: Wallet Integrity
+
+Wallet must be debited before job starts
+
+Every debit must link to:
+
+Job ID
+
+Service type
+
+Timestamp
+
+🔒 Action
+
+No job can move to IN_PROGRESS without debit record
+
+2️⃣ EDUCATION SERVICES (WAEC, NECO, NABTEB, NBAIS)
+Rule 4: Exam Number Validation
+
+Before assigning ARP:
+
+Validate format
+
+Validate year range
+
+Validate exam body
+
+🔒 Action
+
+Invalid format → reject instantly (no pin usage)
+
+Rule 5: Pin Usage Lock
+
+One pin = one job
+
+Pin auto-lock once assigned
+
+Pin cannot be reused even if result fails
+
+🔒 Action
+
+Attempted reuse → flag agent
+
+Rule 6: Result Evidence Requirement
+
+ARP must upload:
+
+Screenshot or PDF
+
+Auto-watermarked with:
+
+Job ID
+
+Date
+
+Service
+
+🔒 Action
+
+No evidence → job cannot be completed
+
+Rule 7: Portal Error Detection
+
+Detect:
+
+“Invalid details”
+
+“Service unavailable”
+
+Blank result pages
+
+🔒 Action
+
+Mark job as FAILED_PORTAL
+
+Retry with new pin (max 2)
+
+After max retries → refund
+
+Rule 8: Duplicate Result Lock
+
+Block:
+
+Same exam number + year checked twice
+
+Multiple users checking same candidate
+
+🔒 Action
+
+Require admin approval
+
+3️⃣ AIRTIME → CASH (A2C)
+Rule 9: Airtime Receipt Confirmation
+
+Agent must confirm via:
+
+SMS confirmation OR
+
+USSD balance increase
+
+🔒 Action
+
+No confirmation → cannot complete job
+
+Rule 10: Phone Number Consistency
+
+Sender phone ≠ agent inventory phone → block
+
+🔒 Action
+
+Flag user
+
+Manual review required
+
+Rule 11: Amount Thresholds
+
+Min A2C amount
+
+Max A2C amount per day
+
+🔒 Action
+
+Amount outside limits → auto reject
+
+4️⃣ IDENTITY SERVICES (NIN, BVN, IPE)
+Rule 12: Sensitive Data Masking
+
+Store only masked identifiers
+
+1234****789
+
+Never store raw documents permanently
+
+🔒 Action
+
+Auto-delete raw files after delivery
+
+Rule 13: Retry Limits
+
+Max 3 failed attempts per NIN/BVN per day
+
+🔒 Action
+
+Lock service for 24h
+
+5️⃣ AGENT & WORKER CONTROL
+Rule 14: Performance Scoring
+
+Track:
+
+Success rate
+
+SLA breaches
+
+Failed attempts
+
+Pin wastage
+
+🔒 Action
+
+Score < 70% → warning
+
+Score < 50% → auto suspension
+
+Rule 15: Evidence Tampering
+
+Hash every uploaded file
+
+Detect re-uploads
+
+🔒 Action
+
+Immediate suspension
+
+Admin review
+
+6️⃣ ADMIN & SYSTEM PROTECTION
+Rule 16: Admin Action Logging
+
+Log:
+
+Pin replacement
+
+Refunds
+
+Overrides
+
+🔒 Action
+
+Immutable logs (cannot edit)
+
+Rule 17: Bot & Script Abuse
+
+Detect:
+
+Rapid submissions
+
+Same IP / device fingerprint
+
+🔒 Action
+
+CAPTCHA
+
+Temporary IP ban
+
+7️⃣ PENALTY SYSTEM (IMPORTANT)
+Violation	Penalty
+Duplicate requests	Temporary block
+Pin misuse	Agent suspension
+Fake evidence	Permanent ban
+Repeated failures	Wallet freeze
+Data abuse	Legal escalation
+✅ HOW TO IMPLEMENT (PRACTICAL)
+
+Start with:
+1️⃣ Fingerprinting
+2️⃣ Evidence enforcement
+3️⃣ SLA timers
+4️⃣ Agent scoring
+
+Everything else builds on these.

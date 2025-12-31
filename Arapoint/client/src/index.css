@@ -215,3 +215,56 @@
   radial-gradient(at 80% 100%, hsla(242,100%,70%,0) 0px, transparent 50%),
   radial-gradient(at 0% 0%, hsla(343,100%,76%,0) 0px, transparent 50%);
 }
+
+/* Print Styles - Only print receipt content */
+@media print {
+  /* Hide everything by default */
+  body * {
+    visibility: hidden;
+  }
+  
+  /* Show only receipt content */
+  .print-receipt,
+  .print-receipt * {
+    visibility: visible;
+  }
+  
+  /* Position receipt at top of page */
+  .print-receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 20px;
+    background: white !important;
+  }
+  
+  /* Remove backgrounds and shadows for clean print */
+  .print-receipt {
+    box-shadow: none !important;
+    border: none !important;
+  }
+  
+  /* Ensure text is black for better print quality */
+  .print-receipt,
+  .print-receipt p,
+  .print-receipt span,
+  .print-receipt h1,
+  .print-receipt h2,
+  .print-receipt h3,
+  .print-receipt h4 {
+    color: black !important;
+  }
+  
+  /* Hide buttons in print */
+  .print-receipt button,
+  .no-print {
+    display: none !important;
+  }
+  
+  /* Remove page margins */
+  @page {
+    margin: 10mm;
+    size: auto;
+  }
+}
