@@ -139,19 +139,37 @@ export default function VerificationHistory() {
     const data = type === 'pdf' ? record.resultData?.pdfBase64 : record.resultData?.screenshotBase64;
     if (!data) return;
     
-    const link = document.createElement('a');
-    link.href = type === 'pdf' 
-      ? `data:application/pdf;base64,${data}`
-      : `data:image/png;base64,${data}`;
-    link.download = type === 'pdf' 
-      ? `${record.serviceType}_result_${record.registrationNumber}.pdf`
-      : `${record.serviceType}_result_${record.registrationNumber}.png`;
-    link.click();
-    
-    toast({
-      title: "Download Started",
-      description: `Your ${type.toUpperCase()} is being downloaded.`,
-    });
+    try {
+      const byteCharacters = atob(data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const mimeType = type === 'pdf' ? 'application/pdf' : 'image/png';
+      const blob = new Blob([byteArray], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${record.serviceType}_result_${record.registrationNumber}.${type === 'pdf' ? 'pdf' : 'png'}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Download Complete",
+        description: `Your ${type.toUpperCase()} has been downloaded.`,
+      });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast({
+        title: "Download Failed",
+        description: "Could not download the file. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
