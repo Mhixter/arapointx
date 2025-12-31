@@ -146,24 +146,34 @@ export default function VerificationHistory() {
       return;
     }
     
+    const mimeType = type === 'pdf' ? 'application/pdf' : 'image/png';
+    const fileName = `${record.serviceType}_result_${record.registrationNumber}.${type === 'pdf' ? 'pdf' : 'png'}`;
+    
     try {
-      // Clean the base64 string - remove any whitespace or newlines
-      const cleanData = data.replace(/[\s\r\n]+/g, '');
+      let blob: Blob;
       
-      // Use fetch to convert base64 to blob (more reliable than atob for large files)
-      const mimeType = type === 'pdf' ? 'application/pdf' : 'image/png';
-      const response = await fetch(`data:${mimeType};base64,${cleanData}`);
-      const blob = await response.blob();
+      // Check if data is comma-separated byte values (legacy corrupted format)
+      // This happens when Uint8Array.toString() was called instead of Buffer.from().toString('base64')
+      if (data.includes(',') && /^\d+(,\d+)*$/.test(data.substring(0, 100))) {
+        // Convert comma-separated byte values back to binary
+        const byteValues = data.split(',').map(Number);
+        const byteArray = new Uint8Array(byteValues);
+        blob = new Blob([byteArray], { type: mimeType });
+      } else {
+        // Standard base64 format - clean and decode
+        const cleanData = data.replace(/[\s\r\n]+/g, '');
+        const response = await fetch(`data:${mimeType};base64,${cleanData}`);
+        blob = await response.blob();
+      }
       
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${record.serviceType}_result_${record.registrationNumber}.${type === 'pdf' ? 'pdf' : 'png'}`;
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
-      // Delay revoking URL to ensure download starts
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       
       toast({
@@ -172,38 +182,11 @@ export default function VerificationHistory() {
       });
     } catch (error) {
       console.error('Download error:', error);
-      // Fallback: try alternative download method
-      try {
-        const mimeType = type === 'pdf' ? 'application/pdf' : 'image/png';
-        const byteCharacters = atob(data);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: mimeType });
-        const url = URL.createObjectURL(blob);
-        
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${record.serviceType}_result_${record.registrationNumber}.${type === 'pdf' ? 'pdf' : 'png'}`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-        
-        toast({
-          title: "Download Complete",
-          description: `Your ${type.toUpperCase()} has been downloaded.`,
-        });
-      } catch (fallbackError) {
-        console.error('Fallback download error:', fallbackError);
-        toast({
-          title: "Download Failed",
-          description: "Could not process the file. The data may be corrupted.",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Download Failed",
+        description: "Could not process the file. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 

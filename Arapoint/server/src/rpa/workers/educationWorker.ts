@@ -31,6 +31,8 @@ interface ExamResult {
   message: string;
   errorMessage?: string;
   screenshotBase64?: string;
+  pdfBase64?: string;
+  isOfficialPdf?: boolean;
 }
 
 interface ProviderProfile {
@@ -430,7 +432,8 @@ export class EducationWorker extends BaseWorker {
         margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' },
         preferCSSPageSize: true
       });
-      pdfBase64 = pdfBuffer.toString('base64');
+      // Convert Uint8Array to proper base64 string using Buffer
+      pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
       logger.info('Official NECO PDF generated successfully', { size: pdfBuffer.length });
       
       // Reset media type
