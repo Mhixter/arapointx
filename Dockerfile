@@ -46,12 +46,10 @@ COPY Arapoint/ .
 # Build the application
 RUN npm run build
 
-# Remove dev dependencies after build
-RUN npm prune --production --legacy-peer-deps
-
 EXPOSE 5000
 
 ENV NODE_ENV=production
 ENV PORT=5000
 
-CMD ["npm", "run", "start"]
+# Run migrations then start the app
+CMD ["npm", "run", "start:migrate"]
