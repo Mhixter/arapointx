@@ -51,5 +51,5 @@ EXPOSE 5000
 ENV NODE_ENV=production
 ENV PORT=5000
 
-# Run migrations then start the app
-CMD ["npm", "run", "start:migrate"]
+# Start the app (run migrations separately via Railway CLI or dashboard)
+CMD ["npm", "run", "start"]
