@@ -36,11 +36,16 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm ci --only=production --legacy-peer-deps
+# Install all dependencies (including dev) for building
+RUN npm ci --legacy-peer-deps
 
 COPY . .
 
+# Build the application
 RUN npm run build
+
+# Remove dev dependencies after build
+RUN npm prune --production --legacy-peer-deps
 
 EXPOSE 5000
 
