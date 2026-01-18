@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { CheckCircle2, Shield, GraduationCap, Building2, Zap, ChevronRight, Lock, ArrowRight, Zap as ZapIcon } from "lucide-react";
 import { Link } from "wouter";
-import heroImage from "@assets/generated_images/diverse_team_with_identity_verification_system.png";
+import heroImage from "@/assets/avatar-illustration.jfif";
 
 export default function Home() {
   return (
@@ -54,7 +54,7 @@ export default function Home() {
              <img 
               src={heroImage} 
               alt="Secure Identity Verification" 
-              className="object-cover w-full h-full transition-transform duration-700 group-hover:scale-105"
+              className="object-contain w-full h-full transition-transform duration-700 group-hover:scale-105"
             />
           </div>
         </div>
