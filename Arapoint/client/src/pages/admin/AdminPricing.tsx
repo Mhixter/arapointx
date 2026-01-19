@@ -380,19 +380,21 @@ export default function AdminPricing() {
                   {seeding ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                   <span className="hidden sm:inline">Seed Defaults</span>
                 </Button>
-                <Button onClick={() => { setSelectedCategory(''); setNewService({ serviceType: '', serviceName: '', price: 0, description: '' }); setShowAddDialog(true); }} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  <span className="hidden sm:inline">Add Service</span>
-                </Button>
                 <Button 
                   onClick={async () => {
                     try {
                       const res = await fetch('/api/admin/vtu/scrape-data', {
                         method: 'POST',
-                        headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
+                        headers: { 
+                          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+                          'Content-Type': 'application/json'
+                        }
                       });
                       if (res.ok) {
                         toast({ title: "Scrape Started", description: "Data pricing scrape job has been queued." });
+                      } else {
+                        const errorData = await res.json();
+                        toast({ title: "Error", description: errorData.message || "Failed to start scrape", variant: "destructive" });
                       }
                     } catch (e) {
                       toast({ title: "Error", description: "Failed to start scrape", variant: "destructive" });
@@ -403,6 +405,10 @@ export default function AdminPricing() {
                 >
                   <RefreshCw className="h-4 w-4" />
                   <span className="hidden sm:inline">Scrap VTPass</span>
+                </Button>
+                <Button onClick={() => { setSelectedCategory(''); setNewService({ serviceType: '', serviceName: '', price: 0, description: '' }); setShowAddDialog(true); }} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  <span className="hidden sm:inline">Add Service</span>
                 </Button>
               </div>
             </div>
