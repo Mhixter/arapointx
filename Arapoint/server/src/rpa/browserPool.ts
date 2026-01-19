@@ -88,10 +88,13 @@ class BrowserPool {
     const startTime = Date.now();
     
     while (Date.now() - startTime < maxWaitMs) {
-      let pooledBrowser = this.pool.find(pb => !pb.inUse);
+      let pooledBrowser: PooledBrowser | undefined = this.pool.find(pb => !pb.inUse);
 
       if (!pooledBrowser && this.pool.length < this.maxPoolSize) {
-        pooledBrowser = await this.createPooledBrowser();
+        const newBrowser = await this.createPooledBrowser();
+        if (newBrowser) {
+          pooledBrowser = newBrowser;
+        }
       }
 
       if (!pooledBrowser) {
@@ -102,11 +105,12 @@ class BrowserPool {
         const now = Date.now();
         if (now - pooledBrowser.createdAt > this.maxBrowserAge) {
           await this.recycleBrowser(pooledBrowser);
-          pooledBrowser = await this.createPooledBrowser();
-          if (!pooledBrowser) {
+          const newBrowser = await this.createPooledBrowser();
+          if (!newBrowser) {
             await new Promise(resolve => setTimeout(resolve, 100));
             continue;
           }
+          pooledBrowser = newBrowser;
         }
 
         pooledBrowser.inUse = true;

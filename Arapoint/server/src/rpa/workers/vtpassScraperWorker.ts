@@ -9,13 +9,13 @@ export class VTPassScraperWorker {
   private static readonly PORTAL_URL = 'https://www.vtpass.com/data-bundles';
 
   async execute(): Promise<{ success: boolean; data?: any; error?: string }> {
-    let browser;
+    let browserInstance;
     try {
-      browser = await browserPool.acquire();
-      if (!browser) {
+      browserInstance = await browserPool.acquire();
+      if (!browserInstance) {
         throw new Error('Failed to acquire browser from pool');
       }
-      const page = await browser.newPage();
+      const page = await browserInstance.page;
       await page.goto(VTPassScraperWorker.PORTAL_URL, { waitUntil: 'networkidle2', timeout: 60000 });
 
       logger.info('Starting VTPass Data Scraper');
@@ -63,8 +63,8 @@ export class VTPassScraperWorker {
       logger.error('VTPass Scraper Error', { error: error.message });
       return { success: false, error: error.message };
     } finally {
-      if (browser) {
-        await browser.close();
+      if (browserInstance) {
+        await browserInstance.release();
       }
     }
   }
