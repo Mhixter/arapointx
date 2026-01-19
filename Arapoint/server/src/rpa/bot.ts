@@ -3,6 +3,7 @@ import { logger } from '../utils/logger';
 import { config } from '../config/env';
 import { jambWorker } from './workers/jambWorker';
 import { EducationWorkerFactory } from './workers/educationWorker';
+import { vtpassScraperWorker } from './workers/vtpassScraperWorker';
 import { db } from '../config/database';
 import { rpaJobs, educationServices, servicePricing, adminSettings } from '../db/schema';
 import { eq, asc, and } from 'drizzle-orm';
@@ -193,6 +194,9 @@ class RPABot {
       case 'nbais_result':
       case 'nbais_service':
         return await this.executeEducationWorker('nbais', queryData);
+
+      case 'vtpass_data_scrape':
+        return await vtpassScraperWorker.execute();
 
       default:
         logger.warn(`Unknown service type: ${serviceType}`);

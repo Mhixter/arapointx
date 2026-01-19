@@ -80,6 +80,17 @@ export const bvn_services = pgTable('bvn_services', {
   created_at: timestamp('created_at').defaultNow(),
 });
 
+export const scraped_data_plans = pgTable('scraped_data_plans', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  network: varchar('network', { length: 50 }).notNull(),
+  plan_id: varchar('plan_id', { length: 100 }).notNull(),
+  plan_name: varchar('plan_name', { length: 255 }).notNull(),
+  cost_price: decimal('cost_price', { precision: 10, scale: 2 }).notNull(),
+  selling_price: decimal('selling_price', { precision: 10, scale: 2 }).notNull(),
+  is_active: boolean('is_active').default(true),
+  last_scraped_at: timestamp('last_scraped_at').defaultNow(),
+});
+
 export const education_services = pgTable('education_services', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   user_id: uuid('user_id').references(() => users.id),

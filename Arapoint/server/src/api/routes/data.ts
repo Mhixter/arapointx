@@ -6,7 +6,7 @@ import { dataBuySchema } from '../validators/vtu';
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { dataServices } from '../../db/schema';
+import { dataServices, scrapedDataPlans } from '../../db/schema';
 import { eq, desc } from 'drizzle-orm';
 
 const router = Router();
@@ -98,7 +98,40 @@ router.post('/buy', async (req: Request, res: Response) => {
 router.get('/plans', async (req: Request, res: Response) => {
   try {
     const { network } = req.query;
-    
+
+    if (network && typeof network === 'string') {
+      const scrapedPlans = await db.select()
+        .from(scrapedDataPlans)
+        .where(eq(scrapedDataPlans.network, network.toLowerCase()));
+
+      if (scrapedPlans && scrapedPlans.length > 0) {
+        const plans = scrapedPlans.map(p => ({
+          variation_code: p.planId,
+          name: p.planName,
+          variation_amount: p.sellingPrice,
+          original_amount: p.costPrice,
+          fixedPrice: 'Yes'
+        }));
+        return res.json(formatResponse('success', 200, 'Data plans retrieved (scraped)', { plans, network: network.toUpperCase() }));
+      }
+    } else if (!network) {
+      const allScraped = await db.select().from(scrapedDataPlans);
+      if (allScraped && allScraped.length > 0) {
+        const plans: Record<string, any[]> = {};
+        allScraped.forEach(p => {
+          if (!plans[p.network]) plans[p.network] = [];
+          plans[p.network].push({
+            variation_code: p.planId,
+            name: p.planName,
+            variation_amount: p.sellingPrice,
+            original_amount: p.costPrice,
+            fixedPrice: 'Yes'
+          });
+        });
+        return res.json(formatResponse('success', 200, 'All data plans retrieved (scraped)', { plans }));
+      }
+    }
+
     if (!vtpassService.isConfigured()) {
       const STATIC_DATA_PLANS = {
         mtn: [

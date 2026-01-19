@@ -267,6 +267,18 @@ export const servicePricing = pgTable('service_pricing', {
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
+// Scraped Data Plans
+export const scrapedDataPlans = pgTable('scraped_data_plans', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  network: varchar('network', { length: 50 }).notNull(),
+  planId: varchar('plan_id', { length: 100 }).notNull(),
+  planName: varchar('plan_name', { length: 255 }).notNull(),
+  costPrice: decimal('cost_price', { precision: 10, scale: 2 }).notNull(),
+  sellingPrice: decimal('selling_price', { precision: 10, scale: 2 }).notNull(),
+  isActive: boolean('is_active').default(true),
+  lastScrapedAt: timestamp('last_scraped_at').defaultNow(),
+});
+
 // CAC Service Types Catalog
 export const cacServiceTypes = pgTable('cac_service_types', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),

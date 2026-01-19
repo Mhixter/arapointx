@@ -384,6 +384,26 @@ export default function AdminPricing() {
                   <Plus className="h-4 w-4" />
                   <span className="hidden sm:inline">Add Service</span>
                 </Button>
+                <Button 
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/api/admin/vtu/scrape-data', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
+                      });
+                      if (res.ok) {
+                        toast({ title: "Scrape Started", description: "Data pricing scrape job has been queued." });
+                      }
+                    } catch (e) {
+                      toast({ title: "Error", description: "Failed to start scrape", variant: "destructive" });
+                    }
+                  }} 
+                  variant="secondary" 
+                  className="gap-2"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  <span className="hidden sm:inline">Scrap VTPass</span>
+                </Button>
               </div>
             </div>
             <div className="flex flex-wrap gap-1.5 sm:gap-2">

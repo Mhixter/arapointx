@@ -45,6 +45,20 @@ import { eq, desc, count, sql } from 'drizzle-orm';
 const router = Router();
 router.use(authMiddleware);
 
+router.post('/vtu/scrape-data', async (req: Request, res: Response) => {
+  try {
+    await db.insert(rpaJobs).values({
+      serviceType: 'vtpass_data_scrape',
+      queryData: {},
+      status: 'pending',
+      priority: 10,
+    });
+    res.json(formatResponse('success', 200, 'Scrape job queued'));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to queue scrape job'));
+  }
+});
+
 router.get('/stats', async (req: Request, res: Response) => {
   try {
     const [userCount] = await db.select({ count: count() }).from(users);
