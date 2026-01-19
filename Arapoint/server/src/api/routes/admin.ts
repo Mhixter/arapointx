@@ -107,7 +107,7 @@ router.get('/pricing', async (req: Request, res: Response) => {
 router.put('/pricing/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { price, isActive, description } = req.body;
+    const { price, costPrice, markup, isActive, description } = req.body;
 
     const updateData: any = { updatedAt: new Date() };
 
@@ -117,6 +117,22 @@ router.put('/pricing/:id', async (req: Request, res: Response) => {
         return res.status(400).json(formatErrorResponse(400, 'Invalid price value'));
       }
       updateData.price = numericPrice.toFixed(2);
+    }
+
+    if (costPrice !== undefined) {
+      const numericCost = typeof costPrice === 'string' ? parseFloat(costPrice) : costPrice;
+      if (isNaN(numericCost) || numericCost < 0) {
+        return res.status(400).json(formatErrorResponse(400, 'Invalid cost price value'));
+      }
+      updateData.costPrice = numericCost.toFixed(2);
+    }
+
+    if (markup !== undefined) {
+      const numericMarkup = typeof markup === 'string' ? parseFloat(markup) : markup;
+      if (isNaN(numericMarkup)) {
+        return res.status(400).json(formatErrorResponse(400, 'Invalid markup value'));
+      }
+      updateData.markup = numericMarkup.toFixed(2);
     }
 
     if (isActive !== undefined) {
@@ -146,7 +162,7 @@ router.put('/pricing/:id', async (req: Request, res: Response) => {
 
 router.post('/pricing', async (req: Request, res: Response) => {
   try {
-    const { serviceType, serviceName, price, description } = req.body;
+    const { serviceType, serviceName, price, costPrice, markup, description } = req.body;
 
     if (!serviceType || !serviceName || price === undefined) {
       return res.status(400).json(formatErrorResponse(400, 'Service type, name, and price are required'));
@@ -157,6 +173,9 @@ router.post('/pricing', async (req: Request, res: Response) => {
       return res.status(400).json(formatErrorResponse(400, 'Invalid price value'));
     }
 
+    const numericCost = typeof costPrice === 'string' ? parseFloat(costPrice) : (costPrice || 0);
+    const numericMarkup = typeof markup === 'string' ? parseFloat(markup) : (markup || 0);
+
     const [existing] = await db.select().from(servicePricing).where(eq(servicePricing.serviceType, serviceType)).limit(1);
     if (existing) {
       return res.status(400).json(formatErrorResponse(400, 'Service type already exists'));
@@ -166,6 +185,8 @@ router.post('/pricing', async (req: Request, res: Response) => {
       serviceType,
       serviceName,
       price: numericPrice.toFixed(2),
+      costPrice: numericCost.toFixed(2),
+      markup: numericMarkup.toFixed(2),
       description,
       isActive: true,
     }).returning();

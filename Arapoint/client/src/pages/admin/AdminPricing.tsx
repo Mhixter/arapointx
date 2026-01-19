@@ -15,7 +15,9 @@ interface ServicePrice {
   id: string;
   serviceType: string;
   serviceName: string;
+  costPrice: number;
   price: number;
+  markup: number;
   description: string | null;
   isActive: boolean;
 }
@@ -118,7 +120,9 @@ export default function AdminPricing() {
       if (data.status === 'success') {
         setPricing(data.data.pricing.map((p: any) => ({
           ...p,
-          price: parseFloat(p.price)
+          price: parseFloat(p.price),
+          costPrice: parseFloat(p.costPrice || "0"),
+          markup: parseFloat(p.markup || "0")
         })));
       }
     } catch (error) {
@@ -153,11 +157,17 @@ export default function AdminPricing() {
       const res = await fetch(`/api/admin/pricing/${editForm.id}`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ price: editForm.price, isActive: editForm.isActive, description: editForm.description })
+        body: JSON.stringify({ 
+          price: editForm.price, 
+          costPrice: editForm.costPrice,
+          markup: editForm.markup,
+          isActive: editForm.isActive, 
+          description: editForm.description 
+        })
       });
       const data = await res.json();
       if (data.status === 'success') {
-        toast({ title: "Price Updated", description: `${editForm.serviceName} price has been updated to ₦${editForm.price.toLocaleString()}` });
+        toast({ title: "Price Updated", description: `${editForm.serviceName} price has been updated` });
         fetchPricing();
       } else {
         toast({ title: "Error", description: data.message, variant: "destructive" });
@@ -398,8 +408,9 @@ export default function AdminPricing() {
                 <tr className="border-b bg-muted/50">
                   <th className="p-3 text-left font-medium">Service</th>
                   <th className="p-3 text-left font-medium">Category</th>
-                  <th className="p-3 text-left font-medium">Price</th>
-                  <th className="p-3 text-left font-medium">Description</th>
+                  <th className="p-3 text-left font-medium">Cost Price</th>
+                  <th className="p-3 text-left font-medium">Markup/Profit</th>
+                  <th className="p-3 text-left font-medium">Selling Price</th>
                   <th className="p-3 text-left font-medium">Status</th>
                   <th className="p-3 text-right font-medium">Actions</th>
                 </tr>
@@ -425,8 +436,41 @@ export default function AdminPricing() {
                       {editingId === item.id ? (
                         <Input
                           type="number"
+                          value={editForm?.costPrice || 0}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setEditForm(prev => prev ? { ...prev, costPrice: val, price: val + (prev.markup || 0) } : null);
+                          }}
+                          className="w-24 h-8"
+                        />
+                      ) : (
+                        <span className="text-muted-foreground">₦{item.costPrice.toLocaleString()}</span>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      {editingId === item.id ? (
+                        <Input
+                          type="number"
+                          value={editForm?.markup || 0}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setEditForm(prev => prev ? { ...prev, markup: val, price: (prev.costPrice || 0) + val } : null);
+                          }}
+                          className="w-24 h-8"
+                        />
+                      ) : (
+                        <span className="text-blue-600 font-medium">+₦{item.markup.toLocaleString()}</span>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      {editingId === item.id ? (
+                        <Input
+                          type="number"
                           value={editForm?.price || 0}
-                          onChange={(e) => setEditForm(prev => prev ? { ...prev, price: Number(e.target.value) } : null)}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setEditForm(prev => prev ? { ...prev, price: val, markup: val - (prev.costPrice || 0) } : null);
+                          }}
                           className="w-24 h-8"
                         />
                       ) : (
