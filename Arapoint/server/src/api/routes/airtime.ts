@@ -49,7 +49,8 @@ router.post('/buy', async (req: Request, res: Response) => {
     }
 
     const balance = await walletService.getBalance(req.userId!);
-    if (balance.balance < amount) {
+    const userChargedAmount = amount * 0.98; // 2% discount for user
+    if (balance.balance < userChargedAmount) {
       return res.status(402).json(formatErrorResponse(402, 'Insufficient wallet balance'));
     }
 
@@ -63,7 +64,7 @@ router.post('/buy', async (req: Request, res: Response) => {
       return res.status(400).json(formatErrorResponse(400, result.error || 'Airtime purchase failed'));
     }
 
-    await walletService.deductBalance(req.userId!, amount, `Airtime Purchase - ${network.toUpperCase()}`, 'airtime_purchase');
+    await walletService.deductBalance(req.userId!, userChargedAmount, `Airtime Purchase (2% Discount) - ${network.toUpperCase()}`, 'airtime_purchase');
 
     await db.insert(airtimeServices).values({
       userId: req.userId!,

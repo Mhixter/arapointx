@@ -146,9 +146,18 @@ router.get('/plans', async (req: Request, res: Response) => {
 
       const result = await vtpassService.getDataPlans(serviceID);
       if (result.success && result.plans) {
-        DATA_PLANS_CACHE[network] = result.plans;
+        const plansWithMarkup = result.plans.map((plan: any) => {
+          const originalAmount = parseFloat(plan.variation_amount);
+          const markupAmount = originalAmount * 1.4; // 40% markup
+          return {
+            ...plan,
+            variation_amount: Math.ceil(markupAmount).toString(),
+            original_amount: originalAmount.toString()
+          };
+        });
+        DATA_PLANS_CACHE[network] = plansWithMarkup;
         return res.json(formatResponse('success', 200, 'Data plans retrieved', { 
-          plans: result.plans,
+          plans: plansWithMarkup,
           network: network.toUpperCase(),
         }));
       } else {
@@ -163,8 +172,17 @@ router.get('/plans', async (req: Request, res: Response) => {
       } else {
         const result = await vtpassService.getDataPlans(serviceID);
         if (result.success && result.plans) {
-          DATA_PLANS_CACHE[net] = result.plans;
-          allPlans[net] = result.plans;
+          const plansWithMarkup = result.plans.map((plan: any) => {
+            const originalAmount = parseFloat(plan.variation_amount);
+            const markupAmount = originalAmount * 1.4; // 40% markup
+            return {
+              ...plan,
+              variation_amount: Math.ceil(markupAmount).toString(),
+              original_amount: originalAmount.toString()
+            };
+          });
+          DATA_PLANS_CACHE[net] = plansWithMarkup;
+          allPlans[net] = plansWithMarkup;
         }
       }
     }
