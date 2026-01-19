@@ -12,6 +12,9 @@ export class VTPassScraperWorker {
     let browser;
     try {
       browser = await browserPool.acquire();
+      if (!browser) {
+        throw new Error('Failed to acquire browser from pool');
+      }
       const page = await browser.newPage();
       await page.goto(VTPassScraperWorker.PORTAL_URL, { waitUntil: 'networkidle2', timeout: 60000 });
 
