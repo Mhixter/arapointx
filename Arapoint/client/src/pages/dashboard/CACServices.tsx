@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Loader2, AlertCircle, ArrowLeft, Check, History, FileText, Clock, CheckCircle2, XCircle, MessageCircle, Send, X, Download, Shield, Upload, Image, CheckCheck } from "lucide-react";
+import { Building2, Loader2, AlertCircle, ArrowLeft, Check, History, FileText, Clock, CheckCircle2, XCircle, MessageCircle, Send, X, Download, Shield, Upload, Image, CheckCheck, Paperclip, FileIcon } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
@@ -14,7 +14,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Paperclip, FileIcon } from "lucide-react";
 import { NIGERIAN_STATES_LGA } from "@/lib/locationData";
+import { ObjectUploader } from "@/components/ObjectUploader";
+import { useUpload } from "@/hooks/use-upload";
 
 const CAC_BUSINESS_NATURES = [
   "Abattoir and Meat Selling Services",
@@ -179,6 +182,7 @@ export default function CACServices() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { getUploadParameters } = useUpload();
   const [businessNatureOpen, setBusinessNatureOpen] = useState(false);
   const [passportPreview, setPassportPreview] = useState<string | null>(null);
   const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
@@ -331,15 +335,20 @@ export default function CACServices() {
     }
   };
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !chatRequest) return;
+  const sendMessage = async (fileData?: { url: string; name: string; type: string }) => {
+    if (!newMessage.trim() && !fileData && !chatRequest) return;
     setSendingMessage(true);
     try {
       const token = getAuthToken();
       const response = await fetch(`/api/cac/requests/${chatRequest.id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ message: newMessage.trim() })
+        body: JSON.stringify({ 
+          message: newMessage.trim(),
+          fileUrl: fileData?.url,
+          fileName: fileData?.name,
+          fileType: fileData?.type
+        })
       });
       const data = await response.json();
       if (data.status === 'success') {
@@ -784,7 +793,21 @@ export default function CACServices() {
                   return (
                     <div key={msg.id || i} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${isUser ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-muted rounded-tl-none'}`}>
-                        <p>{msg.message}</p>
+                        {msg.fileUrl ? (
+                          <div className="flex flex-col gap-2">
+                            {msg.fileType?.startsWith('image/') ? (
+                              <img src={msg.fileUrl} alt={msg.fileName} className="max-w-full rounded-lg cursor-pointer" onClick={() => window.open(msg.fileUrl, '_blank')} />
+                            ) : (
+                              <a href={msg.fileUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 p-2 rounded bg-background/10 hover:bg-background/20">
+                                <FileIcon className="h-4 w-4" />
+                                <span className="underline truncate max-w-[150px]">{msg.fileName || 'Download File'}</span>
+                              </a>
+                            )}
+                            {msg.message && msg.message !== 'Sent a file' && <p>{msg.message}</p>}
+                          </div>
+                        ) : (
+                          <p>{msg.message}</p>
+                        )}
                         <span className={`text-[9px] mt-1 block opacity-70 ${isUser ? 'text-right' : 'text-left'}`}>
                           {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           {isUser && <span className="ml-1">{msg.isRead ? '✓✓' : '✓'}</span>}
@@ -800,8 +823,24 @@ export default function CACServices() {
 
           <div className="p-4 border-t bg-background">
             <div className="flex gap-2">
+              <ObjectUploader
+                onGetUploadParameters={getUploadParameters}
+                onComplete={(result) => {
+                  if (result.successful && result.successful.length > 0) {
+                    const file = result.successful[0];
+                    sendMessage({
+                      url: (file as any).uploadURL.split('?')[0],
+                      name: file.name,
+                      type: file.type || 'application/octet-stream'
+                    });
+                  }
+                }}
+                buttonClassName="h-11 w-11 rounded-full p-0"
+              >
+                <Paperclip className="h-4 w-4" />
+              </ObjectUploader>
               <Input placeholder="Type your message..." value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendMessage()} disabled={sendingMessage} className="h-11" />
-              <Button size="icon" className="h-11 w-11 rounded-full flex-shrink-0" onClick={sendMessage} disabled={sendingMessage || !newMessage.trim()}>
+              <Button size="icon" className="h-11 w-11 rounded-full flex-shrink-0" onClick={() => sendMessage()} disabled={sendingMessage || !newMessage.trim()}>
                 {sendingMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>

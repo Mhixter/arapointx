@@ -33,10 +33,15 @@ import { authMiddleware } from "./src/api/middleware/auth";
 import { rpaBot } from "./src/rpa/bot";
 import { logger } from "./src/utils/logger";
 
+import { registerObjectStorageRoutes } from "./src/replit_integrations/object_storage";
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Register object storage routes
+  registerObjectStorageRoutes(app);
+
   app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');

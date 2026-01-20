@@ -329,10 +329,10 @@ router.get('/requests/:id/messages', async (req: Request, res: Response) => {
 router.post('/requests/:id/messages', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { message, attachments } = req.body;
+    const { message, attachments, fileUrl, fileName, fileType } = req.body;
 
-    if (!message || !message.trim()) {
-      return res.status(400).json(formatErrorResponse(400, 'Message is required'));
+    if ((!message || !message.trim()) && !fileUrl) {
+      return res.status(400).json(formatErrorResponse(400, 'Message or file is required'));
     }
 
     const [request] = await db.select()
@@ -351,8 +351,11 @@ router.post('/requests/:id/messages', async (req: Request, res: Response) => {
       requestId: id,
       senderType: 'user',
       senderId: req.userId!,
-      message: message.trim(),
+      message: message?.trim() || (fileUrl ? 'Sent a file' : ''),
       attachments: attachments || [],
+      fileUrl,
+      fileName,
+      fileType,
     }).returning();
 
     logger.info('CAC message sent by user', { userId: req.userId, requestId: id });
