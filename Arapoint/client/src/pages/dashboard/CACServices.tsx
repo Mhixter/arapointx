@@ -14,6 +14,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { NIGERIAN_STATES_LGA } from "@/lib/locationData";
 
 const CAC_BUSINESS_NATURES = [
   "Abattoir and Meat Selling Services",
@@ -142,14 +143,6 @@ const CAC_BUSINESS_NATURES = [
   "Welding and Fabrication",
   "Wholesale and Retail Trade",
   "Wood Processing and Furniture",
-];
-
-const NIGERIAN_STATES = [
-  'Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue', 'Borno', 
-  'Cross River', 'Delta', 'Ebonyi', 'Edo', 'Ekiti', 'Enugu', 'FCT', 'Gombe', 
-  'Imo', 'Jigawa', 'Kaduna', 'Kano', 'Katsina', 'Kebbi', 'Kogi', 'Kwara', 
-  'Lagos', 'Nasarawa', 'Niger', 'Ogun', 'Ondo', 'Osun', 'Oyo', 'Plateau', 
-  'Rivers', 'Sokoto', 'Taraba', 'Yobe', 'Zamfara'
 ];
 
 const SERVICE_TYPES = [
@@ -510,24 +503,40 @@ export default function CACServices() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>State</Label>
-                    <Select value={formData.businessState || ''} onValueChange={(val) => handleInputChange('businessState', val)}>
+                    <Select value={formData.businessState || ''} onValueChange={(val) => {
+                      handleInputChange('businessState', val);
+                      handleInputChange('businessLga', ''); // Reset LGA when state changes
+                    }}>
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select State" />
                       </SelectTrigger>
-                      <SelectContent>
-                        {NIGERIAN_STATES.map((state) => (
-                          <SelectItem key={state} value={state}>{state}</SelectItem>
-                        ))}
+                      <SelectContent className="max-h-[300px]">
+                        <ScrollArea className="h-80">
+                          {NIGERIAN_STATES_LGA.map((item) => (
+                            <SelectItem key={item.state} value={item.state}>{item.state}</SelectItem>
+                          ))}
+                        </ScrollArea>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
                     <Label>LGA</Label>
-                    <Input 
-                      placeholder="Local Government Area" 
+                    <Select 
+                      disabled={!formData.businessState}
                       value={formData.businessLga || ''} 
-                      onChange={(e) => handleInputChange('businessLga', e.target.value)} 
-                    />
+                      onValueChange={(val) => handleInputChange('businessLga', val)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder={formData.businessState ? "Select LGA" : "Select State first"} />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px]">
+                        <ScrollArea className="h-80">
+                          {formData.businessState && NIGERIAN_STATES_LGA.find(s => s.state === formData.businessState)?.lgas.map((lga) => (
+                            <SelectItem key={lga} value={lga}>{lga}</SelectItem>
+                          ))}
+                        </ScrollArea>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
@@ -593,167 +602,65 @@ export default function CACServices() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Additional Notes (Optional)</Label>
-                  <Textarea 
-                    placeholder="Any additional information for the processing agent..." 
-                    rows={2}
-                    value={formData.customerNotes || ''} 
-                    onChange={(e) => handleInputChange('customerNotes', e.target.value)} 
-                  />
-                </div>
-
-                <div className="border-t pt-4">
-                  <h3 className="font-semibold mb-4 flex items-center gap-2">
-                    <Upload className="h-5 w-5" />
-                    Required Documents
-                  </h3>
-                  <p className="text-sm text-muted-foreground mb-4">Upload clear images of the following documents</p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-4 border-t pt-4">
+                  <h3 className="font-semibold">Required Documents</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label className="flex items-center gap-2">
-                        <Image className="h-4 w-4" />
-                        Passport Photo *
-                      </Label>
-                      <div className="border-2 border-dashed rounded-lg p-4 text-center hover:border-primary transition-colors">
+                      <Label className="text-xs">Passport Photo *</Label>
+                      <div className="relative group cursor-pointer border-2 border-dashed border-muted rounded-lg aspect-square flex flex-col items-center justify-center overflow-hidden hover:border-primary/50 transition-colors"
+                        onClick={() => document.getElementById('passport-upload')?.click()}>
                         {passportPreview ? (
-                          <div className="relative">
-                            <img src={passportPreview} alt="Passport" className="w-24 h-28 object-cover mx-auto rounded" />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="absolute -top-2 -right-2 h-6 w-6 p-0 rounded-full bg-red-100 hover:bg-red-200"
-                              onClick={() => {
-                                setPassportPreview(null);
-                                setFormData((prev: any) => ({ ...prev, passportPhotoUrl: null }));
-                              }}
-                            >
-                              <X className="h-3 w-3 text-red-600" />
-                            </Button>
-                          </div>
+                          <img src={passportPreview} className="w-full h-full object-cover" />
                         ) : (
-                          <label className="cursor-pointer block">
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'passport')}
-                              disabled={uploadingPassport}
-                            />
-                            {uploadingPassport ? (
-                              <Loader2 className="h-8 w-8 mx-auto animate-spin text-primary" />
-                            ) : (
-                              <>
-                                <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                                <p className="text-xs text-muted-foreground">Click to upload</p>
-                                <p className="text-xs text-muted-foreground">White background passport</p>
-                              </>
-                            )}
-                          </label>
+                          <div className="flex flex-col items-center">
+                            <Image className="h-8 w-8 text-muted-foreground" />
+                            <span className="text-[10px] mt-2">Upload Passport</span>
+                          </div>
                         )}
+                        <input id="passport-upload" type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'passport')} />
+                        {uploadingPassport && <div className="absolute inset-0 bg-background/50 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>}
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        Signature on White Paper *
-                      </Label>
-                      <div className="border-2 border-dashed rounded-lg p-4 text-center hover:border-primary transition-colors">
+                      <Label className="text-xs">Proprietor Signature *</Label>
+                      <div className="relative group cursor-pointer border-2 border-dashed border-muted rounded-lg aspect-square flex flex-col items-center justify-center overflow-hidden hover:border-primary/50 transition-colors"
+                        onClick={() => document.getElementById('signature-upload')?.click()}>
                         {signaturePreview ? (
-                          <div className="relative">
-                            <img src={signaturePreview} alt="Signature" className="w-32 h-16 object-contain mx-auto rounded" />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="absolute -top-2 -right-2 h-6 w-6 p-0 rounded-full bg-red-100 hover:bg-red-200"
-                              onClick={() => {
-                                setSignaturePreview(null);
-                                setFormData((prev: any) => ({ ...prev, signatureUrl: null }));
-                              }}
-                            >
-                              <X className="h-3 w-3 text-red-600" />
-                            </Button>
-                          </div>
+                          <img src={signaturePreview} className="w-full h-full object-cover" />
                         ) : (
-                          <label className="cursor-pointer block">
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'signature')}
-                              disabled={uploadingSignature}
-                            />
-                            {uploadingSignature ? (
-                              <Loader2 className="h-8 w-8 mx-auto animate-spin text-primary" />
-                            ) : (
-                              <>
-                                <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                                <p className="text-xs text-muted-foreground">Click to upload</p>
-                                <p className="text-xs text-muted-foreground">Sign on plain white paper</p>
-                              </>
-                            )}
-                          </label>
+                          <div className="flex flex-col items-center">
+                            <Shield className="h-8 w-8 text-muted-foreground" />
+                            <span className="text-[10px] mt-2">Upload Signature</span>
+                          </div>
                         )}
+                        <input id="signature-upload" type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'signature')} />
+                        {uploadingSignature && <div className="absolute inset-0 bg-background/50 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>}
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        NIN Slip *
-                      </Label>
-                      <div className="border-2 border-dashed rounded-lg p-4 text-center hover:border-primary transition-colors">
+                      <Label className="text-xs">NIN Slip Photo *</Label>
+                      <div className="relative group cursor-pointer border-2 border-dashed border-muted rounded-lg aspect-square flex flex-col items-center justify-center overflow-hidden hover:border-primary/50 transition-colors"
+                        onClick={() => document.getElementById('ninslip-upload')?.click()}>
                         {ninSlipPreview ? (
-                          <div className="relative">
-                            <img src={ninSlipPreview} alt="NIN Slip" className="w-32 h-20 object-contain mx-auto rounded" />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="absolute -top-2 -right-2 h-6 w-6 p-0 rounded-full bg-red-100 hover:bg-red-200"
-                              onClick={() => {
-                                setNinSlipPreview(null);
-                                setFormData((prev: any) => ({ ...prev, ninSlipUrl: null }));
-                              }}
-                            >
-                              <X className="h-3 w-3 text-red-600" />
-                            </Button>
-                          </div>
+                          <img src={ninSlipPreview} className="w-full h-full object-cover" />
                         ) : (
-                          <label className="cursor-pointer block">
-                            <input
-                              type="file"
-                              accept="image/*,.pdf"
-                              className="hidden"
-                              onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'ninSlip')}
-                              disabled={uploadingNinSlip}
-                            />
-                            {uploadingNinSlip ? (
-                              <Loader2 className="h-8 w-8 mx-auto animate-spin text-primary" />
-                            ) : (
-                              <>
-                                <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                                <p className="text-xs text-muted-foreground">Click to upload</p>
-                                <p className="text-xs text-muted-foreground">NIMC NIN slip or virtual</p>
-                              </>
-                            )}
-                          </label>
+                          <div className="flex flex-col items-center">
+                            <Upload className="h-8 w-8 text-muted-foreground" />
+                            <span className="text-[10px] mt-2">Upload NIN Slip</span>
+                          </div>
                         )}
+                        <input id="ninslip-upload" type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'ninSlip')} />
+                        {uploadingNinSlip && <div className="absolute inset-0 bg-background/50 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>}
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <Button 
-                  type="submit" 
-                  className="w-full h-12 text-base font-semibold" 
-                  disabled={loading || !formData.serviceType || !formData.businessName || !formData.proprietorName}
-                >
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Submit Registration Request"}
+                <Button type="submit" className="w-full h-12 text-lg" disabled={loading}>
+                  {loading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Send className="h-5 w-5 mr-2" />}
+                  Review & Submit
                 </Button>
               </form>
             </CardContent>
@@ -763,58 +670,42 @@ export default function CACServices() {
         <TabsContent value="history">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><History className="h-5 w-5" />My Registration Requests</CardTitle>
-              <CardDescription>Track the status of your CAC registration requests</CardDescription>
+              <CardTitle>Registration History</CardTitle>
+              <CardDescription>View status and communicate with agents about your registrations.</CardDescription>
             </CardHeader>
             <CardContent>
               {loadingRequests ? (
                 <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
               ) : requests.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Building2 className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>No registration requests yet</p>
-                  <p className="text-sm">Submit your first CAC registration request above</p>
-                </div>
+                <div className="text-center py-8 text-muted-foreground">No registration requests found.</div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {requests.map((req) => {
-                    const statusConfig = STATUS_COLORS[req.status] || STATUS_COLORS.submitted;
-                    const StatusIcon = statusConfig.icon;
+                    const status = STATUS_COLORS[req.status] || STATUS_COLORS.submitted;
+                    const StatusIcon = status.icon;
                     return (
-                      <div key={req.id} className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors">
-                        <div className="flex items-center gap-4">
-                          <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                            <Building2 className="h-5 w-5 text-green-600" />
+                      <div key={req.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border bg-card gap-4 hover:border-primary/50 transition-colors">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-semibold">{req.businessName}</h4>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${status.bg} ${status.text} flex items-center gap-1`}>
+                              <StatusIcon className="h-3 w-3" />
+                              {req.status.replace('_', ' ')}
+                            </span>
                           </div>
-                          <div>
-                            <p className="font-medium">{req.businessName}</p>
-                            <p className="text-sm text-muted-foreground capitalize">{req.serviceType?.replace(/_/g, ' ')}</p>
-                            <p className="text-xs text-muted-foreground">{new Date(req.createdAt).toLocaleString()}</p>
-                          </div>
+                          <p className="text-xs text-muted-foreground mb-1">{req.serviceName || req.serviceType.replace('_', ' ')}</p>
+                          <p className="text-[10px] text-muted-foreground italic">Ref: {req.id.substring(0, 8)} • {new Date(req.createdAt).toLocaleDateString()}</p>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <Button variant="outline" size="sm" onClick={() => openChat(req)} className="flex items-center gap-1">
-                            <MessageCircle className="h-4 w-4" />
-                            Chat
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" className="h-8" onClick={() => openChat(req)}>
+                            <MessageCircle className="h-4 w-4 mr-1.5" />
+                            Chat {req.unreadCount > 0 && <span className="ml-1 px-1.5 py-0.5 bg-red-600 text-white rounded-full text-[10px]">{req.unreadCount}</span>}
                           </Button>
-                          {req.status === 'completed' && req.certificateUrl && (
-                            <Button variant="outline" size="sm" asChild className="flex items-center gap-1">
-                              <a href={req.certificateUrl} target="_blank" rel="noopener noreferrer">
-                                <Download className="h-4 w-4" />
-                                Certificate
-                              </a>
+                          {req.status === 'completed' && req.documentUrl && (
+                            <Button variant="default" size="sm" className="h-8 bg-green-600 hover:bg-green-700" asChild>
+                              <a href={req.documentUrl} target="_blank" rel="noopener noreferrer"><Download className="h-4 w-4 mr-1.5" />Docs</a>
                             </Button>
                           )}
-                          <div className="text-right">
-                            <p className="font-bold">₦{parseFloat(req.fee).toLocaleString()}</p>
-                            <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${statusConfig.bg} ${statusConfig.text}`}>
-                              <StatusIcon className="h-3 w-3" />
-                              {req.status?.replace(/_/g, ' ')}
-                            </span>
-                            {req.cacRegistrationNumber && (
-                              <p className="text-xs text-green-600 mt-1">RC: {req.cacRegistrationNumber}</p>
-                            )}
-                          </div>
                         </div>
                       </div>
                     );
@@ -827,108 +718,93 @@ export default function CACServices() {
       </Tabs>
 
       <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-        <DialogContent className="max-w-[340px] sm:max-w-md p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-amber-500" />
-              Confirm Registration Request
-            </DialogTitle>
-            <DialogDescription>Please review the details before confirming. The registration fee will be deducted from your wallet.</DialogDescription>
+            <DialogTitle>Confirm Registration Request</DialogTitle>
+            <DialogDescription>Please review your details before submitting.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="border-l-4 border-primary pl-4">
-              <p className="text-sm text-muted-foreground">Registration Type</p>
-              <p className="font-semibold">{selectedService?.name}</p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+              <span className="text-muted-foreground">Type:</span>
+              <span className="font-medium text-right">{serviceTypes.find(s => s.code === formData.serviceType)?.name}</span>
+              <span className="text-muted-foreground">Business:</span>
+              <span className="font-medium text-right">{formData.businessName}</span>
+              <span className="text-muted-foreground">Proprietor:</span>
+              <span className="font-medium text-right">{formData.proprietorName}</span>
+              <span className="text-muted-foreground">Registration Fee:</span>
+              <span className="font-bold text-primary text-right">₦{parseInt(formData.fee || 0).toLocaleString()}</span>
             </div>
-            <div className="border-l-4 border-primary pl-4">
-              <p className="text-sm text-muted-foreground">Business Name</p>
-              <p className="font-semibold">{formData.businessName}</p>
-            </div>
-            <div className="border-l-4 border-primary pl-4">
-              <p className="text-sm text-muted-foreground">Proprietor</p>
-              <p className="font-semibold">{formData.proprietorName}</p>
-            </div>
-            <div className="border-l-4 border-green-500 pl-4">
-              <p className="text-sm text-muted-foreground">Registration Fee</p>
-              <p className="font-bold text-lg text-green-600">₦{selectedService?.price ? parseInt(selectedService.price).toLocaleString() : '0'}</p>
+            <div className="p-3 bg-amber-50 rounded-md border border-amber-100 flex gap-2">
+              <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-800">Registration fees are non-refundable once the agent begins processing. Manual processing starts within 24 hours.</p>
             </div>
           </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setShowConfirmation(false)} disabled={loading}>Cancel</Button>
-            <Button onClick={handleConfirm} disabled={loading}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
-              Pay & Submit
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setShowConfirmation(false)} className="sm:flex-1">Edit Info</Button>
+            <Button onClick={handleConfirm} disabled={loading} className="sm:flex-1">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCheck className="h-4 w-4 mr-2" />}
+              Confirm & Pay
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={showChat} onOpenChange={setShowChat}>
-        <DialogContent className="max-w-[340px] sm:max-w-lg p-4 sm:p-6 max-h-[80vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <MessageCircle className="h-5 w-5 text-primary" />
-              Chat with Agent
-            </DialogTitle>
-            <DialogDescription className="flex items-center justify-between">
-              <span>{chatRequest?.businessName} - {chatRequest?.serviceType?.replace(/_/g, ' ')}</span>
-              <span className="flex items-center gap-1.5 text-xs">
-                <span className={`h-2 w-2 rounded-full ${agentOnlineStatus.isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
-                {agentOnlineStatus.isOnline ? (
-                  <span className="text-green-600 dark:text-green-400 font-medium">Online</span>
-                ) : (
-                  <span className="text-muted-foreground">
-                    Last seen: {formatLastSeen(agentOnlineStatus.lastSeen)}
-                  </span>
-                )}
-              </span>
-            </DialogDescription>
-          </DialogHeader>
-          <ScrollArea className="flex-1 min-h-[300px] max-h-[400px] border rounded-lg p-3">
-            {loadingMessages ? (
-              <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-            ) : messages.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <MessageCircle className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No messages yet</p>
-                <p className="text-xs">Start a conversation with your agent</p>
+        <DialogContent className="max-w-xl h-[600px] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="p-4 border-b">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Building2 className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <DialogTitle className="text-base">{chatRequest?.businessName}</DialogTitle>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className={`h-2 w-2 rounded-full ${agentOnlineStatus.isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></span>
+                    <span className="text-[10px] text-muted-foreground">Agent: {agentOnlineStatus.isOnline ? 'Online' : `Last seen ${formatLastSeen(agentOnlineStatus.lastSeen)}`}</span>
+                  </div>
+                </div>
               </div>
-            ) : (
-              <div className="space-y-3">
-                {messages.map((msg) => (
-                  <div key={msg.id} className={`flex ${msg.senderType === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[80%] rounded-lg px-3 py-2 ${msg.senderType === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                      <p className="text-sm">{msg.message}</p>
-                      <div className={`flex items-center justify-end gap-1 mt-1 ${msg.senderType === 'user' ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                        <span className="text-xs">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                        {msg.senderType === 'user' && (
-                          <span className="flex items-center" title={msg.readAt ? 'Seen' : 'Delivered'}>
-                            {msg.readAt ? (
-                              <CheckCheck className="h-3.5 w-3.5 text-blue-400" />
-                            ) : (
-                              <CheckCheck className="h-3.5 w-3.5" />
-                            )}
-                          </span>
-                        )}
+              <Button variant="ghost" size="icon" onClick={() => setShowChat(false)}><X className="h-4 w-4" /></Button>
+            </div>
+          </DialogHeader>
+
+          <ScrollArea className="flex-1 p-4">
+            <div className="space-y-4">
+              {loadingMessages ? (
+                <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              ) : messages.length === 0 ? (
+                <div className="text-center py-10">
+                  <MessageCircle className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">Start a conversation with the agent regarding your registration.</p>
+                </div>
+              ) : (
+                messages.map((msg, i) => {
+                  const isUser = msg.senderType === 'user';
+                  return (
+                    <div key={msg.id || i} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[80%] p-3 rounded-2xl text-sm ${isUser ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-muted rounded-tl-none'}`}>
+                        <p>{msg.message}</p>
+                        <span className={`text-[9px] mt-1 block opacity-70 ${isUser ? 'text-right' : 'text-left'}`}>
+                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {isUser && <span className="ml-1">{msg.isRead ? '✓✓' : '✓'}</span>}
+                        </span>
                       </div>
                     </div>
-                  </div>
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
-            )}
+                  );
+                })
+              )}
+              <div ref={messagesEndRef} />
+            </div>
           </ScrollArea>
-          <div className="flex gap-2 pt-2">
-            <Input 
-              placeholder="Type your message..." 
-              value={newMessage} 
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-              disabled={sendingMessage}
-            />
-            <Button onClick={sendMessage} disabled={sendingMessage || !newMessage.trim()}>
-              {sendingMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            </Button>
+
+          <div className="p-4 border-t bg-background">
+            <div className="flex gap-2">
+              <Input placeholder="Type your message..." value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendMessage()} disabled={sendingMessage} className="h-11" />
+              <Button size="icon" className="h-11 w-11 rounded-full flex-shrink-0" onClick={sendMessage} disabled={sendingMessage || !newMessage.trim()}>
+                {sendingMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
