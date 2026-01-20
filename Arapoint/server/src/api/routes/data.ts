@@ -37,6 +37,7 @@ router.post('/buy', async (req: Request, res: Response) => {
     }
 
     const balance = await walletService.getBalance(req.userId!);
+    // Amount already has 40% markup from the plans list
     if (balance.balance < amount) {
       return res.status(402).json(formatErrorResponse(402, 'Insufficient wallet balance'));
     }

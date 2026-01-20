@@ -49,7 +49,7 @@ router.post('/buy', async (req: Request, res: Response) => {
     }
 
     const balance = await walletService.getBalance(req.userId!);
-    const userChargedAmount = amount * 0.98; // 2% discount for user
+    const userChargedAmount = amount * 0.98; // 2% discount for user (User pays 98% of face value)
     if (balance.balance < userChargedAmount) {
       return res.status(402).json(formatErrorResponse(402, 'Insufficient wallet balance'));
     }
