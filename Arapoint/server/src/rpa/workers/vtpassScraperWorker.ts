@@ -26,77 +26,129 @@ export class VTPassScraperWorker {
         timeout: 60000 
       });
 
+      // Handle cookie consent if it appears
+      try {
+        const cookieBtn = await page.$('#accept-cookies, .cookie-accept, button:contains("Accept")');
+        if (cookieBtn) await cookieBtn.click();
+      } catch (e) {}
+
       const results = [];
 
       for (const network of VTPassScraperWorker.NETWORKS) {
         logger.info(`Scraping plans for network: ${network}`);
         
-        // Click on the network logo/button
-        // Selector logic: VTPass usually has images or buttons with alt text or classes for networks
-        const networkSelector = `img[alt*="${network}" i], button[class*="${network}" i]`;
-        const networkBtn = await page.$(networkSelector);
-        
-        if (networkBtn) {
-          await networkBtn.click();
-          await new Promise(r => setTimeout(r, 2000)); // Wait for animation/load
+        try {
+          // VTPass selector update: images with alt text or specific classes
+          const networkSelectors = [
+            `img[alt*="${network}" i]`,
+            `button:contains("${network.toUpperCase()}")`,
+            `a:contains("${network.toUpperCase()}")`,
+            `.network-logo-${network}`,
+            `[data-network="${network}"]`
+          ];
           
-          // Extract plans from the dropdown or list
-          const plans = await page.evaluate((networkName) => {
-            const planElements = document.querySelectorAll('select#variation option, .variation-list li');
-            const extracted = [];
-            
-            for (const el of Array.from(planElements)) {
-              const text = el.textContent?.trim() || '';
-              // Skip "Select" placeholders
-              if (text.toLowerCase().includes('select')) continue;
-              
-              // Extract price using regex
-              const priceMatch = text.match(/₦?\s*([\d,]+)/);
-              if (priceMatch) {
-                const amount = priceMatch[1].replace(/,/g, '');
-                const id = el instanceof HTMLOptionElement ? el.value : (el.getAttribute('data-value') || text);
-                
-                extracted.push({
-                  id: `${networkName}_${id}`,
-                  name: text,
-                  amount: amount
-                });
+          let networkBtn = null;
+          for (const selector of networkSelectors) {
+            try {
+              networkBtn = await page.$(selector);
+              if (networkBtn) break;
+            } catch (e) {}
+          }
+          
+          if (!networkBtn) {
+            // Try to find by text content if selectors fail
+            const buttons = await page.$$('button, a, div.network-item');
+            for (const btn of buttons) {
+              const text = await page.evaluate(el => el.textContent, btn);
+              if (text?.toLowerCase().includes(network.toLowerCase())) {
+                networkBtn = btn;
+                break;
               }
             }
-            return extracted;
-          }, network);
+          }
+          
+          if (networkBtn) {
+            await networkBtn.click();
+            logger.info(`Clicked ${network} button`);
+            await new Promise(r => setTimeout(r, 5000));
+            
+            // Explicitly wait for variation select to be populated
+            try {
+              await page.waitForSelector('select#variation option:not([value=""])', { timeout: 5000 });
+            } catch (e) {
+              logger.warn(`Variation select not populated for ${network} within timeout`);
+            }
+            
+            const plans = await page.evaluate((networkName) => {
+              const extracted = [];
+              const seen = new Set();
+              
+              // Helper to extract from any element
+              const processElement = (el: Element) => {
+                const text = (el.textContent || el.getAttribute('data-name') || el.getAttribute('title') || '').trim();
+                if (!text || text.toLowerCase().includes('select')) return;
+                
+                const priceMatch = text.match(/[₦N]?\s*([\d,]+)/i);
+                if (priceMatch) {
+                  const amount = priceMatch[1].replace(/,/g, '');
+                  const val = el instanceof HTMLOptionElement ? el.value : (el.getAttribute('data-value') || el.getAttribute('id') || text);
+                  const id = `${networkName}_${val}`;
+                  
+                  if (!seen.has(id)) {
+                    extracted.push({ id, name: text, amount });
+                    seen.add(id);
+                  }
+                }
+              };
 
-          for (const plan of plans) {
-            const costPrice = parseFloat(plan.amount);
-            const sellingPrice = Math.ceil(costPrice * 1.4); // 40% markup for normal users
-            const resellerPrice = Math.ceil(costPrice * 1.2); // 20% markup for resellers
+              // Check dropdowns
+              document.querySelectorAll('select#variation option').forEach(processElement);
+              // Check list items
+              document.querySelectorAll('.variation-list li, .variation-option, .variation-item, .variation-list-item').forEach(processElement);
+              // Check specialized containers
+              document.querySelectorAll('[data-variation-id], [data-product-id]').forEach(processElement);
+              
+              return extracted;
+            }, network);
 
-            await db.insert(scrapedDataPlans)
-              .values({
-                network: network,
-                planId: plan.id,
-                planName: plan.name,
-                costPrice: costPrice.toString(),
-                sellingPrice: sellingPrice.toString(),
-                resellerPrice: resellerPrice.toString(),
-                isActive: true,
-                lastScrapedAt: new Date(),
-              })
-              .onConflictDoUpdate({
-                target: [scrapedDataPlans.network, scrapedDataPlans.planId],
-                set: {
+            logger.info(`Found ${plans.length} plans for ${network}`);
+            
+            for (const plan of plans) {
+              const costPrice = parseFloat(plan.amount);
+              if (isNaN(costPrice)) continue;
+              
+              const sellingPrice = Math.ceil(costPrice * 1.4);
+              const resellerPrice = Math.ceil(costPrice * 1.2);
+
+              await db.insert(scrapedDataPlans)
+                .values({
+                  network: network,
+                  planId: plan.id,
                   planName: plan.name,
                   costPrice: costPrice.toString(),
                   sellingPrice: sellingPrice.toString(),
                   resellerPrice: resellerPrice.toString(),
+                  isActive: true,
                   lastScrapedAt: new Date(),
-                }
-              });
-            
-            results.push({ network, ...plan, sellingPrice, resellerPrice });
+                })
+                .onConflictDoUpdate({
+                  target: [scrapedDataPlans.network, scrapedDataPlans.planId],
+                  set: {
+                    planName: plan.name,
+                    costPrice: costPrice.toString(),
+                    sellingPrice: sellingPrice.toString(),
+                    resellerPrice: resellerPrice.toString(),
+                    lastScrapedAt: new Date(),
+                  }
+                });
+              
+              results.push({ network, ...plan, sellingPrice, resellerPrice });
+            }
+          } else {
+            logger.warn(`Network button not found for ${network}`);
           }
-        } else {
-          logger.warn(`Network button not found for ${network}`);
+        } catch (netErr: any) {
+          logger.error(`Error scraping ${network}`, { error: netErr.message });
         }
       }
 
