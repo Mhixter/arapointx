@@ -198,16 +198,31 @@ export default function CACServices() {
     
     setUploading(true);
     try {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        setPreview(base64);
-        setFormData((prev: any) => ({ ...prev, [fieldName]: base64 }));
-      };
-      reader.readAsDataURL(file);
+      // 1. Get presigned URL
+      const { url, publicUrl, fields } = await getUploadParameters(file.name, file.type);
+      
+      // 2. Upload to storage
+      const formDataUpload = new FormData();
+      Object.entries(fields).forEach(([key, value]) => {
+        formDataUpload.append(key, value as string);
+      });
+      formDataUpload.append('file', file);
+
+      const uploadResponse = await fetch(url, {
+        method: 'POST',
+        body: formDataUpload,
+      });
+
+      if (!uploadResponse.ok) throw new Error('Failed to upload to storage');
+
+      // 3. Update state with public URL
+      setPreview(publicUrl);
+      setFormData((prev: any) => ({ ...prev, [fieldName]: publicUrl }));
+      
       toast({ title: "Uploaded", description: `${type === 'passport' ? 'Passport photo' : type === 'signature' ? 'Signature' : 'NIN slip'} uploaded successfully` });
     } catch (error) {
-      toast({ title: "Upload failed", description: "Failed to upload file", variant: "destructive" });
+      console.error('Upload error:', error);
+      toast({ title: "Upload failed", description: "Failed to upload file to secure storage", variant: "destructive" });
     } finally {
       setUploading(false);
     }
@@ -334,11 +349,38 @@ export default function CACServices() {
     }
   };
 
-  const sendMessage = async (fileData?: { url: string; name: string; type: string }) => {
-    if (!newMessage.trim() && !fileData && !chatRequest) return;
+  const sendMessage = async (file?: File) => {
+    if (!newMessage.trim() && !file && !chatRequest) return;
     setSendingMessage(true);
     try {
       const token = getAuthToken();
+      let fileData = null;
+
+      if (file) {
+        // 1. Get presigned URL
+        const { url, publicUrl, fields } = await getUploadParameters(file.name, file.type);
+        
+        // 2. Upload to storage
+        const formDataUpload = new FormData();
+        Object.entries(fields).forEach(([key, value]) => {
+          formDataUpload.append(key, value as string);
+        });
+        formDataUpload.append('file', file);
+
+        const uploadResponse = await fetch(url, {
+          method: 'POST',
+          body: formDataUpload,
+        });
+
+        if (!uploadResponse.ok) throw new Error('Failed to upload file');
+        
+        fileData = {
+          url: publicUrl,
+          name: file.name,
+          type: file.type
+        };
+      }
+
       const response = await fetch(`/api/cac/requests/${chatRequest.id}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -822,24 +864,37 @@ export default function CACServices() {
 
           <div className="p-4 border-t bg-background">
             <div className="flex gap-2">
-              <ObjectUploader
-                onGetUploadParameters={getUploadParameters}
-                onComplete={(result) => {
-                  if (result.successful && result.successful.length > 0) {
-                    const file = result.successful[0];
-                    sendMessage({
-                      url: (file as any).uploadURL.split('?')[0],
-                      name: file.name,
-                      type: file.type || 'application/octet-stream'
-                    });
-                  }
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="h-11 w-11 rounded-full flex-shrink-0"
+                disabled={sendingMessage}
+                onClick={() => {
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.onchange = (e: any) => {
+                    const file = e.target.files[0];
+                    if (file) sendMessage(file);
+                  };
+                  input.click();
                 }}
-                buttonClassName="h-11 w-11 rounded-full p-0"
               >
                 <Paperclip className="h-4 w-4" />
-              </ObjectUploader>
-              <Input placeholder="Type your message..." value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && sendMessage()} disabled={sendingMessage} className="h-11" />
-              <Button size="icon" className="h-11 w-11 rounded-full flex-shrink-0" onClick={() => sendMessage()} disabled={sendingMessage || !newMessage.trim()}>
+              </Button>
+              <Input 
+                placeholder="Type your message..." 
+                value={newMessage} 
+                onChange={(e) => setNewMessage(e.target.value)} 
+                onKeyDown={(e) => e.key === 'Enter' && sendMessage()} 
+                disabled={sendingMessage} 
+                className="h-11" 
+              />
+              <Button 
+                size="icon" 
+                className="h-11 w-11 rounded-full flex-shrink-0" 
+                onClick={() => sendMessage()} 
+                disabled={sendingMessage || (!newMessage.trim() && !sendingMessage)}
+              >
                 {sendingMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>

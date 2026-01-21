@@ -80,7 +80,7 @@ export class VTPassScraperWorker {
             }
             
             const plans = await page.evaluate((networkName) => {
-              const extracted = [];
+              const extracted: any[] = [];
               const seen = new Set();
               
               // Helper to extract from any element
