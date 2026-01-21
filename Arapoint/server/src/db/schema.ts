@@ -275,6 +275,7 @@ export const scrapedDataPlans = pgTable('scraped_data_plans', {
   planName: varchar('plan_name', { length: 255 }).notNull(),
   costPrice: decimal('cost_price', { precision: 10, scale: 2 }).notNull(),
   sellingPrice: decimal('selling_price', { precision: 10, scale: 2 }).notNull(),
+  resellerPrice: decimal('reseller_price', { precision: 10, scale: 2 }).default('0'),
   isActive: boolean('is_active').default(true),
   lastScrapedAt: timestamp('last_scraped_at').defaultNow(),
 });
