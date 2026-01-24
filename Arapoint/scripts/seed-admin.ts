@@ -1,5 +1,8 @@
-import { Pool } from 'pg';
+import { Pool, neonConfig } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
+import ws from 'ws';
+
+neonConfig.webSocketConstructor = ws;
 
 async function seedAdmin() {
   const adminEmail = process.env.ADMIN_EMAIL;
