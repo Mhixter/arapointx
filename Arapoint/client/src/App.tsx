@@ -33,6 +33,7 @@ import CableServices from "@/pages/dashboard/CableServices";
 import CACServices from "@/pages/dashboard/CACServices";
 import FundWallet from "@/pages/dashboard/FundWallet";
 import AirtimeToCash from "@/pages/dashboard/AirtimeToCash";
+import TransactionHistory from "@/pages/dashboard/TransactionHistory";
 
 // Agent Imports
 import CACAgentLogin from "@/pages/agent/CACAgentLogin";
@@ -222,6 +223,11 @@ function Router() {
         <Route path="/dashboard/services">
           <DashboardLayout>
             <Services />
+          </DashboardLayout>
+        </Route>
+        <Route path="/dashboard/history">
+          <DashboardLayout>
+            <TransactionHistory />
           </DashboardLayout>
         </Route>
         <Route path="/dashboard/vtu">
