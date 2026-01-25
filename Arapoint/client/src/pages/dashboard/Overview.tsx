@@ -236,184 +236,148 @@ export default function Overview() {
   const totalTransactions = stats?.stats?.totalTransactions || 0;
   const totalVerifications = stats?.stats?.totalVerifications || 0;
 
+  const services = [
+    { href: "/dashboard/identity", title: "NIN Slip Printing", description: "Print your NIN slip (Premium & Standard)", icon: ShieldCheck, color: "from-green-500 to-green-600", bgColor: "bg-green-50 dark:bg-green-900/20" },
+    { href: "/dashboard/bvn-retrieval", title: "BVN Details", description: "Retrieve and print your BVN details", icon: ShieldCheck, color: "from-blue-500 to-blue-600", bgColor: "bg-blue-50 dark:bg-blue-900/20" },
+    { href: "/dashboard/identity", title: "NIN Validation", description: "Validate and verify NIN records", icon: CheckCircle2, color: "from-emerald-500 to-emerald-600", bgColor: "bg-emerald-50 dark:bg-emerald-900/20" },
+    { href: "/dashboard/identity", title: "IPE Clearance", description: "Submit IPE clearance requests", icon: FileText, color: "from-teal-500 to-teal-600", bgColor: "bg-teal-50 dark:bg-teal-900/20" },
+    { href: "/dashboard/cac", title: "CAC Registration", description: "Register your business with CAC", icon: Building2, color: "from-orange-500 to-orange-600", bgColor: "bg-orange-50 dark:bg-orange-900/20" },
+    { href: "/dashboard/education", title: "JAMB Services", description: "JAMB result checking & services", icon: GraduationCap, color: "from-purple-500 to-purple-600", bgColor: "bg-purple-50 dark:bg-purple-900/20" },
+    { href: "/dashboard/education", title: "WAEC/NECO Results", description: "Check examination results", icon: GraduationCap, color: "from-indigo-500 to-indigo-600", bgColor: "bg-indigo-50 dark:bg-indigo-900/20" },
+    { href: "/dashboard/buy-pins", title: "Exam PINs", description: "Buy WAEC, NECO, NABTEB scratch cards", icon: CreditCard, color: "from-pink-500 to-pink-600", bgColor: "bg-pink-50 dark:bg-pink-900/20" },
+  ];
+
   return (
-    <div className="space-y-8">
-      <div className="grid md:grid-cols-2 gap-4">
-        <Card className="bg-gradient-to-r from-primary/90 to-primary text-primary-foreground border-0 shadow-lg">
-          <CardContent className="pt-4 sm:pt-6">
-            <div>
-              <p className="text-xs sm:text-sm opacity-90 mb-1">Wallet Balance</p>
-              <h3 className="text-2xl sm:text-3xl font-bold">{`₦${walletBalance.toLocaleString()}`}</h3>
+    <div className="space-y-6">
+      <div className="grid lg:grid-cols-3 gap-4">
+        <Card className="lg:col-span-2 bg-gradient-to-br from-slate-800 to-slate-900 text-white border-0 shadow-xl overflow-hidden relative">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0zNiAxOGMzLjMxNCAwIDYgMi42ODYgNiA2cy0yLjY4NiA2LTYgNi02LTIuNjg2LTYtNiAyLjY4Ni02IDYtNiIgc3Ryb2tlPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMSkiIHN0cm9rZS13aWR0aD0iMiIvPjwvZz48L3N2Zz4=')] opacity-20"></div>
+          <CardContent className="pt-6 pb-6 relative">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <p className="text-sm text-white/70 mb-1">Available Balance</p>
+                <h3 className="text-3xl md:text-4xl font-bold">{`₦${walletBalance.toLocaleString()}`}</h3>
+                <p className="text-sm text-white/60 mt-2">Fund your wallet to access all services</p>
+              </div>
+              <Link href="/dashboard/fund-wallet">
+                <Button size="lg" className="bg-green-500 hover:bg-green-600 text-white border-0 shadow-lg">
+                  <CreditCard className="h-5 w-5 mr-2" />
+                  Fund Wallet
+                </Button>
+              </Link>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-border/60 shadow-lg">
-          <CardHeader className="pb-2">
+        <Card className="border-slate-200 dark:border-slate-700 shadow-lg">
+          <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-primary" />
-              <CardTitle className="text-base">Fund via Bank Transfer</CardTitle>
+              <Building2 className="h-5 w-5 text-green-600" />
+              <CardTitle className="text-base">Bank Transfer</CardTitle>
             </div>
-            <CardDescription>Transfer to this account to fund your wallet</CardDescription>
+            <CardDescription className="text-xs">Transfer to fund your wallet instantly</CardDescription>
           </CardHeader>
           <CardContent>
             {accountLoading || generatingAccount ? (
-              <div className="flex flex-col items-center justify-center py-6">
-                <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  {generatingAccount ? "Generating account..." : "Loading..."}
+              <div className="flex flex-col items-center justify-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin text-green-600 mb-2" />
+                <p className="text-xs text-muted-foreground">
+                  {generatingAccount ? "Generating..." : "Loading..."}
                 </p>
               </div>
             ) : virtualAccount ? (
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Bank</span>
-                  <span className="font-medium">{virtualAccount.bankName}</span>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-800 rounded">
+                  <span className="text-muted-foreground text-xs">Bank</span>
+                  <span className="font-medium text-xs">{virtualAccount.bankName}</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Account Number</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-lg">{virtualAccount.accountNumber}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => copyToClipboard(virtualAccount.accountNumber)}
-                    >
-                      <Copy className="h-4 w-4" />
+                <div className="flex justify-between items-center p-2 bg-green-50 dark:bg-green-900/20 rounded">
+                  <span className="text-muted-foreground text-xs">Account No.</span>
+                  <div className="flex items-center gap-1">
+                    <span className="font-bold text-green-700 dark:text-green-400">{virtualAccount.accountNumber}</span>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyToClipboard(virtualAccount.accountNumber)}>
+                      <Copy className="h-3 w-3" />
                     </Button>
                   </div>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Account Name</span>
-                  <span className="font-medium text-sm">{virtualAccount.accountName}</span>
+                <div className="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-800 rounded">
+                  <span className="text-muted-foreground text-xs">Name</span>
+                  <span className="font-medium text-xs truncate max-w-[120px]">{virtualAccount.accountName}</span>
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-6">
-                <Building2 className="h-10 w-10 text-muted-foreground mb-3" />
-                <p className="text-sm text-muted-foreground mb-3">No virtual account yet</p>
-                <Button onClick={handleOpenNinDialog}>
-                  Generate Account
-                </Button>
+              <div className="flex flex-col items-center justify-center py-4">
+                <Building2 className="h-8 w-8 text-muted-foreground mb-2" />
+                <p className="text-xs text-muted-foreground mb-2">No virtual account</p>
+                <Button size="sm" onClick={handleOpenNinDialog}>Generate Account</Button>
               </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-2 gap-4">
-        <StatsCard 
-          title="Total Transactions" 
-          value={totalTransactions.toString()} 
-          icon={CreditCard} 
-          trend="All time" 
-        />
-        <StatsCard 
-          title="Total Verifications" 
-          value={totalVerifications.toString()} 
-          icon={CheckCircle2} 
-          trend="All time" 
-          className="text-green-600"
-        />
+      <div className="grid sm:grid-cols-2 gap-4">
+        <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                <CreditCard className="h-6 w-6 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Transactions</p>
+                <p className="text-2xl font-bold">{totalTransactions}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <CheckCircle2 className="h-6 w-6 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Verifications</p>
+                <p className="text-2xl font-bold">{totalVerifications}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      <Card className="border-border/60 shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
+      <div>
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <CardTitle>Our Services</CardTitle>
-            <CardDescription>Access all platform services</CardDescription>
+            <h2 className="text-xl font-bold text-slate-800 dark:text-white">Our Services</h2>
+            <p className="text-sm text-muted-foreground">Choose a service to get started</p>
           </div>
-          <Link href="/dashboard/services">
-            <Button variant="outline" size="sm" className="gap-1">
-              View More <ChevronRight className="h-4 w-4" />
-            </Button>
-          </Link>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-            <Link href="/dashboard/identity">
-              <div className="flex flex-col items-center p-3 rounded-lg border border-border/40 hover:bg-muted/50 hover:border-primary/30 transition-all cursor-pointer group">
-                <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <ShieldCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
-                </div>
-                <span className="text-xs font-medium text-center">Identity</span>
-              </div>
-            </Link>
-            <Link href="/dashboard/education">
-              <div className="flex flex-col items-center p-3 rounded-lg border border-border/40 hover:bg-muted/50 hover:border-primary/30 transition-all cursor-pointer group">
-                <div className="h-10 w-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <GraduationCap className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                </div>
-                <span className="text-xs font-medium text-center">Education</span>
-              </div>
-            </Link>
-            <Link href="/dashboard/airtime">
-              <div className="flex flex-col items-center p-3 rounded-lg border border-border/40 hover:bg-muted/50 hover:border-primary/30 transition-all cursor-pointer group">
-                <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <Smartphone className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <span className="text-xs font-medium text-center">Airtime</span>
-              </div>
-            </Link>
-            <Link href="/dashboard/data">
-              <div className="flex flex-col items-center p-3 rounded-lg border border-border/40 hover:bg-muted/50 hover:border-primary/30 transition-all cursor-pointer group">
-                <div className="h-10 w-10 rounded-full bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <Zap className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
-                </div>
-                <span className="text-xs font-medium text-center">Data</span>
-              </div>
-            </Link>
-            <Link href="/dashboard/electricity">
-              <div className="flex flex-col items-center p-3 rounded-lg border border-border/40 hover:bg-muted/50 hover:border-primary/30 transition-all cursor-pointer group">
-                <div className="h-10 w-10 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <Zap className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-                </div>
-                <span className="text-xs font-medium text-center">Electricity</span>
-              </div>
-            </Link>
-            <Link href="/dashboard/cable">
-              <div className="flex flex-col items-center p-3 rounded-lg border border-border/40 hover:bg-muted/50 hover:border-primary/30 transition-all cursor-pointer group">
-                <div className="h-10 w-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <Tv className="h-5 w-5 text-red-600 dark:text-red-400" />
-                </div>
-                <span className="text-xs font-medium text-center">Cable TV</span>
-              </div>
-            </Link>
-            <Link href="/dashboard/airtime-to-cash">
-              <div className="flex flex-col items-center p-3 rounded-lg border border-border/40 hover:bg-muted/50 hover:border-primary/30 transition-all cursor-pointer group">
-                <div className="h-10 w-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <Banknote className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <span className="text-xs font-medium text-center">A2C</span>
-              </div>
-            </Link>
-            <Link href="/dashboard/cac">
-              <div className="flex flex-col items-center p-3 rounded-lg border border-border/40 hover:bg-muted/50 hover:border-primary/30 transition-all cursor-pointer group">
-                <div className="h-10 w-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <FileText className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                </div>
-                <span className="text-xs font-medium text-center">CAC</span>
-              </div>
-            </Link>
-            <Link href="/dashboard/buy-pins">
-              <div className="flex flex-col items-center p-3 rounded-lg border border-border/40 hover:bg-muted/50 hover:border-primary/30 transition-all cursor-pointer group">
-                <div className="h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                  <CreditCard className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                </div>
-                <span className="text-xs font-medium text-center">Buy PINs</span>
-              </div>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {services.map((service, index) => {
+            const Icon = service.icon;
+            return (
+              <Link key={index} href={service.href}>
+                <Card className={`${service.bgColor} border-0 hover:shadow-lg transition-all duration-300 cursor-pointer group h-full`}>
+                  <CardContent className="pt-5 pb-5">
+                    <div className={`h-12 w-12 rounded-xl bg-gradient-to-br ${service.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-lg`}>
+                      <Icon className="h-6 w-6 text-white" />
+                    </div>
+                    <h3 className="font-semibold text-slate-800 dark:text-white mb-1">{service.title}</h3>
+                    <p className="text-xs text-muted-foreground line-clamp-2">{service.description}</p>
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-        <Card className="lg:col-span-2 border-border/60 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between">
+      <div className="grid lg:grid-cols-2 gap-6">
+        <Card className="border-slate-200 dark:border-slate-700">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div>
-              <CardTitle>Recent Verifications</CardTitle>
-              <CardDescription>Latest identity checks performed</CardDescription>
+              <CardTitle className="text-lg">Recent Verifications</CardTitle>
+              <CardDescription>Your latest identity checks</CardDescription>
             </div>
             <Link href="/dashboard/identity">
               <Button variant="outline" size="sm">View All</Button>
@@ -422,31 +386,31 @@ export default function Overview() {
           <CardContent>
             {verifications.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                <ShieldCheck className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No verifications yet</p>
+                <ShieldCheck className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                <p className="font-medium">No verifications yet</p>
                 <p className="text-sm">Start by verifying a NIN or BVN</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {verifications.map((ver) => (
-                  <div key={ver.id} className="flex items-center justify-between p-4 rounded-lg border border-border/40 bg-muted/10 hover:bg-muted/20 transition-colors">
-                    <div className="flex items-center gap-4">
-                      <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                        ver.type === 'NIN' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                        ver.type === 'BVN' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                        'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                  <div key={ver.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${
+                        ver.type === 'NIN' ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400' :
+                        ver.type === 'BVN' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400' :
+                        'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-400'
                       }`}>
                         <span className="font-bold text-xs">{ver.type}</span>
                       </div>
                       <div>
-                        <p className="font-medium text-foreground">{ver.reference}</p>
-                        <p className="text-sm text-muted-foreground">{new Date(ver.date).toLocaleDateString()} {ver.details && `• ${ver.details}`}</p>
+                        <p className="font-medium text-sm">{ver.reference}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(ver.date).toLocaleDateString()}</p>
                       </div>
                     </div>
-                    <div className={`px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${
-                      ver.status === 'verified' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                      ver.status === 'pending' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
-                      'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                    <div className={`px-2 py-0.5 rounded text-xs font-medium capitalize ${
+                      ver.status === 'verified' ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400' :
+                      ver.status === 'pending' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-400' :
+                      'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400'
                     }`}>
                       {ver.status}
                     </div>
@@ -457,61 +421,45 @@ export default function Overview() {
           </CardContent>
         </Card>
 
-        <div className="space-y-8">
-          <Card className="border-border/60 shadow-sm bg-primary text-primary-foreground">
-            <CardHeader>
-              <CardTitle>Quick Verify</CardTitle>
-              <CardDescription className="text-primary-foreground/80">Start a new verification instantly</CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-3">
-              <Link href="/dashboard/identity">
-                <Button variant="secondary" className="w-full h-auto py-4 flex flex-col gap-2 hover:scale-[1.02] transition-transform">
-                  <ShieldCheck className="h-6 w-6" />
-                  <span className="text-xs">Verify NIN</span>
-                </Button>
-              </Link>
-              <Link href="/dashboard/education">
-                <Button variant="secondary" className="w-full h-auto py-4 flex flex-col gap-2 hover:scale-[1.02] transition-transform">
-                  <GraduationCap className="h-6 w-6" />
-                  <span className="text-xs">Check Result</span>
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60 shadow-sm">
-            <CardHeader>
-              <CardTitle>Recent Transactions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {transactions.length === 0 ? (
-                <div className="text-center py-6 text-muted-foreground">
-                  <CreditCard className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No transactions yet</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {transactions.map((tx) => (
-                    <div key={tx.id} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-full ${tx.type === 'credit' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                          {tx.type === 'credit' ? <ArrowDownRight className="h-3 w-3" /> : <ArrowUpRight className="h-3 w-3" />}
-                        </div>
-                        <div>
-                          <p className="font-medium truncate max-w-[120px]">{tx.description}</p>
-                          <p className="text-xs text-muted-foreground">{new Date(tx.date).toLocaleDateString()}</p>
-                        </div>
+        <Card className="border-slate-200 dark:border-slate-700">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div>
+              <CardTitle className="text-lg">Recent Transactions</CardTitle>
+              <CardDescription>Your wallet activity</CardDescription>
+            </div>
+            <Link href="/dashboard/history">
+              <Button variant="outline" size="sm">View All</Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {transactions.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <CreditCard className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                <p className="font-medium">No transactions yet</p>
+                <p className="text-sm">Fund your wallet to get started</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {transactions.map((tx) => (
+                  <div key={tx.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800">
+                    <div className="flex items-center gap-3">
+                      <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${tx.type === 'credit' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                        {tx.type === 'credit' ? <ArrowDownRight className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
                       </div>
-                      <span className={`font-medium ${tx.type === 'credit' ? 'text-green-600' : 'text-foreground'}`}>
-                        {tx.type === 'credit' ? '+' : '-'}₦{tx.amount.toLocaleString()}
-                      </span>
+                      <div>
+                        <p className="font-medium text-sm truncate max-w-[150px]">{tx.description}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(tx.date).toLocaleDateString()}</p>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                    <span className={`font-semibold ${tx.type === 'credit' ? 'text-green-600' : 'text-slate-800 dark:text-white'}`}>
+                      {tx.type === 'credit' ? '+' : '-'}₦{tx.amount.toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Dialog open={showNinDialog} onOpenChange={setShowNinDialog}>
