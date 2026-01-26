@@ -2,7 +2,7 @@ import axios, { AxiosInstance } from 'axios';
 import { logger } from '../utils/logger';
 import { generateReferenceId } from '../utils/helpers';
 
-const PREMBLY_BASE_URL = 'https://api.myidentitypay.com/api/v2';
+const PREMBLY_BASE_URL = 'https://api.prembly.com/identitypass/verification';
 
 interface PremblyConfig {
   apiKey: string;
@@ -94,9 +94,8 @@ class PremblyService {
     try {
       logger.info('Prembly NIN verification started', { nin: nin.substring(0, 4) + '***', reference });
 
-      const response = await this.getClient().post('/biometrics/merchant/data/verification/nin', {
+      const response = await this.getClient().post('/nin', {
         number: nin,
-        is_subject_consent: true,
       });
 
       if (response.data.status === true && response.data.response_code === '00') {
@@ -167,12 +166,11 @@ class PremblyService {
       logger.info('Prembly BVN verification started', { bvn: bvn.substring(0, 4) + '***', reference, premium });
 
       const endpoint = premium 
-        ? '/biometrics/merchant/data/verification/bvn_w_face'
-        : '/biometrics/merchant/data/verification/bvn';
+        ? '/bvn_w_face'
+        : '/bvn';
 
       const response = await this.getClient().post(endpoint, {
         number: bvn,
-        is_subject_consent: true,
       });
 
       if (response.data.status === true && response.data.response_code === '00') {
@@ -248,7 +246,7 @@ class PremblyService {
       if (validationData?.lastName) requestBody.lastname = validationData.lastName;
       if (validationData?.dateOfBirth) requestBody.dob = validationData.dateOfBirth;
 
-      const response = await this.getClient().post('/biometrics/merchant/data/verification/vnin', requestBody);
+      const response = await this.getClient().post('/vnin', requestBody);
 
       if (response.data.status === true && response.data.response_code === '00') {
         const rawData = response.data.data;
@@ -314,10 +312,9 @@ class PremblyService {
     try {
       logger.info('Prembly NIN+Phone verification started', { nin: nin.substring(0, 4) + '***', reference });
 
-      const response = await this.getClient().post('/biometrics/merchant/data/verification/nin_phone', {
+      const response = await this.getClient().post('/nin_phone', {
         number: nin,
         phone: phone,
-        is_subject_consent: true,
       });
 
       if (response.data.status === true && response.data.response_code === '00') {
