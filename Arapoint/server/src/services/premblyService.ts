@@ -95,7 +95,7 @@ class PremblyService {
       logger.info('Prembly NIN verification started', { nin: nin.substring(0, 4) + '***', reference });
 
       const response = await this.getClient().post('/nin', {
-        number: nin,
+        number_nin: nin,
       });
 
       if (response.data.status === true && response.data.response_code === '00') {
@@ -171,6 +171,7 @@ class PremblyService {
 
       const response = await this.getClient().post(endpoint, {
         number: bvn,
+        number_bvn: bvn,
       });
 
       if (response.data.status === true && response.data.response_code === '00') {
