@@ -1,4 +1,4 @@
-import { NINData, BVNData } from '../services/youverifyService';
+import { NINData, BVNData } from '../services/premblyService';
 
 interface SlipData {
   html: string;
@@ -45,17 +45,13 @@ const escapeHtml = (str: string): string => {
     .replace(/'/g, '&#039;');
 };
 
-const maskValue = (value: string, showChars: number = 4): string => {
-  if (!value || value === 'N/A') return 'N/A';
-  if (value.length <= showChars) return value;
-  return value.substring(0, showChars) + '*'.repeat(value.length - showChars);
+const formatNIN = (nin: string): string => {
+  if (!nin) return 'N/A';
+  return nin.replace(/(\d{4})(\d{3})(\d{4})/, '$1 $2 $3');
 };
 
 export const generateNINSlip = (data: NINData, reference: string, slipType: 'information' | 'regular' | 'standard' | 'premium' = 'standard'): SlipData => {
   const generatedAt = new Date().toISOString();
-  const fullName = `${data.lastName || ''} ${data.firstName || ''} ${data.middleName || ''}`.trim().toUpperCase();
-  const givenNames = `${data.firstName || ''}, ${data.middleName || ''}`.trim().toUpperCase();
-  const issueDate = formatDate(new Date().toISOString());
   
   let html = '';
   
@@ -64,9 +60,9 @@ export const generateNINSlip = (data: NINData, reference: string, slipType: 'inf
   } else if (slipType === 'regular') {
     html = generateRegularSlip(data, reference, generatedAt);
   } else if (slipType === 'standard') {
-    html = generateStandardSlip(data, reference, generatedAt, issueDate, givenNames);
+    html = generateStandardSlip(data, reference, generatedAt);
   } else {
-    html = generatePremiumSlip(data, reference, generatedAt, issueDate, givenNames);
+    html = generatePremiumSlip(data, reference, generatedAt);
   }
 
   return {
@@ -166,59 +162,106 @@ function generateInformationSlip(data: NINData, reference: string, generatedAt: 
 }
 
 function generateRegularSlip(data: NINData, reference: string, generatedAt: string): string {
+  const trackingId = reference.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 16);
+  
   return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NIN Slip - ${reference}</title>
+  <title>NIN Long Slip - ${reference}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Arial', sans-serif; background: #f5f5f5; padding: 20px; }
-    .slip { max-width: 500px; margin: 0 auto; background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%); border-radius: 15px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); overflow: hidden; border: 3px solid #008751; }
-    .header { background: linear-gradient(135deg, #008751 0%, #006341 100%); color: white; padding: 20px; text-align: center; }
-    .header h1 { font-size: 18px; margin-bottom: 8px; letter-spacing: 1px; }
-    .header h2 { font-size: 14px; opacity: 0.9; }
-    .content { padding: 25px; display: flex; gap: 20px; }
-    .photo-container { flex-shrink: 0; }
-    .photo { width: 100px; height: 130px; border: 3px solid #008751; border-radius: 8px; object-fit: cover; background: #e8f5e9; }
-    .info { flex: 1; }
-    .name { font-size: 20px; font-weight: bold; color: #1a1a1a; margin-bottom: 15px; text-transform: uppercase; }
-    .field { margin-bottom: 10px; }
-    .field-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
-    .field-value { font-size: 14px; color: #1a1a1a; font-weight: 500; }
-    .nin-section { background: #e8f5e9; padding: 15px; margin: 0 25px 25px; border-radius: 10px; text-align: center; }
-    .nin-label { font-size: 12px; color: #666; margin-bottom: 5px; }
-    .nin-value { font-size: 28px; font-weight: bold; color: #008751; letter-spacing: 3px; font-family: 'Courier New', monospace; }
-    .footer { background: #f8f9fa; padding: 12px 25px; text-align: center; font-size: 10px; color: #666; border-top: 1px solid #e0e0e0; }
+    @page { size: 8.5in 14in; margin: 0; }
+    body { font-family: 'Arial', sans-serif; background: #fff; margin: 0; padding: 0; }
+    .slip { width: 100%; max-width: 612px; min-height: 1008px; margin: 0 auto; background: #fff; position: relative; padding: 40px 30px; }
+    .header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #008751; }
+    .coat-of-arms { width: 80px; height: 80px; margin: 0 auto 15px; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="%23008751"/><text x="50" y="60" text-anchor="middle" fill="white" font-size="30" font-weight="bold">NG</text></svg>'); background-size: contain; background-repeat: no-repeat; }
+    .header h1 { font-size: 22px; color: #008751; margin-bottom: 5px; letter-spacing: 2px; }
+    .header h2 { font-size: 16px; color: #333; font-weight: normal; }
+    .header h3 { font-size: 14px; color: #666; margin-top: 5px; }
+    .content { display: flex; gap: 30px; margin-bottom: 30px; }
+    .photo-section { flex-shrink: 0; text-align: center; }
+    .photo { width: 150px; height: 180px; border: 3px solid #008751; object-fit: cover; background: #f5f5f5; }
+    .photo-label { font-size: 10px; color: #666; margin-top: 5px; }
+    .info-section { flex: 1; }
+    .tracking-row { background: #f0f0f0; padding: 10px 15px; margin-bottom: 15px; border-left: 4px solid #008751; }
+    .tracking-label { font-size: 10px; color: #666; text-transform: uppercase; }
+    .tracking-value { font-size: 16px; font-weight: bold; color: #1a1a1a; font-family: 'Courier New', monospace; letter-spacing: 2px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .field { margin-bottom: 12px; }
+    .field-label { font-size: 10px; color: #666; text-transform: uppercase; margin-bottom: 3px; }
+    .field-value { font-size: 14px; font-weight: bold; color: #1a1a1a; text-transform: uppercase; }
+    .full-width { grid-column: span 2; }
+    .nin-section { background: linear-gradient(135deg, #008751 0%, #006341 100%); padding: 20px; text-align: center; margin: 30px 0; }
+    .nin-label { font-size: 12px; color: rgba(255,255,255,0.9); margin-bottom: 8px; }
+    .nin-value { font-size: 36px; font-weight: bold; color: white; letter-spacing: 8px; font-family: 'Courier New', monospace; }
+    .address-section { background: #f9f9f9; padding: 15px; margin-bottom: 20px; border: 1px solid #e0e0e0; }
+    .address-label { font-size: 10px; color: #666; text-transform: uppercase; margin-bottom: 5px; }
+    .address-value { font-size: 13px; color: #333; line-height: 1.5; }
+    .footer-notes { font-size: 10px; color: #666; line-height: 1.6; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; }
+    .footer-notes p { margin-bottom: 8px; }
+    .footer-notes .warning { color: #c62828; font-weight: bold; }
+    .qr-section { position: absolute; bottom: 40px; right: 30px; text-align: center; }
+    .qr-code { width: 80px; height: 80px; border: 1px solid #ccc; background: #fff; }
     @media print { body { background: white; } .slip { box-shadow: none; } }
   </style>
 </head>
 <body>
   <div class="slip">
     <div class="header">
+      <div class="coat-of-arms"></div>
       <h1>FEDERAL REPUBLIC OF NIGERIA</h1>
-      <h2>National Identification Number Slip (NINS)</h2>
+      <h2>National Identity Management Commission</h2>
+      <h3>National Identification Number (NIN) Slip</h3>
     </div>
     
     <div class="content">
-      <div class="photo-container">
-        ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo">` : '<div class="photo" style="display: flex; align-items: center; justify-content: center; color: #999; font-size: 12px;">No Photo</div>'}
+      <div class="photo-section">
+        ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo">` : '<div class="photo" style="display: flex; align-items: center; justify-content: center; color: #999; font-size: 12px;">Photo</div>'}
+        <div class="photo-label">Passport Photograph</div>
       </div>
-      <div class="info">
-        <div class="name">${escapeHtml(data.lastName)} ${escapeHtml(data.firstName)} ${escapeHtml(data.middleName)}</div>
-        <div class="field">
-          <div class="field-label">Date of Birth</div>
-          <div class="field-value">${formatDate(data.dateOfBirth)}</div>
+      
+      <div class="info-section">
+        <div class="tracking-row">
+          <div class="tracking-label">Tracking ID</div>
+          <div class="tracking-value">${trackingId}</div>
         </div>
-        <div class="field">
-          <div class="field-label">Gender</div>
-          <div class="field-value">${escapeHtml(data.gender)}</div>
-        </div>
-        <div class="field">
-          <div class="field-label">State of Origin</div>
-          <div class="field-value">${escapeHtml(data.birthState)}</div>
+        
+        <div class="info-grid">
+          <div class="field">
+            <div class="field-label">Surname</div>
+            <div class="field-value">${escapeHtml(data.lastName)}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">First Name</div>
+            <div class="field-value">${escapeHtml(data.firstName)}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">Middle Name</div>
+            <div class="field-value">${escapeHtml(data.middleName) || '-'}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">Date of Birth</div>
+            <div class="field-value">${formatDate(data.dateOfBirth)}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">Gender</div>
+            <div class="field-value">${escapeHtml(data.gender)}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">State of Origin</div>
+            <div class="field-value">${escapeHtml(data.birthState)}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">LGA of Origin</div>
+            <div class="field-value">${escapeHtml(data.birthLga)}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">Nationality</div>
+            <div class="field-value">${escapeHtml(data.nationality || 'NIGERIA')}</div>
+          </div>
         </div>
       </div>
     </div>
@@ -228,8 +271,33 @@ function generateRegularSlip(data: NINData, reference: string, generatedAt: stri
       <div class="nin-value">${escapeHtml(data.id)}</div>
     </div>
     
-    <div class="footer">
-      Reference: ${reference} | Generated: ${new Date(generatedAt).toLocaleString('en-NG')} | Arapoint
+    <div class="address-section">
+      <div class="address-label">Residence Address</div>
+      <div class="address-value">
+        ${escapeHtml(data.address) || 'N/A'}<br>
+        ${escapeHtml(data.town) || ''} ${escapeHtml(data.lga) || ''}<br>
+        ${escapeHtml(data.state) || ''}, Nigeria
+      </div>
+    </div>
+    
+    <div class="info-grid" style="margin-top: 20px;">
+      <div class="field">
+        <div class="field-label">Phone Number</div>
+        <div class="field-value">${escapeHtml(data.phone) || 'N/A'}</div>
+      </div>
+      <div class="field">
+        <div class="field-label">Email Address</div>
+        <div class="field-value" style="text-transform: lowercase;">${escapeHtml(data.email) || 'N/A'}</div>
+      </div>
+    </div>
+    
+    <div class="footer-notes">
+      <p>1. This NIN slip remains the property of the Federal Republic of Nigeria, and MUST be surrendered on demand.</p>
+      <p>2. This NIN slip does not imply nor confer citizenship of the Federal Republic of Nigeria on the individual the document is issued to.</p>
+      <p class="warning">3. This NIN slip is valid for the lifetime of the holder and DOES NOT EXPIRE.</p>
+      <p style="margin-top: 15px; text-align: center;">
+        Reference: ${reference} | Generated: ${new Date(generatedAt).toLocaleString('en-NG')}
+      </p>
     </div>
   </div>
 </body>
@@ -237,178 +305,219 @@ function generateRegularSlip(data: NINData, reference: string, generatedAt: stri
   `.trim();
 }
 
-function generateStandardSlip(data: NINData, reference: string, generatedAt: string, issueDate: string, givenNames: string): string {
+function generateStandardSlip(data: NINData, reference: string, generatedAt: string): string {
   return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NIN Card (NGA) - ${reference}</title>
+  <title>NIN Standard Slip - ${reference}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Arial', sans-serif; background: #f5f5f5; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-    .card { width: 500px; height: 320px; background: linear-gradient(135deg, #ffffff 0%, #f0f4f0 50%, #e8f5e9 100%); border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); position: relative; overflow: hidden; border: 2px solid #ccc; }
-    .coat-of-arms { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); width: 70px; height: 70px; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="30" r="15" fill="%23c0392b"/><rect x="35" y="40" width="30" height="40" fill="%23008751"/><path d="M20 50 L50 90 L80 50" fill="%23f1c40f"/></svg>'); background-size: contain; background-repeat: no-repeat; }
-    .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.08; font-size: 150px; color: #008751; pointer-events: none; }
-    .photo { position: absolute; left: 25px; top: 90px; width: 100px; height: 130px; background: #e0e0e0; border-radius: 5px; border: 2px solid #ccc; object-fit: cover; }
-    .info-section { position: absolute; left: 140px; top: 95px; }
-    .field { margin-bottom: 8px; }
-    .field-label { font-size: 10px; color: #666; font-style: italic; }
-    .field-value { font-size: 14px; font-weight: bold; color: #1a1a1a; text-transform: uppercase; }
-    .qr-section { position: absolute; right: 25px; top: 85px; text-align: center; }
-    .qr-code { width: 80px; height: 80px; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="0" y="0" width="100" height="100" fill="white"/><rect x="10" y="10" width="30" height="30" fill="black"/><rect x="60" y="10" width="30" height="30" fill="black"/><rect x="10" y="60" width="30" height="30" fill="black"/><rect x="45" y="45" width="10" height="10" fill="black"/><rect x="65" y="65" width="25" height="25" fill="black"/></svg>'); background-size: contain; border: 1px solid #ccc; }
-    .nga-label { font-size: 24px; font-weight: bold; color: #008751; margin-top: 10px; }
-    .issue-date { position: absolute; right: 25px; bottom: 80px; text-align: center; }
-    .issue-label { font-size: 10px; color: #666; }
-    .issue-value { font-size: 12px; font-weight: bold; }
-    .nin-section { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(135deg, #008751 0%, #006341 100%); padding: 15px 25px; text-align: center; }
-    .nin-label { font-size: 11px; color: rgba(255,255,255,0.9); margin-bottom: 5px; }
-    .nin-value { font-size: 32px; font-weight: bold; color: white; letter-spacing: 8px; font-family: 'Courier New', monospace; }
-    .side-nums { position: absolute; top: 50%; transform: translateY(-50%); font-size: 10px; color: rgba(0,0,0,0.2); writing-mode: vertical-lr; }
-    .side-nums.left { left: 5px; }
-    .side-nums.right { right: 5px; }
-    @media print { body { background: white; } .card { box-shadow: none; } }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="coat-of-arms"></div>
-    <div class="watermark">🦅</div>
-    <div class="side-nums left">${data.id || '00000000000'}</div>
-    <div class="side-nums right">${data.id || '00000000000'}</div>
-    
-    ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo">` : '<div class="photo" style="display: flex; align-items: center; justify-content: center; color: #999; font-size: 10px;">No Photo</div>'}
-    
-    <div class="info-section">
-      <div class="field">
-        <div class="field-label">Surname/Nom</div>
-        <div class="field-value">${escapeHtml(data.lastName)}</div>
-      </div>
-      <div class="field">
-        <div class="field-label">Given Names/Prénoms</div>
-        <div class="field-value">${escapeHtml(givenNames)}</div>
-      </div>
-      <div class="field">
-        <div class="field-label">Date of Birth</div>
-        <div class="field-value">${formatDate(data.dateOfBirth)}</div>
-      </div>
-    </div>
-    
-    <div class="qr-section">
-      <div class="qr-code"></div>
-      <div class="nga-label">NGA</div>
-    </div>
-    
-    <div class="issue-date">
-      <div class="issue-label">ISSUE DATE</div>
-      <div class="issue-value">${issueDate}</div>
-    </div>
-    
-    <div class="nin-section">
-      <div class="nin-label">National Identification Number (NIN)</div>
-      <div class="nin-value">${(data.id || '00000000000').replace(/(.{4})/g, '$1 ').trim()}</div>
-    </div>
-  </div>
-</body>
-</html>
-  `.trim();
-}
-
-function generatePremiumSlip(data: NINData, reference: string, generatedAt: string, issueDate: string, givenNames: string): string {
-  return `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Digital NIN Slip - ${reference}</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Arial', sans-serif; background: #333; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-    .card { width: 520px; height: 340px; background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 30%, #a5d6a7 60%, #81c784 100%); border-radius: 18px; box-shadow: 0 15px 50px rgba(0,0,0,0.3); position: relative; overflow: hidden; border: 3px solid #4caf50; }
-    .header { background: linear-gradient(135deg, #008751 0%, #004d2e 100%); padding: 12px 20px; text-align: center; }
-    .header h1 { color: white; font-size: 18px; letter-spacing: 2px; margin-bottom: 3px; }
-    .header h2 { color: rgba(255,255,255,0.85); font-size: 12px; }
-    .content { padding: 20px; display: flex; gap: 20px; position: relative; }
-    .photo-container { position: relative; }
-    .photo { width: 110px; height: 140px; border: 3px solid #4caf50; border-radius: 8px; object-fit: cover; background: #e8f5e9; }
-    .fingerprint { position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); width: 50px; height: 60px; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 60"><ellipse cx="25" cy="30" rx="20" ry="25" fill="none" stroke="%23333" stroke-width="1" opacity="0.3"/><ellipse cx="25" cy="30" rx="15" ry="20" fill="none" stroke="%23333" stroke-width="1" opacity="0.25"/><ellipse cx="25" cy="30" rx="10" ry="15" fill="none" stroke="%23333" stroke-width="1" opacity="0.2"/></svg>'); background-size: contain; }
+    body { font-family: 'Arial', sans-serif; background: #f0f0f0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .slip { width: 400px; background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); overflow: hidden; border: 1px solid #ddd; }
+    .header { background: #fff; padding: 15px 20px; text-align: center; border-bottom: 2px solid #008751; }
+    .header-row { display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .coat-arms { width: 40px; height: 40px; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="%23008751"/><text x="50" y="60" text-anchor="middle" fill="white" font-size="25" font-weight="bold">NG</text></svg>'); background-size: contain; }
+    .header-text h1 { font-size: 12px; color: #008751; letter-spacing: 1px; }
+    .header-text h2 { font-size: 10px; color: #666; font-weight: normal; }
+    .content { padding: 25px 20px; display: flex; gap: 20px; }
+    .photo { width: 100px; height: 120px; border: 2px solid #008751; object-fit: cover; background: #f5f5f5; flex-shrink: 0; }
     .info { flex: 1; }
-    .field { margin-bottom: 10px; }
-    .field-label { font-size: 9px; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
-    .field-value { font-size: 15px; font-weight: bold; color: #1a1a1a; text-transform: uppercase; }
-    .field-row { display: flex; gap: 20px; }
-    .field-row .field { flex: 1; }
-    .qr-section { position: absolute; right: 20px; top: 80px; text-align: center; }
-    .qr-code { width: 75px; height: 75px; background: white; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center; }
-    .qr-code::after { content: ''; width: 65px; height: 65px; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="0" y="0" width="100" height="100" fill="white"/><rect x="5" y="5" width="25" height="25" fill="black"/><rect x="70" y="5" width="25" height="25" fill="black"/><rect x="5" y="70" width="25" height="25" fill="black"/><rect x="35" y="35" width="30" height="30" fill="black"/><rect x="75" y="75" width="20" height="20" fill="black"/></svg>'); background-size: contain; }
-    .nga-badge { font-size: 26px; font-weight: bold; color: #008751; margin-top: 8px; }
-    .issue-section { position: absolute; right: 20px; top: 180px; text-align: center; background: rgba(255,255,255,0.7); padding: 8px 12px; border-radius: 5px; }
-    .issue-label { font-size: 9px; color: #666; }
-    .issue-value { font-size: 11px; font-weight: bold; color: #1a1a1a; }
-    .nin-section { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); padding: 12px 20px; text-align: center; }
-    .nin-label { font-size: 10px; color: rgba(255,255,255,0.85); margin-bottom: 3px; }
-    .nin-value { font-size: 30px; font-weight: bold; color: white; letter-spacing: 6px; font-family: 'Courier New', monospace; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
-    .watermark { position: absolute; top: 55%; left: 25%; transform: translate(-50%, -50%) rotate(-15deg); font-size: 50px; color: rgba(0,135,81,0.08); font-weight: bold; pointer-events: none; }
-    .side-id { position: absolute; font-size: 8px; color: rgba(0,0,0,0.15); letter-spacing: 1px; }
-    .side-id.left { left: 8px; top: 50%; transform: translateY(-50%) rotate(-90deg); transform-origin: left center; }
-    .side-id.right { right: 8px; top: 50%; transform: translateY(-50%) rotate(90deg); transform-origin: right center; }
-    @media print { body { background: white; } .card { box-shadow: none; } }
+    .name-section { margin-bottom: 15px; }
+    .surname { font-size: 24px; font-weight: bold; color: #1a1a1a; text-transform: uppercase; line-height: 1.2; }
+    .firstname { font-size: 20px; font-weight: bold; color: #1a1a1a; text-transform: uppercase; }
+    .dob-section { background: #f9f9f9; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
+    .dob-label { font-size: 9px; color: #666; text-transform: uppercase; }
+    .dob-value { font-size: 16px; font-weight: bold; color: #1a1a1a; }
+    .nin-section { background: #008751; padding: 15px; text-align: center; }
+    .nin-value { font-size: 28px; font-weight: bold; color: #fff; letter-spacing: 4px; font-family: 'Courier New', monospace; }
+    .footer { background: #f5f5f5; padding: 10px 20px; text-align: center; font-size: 9px; color: #666; }
+    @media print { body { background: white; } .slip { box-shadow: none; } }
   </style>
 </head>
 <body>
-  <div class="card">
+  <div class="slip">
     <div class="header">
-      <h1>FEDERAL REPUBLIC OF NIGERIA</h1>
-      <h2>DIGITAL NIN SLIP</h2>
+      <div class="header-row">
+        <div class="coat-arms"></div>
+        <div class="header-text">
+          <h1>FEDERAL REPUBLIC OF NIGERIA</h1>
+          <h2>National Identification Number Slip</h2>
+        </div>
+      </div>
     </div>
-    
-    <div class="watermark">NIMC</div>
-    <div class="side-id left">${data.id || '00000000000'}</div>
-    <div class="side-id right">${data.id || '00000000000'}</div>
     
     <div class="content">
-      <div class="photo-container">
-        ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo">` : '<div class="photo" style="display: flex; align-items: center; justify-content: center; color: #666; font-size: 11px;">No Photo</div>'}
-        <div class="fingerprint"></div>
-      </div>
+      ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo">` : '<div class="photo" style="display: flex; align-items: center; justify-content: center; color: #999; font-size: 10px;">Photo</div>'}
       
       <div class="info">
-        <div class="field">
-          <div class="field-label">Surname/Nom</div>
-          <div class="field-value">${escapeHtml(data.lastName)}</div>
+        <div class="name-section">
+          <div class="surname">${escapeHtml(data.lastName)}</div>
+          <div class="firstname">${escapeHtml(data.firstName)}</div>
         </div>
-        <div class="field">
-          <div class="field-label">Given Names/Prénoms</div>
-          <div class="field-value">${escapeHtml(givenNames)}</div>
+        
+        <div class="dob-section">
+          <div class="dob-label">Date of Birth</div>
+          <div class="dob-value">${formatDate(data.dateOfBirth)}</div>
         </div>
-        <div class="field-row">
-          <div class="field">
-            <div class="field-label">Date of Birth</div>
-            <div class="field-value">${formatDate(data.dateOfBirth)}</div>
-          </div>
-          <div class="field">
-            <div class="field-label">Sex/Sexe</div>
-            <div class="field-value">${data.gender ? data.gender.charAt(0).toUpperCase() : 'N/A'}</div>
-          </div>
-        </div>
-      </div>
-      
-      <div class="qr-section">
-        <div class="qr-code"></div>
-        <div class="nga-badge">NGA</div>
-      </div>
-      
-      <div class="issue-section">
-        <div class="issue-label">ISSUE DATE</div>
-        <div class="issue-value">${issueDate}</div>
       </div>
     </div>
     
     <div class="nin-section">
-      <div class="nin-label">National Identification Number (NIN)</div>
-      <div class="nin-value">${(data.id || '00000000000').replace(/(.{4})/g, '$1 ').trim()}</div>
+      <div class="nin-value">${formatNIN(data.id)}</div>
+    </div>
+    
+    <div class="footer">
+      ${reference} | ${new Date(generatedAt).toLocaleDateString('en-NG')}
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
+}
+
+function generatePremiumSlip(data: NINData, reference: string, generatedAt: string): string {
+  const issueDate = formatDate(new Date().toISOString());
+  
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NIN Premium Slip - ${reference}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    @page { size: 8.5in 14in; margin: 0; }
+    body { font-family: 'Arial', sans-serif; background: #2d5a27; padding: 20px; min-height: 100vh; }
+    .slip { width: 100%; max-width: 612px; min-height: 950px; margin: 0 auto; background: linear-gradient(180deg, #1a472a 0%, #2d5a27 20%, #3d7a37 50%, #2d5a27 80%, #1a472a 100%); position: relative; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.4); }
+    .decorative-border { position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px; border: 2px solid rgba(255,255,255,0.2); border-radius: 6px; pointer-events: none; }
+    .inner-content { padding: 40px 35px; position: relative; z-index: 1; }
+    .header { text-align: center; margin-bottom: 30px; }
+    .coat-of-arms { width: 90px; height: 90px; margin: 0 auto 15px; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="%23ffd700" stroke="%23fff" stroke-width="2"/><text x="50" y="60" text-anchor="middle" fill="%231a472a" font-size="30" font-weight="bold">NG</text></svg>'); background-size: contain; background-repeat: no-repeat; }
+    .header h1 { font-size: 24px; color: #ffd700; margin-bottom: 5px; letter-spacing: 3px; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
+    .header h2 { font-size: 14px; color: rgba(255,255,255,0.9); font-weight: normal; letter-spacing: 1px; }
+    .header h3 { font-size: 16px; color: #fff; margin-top: 10px; font-weight: bold; }
+    .main-content { display: flex; gap: 25px; margin-bottom: 25px; }
+    .photo-section { flex-shrink: 0; text-align: center; }
+    .photo { width: 160px; height: 190px; border: 4px solid #ffd700; object-fit: cover; background: #f5f5f5; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+    .photo-label { font-size: 10px; color: rgba(255,255,255,0.7); margin-top: 8px; }
+    .info-section { flex: 1; }
+    .field { margin-bottom: 14px; }
+    .field-label { font-size: 10px; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+    .field-value { font-size: 16px; font-weight: bold; color: #fff; text-transform: uppercase; }
+    .field-row { display: flex; gap: 20px; }
+    .field-row .field { flex: 1; }
+    .nin-section { background: rgba(255,215,0,0.15); border: 2px solid #ffd700; padding: 20px; text-align: center; margin: 25px 0; border-radius: 8px; }
+    .nin-label { font-size: 11px; color: rgba(255,255,255,0.9); margin-bottom: 8px; letter-spacing: 1px; }
+    .nin-value { font-size: 42px; font-weight: bold; color: #ffd700; letter-spacing: 6px; font-family: 'Courier New', monospace; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+    .address-section { background: rgba(255,255,255,0.1); padding: 15px; margin-bottom: 20px; border-radius: 6px; }
+    .address-label { font-size: 10px; color: rgba(255,255,255,0.7); text-transform: uppercase; margin-bottom: 5px; }
+    .address-value { font-size: 13px; color: #fff; line-height: 1.5; }
+    .contact-row { display: flex; gap: 20px; margin-bottom: 20px; }
+    .contact-field { flex: 1; background: rgba(255,255,255,0.1); padding: 12px; border-radius: 6px; }
+    .footer-section { margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2); }
+    .footer-notes { font-size: 10px; color: rgba(255,255,255,0.8); line-height: 1.6; }
+    .footer-notes p { margin-bottom: 6px; }
+    .footer-notes .warning { color: #ffd700; font-weight: bold; }
+    .reference-footer { text-align: center; margin-top: 20px; font-size: 10px; color: rgba(255,255,255,0.6); }
+    .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 200px; color: rgba(255,255,255,0.03); font-weight: bold; pointer-events: none; }
+    @media print { body { background: white; padding: 0; } .slip { box-shadow: none; } }
+  </style>
+</head>
+<body>
+  <div class="slip">
+    <div class="decorative-border"></div>
+    <div class="watermark">NIMC</div>
+    
+    <div class="inner-content">
+      <div class="header">
+        <div class="coat-of-arms"></div>
+        <h1>FEDERAL REPUBLIC OF NIGERIA</h1>
+        <h2>National Identity Management Commission</h2>
+        <h3>Premium NIN Slip</h3>
+      </div>
+      
+      <div class="main-content">
+        <div class="photo-section">
+          ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo">` : '<div class="photo" style="display: flex; align-items: center; justify-content: center; color: #666; font-size: 12px;">Photo</div>'}
+          <div class="photo-label">Passport Photograph</div>
+        </div>
+        
+        <div class="info-section">
+          <div class="field">
+            <div class="field-label">Surname / Nom</div>
+            <div class="field-value">${escapeHtml(data.lastName)}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">First Name / Prénom</div>
+            <div class="field-value">${escapeHtml(data.firstName)}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">Middle Name</div>
+            <div class="field-value">${escapeHtml(data.middleName) || '-'}</div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <div class="field-label">Date of Birth</div>
+              <div class="field-value">${formatDate(data.dateOfBirth)}</div>
+            </div>
+            <div class="field">
+              <div class="field-label">Gender / Sexe</div>
+              <div class="field-value">${escapeHtml(data.gender)}</div>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <div class="field-label">State of Origin</div>
+              <div class="field-value">${escapeHtml(data.birthState)}</div>
+            </div>
+            <div class="field">
+              <div class="field-label">LGA of Origin</div>
+              <div class="field-value">${escapeHtml(data.birthLga)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="nin-section">
+        <div class="nin-label">NATIONAL IDENTIFICATION NUMBER (NIN)</div>
+        <div class="nin-value">${escapeHtml(data.id)}</div>
+      </div>
+      
+      <div class="address-section">
+        <div class="address-label">Residence Address</div>
+        <div class="address-value">
+          ${escapeHtml(data.address) || 'N/A'}<br>
+          ${escapeHtml(data.town) || ''} ${escapeHtml(data.lga) || ''}, ${escapeHtml(data.state) || ''}<br>
+          Nigeria
+        </div>
+      </div>
+      
+      <div class="contact-row">
+        <div class="contact-field">
+          <div class="field-label">Phone Number</div>
+          <div class="field-value" style="font-size: 14px;">${escapeHtml(data.phone) || 'N/A'}</div>
+        </div>
+        <div class="contact-field">
+          <div class="field-label">Email Address</div>
+          <div class="field-value" style="font-size: 12px; text-transform: lowercase;">${escapeHtml(data.email) || 'N/A'}</div>
+        </div>
+      </div>
+      
+      <div class="footer-section">
+        <div class="footer-notes">
+          <p>1. This NIN slip remains the property of the Federal Republic of Nigeria, and MUST be surrendered on demand.</p>
+          <p>2. This NIN slip does not imply nor confer citizenship of the Federal Republic of Nigeria on the individual.</p>
+          <p class="warning">3. This NIN slip is valid for the lifetime of the holder and DOES NOT EXPIRE.</p>
+        </div>
+        
+        <div class="reference-footer">
+          Issue Date: ${issueDate} | Reference: ${reference} | Generated: ${new Date(generatedAt).toLocaleString('en-NG')}
+        </div>
+      </div>
     </div>
   </div>
 </body>
@@ -418,103 +527,13 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
 
 export const generateBVNSlip = (data: BVNData, reference: string, slipType: 'standard' | 'premium' = 'standard'): SlipData => {
   const generatedAt = new Date().toISOString();
-  const fullName = `${data.lastName || ''} ${data.firstName || ''} ${data.middleName || ''}`.trim().toUpperCase();
   
-  const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BVN Verification Slip - ${reference}</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Arial', sans-serif; background: #f5f5f5; padding: 20px; }
-    .slip { max-width: 550px; margin: 0 auto; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 50%, #90caf9 100%); border-radius: 18px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); overflow: hidden; border: 3px solid #1565c0; }
-    .header { background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%); color: white; padding: 20px; text-align: center; }
-    .header h1 { font-size: 18px; letter-spacing: 2px; margin-bottom: 5px; }
-    .header h2 { font-size: 12px; opacity: 0.9; }
-    .content { padding: 25px; display: flex; gap: 25px; }
-    .photo-container { flex-shrink: 0; }
-    .photo { width: 120px; height: 150px; border: 3px solid #1565c0; border-radius: 10px; object-fit: cover; background: #e3f2fd; }
-    .info { flex: 1; }
-    .name { font-size: 22px; font-weight: bold; color: #0d47a1; margin-bottom: 15px; text-transform: uppercase; }
-    .bvn-display { background: white; padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center; border: 2px solid #1565c0; }
-    .bvn-label { font-size: 10px; color: #666; text-transform: uppercase; }
-    .bvn-value { font-size: 26px; font-weight: bold; color: #1565c0; letter-spacing: 4px; font-family: 'Courier New', monospace; }
-    .watchlist { display: inline-block; padding: 5px 15px; border-radius: 20px; font-size: 11px; font-weight: bold; margin-top: 8px; }
-    .watchlist.clear { background: #c8e6c9; color: #2e7d32; }
-    .watchlist.flagged { background: #ffcdd2; color: #c62828; }
-    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .field { padding: 10px; background: rgba(255,255,255,0.7); border-radius: 6px; }
-    .field.full { grid-column: span 2; }
-    .field-label { font-size: 9px; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
-    .field-value { font-size: 13px; font-weight: 600; color: #1a1a1a; margin-top: 3px; }
-    .footer { background: #1565c0; color: white; padding: 12px 20px; text-align: center; font-size: 10px; }
-    @media print { body { background: white; } .slip { box-shadow: none; } }
-  </style>
-</head>
-<body>
-  <div class="slip">
-    <div class="header">
-      <h1>BANK VERIFICATION NUMBER</h1>
-      <h2>Nigeria Inter-Bank Settlement System (NIBSS)</h2>
-    </div>
-    
-    <div class="content">
-      <div class="photo-container">
-        ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo">` : '<div class="photo" style="display: flex; align-items: center; justify-content: center; color: #666; font-size: 11px;">No Photo</div>'}
-      </div>
-      
-      <div class="info">
-        <div class="name">${escapeHtml(fullName)}</div>
-        
-        <div class="bvn-display">
-          <div class="bvn-label">Bank Verification Number</div>
-          <div class="bvn-value">${escapeHtml(data.id)}</div>
-          ${data.watchListed !== undefined ? `
-          <div class="watchlist ${data.watchListed ? 'flagged' : 'clear'}">
-            ${data.watchListed ? '⚠ WATCHLISTED' : '✓ NOT WATCHLISTED'}
-          </div>
-          ` : ''}
-        </div>
-        
-        <div class="info-grid">
-          <div class="field">
-            <div class="field-label">Date of Birth</div>
-            <div class="field-value">${formatDate(data.dateOfBirth)}</div>
-          </div>
-          <div class="field">
-            <div class="field-label">Gender</div>
-            <div class="field-value">${escapeHtml(data.gender || 'N/A')}</div>
-          </div>
-          <div class="field">
-            <div class="field-label">Phone Number</div>
-            <div class="field-value">${escapeHtml(data.phone)}</div>
-          </div>
-          <div class="field">
-            <div class="field-label">Email</div>
-            <div class="field-value">${escapeHtml(data.email)}</div>
-          </div>
-          <div class="field full">
-            <div class="field-label">Enrollment Branch</div>
-            <div class="field-value">${escapeHtml(data.enrollmentBranch)}</div>
-          </div>
-          <div class="field full">
-            <div class="field-label">Enrollment Institution</div>
-            <div class="field-value">${escapeHtml(data.enrollmentInstitution)}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="footer">
-      Reference: ${reference} | Generated: ${new Date(generatedAt).toLocaleString('en-NG')} | Powered by Arapoint
-    </div>
-  </div>
-</body>
-</html>
-  `.trim();
+  let html = '';
+  if (slipType === 'premium') {
+    html = generateBVNPremiumSlip(data, reference, generatedAt);
+  } else {
+    html = generateBVNStandardSlip(data, reference, generatedAt);
+  }
 
   return {
     html,
@@ -524,4 +543,203 @@ export const generateBVNSlip = (data: BVNData, reference: string, slipType: 'sta
   };
 };
 
-export type { SlipData };
+function generateBVNStandardSlip(data: BVNData, reference: string, generatedAt: string): string {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BVN Standard Slip - ${reference}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Arial', sans-serif; background: #f0f0f0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .slip { width: 420px; background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); overflow: hidden; border: 1px solid #ddd; }
+    .header { background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%); padding: 15px 20px; text-align: center; }
+    .header h1 { font-size: 14px; color: #fff; letter-spacing: 1px; margin-bottom: 3px; }
+    .header h2 { font-size: 11px; color: rgba(255,255,255,0.9); font-weight: normal; }
+    .content { padding: 25px 20px; display: flex; gap: 20px; }
+    .photo { width: 100px; height: 120px; border: 2px solid #1565c0; object-fit: cover; background: #f5f5f5; flex-shrink: 0; }
+    .info { flex: 1; }
+    .name-section { margin-bottom: 15px; }
+    .surname { font-size: 22px; font-weight: bold; color: #1a1a1a; text-transform: uppercase; line-height: 1.2; }
+    .firstname { font-size: 18px; font-weight: bold; color: #1a1a1a; text-transform: uppercase; }
+    .field { margin-bottom: 8px; }
+    .field-label { font-size: 9px; color: #666; text-transform: uppercase; }
+    .field-value { font-size: 13px; font-weight: bold; color: #1a1a1a; }
+    .bvn-section { background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%); padding: 15px; text-align: center; }
+    .bvn-label { font-size: 10px; color: rgba(255,255,255,0.9); margin-bottom: 5px; }
+    .bvn-value { font-size: 26px; font-weight: bold; color: #fff; letter-spacing: 3px; font-family: 'Courier New', monospace; }
+    .footer { background: #f5f5f5; padding: 10px 20px; text-align: center; font-size: 9px; color: #666; }
+    @media print { body { background: white; } .slip { box-shadow: none; } }
+  </style>
+</head>
+<body>
+  <div class="slip">
+    <div class="header">
+      <h1>CENTRAL BANK OF NIGERIA</h1>
+      <h2>Bank Verification Number (BVN) Slip</h2>
+    </div>
+    
+    <div class="content">
+      ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo">` : '<div class="photo" style="display: flex; align-items: center; justify-content: center; color: #999; font-size: 10px;">Photo</div>'}
+      
+      <div class="info">
+        <div class="name-section">
+          <div class="surname">${escapeHtml(data.lastName)}</div>
+          <div class="firstname">${escapeHtml(data.firstName)}</div>
+        </div>
+        
+        <div class="field">
+          <div class="field-label">Date of Birth</div>
+          <div class="field-value">${formatDate(data.dateOfBirth)}</div>
+        </div>
+        <div class="field">
+          <div class="field-label">Gender</div>
+          <div class="field-value">${escapeHtml(data.gender)}</div>
+        </div>
+        <div class="field">
+          <div class="field-label">Phone</div>
+          <div class="field-value">${escapeHtml(data.phone)}</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="bvn-section">
+      <div class="bvn-label">Bank Verification Number</div>
+      <div class="bvn-value">${escapeHtml(data.id)}</div>
+    </div>
+    
+    <div class="footer">
+      ${reference} | ${new Date(generatedAt).toLocaleDateString('en-NG')}
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
+}
+
+function generateBVNPremiumSlip(data: BVNData, reference: string, generatedAt: string): string {
+  const issueDate = formatDate(new Date().toISOString());
+  
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BVN Premium Slip - ${reference}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Arial', sans-serif; background: #0d47a1; padding: 20px; min-height: 100vh; }
+    .slip { width: 100%; max-width: 600px; min-height: 800px; margin: 0 auto; background: linear-gradient(180deg, #0d47a1 0%, #1565c0 30%, #1976d2 60%, #1565c0 100%); position: relative; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.4); }
+    .decorative-border { position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px; border: 2px solid rgba(255,255,255,0.2); border-radius: 6px; pointer-events: none; }
+    .inner-content { padding: 35px 30px; position: relative; z-index: 1; }
+    .header { text-align: center; margin-bottom: 25px; }
+    .cbn-logo { width: 80px; height: 80px; margin: 0 auto 15px; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="%23ffd700" stroke="%23fff" stroke-width="2"/><text x="50" y="55" text-anchor="middle" fill="%230d47a1" font-size="20" font-weight="bold">CBN</text></svg>'); background-size: contain; background-repeat: no-repeat; }
+    .header h1 { font-size: 20px; color: #ffd700; margin-bottom: 5px; letter-spacing: 2px; }
+    .header h2 { font-size: 12px; color: rgba(255,255,255,0.9); font-weight: normal; }
+    .header h3 { font-size: 14px; color: #fff; margin-top: 8px; font-weight: bold; }
+    .main-content { display: flex; gap: 25px; margin-bottom: 25px; }
+    .photo-section { flex-shrink: 0; text-align: center; }
+    .photo { width: 140px; height: 170px; border: 3px solid #ffd700; object-fit: cover; background: #f5f5f5; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+    .info-section { flex: 1; }
+    .field { margin-bottom: 12px; }
+    .field-label { font-size: 9px; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+    .field-value { font-size: 15px; font-weight: bold; color: #fff; text-transform: uppercase; }
+    .field-row { display: flex; gap: 15px; }
+    .field-row .field { flex: 1; }
+    .bvn-section { background: rgba(255,215,0,0.15); border: 2px solid #ffd700; padding: 18px; text-align: center; margin: 20px 0; border-radius: 8px; }
+    .bvn-label { font-size: 10px; color: rgba(255,255,255,0.9); margin-bottom: 6px; letter-spacing: 1px; }
+    .bvn-value { font-size: 36px; font-weight: bold; color: #ffd700; letter-spacing: 5px; font-family: 'Courier New', monospace; }
+    .enrollment-section { background: rgba(255,255,255,0.1); padding: 12px; margin-bottom: 15px; border-radius: 6px; }
+    .footer-section { margin-top: 25px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.2); }
+    .footer-notes { font-size: 9px; color: rgba(255,255,255,0.8); line-height: 1.5; }
+    .footer-notes p { margin-bottom: 5px; }
+    .reference-footer { text-align: center; margin-top: 15px; font-size: 9px; color: rgba(255,255,255,0.6); }
+    .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 150px; color: rgba(255,255,255,0.03); font-weight: bold; pointer-events: none; }
+    @media print { body { background: white; padding: 0; } .slip { box-shadow: none; } }
+  </style>
+</head>
+<body>
+  <div class="slip">
+    <div class="decorative-border"></div>
+    <div class="watermark">BVN</div>
+    
+    <div class="inner-content">
+      <div class="header">
+        <div class="cbn-logo"></div>
+        <h1>CENTRAL BANK OF NIGERIA</h1>
+        <h2>Bank Verification Number System</h2>
+        <h3>Premium BVN Slip</h3>
+      </div>
+      
+      <div class="main-content">
+        <div class="photo-section">
+          ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo">` : '<div class="photo" style="display: flex; align-items: center; justify-content: center; color: #666; font-size: 12px;">Photo</div>'}
+        </div>
+        
+        <div class="info-section">
+          <div class="field">
+            <div class="field-label">Surname</div>
+            <div class="field-value">${escapeHtml(data.lastName)}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">First Name</div>
+            <div class="field-value">${escapeHtml(data.firstName)}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">Middle Name</div>
+            <div class="field-value">${escapeHtml(data.middleName) || '-'}</div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <div class="field-label">Date of Birth</div>
+              <div class="field-value">${formatDate(data.dateOfBirth)}</div>
+            </div>
+            <div class="field">
+              <div class="field-label">Gender</div>
+              <div class="field-value">${escapeHtml(data.gender)}</div>
+            </div>
+          </div>
+          <div class="field">
+            <div class="field-label">Phone Number</div>
+            <div class="field-value">${escapeHtml(data.phone)}</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="bvn-section">
+        <div class="bvn-label">BANK VERIFICATION NUMBER (BVN)</div>
+        <div class="bvn-value">${escapeHtml(data.id)}</div>
+      </div>
+      
+      <div class="enrollment-section">
+        <div class="field-row">
+          <div class="field">
+            <div class="field-label">Enrollment Bank</div>
+            <div class="field-value" style="font-size: 12px;">${escapeHtml(data.enrollmentInstitution) || 'N/A'}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">Registration Date</div>
+            <div class="field-value" style="font-size: 12px;">${formatDate(data.registrationDate || '')}</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="footer-section">
+        <div class="footer-notes">
+          <p>This BVN slip is issued by the Central Bank of Nigeria through an authorized financial institution.</p>
+          <p>The BVN is a unique identifier for banking transactions in Nigeria.</p>
+        </div>
+        
+        <div class="reference-footer">
+          Issue Date: ${issueDate} | Reference: ${reference} | Generated: ${new Date(generatedAt).toLocaleString('en-NG')}
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
+}
