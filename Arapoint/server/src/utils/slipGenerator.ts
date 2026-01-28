@@ -21,22 +21,22 @@ const formatDate = (dateStr: string): string => {
   }
 };
 
-const formatDateLong = (dateStr: string): string => {
+const formatDateShort = (dateStr: string): string => {
   if (!dateStr) return 'N/A';
   try {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-NG', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-    });
+    const day = date.getDate().toString().padStart(2, '0');
+    const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    const month = months[date.getMonth()];
+    const year = date.getFullYear();
+    return `${day} ${month} ${year}`;
   } catch {
     return dateStr;
   }
 };
 
 const escapeHtml = (str: string): string => {
-  if (!str) return 'N/A';
+  if (!str) return '';
   return str
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -46,7 +46,7 @@ const escapeHtml = (str: string): string => {
 };
 
 const formatNIN = (nin: string): string => {
-  if (!nin) return 'N/A';
+  if (!nin) return '0000 000 0000';
   return nin.replace(/(\d{4})(\d{3})(\d{4})/, '$1 $2 $3');
 };
 
@@ -87,7 +87,7 @@ function generateInformationSlip(data: NINData, reference: string, generatedAt: 
     .slip { max-width: 900px; margin: 0 auto; border: 1px solid #ddd; padding: 30px; }
     .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #008751; padding-bottom: 15px; margin-bottom: 25px; }
     .header-left { display: flex; align-items: center; gap: 15px; }
-    .coat-of-arms { width: 60px; height: 60px; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="%23008751"/><text x="50" y="55" text-anchor="middle" fill="white" font-size="20">🇳🇬</text></svg>'); background-size: contain; }
+    .coat-of-arms { width: 60px; height: 60px; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="%23008751"/><text x="50" y="55" text-anchor="middle" fill="white" font-size="20">NG</text></svg>'); background-size: contain; }
     .header-title { text-align: center; flex: 1; }
     .header-title h1 { color: #008751; font-size: 22px; margin-bottom: 5px; }
     .header-title h2 { color: #333; font-size: 18px; }
@@ -124,7 +124,7 @@ function generateInformationSlip(data: NINData, reference: string, generatedAt: 
         <div class="info-row"><span class="info-label">First Name:</span><span class="info-value">${escapeHtml(data.firstName)}</span></div>
         <div class="info-row"><span class="info-label">Middle Name:</span><span class="info-value">${escapeHtml(data.middleName)}</span></div>
         <div class="info-row"><span class="info-label">Last Name:</span><span class="info-value">${escapeHtml(data.lastName)}</span></div>
-        <div class="info-row"><span class="info-label">Date of birth:</span><span class="info-value">${formatDateLong(data.dateOfBirth)}</span></div>
+        <div class="info-row"><span class="info-label">Date of birth:</span><span class="info-value">${formatDateShort(data.dateOfBirth)}</span></div>
         <div class="info-row"><span class="info-label">Gender:</span><span class="info-value">${escapeHtml(data.gender)}</span></div>
         <div class="info-row"><span class="info-label">NIN Number:</span><span class="info-value" style="font-weight: bold; font-size: 16px;">${escapeHtml(data.id)}</span></div>
         <div class="info-row"><span class="info-label">Tracking ID:</span><span class="info-value">${escapeHtml(reference)}</span></div>
@@ -139,21 +139,13 @@ function generateInformationSlip(data: NINData, reference: string, generatedAt: 
       <div class="photo-section">
         ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo">` : '<div class="photo" style="display: flex; align-items: center; justify-content: center; color: #999;">No Photo</div>'}
         <div class="verified-badge">Verified</div>
-        <div style="text-align: center; font-size: 11px; color: #666;">
-          This is a property of National Identity Management Commission (NIMC), Nigeria.<br>
-          If found, please return to the nearest NIMC's office or contact +234 815 769 1214
-        </div>
       </div>
     </div>
     
     <div class="notice">
       <p>1. This NIN slip remains the property of the Federal Republic of Nigeria, and MUST be surrendered on demand;</p>
-      <p>2. This NIN slip does not imply nor confer citizenship of the Federal Republic of Nigeria on the individual the document is issued to;</p>
+      <p>2. This NIN slip does not imply nor confer citizenship of the Federal Republic of Nigeria on the individual;</p>
       <p>3. This NIN slip is valid for the lifetime of the holder and <span class="highlight">DOES NOT EXPIRE</span>.</p>
-    </div>
-    
-    <div style="margin-top: 15px; text-align: center; font-size: 11px; color: #666;">
-      Reference: ${reference} | Generated: ${new Date(generatedAt).toLocaleString('en-NG')} | Powered by Arapoint
     </div>
   </div>
 </body>
@@ -163,6 +155,7 @@ function generateInformationSlip(data: NINData, reference: string, generatedAt: 
 
 function generateRegularSlip(data: NINData, reference: string, generatedAt: string): string {
   const trackingId = reference.toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 16);
+  const issueDate = formatDateShort(new Date().toISOString()).replace(/ /g, '/');
   
   return `
 <!DOCTYPE html>
@@ -170,41 +163,41 @@ function generateRegularSlip(data: NINData, reference: string, generatedAt: stri
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NIN Long Slip - ${reference}</title>
+  <title>NIN Slip - ${reference}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    @page { size: 8.5in 14in; margin: 0; }
-    body { font-family: 'Arial', sans-serif; background: #fff; margin: 0; padding: 0; }
-    .slip { width: 100%; max-width: 612px; min-height: 1008px; margin: 0 auto; background: #fff; position: relative; padding: 40px 30px; }
-    .header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #008751; }
-    .coat-of-arms { width: 80px; height: 80px; margin: 0 auto 15px; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="%23008751"/><text x="50" y="60" text-anchor="middle" fill="white" font-size="30" font-weight="bold">NG</text></svg>'); background-size: contain; background-repeat: no-repeat; }
-    .header h1 { font-size: 22px; color: #008751; margin-bottom: 5px; letter-spacing: 2px; }
-    .header h2 { font-size: 16px; color: #333; font-weight: normal; }
-    .header h3 { font-size: 14px; color: #666; margin-top: 5px; }
-    .content { display: flex; gap: 30px; margin-bottom: 30px; }
-    .photo-section { flex-shrink: 0; text-align: center; }
-    .photo { width: 150px; height: 180px; border: 3px solid #008751; object-fit: cover; background: #f5f5f5; }
-    .photo-label { font-size: 10px; color: #666; margin-top: 5px; }
-    .info-section { flex: 1; }
-    .tracking-row { background: #f0f0f0; padding: 10px 15px; margin-bottom: 15px; border-left: 4px solid #008751; }
-    .tracking-label { font-size: 10px; color: #666; text-transform: uppercase; }
-    .tracking-value { font-size: 16px; font-weight: bold; color: #1a1a1a; font-family: 'Courier New', monospace; letter-spacing: 2px; }
-    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-    .field { margin-bottom: 12px; }
-    .field-label { font-size: 10px; color: #666; text-transform: uppercase; margin-bottom: 3px; }
-    .field-value { font-size: 14px; font-weight: bold; color: #1a1a1a; text-transform: uppercase; }
-    .full-width { grid-column: span 2; }
-    .nin-section { background: linear-gradient(135deg, #008751 0%, #006341 100%); padding: 20px; text-align: center; margin: 30px 0; }
-    .nin-label { font-size: 12px; color: rgba(255,255,255,0.9); margin-bottom: 8px; }
-    .nin-value { font-size: 36px; font-weight: bold; color: white; letter-spacing: 8px; font-family: 'Courier New', monospace; }
-    .address-section { background: #f9f9f9; padding: 15px; margin-bottom: 20px; border: 1px solid #e0e0e0; }
-    .address-label { font-size: 10px; color: #666; text-transform: uppercase; margin-bottom: 5px; }
-    .address-value { font-size: 13px; color: #333; line-height: 1.5; }
-    .footer-notes { font-size: 10px; color: #666; line-height: 1.6; margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; }
-    .footer-notes p { margin-bottom: 8px; }
-    .footer-notes .warning { color: #c62828; font-weight: bold; }
-    .qr-section { position: absolute; bottom: 40px; right: 30px; text-align: center; }
-    .qr-code { width: 80px; height: 80px; border: 1px solid #ccc; background: #fff; }
+    body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
+    .slip { max-width: 900px; margin: 0 auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .header { background: linear-gradient(to bottom, #fff8e1 0%, #fff 100%); padding: 20px 30px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e0e0e0; }
+    .coat-of-arms { width: 70px; height: 70px; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120"><ellipse cx="50" cy="60" rx="40" ry="50" fill="%23006400"/><circle cx="50" cy="40" r="15" fill="%23c41e3a"/><rect x="35" y="55" width="30" height="40" fill="%23333"/><text x="50" y="100" text-anchor="middle" fill="%23fff" font-size="8">UNITY</text></svg>'); background-size: contain; background-repeat: no-repeat; }
+    .header-center { text-align: center; flex: 1; }
+    .header-center h1 { font-size: 24px; color: #1a472a; margin-bottom: 5px; }
+    .header-center h2 { font-size: 14px; color: #333; font-weight: normal; }
+    .header-center h3 { font-size: 13px; color: #666; font-style: italic; }
+    .nimc-logo { text-align: right; }
+    .nimc-logo span { font-size: 28px; font-weight: bold; color: #1a472a; font-style: italic; }
+    .nimc-logo small { display: block; font-size: 9px; color: #666; }
+    .content { padding: 20px 30px; }
+    .main-grid { display: grid; grid-template-columns: 200px 1fr 180px; gap: 20px; }
+    .left-col { }
+    .field-group { margin-bottom: 12px; }
+    .field-label { font-size: 11px; color: #666; font-weight: bold; }
+    .field-value { font-size: 14px; color: #333; }
+    .nin-box { border: 2px solid #c41e3a; border-radius: 50%; padding: 8px 15px; display: inline-block; margin-top: 5px; }
+    .nin-box .field-value { color: #c41e3a; font-weight: bold; }
+    .center-col { border-left: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0; padding: 0 20px; }
+    .right-col { }
+    .photo { width: 150px; height: 180px; border: 2px solid #1a472a; object-fit: cover; background: #f0f0f0; }
+    .address-section { margin-top: 10px; }
+    .note-section { margin-top: 20px; padding: 15px; background: #fffde7; border-top: 1px solid #e0e0e0; }
+    .note-section p { font-size: 11px; color: #333; }
+    .note-section strong { color: #1a472a; }
+    .footer { background: #f5f5f5; padding: 15px 30px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; border-top: 1px solid #e0e0e0; }
+    .footer-item { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #333; }
+    .footer-item .icon { width: 24px; height: 24px; background: #1a472a; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; }
+    .nimc-footer { text-align: right; }
+    .nimc-footer h4 { font-size: 12px; color: #1a472a; margin-bottom: 3px; }
+    .nimc-footer p { font-size: 9px; color: #666; }
     @media print { body { background: white; } .slip { box-shadow: none; } }
   </style>
 </head>
@@ -212,92 +205,92 @@ function generateRegularSlip(data: NINData, reference: string, generatedAt: stri
   <div class="slip">
     <div class="header">
       <div class="coat-of-arms"></div>
-      <h1>FEDERAL REPUBLIC OF NIGERIA</h1>
-      <h2>National Identity Management Commission</h2>
-      <h3>National Identification Number (NIN) Slip</h3>
+      <div class="header-center">
+        <h1>National Identity Management System</h1>
+        <h2>Federal Republic of Nigeria</h2>
+        <h3>National Identification Number Slip (NINS)</h3>
+      </div>
+      <div class="nimc-logo">
+        <span>Nimc</span>
+        <small>Promoting Digital Identity</small>
+      </div>
     </div>
     
     <div class="content">
-      <div class="photo-section">
-        ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo">` : '<div class="photo" style="display: flex; align-items: center; justify-content: center; color: #999; font-size: 12px;">Photo</div>'}
-        <div class="photo-label">Passport Photograph</div>
-      </div>
-      
-      <div class="info-section">
-        <div class="tracking-row">
-          <div class="tracking-label">Tracking ID</div>
-          <div class="tracking-value">${trackingId}</div>
+      <div class="main-grid">
+        <div class="left-col">
+          <div class="field-group">
+            <div class="field-label">Tracking ID</div>
+            <div class="field-value">${trackingId}</div>
+          </div>
+          <div class="field-group">
+            <div class="field-label">NIN</div>
+            <div class="nin-box">
+              <div class="field-value">${escapeHtml(data.id)}</div>
+            </div>
+          </div>
+          <div class="field-group">
+            <div class="field-label">Issue Date</div>
+            <div class="field-value">${issueDate}</div>
+          </div>
         </div>
         
-        <div class="info-grid">
-          <div class="field">
+        <div class="center-col">
+          <div class="field-group">
             <div class="field-label">Surname</div>
-            <div class="field-value">${escapeHtml(data.lastName)}</div>
+            <div class="field-value">${escapeHtml(data.lastName).toUpperCase()}</div>
           </div>
-          <div class="field">
+          <div class="field-group">
             <div class="field-label">First Name</div>
-            <div class="field-value">${escapeHtml(data.firstName)}</div>
+            <div class="field-value">${escapeHtml(data.firstName).toUpperCase()}</div>
           </div>
-          <div class="field">
+          <div class="field-group">
             <div class="field-label">Middle Name</div>
-            <div class="field-value">${escapeHtml(data.middleName) || '-'}</div>
+            <div class="field-value">${escapeHtml(data.middleName).toUpperCase() || '-'}</div>
           </div>
-          <div class="field">
-            <div class="field-label">Date of Birth</div>
-            <div class="field-value">${formatDate(data.dateOfBirth)}</div>
-          </div>
-          <div class="field">
+          <div class="field-group">
             <div class="field-label">Gender</div>
             <div class="field-value">${escapeHtml(data.gender)}</div>
           </div>
-          <div class="field">
-            <div class="field-label">State of Origin</div>
-            <div class="field-value">${escapeHtml(data.birthState)}</div>
+        </div>
+        
+        <div class="right-col">
+          <div class="field-group">
+            <div class="field-label">Address:</div>
+            <div class="field-value">${escapeHtml(data.address) || 'N/A'}</div>
           </div>
-          <div class="field">
-            <div class="field-label">LGA of Origin</div>
-            <div class="field-value">${escapeHtml(data.birthLga)}</div>
+          <div class="address-section">
+            <div class="field-value">${escapeHtml(data.lga) || ''} ${escapeHtml(data.town) || ''}</div>
+            <div class="field-value">${escapeHtml(data.state) || ''}</div>
           </div>
-          <div class="field">
-            <div class="field-label">Nationality</div>
-            <div class="field-value">${escapeHtml(data.nationality || 'NIGERIA')}</div>
+          <div style="margin-top: 15px;">
+            ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo">` : '<div class="photo" style="display: flex; align-items: center; justify-content: center; color: #999; font-size: 12px;">Photo</div>'}
           </div>
         </div>
       </div>
     </div>
     
-    <div class="nin-section">
-      <div class="nin-label">National Identification Number (NIN)</div>
-      <div class="nin-value">${escapeHtml(data.id)}</div>
+    <div class="note-section">
+      <p><strong>Note:</strong> This transaction slip does not confer the right to the <strong>General Multipurpose Card</strong> (For any enquiry please contact)</p>
     </div>
     
-    <div class="address-section">
-      <div class="address-label">Residence Address</div>
-      <div class="address-value">
-        ${escapeHtml(data.address) || 'N/A'}<br>
-        ${escapeHtml(data.town) || ''} ${escapeHtml(data.lga) || ''}<br>
-        ${escapeHtml(data.state) || ''}, Nigeria
+    <div class="footer">
+      <div class="footer-item">
+        <div class="icon">@</div>
+        <span>helpdesk@nimc.gov.ng</span>
       </div>
-    </div>
-    
-    <div class="info-grid" style="margin-top: 20px;">
-      <div class="field">
-        <div class="field-label">Phone Number</div>
-        <div class="field-value">${escapeHtml(data.phone) || 'N/A'}</div>
+      <div class="footer-item">
+        <div class="icon">W</div>
+        <span>www.nimc.gov.ng</span>
       </div>
-      <div class="field">
-        <div class="field-label">Email Address</div>
-        <div class="field-value" style="text-transform: lowercase;">${escapeHtml(data.email) || 'N/A'}</div>
+      <div class="footer-item">
+        <div class="icon">T</div>
+        <span>07040144452, 07040144453</span>
       </div>
-    </div>
-    
-    <div class="footer-notes">
-      <p>1. This NIN slip remains the property of the Federal Republic of Nigeria, and MUST be surrendered on demand.</p>
-      <p>2. This NIN slip does not imply nor confer citizenship of the Federal Republic of Nigeria on the individual the document is issued to.</p>
-      <p class="warning">3. This NIN slip is valid for the lifetime of the holder and DOES NOT EXPIRE.</p>
-      <p style="margin-top: 15px; text-align: center;">
-        Reference: ${reference} | Generated: ${new Date(generatedAt).toLocaleString('en-NG')}
-      </p>
+      <div class="nimc-footer">
+        <h4>National Identity Management Commission</h4>
+        <p>11 Sokode Crescent, Off Dalaba Street Zone 5, Wuse Abuja Nigeria</p>
+      </div>
     </div>
   </div>
 </body>
@@ -306,6 +299,8 @@ function generateRegularSlip(data: NINData, reference: string, generatedAt: stri
 }
 
 function generateStandardSlip(data: NINData, reference: string, generatedAt: string): string {
+  const issueDate = formatDateShort(new Date().toISOString());
+  
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -315,62 +310,77 @@ function generateStandardSlip(data: NINData, reference: string, generatedAt: str
   <title>NIN Standard Slip - ${reference}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Arial', sans-serif; background: #f0f0f0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-    .slip { width: 400px; background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); overflow: hidden; border: 1px solid #ddd; }
-    .header { background: #fff; padding: 15px 20px; text-align: center; border-bottom: 2px solid #008751; }
-    .header-row { display: flex; align-items: center; justify-content: center; gap: 10px; }
-    .coat-arms { width: 40px; height: 40px; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="%23008751"/><text x="50" y="60" text-anchor="middle" fill="white" font-size="25" font-weight="bold">NG</text></svg>'); background-size: contain; }
-    .header-text h1 { font-size: 12px; color: #008751; letter-spacing: 1px; }
-    .header-text h2 { font-size: 10px; color: #666; font-weight: normal; }
-    .content { padding: 25px 20px; display: flex; gap: 20px; }
-    .photo { width: 100px; height: 120px; border: 2px solid #008751; object-fit: cover; background: #f5f5f5; flex-shrink: 0; }
-    .info { flex: 1; }
-    .name-section { margin-bottom: 15px; }
-    .surname { font-size: 24px; font-weight: bold; color: #1a1a1a; text-transform: uppercase; line-height: 1.2; }
-    .firstname { font-size: 20px; font-weight: bold; color: #1a1a1a; text-transform: uppercase; }
-    .dob-section { background: #f9f9f9; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
-    .dob-label { font-size: 9px; color: #666; text-transform: uppercase; }
-    .dob-value { font-size: 16px; font-weight: bold; color: #1a1a1a; }
-    .nin-section { background: #008751; padding: 15px; text-align: center; }
-    .nin-value { font-size: 28px; font-weight: bold; color: #fff; letter-spacing: 4px; font-family: 'Courier New', monospace; }
-    .footer { background: #f5f5f5; padding: 10px 20px; text-align: center; font-size: 9px; color: #666; }
+    body { font-family: Arial, sans-serif; background: #f0f0f0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .slip { width: 550px; background: #fff; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); overflow: hidden; position: relative; padding: 30px; }
+    .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.08; pointer-events: none; }
+    .watermark img, .watermark svg { width: 300px; height: auto; }
+    .coat-of-arms { width: 80px; height: 90px; margin: 0 auto 20px; display: block; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120"><ellipse cx="50" cy="60" rx="35" ry="45" fill="%23228b22"/><circle cx="50" cy="35" r="12" fill="%23c41e3a"/><path d="M25 60 L50 90 L75 60" fill="%23333"/><circle cx="30" cy="50" r="8" fill="%23ffd700"/><circle cx="70" cy="50" r="8" fill="%23ffd700"/><text x="50" y="110" text-anchor="middle" fill="%23228b22" font-size="7" font-weight="bold">UNITY AND FAITH</text></svg>'); background-size: contain; background-repeat: no-repeat; background-position: center; }
+    .content { display: flex; gap: 25px; position: relative; z-index: 1; }
+    .photo-section { flex-shrink: 0; }
+    .photo { width: 120px; height: 150px; border: 2px solid #ccc; object-fit: cover; background: #e0e0e0; }
+    .info-section { flex: 1; }
+    .field { margin-bottom: 12px; }
+    .field-label { font-size: 11px; color: #666; font-style: italic; }
+    .field-value { font-size: 16px; font-weight: bold; color: #1a1a1a; text-transform: uppercase; }
+    .right-section { text-align: right; }
+    .nga-code { font-size: 28px; font-weight: bold; color: #333; margin-bottom: 5px; }
+    .nga-numbers { font-size: 10px; color: #999; letter-spacing: 1px; }
+    .qr-code { width: 100px; height: 100px; margin: 10px 0; border: 1px solid #ccc; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23fff" width="100" height="100"/><rect fill="%23000" x="10" y="10" width="25" height="25"/><rect fill="%23fff" x="15" y="15" width="15" height="15"/><rect fill="%23000" x="18" y="18" width="9" height="9"/><rect fill="%23000" x="65" y="10" width="25" height="25"/><rect fill="%23fff" x="70" y="15" width="15" height="15"/><rect fill="%23000" x="73" y="18" width="9" height="9"/><rect fill="%23000" x="10" y="65" width="25" height="25"/><rect fill="%23fff" x="15" y="70" width="15" height="15"/><rect fill="%23000" x="18" y="73" width="9" height="9"/><rect fill="%23000" x="40" y="40" width="5" height="5"/><rect fill="%23000" x="50" y="40" width="5" height="5"/><rect fill="%23000" x="45" y="50" width="5" height="5"/><rect fill="%23000" x="55" y="55" width="5" height="5"/><rect fill="%23000" x="65" y="45" width="5" height="5"/><rect fill="%23000" x="70" y="55" width="5" height="5"/><rect fill="%23000" x="80" y="65" width="5" height="5"/><rect fill="%23000" x="65" y="75" width="5" height="5"/><rect fill="%23000" x="75" y="80" width="5" height="5"/></svg>'); background-size: contain; }
+    .issue-date { margin-top: 10px; }
+    .issue-label { font-size: 10px; color: #c41e3a; font-weight: bold; }
+    .issue-value { font-size: 14px; color: #333; }
+    .nin-section { margin-top: 25px; text-align: center; position: relative; z-index: 1; }
+    .nin-label { font-size: 14px; font-weight: bold; color: #333; margin-bottom: 10px; }
+    .nin-value { font-size: 42px; font-weight: bold; color: #1a1a1a; letter-spacing: 8px; font-family: 'Courier New', monospace; }
     @media print { body { background: white; } .slip { box-shadow: none; } }
   </style>
 </head>
 <body>
   <div class="slip">
-    <div class="header">
-      <div class="header-row">
-        <div class="coat-arms"></div>
-        <div class="header-text">
-          <h1>FEDERAL REPUBLIC OF NIGERIA</h1>
-          <h2>National Identification Number Slip</h2>
-        </div>
-      </div>
+    <div class="watermark">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 120">
+        <ellipse cx="50" cy="60" rx="35" ry="45" fill="#228b22"/>
+        <circle cx="50" cy="35" r="12" fill="#c41e3a"/>
+        <path d="M25 60 L50 90 L75 60" fill="#333"/>
+      </svg>
     </div>
     
+    <div class="coat-of-arms"></div>
+    
     <div class="content">
-      ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo">` : '<div class="photo" style="display: flex; align-items: center; justify-content: center; color: #999; font-size: 10px;">Photo</div>'}
+      <div class="photo-section">
+        ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo">` : '<div class="photo" style="display: flex; align-items: center; justify-content: center; color: #999; font-size: 11px;">Photo</div>'}
+      </div>
       
-      <div class="info">
-        <div class="name-section">
-          <div class="surname">${escapeHtml(data.lastName)}</div>
-          <div class="firstname">${escapeHtml(data.firstName)}</div>
+      <div class="info-section">
+        <div class="field">
+          <div class="field-label">Surname/Nom</div>
+          <div class="field-value">${escapeHtml(data.lastName)}</div>
         </div>
-        
-        <div class="dob-section">
-          <div class="dob-label">Date of Birth</div>
-          <div class="dob-value">${formatDate(data.dateOfBirth)}</div>
+        <div class="field">
+          <div class="field-label">Given Names/Prénoms</div>
+          <div class="field-value">${escapeHtml(data.firstName)}${data.middleName ? ', ' + escapeHtml(data.middleName) : ''}</div>
+        </div>
+        <div class="field">
+          <div class="field-label">Date of Birth</div>
+          <div class="field-value">${formatDateShort(data.dateOfBirth)}</div>
+        </div>
+      </div>
+      
+      <div class="right-section">
+        <div class="nga-code">NGA</div>
+        <div class="nga-numbers">00000000000</div>
+        <div class="qr-code"></div>
+        <div class="issue-date">
+          <div class="issue-label">ISSUE DATE</div>
+          <div class="issue-value">${issueDate}</div>
         </div>
       </div>
     </div>
     
     <div class="nin-section">
+      <div class="nin-label">National Identification Number (NIN)</div>
       <div class="nin-value">${formatNIN(data.id)}</div>
-    </div>
-    
-    <div class="footer">
-      ${reference} | ${new Date(generatedAt).toLocaleDateString('en-NG')}
     </div>
   </div>
 </body>
@@ -379,7 +389,8 @@ function generateStandardSlip(data: NINData, reference: string, generatedAt: str
 }
 
 function generatePremiumSlip(data: NINData, reference: string, generatedAt: string): string {
-  const issueDate = formatDate(new Date().toISOString());
+  const issueDate = formatDateShort(new Date().toISOString());
+  const gender = data.gender?.charAt(0).toUpperCase() || 'M';
   
   return `
 <!DOCTYPE html>
@@ -390,134 +401,84 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
   <title>NIN Premium Slip - ${reference}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    @page { size: 8.5in 14in; margin: 0; }
-    body { font-family: 'Arial', sans-serif; background: #2d5a27; padding: 20px; min-height: 100vh; }
-    .slip { width: 100%; max-width: 612px; min-height: 950px; margin: 0 auto; background: linear-gradient(180deg, #1a472a 0%, #2d5a27 20%, #3d7a37 50%, #2d5a27 80%, #1a472a 100%); position: relative; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.4); }
-    .decorative-border { position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px; border: 2px solid rgba(255,255,255,0.2); border-radius: 6px; pointer-events: none; }
-    .inner-content { padding: 40px 35px; position: relative; z-index: 1; }
-    .header { text-align: center; margin-bottom: 30px; }
-    .coat-of-arms { width: 90px; height: 90px; margin: 0 auto 15px; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="%23ffd700" stroke="%23fff" stroke-width="2"/><text x="50" y="60" text-anchor="middle" fill="%231a472a" font-size="30" font-weight="bold">NG</text></svg>'); background-size: contain; background-repeat: no-repeat; }
-    .header h1 { font-size: 24px; color: #ffd700; margin-bottom: 5px; letter-spacing: 3px; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
-    .header h2 { font-size: 14px; color: rgba(255,255,255,0.9); font-weight: normal; letter-spacing: 1px; }
-    .header h3 { font-size: 16px; color: #fff; margin-top: 10px; font-weight: bold; }
-    .main-content { display: flex; gap: 25px; margin-bottom: 25px; }
-    .photo-section { flex-shrink: 0; text-align: center; }
-    .photo { width: 160px; height: 190px; border: 4px solid #ffd700; object-fit: cover; background: #f5f5f5; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-    .photo-label { font-size: 10px; color: rgba(255,255,255,0.7); margin-top: 8px; }
-    .info-section { flex: 1; }
-    .field { margin-bottom: 14px; }
-    .field-label { font-size: 10px; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
-    .field-value { font-size: 16px; font-weight: bold; color: #fff; text-transform: uppercase; }
+    body { font-family: Arial, sans-serif; background: #1a472a; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .slip { width: 600px; height: 380px; background: linear-gradient(135deg, #2d5a27 0%, #3d7a37 30%, #4a8f44 50%, #3d7a37 70%, #2d5a27 100%); border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.4); overflow: hidden; position: relative; padding: 20px 25px; }
+    .pattern-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60"><text x="5" y="30" fill="rgba(255,255,255,0.03)" font-size="8">00000000000</text></svg>'); pointer-events: none; }
+    .header { position: relative; z-index: 1; }
+    .header-top { background: linear-gradient(90deg, #1a472a 0%, #2d5a27 50%, #1a472a 100%); margin: -20px -25px 15px; padding: 12px 25px; }
+    .header-title { color: #fff; font-size: 20px; font-weight: bold; text-align: center; letter-spacing: 3px; }
+    .sub-header { background: #1a472a; color: #fff; font-size: 12px; text-align: center; padding: 5px; margin: -15px -25px 15px; letter-spacing: 1px; }
+    .content { display: flex; gap: 20px; position: relative; z-index: 1; }
+    .left-section { flex-shrink: 0; }
+    .photo { width: 110px; height: 130px; border: 3px solid rgba(255,255,255,0.3); object-fit: cover; background: #ccc; }
+    .center-section { flex: 1; color: #fff; }
+    .field { margin-bottom: 8px; }
+    .field-label { font-size: 9px; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 0.5px; }
+    .field-value { font-size: 14px; font-weight: bold; text-transform: uppercase; }
     .field-row { display: flex; gap: 20px; }
     .field-row .field { flex: 1; }
-    .nin-section { background: rgba(255,215,0,0.15); border: 2px solid #ffd700; padding: 20px; text-align: center; margin: 25px 0; border-radius: 8px; }
-    .nin-label { font-size: 11px; color: rgba(255,255,255,0.9); margin-bottom: 8px; letter-spacing: 1px; }
-    .nin-value { font-size: 42px; font-weight: bold; color: #ffd700; letter-spacing: 6px; font-family: 'Courier New', monospace; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
-    .address-section { background: rgba(255,255,255,0.1); padding: 15px; margin-bottom: 20px; border-radius: 6px; }
-    .address-label { font-size: 10px; color: rgba(255,255,255,0.7); text-transform: uppercase; margin-bottom: 5px; }
-    .address-value { font-size: 13px; color: #fff; line-height: 1.5; }
-    .contact-row { display: flex; gap: 20px; margin-bottom: 20px; }
-    .contact-field { flex: 1; background: rgba(255,255,255,0.1); padding: 12px; border-radius: 6px; }
-    .footer-section { margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2); }
-    .footer-notes { font-size: 10px; color: rgba(255,255,255,0.8); line-height: 1.6; }
-    .footer-notes p { margin-bottom: 6px; }
-    .footer-notes .warning { color: #ffd700; font-weight: bold; }
-    .reference-footer { text-align: center; margin-top: 20px; font-size: 10px; color: rgba(255,255,255,0.6); }
-    .watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 200px; color: rgba(255,255,255,0.03); font-weight: bold; pointer-events: none; }
-    @media print { body { background: white; padding: 0; } .slip { box-shadow: none; } }
+    .right-section { text-align: right; color: #fff; }
+    .nga-code { font-size: 32px; font-weight: bold; margin-bottom: 5px; }
+    .qr-code { width: 90px; height: 90px; margin-left: auto; border: 2px solid rgba(255,255,255,0.3); background: #fff url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23fff" width="100" height="100"/><rect fill="%23000" x="10" y="10" width="25" height="25"/><rect fill="%23fff" x="15" y="15" width="15" height="15"/><rect fill="%23000" x="18" y="18" width="9" height="9"/><rect fill="%23000" x="65" y="10" width="25" height="25"/><rect fill="%23fff" x="70" y="15" width="15" height="15"/><rect fill="%23000" x="73" y="18" width="9" height="9"/><rect fill="%23000" x="10" y="65" width="25" height="25"/><rect fill="%23fff" x="15" y="70" width="15" height="15"/><rect fill="%23000" x="18" y="73" width="9" height="9"/><rect fill="%23000" x="40" y="40" width="5" height="5"/><rect fill="%23000" x="50" y="40" width="5" height="5"/><rect fill="%23000" x="45" y="50" width="5" height="5"/><rect fill="%23000" x="55" y="55" width="5" height="5"/><rect fill="%23000" x="65" y="45" width="5" height="5"/><rect fill="%23000" x="70" y="55" width="5" height="5"/></svg>'); background-size: contain; }
+    .issue-date { margin-top: 8px; }
+    .issue-label { font-size: 9px; color: rgba(255,255,255,0.7); }
+    .issue-value { font-size: 12px; font-weight: bold; }
+    .nin-section { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(90deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 100%); padding: 15px 25px; text-align: center; }
+    .nin-label { font-size: 12px; color: rgba(255,255,255,0.9); margin-bottom: 5px; }
+    .nin-value { font-size: 36px; font-weight: bold; color: #fff; letter-spacing: 10px; font-family: 'Courier New', monospace; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+    @media print { body { background: white; } .slip { box-shadow: none; } }
   </style>
 </head>
 <body>
   <div class="slip">
-    <div class="decorative-border"></div>
-    <div class="watermark">NIMC</div>
+    <div class="pattern-overlay"></div>
     
-    <div class="inner-content">
-      <div class="header">
-        <div class="coat-of-arms"></div>
-        <h1>FEDERAL REPUBLIC OF NIGERIA</h1>
-        <h2>National Identity Management Commission</h2>
-        <h3>Premium NIN Slip</h3>
+    <div class="header">
+      <div class="header-top">
+        <div class="header-title">FEDERAL REPUBLIC OF NIGERIA</div>
+      </div>
+      <div class="sub-header">DIGITAL NIN SLIP</div>
+    </div>
+    
+    <div class="content">
+      <div class="left-section">
+        ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo">` : '<div class="photo" style="display: flex; align-items: center; justify-content: center; color: #666; font-size: 11px;">Photo</div>'}
       </div>
       
-      <div class="main-content">
-        <div class="photo-section">
-          ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo">` : '<div class="photo" style="display: flex; align-items: center; justify-content: center; color: #666; font-size: 12px;">Photo</div>'}
-          <div class="photo-label">Passport Photograph</div>
+      <div class="center-section">
+        <div class="field">
+          <div class="field-label">Surname/Nom</div>
+          <div class="field-value">${escapeHtml(data.lastName)}</div>
         </div>
-        
-        <div class="info-section">
+        <div class="field">
+          <div class="field-label">Given Names/Prénoms</div>
+          <div class="field-value">${escapeHtml(data.firstName)}${data.middleName ? ', ' + escapeHtml(data.middleName) : ''}</div>
+        </div>
+        <div class="field-row">
           <div class="field">
-            <div class="field-label">Surname / Nom</div>
-            <div class="field-value">${escapeHtml(data.lastName)}</div>
+            <div class="field-label">Date of Birth</div>
+            <div class="field-value">${formatDateShort(data.dateOfBirth)}</div>
           </div>
           <div class="field">
-            <div class="field-label">First Name / Prénom</div>
-            <div class="field-value">${escapeHtml(data.firstName)}</div>
-          </div>
-          <div class="field">
-            <div class="field-label">Middle Name</div>
-            <div class="field-value">${escapeHtml(data.middleName) || '-'}</div>
-          </div>
-          <div class="field-row">
-            <div class="field">
-              <div class="field-label">Date of Birth</div>
-              <div class="field-value">${formatDate(data.dateOfBirth)}</div>
-            </div>
-            <div class="field">
-              <div class="field-label">Gender / Sexe</div>
-              <div class="field-value">${escapeHtml(data.gender)}</div>
-            </div>
-          </div>
-          <div class="field-row">
-            <div class="field">
-              <div class="field-label">State of Origin</div>
-              <div class="field-value">${escapeHtml(data.birthState)}</div>
-            </div>
-            <div class="field">
-              <div class="field-label">LGA of Origin</div>
-              <div class="field-value">${escapeHtml(data.birthLga)}</div>
-            </div>
+            <div class="field-label">Sex/Sexe</div>
+            <div class="field-value">${gender}</div>
           </div>
         </div>
       </div>
       
-      <div class="nin-section">
-        <div class="nin-label">NATIONAL IDENTIFICATION NUMBER (NIN)</div>
-        <div class="nin-value">${escapeHtml(data.id)}</div>
-      </div>
-      
-      <div class="address-section">
-        <div class="address-label">Residence Address</div>
-        <div class="address-value">
-          ${escapeHtml(data.address) || 'N/A'}<br>
-          ${escapeHtml(data.town) || ''} ${escapeHtml(data.lga) || ''}, ${escapeHtml(data.state) || ''}<br>
-          Nigeria
+      <div class="right-section">
+        <div class="nga-code">NGA</div>
+        <div class="qr-code"></div>
+        <div class="issue-date">
+          <div class="issue-label">ISSUE DATE</div>
+          <div class="issue-value">${issueDate}</div>
         </div>
       </div>
-      
-      <div class="contact-row">
-        <div class="contact-field">
-          <div class="field-label">Phone Number</div>
-          <div class="field-value" style="font-size: 14px;">${escapeHtml(data.phone) || 'N/A'}</div>
-        </div>
-        <div class="contact-field">
-          <div class="field-label">Email Address</div>
-          <div class="field-value" style="font-size: 12px; text-transform: lowercase;">${escapeHtml(data.email) || 'N/A'}</div>
-        </div>
-      </div>
-      
-      <div class="footer-section">
-        <div class="footer-notes">
-          <p>1. This NIN slip remains the property of the Federal Republic of Nigeria, and MUST be surrendered on demand.</p>
-          <p>2. This NIN slip does not imply nor confer citizenship of the Federal Republic of Nigeria on the individual.</p>
-          <p class="warning">3. This NIN slip is valid for the lifetime of the holder and DOES NOT EXPIRE.</p>
-        </div>
-        
-        <div class="reference-footer">
-          Issue Date: ${issueDate} | Reference: ${reference} | Generated: ${new Date(generatedAt).toLocaleString('en-NG')}
-        </div>
-      </div>
+    </div>
+    
+    <div class="nin-section">
+      <div class="nin-label">National Identification Number (NIN)</div>
+      <div class="nin-value">${formatNIN(data.id)}</div>
     </div>
   </div>
 </body>
