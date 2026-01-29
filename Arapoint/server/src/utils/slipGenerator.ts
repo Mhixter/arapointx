@@ -9,20 +9,20 @@ interface SlipData {
   generatedAt: string;
 }
 
-let cachedTemplateBase64: string | null = null;
+let cachedPremiumTemplateBase64: string | null = null;
 
-const getTemplateBase64 = (): string => {
-  if (cachedTemplateBase64) return cachedTemplateBase64;
+const getPremiumTemplateBase64 = (): string => {
+  if (cachedPremiumTemplateBase64) return cachedPremiumTemplateBase64;
   
   try {
-    const templatePath = path.join(process.cwd(), 'server/src/templates/nin_slip_template.png');
+    const templatePath = path.join(process.cwd(), 'server/src/templates/premium_slip_template.jpg');
     if (fs.existsSync(templatePath)) {
       const imageBuffer = fs.readFileSync(templatePath);
-      cachedTemplateBase64 = imageBuffer.toString('base64');
-      return cachedTemplateBase64;
+      cachedPremiumTemplateBase64 = imageBuffer.toString('base64');
+      return cachedPremiumTemplateBase64;
     }
   } catch (error) {
-    console.error('Failed to load template image:', error);
+    console.error('Failed to load premium template image:', error);
   }
   return '';
 };
@@ -472,13 +472,13 @@ function generateStandardSlip(data: NINData, reference: string, generatedAt: str
 }
 
 // PREMIUM SLIP - Uses exact user template image as background with data overlay
-// Template image stored at: server/src/templates/nin_slip_template.png
+// Template image stored at: server/src/templates/premium_slip_template.jpg
 function generatePremiumSlip(data: NINData, reference: string, generatedAt: string): string {
   const issueDate = formatDateShort(new Date().toISOString());
   const gender = data.gender?.charAt(0).toUpperCase() || 'M';
   const givenNames = data.firstName + (data.middleName ? ', ' + data.middleName : '');
-  const templateBase64 = getTemplateBase64();
-  const templateSrc = templateBase64 ? `data:image/png;base64,${templateBase64}` : '/api/identity/template-image';
+  const templateBase64 = getPremiumTemplateBase64();
+  const templateSrc = templateBase64 ? `data:image/jpeg;base64,${templateBase64}` : '/api/identity/template-image';
   
   return `
 <!DOCTYPE html>
@@ -492,27 +492,31 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
       font-family: 'Roboto', Arial, sans-serif; 
-      background: #e8e8e8; 
-      padding: 30px; 
+      background: #f5f5f5; 
+      padding: 20px; 
       display: flex; 
+      flex-direction: column;
       justify-content: center; 
       align-items: center; 
       min-height: 100vh; 
     }
     
+    .page-container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    
     .slip-wrapper {
       position: relative;
-      width: 860px;
-      height: 540px;
-      border-radius: 20px;
-      overflow: hidden;
-      box-shadow: 0 15px 50px rgba(0,0,0,0.25);
+      width: 600px;
+      background: white;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
     }
     
     .template-bg {
       width: 100%;
-      height: 100%;
-      object-fit: cover;
+      height: auto;
       display: block;
     }
     
@@ -525,173 +529,89 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
       pointer-events: none;
     }
     
+    /* Photo positioned over the empty photo area - left side of the card */
     .photo-overlay {
       position: absolute;
-      top: 17.5%;
-      left: 3.5%;
-      width: 17%;
-      height: 35%;
+      top: 37.5%;
+      left: 6%;
+      width: 18%;
+      height: 24%;
       object-fit: cover;
       z-index: 10;
     }
     
-    .surname-block {
-      position: absolute;
-      top: 17%;
-      left: 24%;
-      width: 38%;
-      height: 12%;
-      background: linear-gradient(135deg, #b8d8b0 0%, #98c890 50%, #a8d0a0 100%);
-      z-index: 5;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      padding: 6px 12px;
-    }
-    .surname-label {
-      font-size: 10px;
-      font-weight: 500;
-      color: #2d5a30;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
+    /* Surname value - positioned below SURNAME/NOM label */
     .surname-value {
-      font-size: 20px;
-      font-weight: 700;
-      color: #1a3a20;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    
-    .given-names-block {
       position: absolute;
-      top: 30%;
-      left: 24%;
-      width: 38%;
-      height: 12%;
-      background: linear-gradient(135deg, #b0d4a8 0%, #90c488 50%, #a0cc98 100%);
-      z-index: 5;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      padding: 6px 12px;
-    }
-    .given-names-label {
-      font-size: 10px;
-      font-weight: 500;
-      color: #2d5a30;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .given-names-value {
-      font-size: 20px;
-      font-weight: 700;
-      color: #1a3a20;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    
-    .dob-sex-row {
-      position: absolute;
-      top: 43%;
-      left: 24%;
-      width: 52%;
-      height: 22%;
-      background: linear-gradient(135deg, #a8d0a0 0%, #88c080 50%, #98c890 100%);
-      z-index: 5;
-      display: flex;
-      gap: 50px;
-      padding: 8px 15px;
-    }
-    .dob-block, .sex-block {
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-start;
-    }
-    .dob-label, .sex-label {
-      font-size: 9px;
-      font-weight: 500;
-      color: #2d5a30;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-    }
-    .dob-value, .sex-value {
+      top: 40%;
+      left: 28%;
       font-size: 16px;
       font-weight: 700;
       color: #1a3a20;
       text-transform: uppercase;
+      letter-spacing: 0.5px;
+      z-index: 10;
     }
     
-    .qr-block {
+    /* Given names value - positioned below GIVEN NAMES/PRÉNOMS label */
+    .given-names-value {
       position: absolute;
-      top: 14%;
-      right: 0%;
-      width: 26%;
-      height: 56%;
-      background: linear-gradient(135deg, #c8e0c0 0%, #b0d0a8 50%, #c0d8b8 100%);
-      z-index: 6;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      padding: 10px 12px;
-      gap: 6px;
-    }
-    .qr-overlay {
-      width: 75%;
-      aspect-ratio: 1;
-      background: #ffffff;
-      padding: 4px;
-      border-radius: 3px;
-    }
-    .nga-text {
-      font-size: 26px;
-      font-weight: 900;
+      top: 48%;
+      left: 28%;
+      font-size: 16px;
+      font-weight: 700;
       color: #1a3a20;
-      letter-spacing: 2px;
-      margin-top: 4px;
-    }
-    .issue-block {
-      text-align: center;
-    }
-    .issue-label {
-      font-size: 8px;
-      font-weight: 500;
-      color: #2d5a30;
       text-transform: uppercase;
+      letter-spacing: 0.5px;
+      z-index: 10;
     }
-    .issue-value {
+    
+    /* Date of birth value */
+    .dob-value {
+      position: absolute;
+      top: 58%;
+      left: 28%;
       font-size: 14px;
       font-weight: 700;
       color: #1a3a20;
+      z-index: 10;
     }
     
-    .nin-block {
+    /* Sex value */
+    .sex-value {
       position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 28%;
-      background: linear-gradient(180deg, #a0c898 0%, #88b880 50%, #78a870 100%);
-      z-index: 5;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 10px 20px;
-    }
-    .nin-label {
-      font-size: 13px;
-      font-weight: 500;
+      top: 58%;
+      left: 48%;
+      font-size: 14px;
+      font-weight: 700;
       color: #1a3a20;
-      margin-bottom: 6px;
+      z-index: 10;
     }
+    
+    /* Issue date value - right side near NGA */
+    .issue-value {
+      position: absolute;
+      top: 60%;
+      right: 8%;
+      font-size: 12px;
+      font-weight: 700;
+      color: #1a3a20;
+      text-align: center;
+      z-index: 10;
+    }
+    
+    /* NIN value - centered at bottom of front card */
     .nin-value {
-      font-size: 50px;
+      position: absolute;
+      top: 66%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 28px;
       font-weight: 900;
       color: #0a2010;
-      letter-spacing: 10px;
+      letter-spacing: 6px;
       font-family: 'Arial Black', Arial, sans-serif;
+      z-index: 10;
     }
     
     @media print { 
@@ -701,81 +621,19 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
   </style>
 </head>
 <body>
-  <div class="slip-wrapper">
-    <img src="${templateSrc}" alt="NIN Slip Template" class="template-bg">
-    
-    <div class="data-overlay">
-      ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo-overlay">` : ''}
+  <div class="page-container">
+    <div class="slip-wrapper">
+      <img src="${templateSrc}" alt="NIN Slip Template" class="template-bg">
       
-      <div class="surname-block">
-        <div class="surname-label">Surname/Nom</div>
-        <div class="surname-value">${escapeHtml(data.lastName) || 'RESIDENT'}</div>
-      </div>
-      
-      <div class="given-names-block">
-        <div class="given-names-label">Given Names/Prénoms</div>
-        <div class="given-names-value">${escapeHtml(givenNames) || 'PROUD NIGERIAN'}</div>
-      </div>
-      
-      <div class="dob-sex-row">
-        <div class="dob-block">
-          <div class="dob-label">Date of Birth</div>
-          <div class="dob-value">${formatDateShort(data.dateOfBirth) || '01 OCT 1960'}</div>
-        </div>
-        <div class="sex-block">
-          <div class="sex-label">Sex/Sexe</div>
-          <div class="sex-value">${gender || 'F'}</div>
-        </div>
-      </div>
-      
-      <div class="qr-block">
-        <div class="qr-overlay">
-          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
-            <rect fill="#fff" width="100" height="100"/>
-            <rect fill="#000" x="5" y="5" width="28" height="28"/>
-            <rect fill="#fff" x="10" y="10" width="18" height="18"/>
-            <rect fill="#000" x="13" y="13" width="12" height="12"/>
-            <rect fill="#000" x="67" y="5" width="28" height="28"/>
-            <rect fill="#fff" x="72" y="10" width="18" height="18"/>
-            <rect fill="#000" x="75" y="13" width="12" height="12"/>
-            <rect fill="#000" x="5" y="67" width="28" height="28"/>
-            <rect fill="#fff" x="10" y="72" width="18" height="18"/>
-            <rect fill="#000" x="13" y="75" width="12" height="12"/>
-            <rect fill="#000" x="40" y="5" width="6" height="6"/>
-            <rect fill="#000" x="50" y="5" width="6" height="6"/>
-            <rect fill="#000" x="40" y="15" width="6" height="6"/>
-            <rect fill="#000" x="54" y="15" width="6" height="6"/>
-            <rect fill="#000" x="5" y="40" width="6" height="6"/>
-            <rect fill="#000" x="15" y="48" width="6" height="6"/>
-            <rect fill="#000" x="5" y="56" width="6" height="6"/>
-            <rect fill="#000" x="40" y="40" width="20" height="20" fill="none" stroke="#000" stroke-width="3"/>
-            <rect fill="#000" x="46" y="46" width="8" height="8"/>
-            <rect fill="#000" x="67" y="40" width="6" height="6"/>
-            <rect fill="#000" x="77" y="48" width="6" height="6"/>
-            <rect fill="#000" x="89" y="40" width="6" height="6"/>
-            <rect fill="#000" x="67" y="56" width="6" height="6"/>
-            <rect fill="#000" x="83" y="56" width="6" height="6"/>
-            <rect fill="#000" x="40" y="70" width="6" height="6"/>
-            <rect fill="#000" x="50" y="78" width="6" height="6"/>
-            <rect fill="#000" x="40" y="86" width="6" height="6"/>
-            <rect fill="#000" x="56" y="89" width="6" height="6"/>
-            <rect fill="#000" x="67" y="70" width="6" height="6"/>
-            <rect fill="#000" x="77" y="78" width="6" height="6"/>
-            <rect fill="#000" x="89" y="70" width="6" height="6"/>
-            <rect fill="#000" x="67" y="86" width="6" height="6"/>
-            <rect fill="#000" x="83" y="89" width="6" height="6"/>
-          </svg>
-        </div>
-        <div class="nga-text">NGA</div>
-        <div class="issue-block">
-          <div class="issue-label">Issue Date</div>
-          <div class="issue-value">${issueDate}</div>
-        </div>
-      </div>
-      
-      <div class="nin-block">
-        <div class="nin-label">National Identification Number (NIN)</div>
-        <div class="nin-value">${formatNIN(data.id) || '0000 000 0000'}</div>
+      <div class="data-overlay">
+        ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo-overlay">` : ''}
+        
+        <div class="surname-value">${escapeHtml(data.lastName).toUpperCase()}</div>
+        <div class="given-names-value">${escapeHtml(givenNames).toUpperCase()}</div>
+        <div class="dob-value">${formatDateShort(data.dateOfBirth)}</div>
+        <div class="sex-value">${gender}</div>
+        <div class="issue-value">${issueDate}</div>
+        <div class="nin-value">${formatNIN(data.id)}</div>
       </div>
     </div>
   </div>
