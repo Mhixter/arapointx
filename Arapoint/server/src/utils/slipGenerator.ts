@@ -529,13 +529,13 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
       pointer-events: none;
     }
     
-    /* Photo positioned over the empty photo area - left side of the card */
+    /* Photo positioned over the empty photo area - left side of the front card */
     .photo-overlay {
       position: absolute;
-      top: 37.5%;
-      left: 6%;
-      width: 18%;
-      height: 24%;
+      top: 26%;
+      left: 7%;
+      width: 15%;
+      height: 17%;
       object-fit: cover;
       z-index: 10;
     }
@@ -543,9 +543,9 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
     /* Surname value - positioned below SURNAME/NOM label */
     .surname-value {
       position: absolute;
-      top: 40%;
-      left: 28%;
-      font-size: 16px;
+      top: 27%;
+      left: 27%;
+      font-size: 14px;
       font-weight: 700;
       color: #1a3a20;
       text-transform: uppercase;
@@ -556,9 +556,9 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
     /* Given names value - positioned below GIVEN NAMES/PRÉNOMS label */
     .given-names-value {
       position: absolute;
-      top: 48%;
-      left: 28%;
-      font-size: 16px;
+      top: 32%;
+      left: 27%;
+      font-size: 14px;
       font-weight: 700;
       color: #1a3a20;
       text-transform: uppercase;
@@ -569,9 +569,9 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
     /* Date of birth value */
     .dob-value {
       position: absolute;
-      top: 58%;
-      left: 28%;
-      font-size: 14px;
+      top: 38%;
+      left: 27%;
+      font-size: 12px;
       font-weight: 700;
       color: #1a3a20;
       z-index: 10;
@@ -580,20 +580,20 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
     /* Sex value */
     .sex-value {
       position: absolute;
-      top: 58%;
-      left: 48%;
-      font-size: 14px;
+      top: 38%;
+      left: 42%;
+      font-size: 12px;
       font-weight: 700;
       color: #1a3a20;
       z-index: 10;
     }
     
-    /* Issue date value - right side near NGA */
+    /* Issue date value - right side under ISSUE DATE label */
     .issue-value {
       position: absolute;
-      top: 60%;
-      right: 8%;
-      font-size: 12px;
+      top: 40%;
+      right: 6%;
+      font-size: 10px;
       font-weight: 700;
       color: #1a3a20;
       text-align: center;
@@ -603,13 +603,13 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
     /* NIN value - centered at bottom of front card */
     .nin-value {
       position: absolute;
-      top: 66%;
+      top: 45%;
       left: 50%;
       transform: translateX(-50%);
-      font-size: 28px;
+      font-size: 22px;
       font-weight: 900;
       color: #0a2010;
-      letter-spacing: 6px;
+      letter-spacing: 5px;
       font-family: 'Arial Black', Arial, sans-serif;
       z-index: 10;
     }
