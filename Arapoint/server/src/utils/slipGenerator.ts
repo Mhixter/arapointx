@@ -489,7 +489,14 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
   <title>Digital NIN Slip - ${reference}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;900&display=swap');
+    
+    @page {
+      size: A4;
+      margin: 10mm;
+    }
+    
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    
     body { 
       font-family: 'Roboto', Arial, sans-serif; 
       background: #f5f5f5; 
@@ -502,14 +509,20 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
     }
     
     .page-container {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 10mm;
+      background: white;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      align-items: center;
+      justify-content: flex-start;
     }
     
     .slip-wrapper {
       position: relative;
-      width: 600px;
+      width: 100%;
+      max-width: 190mm;
       background: white;
       box-shadow: 0 4px 20px rgba(0,0,0,0.15);
     }
@@ -527,6 +540,22 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
       width: 100%;
       height: 100%;
       pointer-events: none;
+    }
+    
+    @media print {
+      body { 
+        background: white; 
+        padding: 0; 
+        margin: 0;
+      }
+      .page-container {
+        box-shadow: none;
+        padding: 0;
+      }
+      .slip-wrapper { 
+        box-shadow: none; 
+        max-width: 100%;
+      }
     }
     
     /* Photo positioned over the empty photo area - left side of the front card */
