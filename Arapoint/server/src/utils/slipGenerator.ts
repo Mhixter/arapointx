@@ -331,7 +331,7 @@ function generateStandardSlip(data: NINData, reference: string, generatedAt: str
   const qrData = JSON.stringify({ nin: data.id, name: fullName });
   
   // Load the standard template as base64
-  const templatePath = path.join(__dirname, '../templates/standard_slip_template.jpg');
+  const templatePath = path.join(process.cwd(), 'server/src/templates/standard_slip_template.jpg');
   let templateSrc = '';
   try {
     const templateBuffer = fs.readFileSync(templatePath);
