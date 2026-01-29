@@ -23,6 +23,7 @@ import IdentityAgentServices from "@/pages/dashboard/identity/IdentityAgentServi
 import BVNRetrieval from "@/pages/dashboard/BVNRetrieval";
 import EducationServices from "@/pages/dashboard/EducationServices";
 import VerificationHistory from "@/pages/dashboard/VerificationHistory";
+import IdentityHistory from "@/pages/dashboard/IdentityHistory";
 import Services from "@/pages/dashboard/Services";
 import VTUServices from "@/pages/dashboard/VTUServices";
 import SubscriptionServices from "@/pages/dashboard/SubscriptionServices";
@@ -218,6 +219,11 @@ function Router() {
         <Route path="/dashboard/education/history">
           <DashboardLayout>
             <VerificationHistory />
+          </DashboardLayout>
+        </Route>
+        <Route path="/dashboard/identity/history">
+          <DashboardLayout>
+            <IdentityHistory />
           </DashboardLayout>
         </Route>
         <Route path="/dashboard/services">

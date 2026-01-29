@@ -168,6 +168,9 @@ router.post('/nin', async (req: Request, res: Response) => {
       nin: validation.data.nin,
       status: 'completed',
       verificationData: result.data,
+      slipHtml: slip.html,
+      slipType: slipType,
+      reference: result.reference,
     });
 
     // Capture TechHub slip design for RPA analysis
@@ -721,19 +724,65 @@ router.get('/slip/:id', async (req: Request, res: Response) => {
       return res.status(400).json(formatErrorResponse(400, 'No slip available for this verification'));
     }
 
-    const slipType = (req.query.slipType as 'information' | 'regular' | 'standard' | 'premium') || 'standard';
-    const slip = generateNINSlip(record.verificationData as any, `NIN-${record.id}`, slipType);
+    const slipType = (req.query.slipType as 'information' | 'regular' | 'standard' | 'premium') || (record.slipType as any) || 'standard';
+    
+    let slipHtml = record.slipHtml;
+    if (!slipHtml) {
+      const slip = generateNINSlip(record.verificationData as any, record.reference || `NIN-${record.id}`, slipType);
+      slipHtml = slip.html;
+    }
 
     res.json(formatResponse('success', 200, 'Slip retrieved', {
       slip: {
-        html: slip.html,
-        generatedAt: slip.generatedAt,
+        html: slipHtml,
+        generatedAt: record.createdAt,
         type: record.verificationType,
+        slipType: record.slipType || slipType,
+        reference: record.reference,
       },
     }));
   } catch (error: any) {
     logger.error('Get slip error', { error: error.message, userId: req.userId });
     res.status(500).json(formatErrorResponse(500, 'Failed to get slip'));
+  }
+});
+
+router.get('/slip/:id/download', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    const [record] = await db.select()
+      .from(identityVerifications)
+      .where(eq(identityVerifications.id, id))
+      .limit(1);
+
+    if (!record) {
+      return res.status(404).json(formatErrorResponse(404, 'Verification record not found'));
+    }
+
+    if (record.userId !== req.userId) {
+      return res.status(403).json(formatErrorResponse(403, 'Access denied'));
+    }
+
+    if (!record.verificationData || record.status !== 'completed') {
+      return res.status(400).json(formatErrorResponse(400, 'No slip available for this verification'));
+    }
+
+    const slipType = (req.query.slipType as 'information' | 'regular' | 'standard' | 'premium') || (record.slipType as any) || 'standard';
+    
+    let slipHtml = record.slipHtml;
+    if (!slipHtml) {
+      const slip = generateNINSlip(record.verificationData as any, record.reference || `NIN-${record.id}`, slipType);
+      slipHtml = slip.html;
+    }
+
+    const filename = `NIN_Slip_${record.nin || record.id}_${slipType}.html`;
+    res.setHeader('Content-Type', 'text/html');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(slipHtml);
+  } catch (error: any) {
+    logger.error('Download slip error', { error: error.message, userId: req.userId });
+    res.status(500).json(formatErrorResponse(500, 'Failed to download slip'));
   }
 });
 
