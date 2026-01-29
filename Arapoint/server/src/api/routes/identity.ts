@@ -120,6 +120,28 @@ const verifyNINWithPhoneFallback = async (nin: string, phone: string) => {
 };
 
 const router = Router();
+
+router.get('/template-image', async (req, res) => {
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+    const templatePath = path.join(process.cwd(), 'server/src/templates/nin_slip_template.png');
+    
+    logger.info('Serving template image', { templatePath, exists: fs.existsSync(templatePath) });
+    
+    if (!fs.existsSync(templatePath)) {
+      return res.status(404).json({ error: 'Template image not found', path: templatePath });
+    }
+    
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    fs.createReadStream(templatePath).pipe(res);
+  } catch (error: any) {
+    logger.error('Error serving template image', { error: error.message });
+    res.status(500).json({ error: 'Failed to serve template', details: error.message });
+  }
+});
+
 router.use(authMiddleware);
 
 const getServicePrice = async (serviceType: string, defaultPrice: number): Promise<number> => {
