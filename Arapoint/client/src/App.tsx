@@ -197,6 +197,13 @@ function Router() {
           </DashboardLayout>
         </Route>
 
+        {/* Identity History - must be before dynamic route */}
+        <Route path="/dashboard/identity/history">
+          <DashboardLayout>
+            <IdentityHistory />
+          </DashboardLayout>
+        </Route>
+
         {/* Identity Services Dynamic Route */}
         <Route path="/dashboard/identity/:service">
           <DashboardLayout>
@@ -219,11 +226,6 @@ function Router() {
         <Route path="/dashboard/education/history">
           <DashboardLayout>
             <VerificationHistory />
-          </DashboardLayout>
-        </Route>
-        <Route path="/dashboard/identity/history">
-          <DashboardLayout>
-            <IdentityHistory />
           </DashboardLayout>
         </Route>
         <Route path="/dashboard/services">

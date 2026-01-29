@@ -1,4 +1,6 @@
 import { NINData, BVNData } from '../services/premblyService';
+import * as fs from 'fs';
+import * as path from 'path';
 
 interface SlipData {
   html: string;
@@ -6,6 +8,24 @@ interface SlipData {
   type: 'nin' | 'bvn';
   generatedAt: string;
 }
+
+let cachedTemplateBase64: string | null = null;
+
+const getTemplateBase64 = (): string => {
+  if (cachedTemplateBase64) return cachedTemplateBase64;
+  
+  try {
+    const templatePath = path.join(process.cwd(), 'server/src/templates/nin_slip_template.png');
+    if (fs.existsSync(templatePath)) {
+      const imageBuffer = fs.readFileSync(templatePath);
+      cachedTemplateBase64 = imageBuffer.toString('base64');
+      return cachedTemplateBase64;
+    }
+  } catch (error) {
+    console.error('Failed to load template image:', error);
+  }
+  return '';
+};
 
 const formatDateShort = (dateStr: string): string => {
   if (!dateStr) return 'N/A';
@@ -457,6 +477,8 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
   const issueDate = formatDateShort(new Date().toISOString());
   const gender = data.gender?.charAt(0).toUpperCase() || 'M';
   const givenNames = data.firstName + (data.middleName ? ', ' + data.middleName : '');
+  const templateBase64 = getTemplateBase64();
+  const templateSrc = templateBase64 ? `data:image/png;base64,${templateBase64}` : '/api/identity/template-image';
   
   return `
 <!DOCTYPE html>
@@ -680,7 +702,7 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
 </head>
 <body>
   <div class="slip-wrapper">
-    <img src="/api/identity/template-image" alt="NIN Slip Template" class="template-bg">
+    <img src="${templateSrc}" alt="NIN Slip Template" class="template-bg">
     
     <div class="data-overlay">
       ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo-overlay">` : ''}
