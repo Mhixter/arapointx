@@ -125,7 +125,16 @@ router.get('/template-image', async (req, res) => {
   try {
     const fs = await import('fs');
     const path = await import('path');
-    const templatePath = path.join(process.cwd(), 'server/src/templates/nin_slip_template.png');
+    const type = (req.query.type as string) || 'premium';
+    
+    let templatePath = path.join(process.cwd(), 'server/src/templates/premium_slip_template.jpg');
+    let contentType = 'image/jpeg';
+    
+    if (type === 'standard') {
+      templatePath = path.join(process.cwd(), 'server/src/templates/standard_slip_template.jpg');
+    } else if (type === 'regular') {
+      templatePath = path.join(process.cwd(), 'server/src/templates/regular_slip_template.jpg');
+    }
     
     logger.info('Serving template image', { templatePath, exists: fs.existsSync(templatePath) });
     
@@ -133,12 +142,136 @@ router.get('/template-image', async (req, res) => {
       return res.status(404).json({ error: 'Template image not found', path: templatePath });
     }
     
-    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 'public, max-age=86400');
     fs.createReadStream(templatePath).pipe(res);
   } catch (error: any) {
     logger.error('Error serving template image', { error: error.message });
     res.status(500).json({ error: 'Failed to serve template', details: error.message });
+  }
+});
+
+// Slip Position Analyzer - public endpoint for calibration
+router.get('/slip-analyzer', async (req: Request, res: Response) => {
+  try {
+    const slipType = (req.query.type as string) || 'premium';
+    
+    const testHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Slip Position Analyzer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; background: #333; padding: 20px; }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 { color: white; margin-bottom: 20px; text-align: center; }
+    .controls { background: #444; padding: 15px; border-radius: 8px; margin-bottom: 20px; color: white; }
+    .controls h3 { margin-bottom: 10px; }
+    .control-group { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 10px; }
+    .control-item { display: flex; flex-direction: column; }
+    .control-item label { font-size: 12px; margin-bottom: 3px; }
+    .control-item input { width: 80px; padding: 5px; }
+    .slip-wrapper { position: relative; width: 100%; background: white; margin-bottom: 20px; }
+    .template-bg { width: 100%; height: auto; display: block; }
+    .overlay-marker { position: absolute; border: 2px dashed red; background: rgba(255,0,0,0.2); display: flex; align-items: center; justify-content: center; font-size: 10px; color: red; font-weight: bold; }
+    .position-info { background: #222; color: #0f0; padding: 15px; border-radius: 8px; font-family: monospace; white-space: pre-wrap; }
+    .update-btn { background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Slip Position Analyzer - ${slipType.toUpperCase()}</h1>
+    
+    <div class="controls">
+      <h3>Adjust Positions</h3>
+      <div class="control-group">
+        <div class="control-item"><label>Photo Top %</label><input type="number" id="photo-top" value="26" step="0.5"></div>
+        <div class="control-item"><label>Photo Left %</label><input type="number" id="photo-left" value="7" step="0.5"></div>
+        <div class="control-item"><label>Photo Width %</label><input type="number" id="photo-width" value="15" step="0.5"></div>
+        <div class="control-item"><label>Photo Height %</label><input type="number" id="photo-height" value="17" step="0.5"></div>
+      </div>
+      <div class="control-group">
+        <div class="control-item"><label>Surname Top %</label><input type="number" id="surname-top" value="27" step="0.5"></div>
+        <div class="control-item"><label>Surname Left %</label><input type="number" id="surname-left" value="27" step="0.5"></div>
+        <div class="control-item"><label>Given Names Top %</label><input type="number" id="given-top" value="32" step="0.5"></div>
+        <div class="control-item"><label>Given Names Left %</label><input type="number" id="given-left" value="27" step="0.5"></div>
+      </div>
+      <div class="control-group">
+        <div class="control-item"><label>DOB Top %</label><input type="number" id="dob-top" value="38" step="0.5"></div>
+        <div class="control-item"><label>DOB Left %</label><input type="number" id="dob-left" value="27" step="0.5"></div>
+        <div class="control-item"><label>Sex Top %</label><input type="number" id="sex-top" value="38" step="0.5"></div>
+        <div class="control-item"><label>Sex Left %</label><input type="number" id="sex-left" value="42" step="0.5"></div>
+      </div>
+      <div class="control-group">
+        <div class="control-item"><label>NIN Top %</label><input type="number" id="nin-top" value="45" step="0.5"></div>
+        <div class="control-item"><label>QR Top %</label><input type="number" id="qr-top" value="25" step="0.5"></div>
+        <div class="control-item"><label>QR Right %</label><input type="number" id="qr-right" value="18" step="0.5"></div>
+        <div class="control-item"><label>Issue Date Top %</label><input type="number" id="issue-top" value="40" step="0.5"></div>
+      </div>
+      <button class="update-btn" onclick="updatePositions()">Update Positions</button>
+    </div>
+    
+    <div class="slip-wrapper">
+      <img src="/api/identity/template-image?type=${slipType}" alt="Template" class="template-bg" id="template-img">
+      <div class="overlay-marker" id="photo-marker" style="top:26%;left:7%;width:15%;height:17%;">PHOTO</div>
+      <div class="overlay-marker" id="surname-marker" style="top:27%;left:27%;width:25%;height:4%;">SURNAME</div>
+      <div class="overlay-marker" id="given-marker" style="top:32%;left:27%;width:30%;height:4%;">GIVEN NAMES</div>
+      <div class="overlay-marker" id="dob-marker" style="top:38%;left:27%;width:12%;height:3%;">DOB</div>
+      <div class="overlay-marker" id="sex-marker" style="top:38%;left:42%;width:5%;height:3%;">SEX</div>
+      <div class="overlay-marker" id="nin-marker" style="top:45%;left:30%;width:40%;height:5%;">NIN NUMBER</div>
+      <div class="overlay-marker" id="qr-marker" style="top:25%;right:18%;width:12%;height:14%;">QR CODE</div>
+      <div class="overlay-marker" id="issue-marker" style="top:40%;right:6%;width:10%;height:4%;">ISSUE DATE</div>
+    </div>
+    
+    <div class="position-info" id="position-output">
+Adjust the inputs above and click "Update Positions" to see changes.
+Copy these values to update slipGenerator.ts
+    </div>
+  </div>
+  
+  <script>
+    function updatePositions() {
+      document.getElementById('photo-marker').style.top = document.getElementById('photo-top').value + '%';
+      document.getElementById('photo-marker').style.left = document.getElementById('photo-left').value + '%';
+      document.getElementById('photo-marker').style.width = document.getElementById('photo-width').value + '%';
+      document.getElementById('photo-marker').style.height = document.getElementById('photo-height').value + '%';
+      document.getElementById('surname-marker').style.top = document.getElementById('surname-top').value + '%';
+      document.getElementById('surname-marker').style.left = document.getElementById('surname-left').value + '%';
+      document.getElementById('given-marker').style.top = document.getElementById('given-top').value + '%';
+      document.getElementById('given-marker').style.left = document.getElementById('given-left').value + '%';
+      document.getElementById('dob-marker').style.top = document.getElementById('dob-top').value + '%';
+      document.getElementById('dob-marker').style.left = document.getElementById('dob-left').value + '%';
+      document.getElementById('sex-marker').style.top = document.getElementById('sex-top').value + '%';
+      document.getElementById('sex-marker').style.left = document.getElementById('sex-left').value + '%';
+      document.getElementById('nin-marker').style.top = document.getElementById('nin-top').value + '%';
+      document.getElementById('qr-marker').style.top = document.getElementById('qr-top').value + '%';
+      document.getElementById('qr-marker').style.right = document.getElementById('qr-right').value + '%';
+      document.getElementById('issue-marker').style.top = document.getElementById('issue-top').value + '%';
+      
+      document.getElementById('position-output').textContent = 
+        'UPDATED POSITIONS:\\n' +
+        'photo: { top: ' + document.getElementById('photo-top').value + '%, left: ' + document.getElementById('photo-left').value + '%, width: ' + document.getElementById('photo-width').value + '%, height: ' + document.getElementById('photo-height').value + '% }\\n' +
+        'surname: { top: ' + document.getElementById('surname-top').value + '%, left: ' + document.getElementById('surname-left').value + '% }\\n' +
+        'givenNames: { top: ' + document.getElementById('given-top').value + '%, left: ' + document.getElementById('given-left').value + '% }\\n' +
+        'dob: { top: ' + document.getElementById('dob-top').value + '%, left: ' + document.getElementById('dob-left').value + '% }\\n' +
+        'sex: { top: ' + document.getElementById('sex-top').value + '%, left: ' + document.getElementById('sex-left').value + '% }\\n' +
+        'nin: { top: ' + document.getElementById('nin-top').value + '% }\\n' +
+        'qrCode: { top: ' + document.getElementById('qr-top').value + '%, right: ' + document.getElementById('qr-right').value + '% }\\n' +
+        'issueDate: { top: ' + document.getElementById('issue-top').value + '% }';
+    }
+  </script>
+</body>
+</html>
+    `.trim();
+
+    res.setHeader('Content-Type', 'text/html');
+    res.send(testHtml);
+  } catch (error: any) {
+    logger.error('Slip analyzer error', { error: error.message });
+    res.status(500).json({ error: 'Failed to analyze slip' });
   }
 });
 
@@ -860,3 +993,4 @@ router.get('/sample-slip/:type', async (req: Request, res: Response) => {
 });
 
 export default router;
+
