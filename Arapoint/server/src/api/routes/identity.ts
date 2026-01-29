@@ -170,6 +170,19 @@ router.post('/nin', async (req: Request, res: Response) => {
       verificationData: result.data,
     });
 
+    // Capture TechHub slip design for RPA analysis
+    if (result.provider === 'techhub' && (result as any).techhubSlipHtml) {
+      const { captureSlipDesign } = await import('../../services/slipCaptureService');
+      await captureSlipDesign({
+        provider: 'techhub',
+        slipHtml: (result as any).techhubSlipHtml,
+        rawResponse: (result as any).rawResponse,
+        nin: validation.data.nin,
+        reference: result.reference,
+      });
+      logger.info('TechHub slip design captured for RPA analysis', { reference: result.reference });
+    }
+
     // Auto-generate PayVessel virtual account after successful NIN verification
     let virtualAccount = null;
     try {

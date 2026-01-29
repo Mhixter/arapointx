@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import { techhubRpaService } from '../../services/techhubRpaService';
+import { getCapturedSlips, getLatestAnalysis, getLatestSlipHtml } from '../../services/slipCaptureService';
 
 const router = express.Router();
 
@@ -137,6 +138,71 @@ router.post('/set-api-key', (req: Request, res: Response) => {
       message: 'API key configured',
       status: techhubRpaService.getConnectionStatus(),
     });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+router.get('/captured-slips', async (req: Request, res: Response) => {
+  try {
+    const { provider } = req.query;
+    const slips = await getCapturedSlips(provider as string | undefined);
+    
+    res.json({
+      success: true,
+      count: slips.length,
+      files: slips,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+router.get('/latest-analysis', async (req: Request, res: Response) => {
+  try {
+    const { provider } = req.query;
+    const analysis = await getLatestAnalysis(provider as string | undefined);
+    
+    if (!analysis) {
+      return res.json({
+        success: true,
+        message: 'No slip captures found yet. Perform a verification using TechHub to capture their slip design.',
+        analysis: null,
+      });
+    }
+    
+    res.json({
+      success: true,
+      analysis,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+router.get('/latest-slip-html', async (req: Request, res: Response) => {
+  try {
+    const { provider } = req.query;
+    const html = await getLatestSlipHtml(provider as string | undefined);
+    
+    if (!html) {
+      return res.status(404).json({
+        success: false,
+        message: 'No slip captures found. Perform a verification using TechHub to capture their slip design.',
+      });
+    }
+    
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
   } catch (error: any) {
     res.status(500).json({
       success: false,
