@@ -451,10 +451,11 @@ function generateStandardSlip(data: NINData, reference: string, generatedAt: str
   `.trim();
 }
 
-// PREMIUM SLIP - Green card matching the exact NIMC Digital NIN Slip with front and back
+// PREMIUM SLIP - Exact NIMC Digital NIN Slip template with user data replacement
 function generatePremiumSlip(data: NINData, reference: string, generatedAt: string): string {
   const issueDate = formatDateShort(new Date().toISOString());
   const gender = data.gender?.charAt(0).toUpperCase() || 'M';
+  const givenNames = data.firstName + (data.middleName ? ', ' + data.middleName : '');
   
   return `
 <!DOCTYPE html>
@@ -464,238 +465,365 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Digital NIN Slip - ${reference}</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; background: #e8e8e8; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 20px; min-height: 100vh; }
+    body { 
+      font-family: 'Roboto', Arial, sans-serif; 
+      background: #f0f0f0; 
+      padding: 20px; 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      min-height: 100vh; 
+    }
     
-    /* FRONT SIDE - Green Card */
-    .slip-front { 
-      width: 550px; 
-      height: 340px; 
-      background: linear-gradient(135deg, #1e5631 0%, #2d7a3a 30%, #3d8a4a 50%, #2d7a3a 70%, #1e5631 100%); 
-      border-radius: 12px; 
-      box-shadow: 0 8px 30px rgba(0,0,0,0.3); 
-      overflow: hidden; 
-      position: relative; 
+    .slip-container {
+      width: 520px;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+      position: relative;
     }
-    .pattern-overlay { 
-      position: absolute; top: 0; left: 0; right: 0; bottom: 0; 
-      background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="0" y="50" fill="rgba(255,255,255,0.04)" font-size="8" transform="rotate(-45 50 50)">NIMC FEDERAL REPUBLIC</text></svg>'); 
-      pointer-events: none; 
-    }
-    .header { position: relative; z-index: 1; }
-    .header-bar { 
-      background: linear-gradient(90deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.3) 100%); 
-      padding: 12px 20px; 
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-    }
-    .header-title { color: #fff; font-size: 16px; font-weight: bold; text-align: center; letter-spacing: 3px; text-transform: uppercase; }
-    .sub-header { 
-      background: rgba(0,0,0,0.2); 
-      color: rgba(255,255,255,0.9); 
-      font-size: 10px; 
-      text-align: center; 
-      padding: 5px; 
-      letter-spacing: 2px; 
-    }
-    .main-content { padding: 12px 20px; display: flex; gap: 15px; position: relative; z-index: 1; }
-    .left-section { flex-shrink: 0; }
-    .photo { width: 95px; height: 115px; border: 2px solid rgba(255,255,255,0.5); object-fit: cover; background: #ddd; }
-    .center-section { flex: 1; color: #fff; padding-top: 3px; }
-    .field { margin-bottom: 6px; }
-    .field-label { font-size: 8px; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 0.5px; }
-    .field-value { font-size: 13px; font-weight: bold; text-transform: uppercase; margin-top: 1px; }
-    .field-row { display: flex; gap: 20px; margin-top: 8px; }
-    .field-row .field { flex: 1; }
-    .right-section { text-align: right; color: #fff; flex-shrink: 0; width: 100px; }
-    .nga-code { font-size: 28px; font-weight: bold; margin-bottom: 2px; letter-spacing: 1px; }
-    .qr-code { width: 75px; height: 75px; margin-left: auto; background: #fff; padding: 2px; border-radius: 3px; }
-    .qr-code svg { width: 100%; height: 100%; }
-    .issue-date { margin-top: 6px; text-align: right; }
-    .issue-label { font-size: 8px; color: rgba(255,255,255,0.7); text-transform: uppercase; }
-    .issue-value { font-size: 10px; font-weight: bold; }
-    .nin-section { 
-      position: absolute; bottom: 0; left: 0; right: 0; 
-      background: rgba(0,0,0,0.25); 
-      padding: 10px 20px; 
-      text-align: center; 
-      z-index: 1; 
-      border-top: 1px solid rgba(255,255,255,0.1);
-    }
-    .nin-label { font-size: 10px; color: rgba(255,255,255,0.9); margin-bottom: 4px; }
-    .nin-value { font-size: 34px; font-weight: bold; color: #fff; letter-spacing: 10px; font-family: 'Arial Black', Arial, sans-serif; text-shadow: 1px 1px 3px rgba(0,0,0,0.4); }
     
-    /* BACK SIDE - White Disclaimer */
-    .slip-back { 
-      width: 550px; 
-      background: #fff; 
-      border-radius: 12px; 
-      box-shadow: 0 8px 30px rgba(0,0,0,0.15); 
-      padding: 30px 25px; 
-      transform: rotate(180deg);
+    /* Main card with green gradient background */
+    .slip {
+      width: 100%;
+      height: 330px;
+      background: linear-gradient(160deg, 
+        #4a9c5d 0%, 
+        #3d8a4a 15%, 
+        #2d7a3a 30%, 
+        #3d8a4a 50%, 
+        #5aac6d 70%,
+        #4a9c5d 85%,
+        #3d8a4a 100%
+      );
+      position: relative;
+      overflow: hidden;
     }
-    .disclaimer-title { 
-      font-size: 22px; 
-      font-weight: bold; 
-      text-align: center; 
-      color: #333; 
-      margin-bottom: 15px; 
+    
+    /* Coat of arms watermark */
+    .watermark {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 200px;
+      height: 200px;
+      opacity: 0.12;
+      pointer-events: none;
+      z-index: 0;
+    }
+    
+    /* Side number watermarks */
+    .side-watermark-left {
+      position: absolute;
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%) rotate(-90deg);
+      font-size: 10px;
+      color: rgba(0,0,0,0.08);
+      letter-spacing: 2px;
+      white-space: nowrap;
+      font-weight: bold;
+    }
+    .side-watermark-right {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%) rotate(90deg);
+      font-size: 10px;
+      color: rgba(0,0,0,0.08);
+      letter-spacing: 2px;
+      white-space: nowrap;
+      font-weight: bold;
+    }
+    
+    /* Header section */
+    .header {
+      position: relative;
+      z-index: 2;
+    }
+    .header-main {
+      background: linear-gradient(90deg, #2d6a3a 0%, #3d8a4a 50%, #2d6a3a 100%);
+      padding: 10px 20px;
+      text-align: center;
+    }
+    .header-title {
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+    }
+    .header-sub {
+      background: #1a4a2a;
+      padding: 6px 20px;
+      text-align: center;
+    }
+    .header-subtitle {
+      color: #fff;
+      font-size: 11px;
+      font-weight: 500;
       letter-spacing: 3px;
+      text-transform: uppercase;
     }
-    .trust-text { 
-      font-size: 14px; 
-      font-style: italic; 
-      text-align: center; 
-      color: #666; 
-      margin-bottom: 20px; 
+    
+    /* Main content area */
+    .content {
+      display: flex;
+      padding: 15px 20px;
+      gap: 15px;
+      position: relative;
+      z-index: 2;
     }
-    .disclaimer-content { 
-      font-size: 11px; 
-      color: #444; 
-      line-height: 1.6; 
-      text-align: center; 
-      margin-bottom: 15px;
+    
+    /* Photo section */
+    .photo-section {
+      flex-shrink: 0;
     }
-    .caution-title { 
-      font-size: 14px; 
-      font-weight: bold; 
-      text-align: center; 
-      color: #c00; 
-      margin: 15px 0 10px; 
-      letter-spacing: 1px;
+    .photo {
+      width: 100px;
+      height: 125px;
+      background: #ccc;
+      border: 2px solid rgba(255,255,255,0.4);
+      object-fit: cover;
     }
-    .caution-text { 
-      font-size: 10px; 
-      color: #444; 
-      line-height: 1.5; 
-      text-align: center; 
-      margin-bottom: 12px;
+    .photo-placeholder {
+      width: 100px;
+      height: 125px;
+      background: linear-gradient(180deg, #888 0%, #666 100%);
+      border: 2px solid rgba(255,255,255,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    .fed-notice { 
-      font-size: 9px; 
-      color: #666; 
-      text-align: center; 
-      line-height: 1.4;
-      padding-top: 10px;
-      border-top: 1px solid #eee;
+    .photo-placeholder svg {
+      width: 60px;
+      height: 80px;
+      fill: #555;
+    }
+    
+    /* Info section */
+    .info-section {
+      flex: 1;
+      color: #fff;
+    }
+    .field {
+      margin-bottom: 8px;
+    }
+    .field-label {
+      font-size: 9px;
+      color: rgba(255,255,255,0.75);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 500;
+    }
+    .field-value {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-top: 1px;
+      text-shadow: 1px 1px 1px rgba(0,0,0,0.15);
+    }
+    .field-row {
+      display: flex;
+      gap: 25px;
+      margin-top: 10px;
+    }
+    .field-row .field {
+      flex: 1;
+    }
+    
+    /* Right section with NGA and QR */
+    .right-section {
+      flex-shrink: 0;
+      width: 110px;
+      text-align: center;
+      color: #fff;
+    }
+    .qr-code {
+      width: 80px;
+      height: 80px;
+      background: #fff;
+      margin: 0 auto 8px;
+      padding: 3px;
+      border-radius: 4px;
+    }
+    .qr-code svg {
+      width: 100%;
+      height: 100%;
+    }
+    .nga-text {
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      margin-bottom: 5px;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+    }
+    .issue-section {
+      text-align: center;
+    }
+    .issue-label {
+      font-size: 8px;
+      color: rgba(255,255,255,0.75);
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    .issue-value {
+      font-size: 11px;
+      font-weight: 700;
+    }
+    
+    /* NIN section at bottom */
+    .nin-section {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.25) 100%);
+      padding: 10px 20px 15px;
+      text-align: center;
+      z-index: 2;
+    }
+    .nin-label {
+      font-size: 11px;
+      color: rgba(255,255,255,0.9);
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+    .nin-value {
+      font-size: 38px;
+      font-weight: 900;
+      color: #1a3a2a;
+      letter-spacing: 8px;
+      font-family: 'Arial Black', 'Roboto', sans-serif;
+      text-shadow: 0 1px 0 rgba(255,255,255,0.3);
     }
     
     @media print { 
-      body { background: white; padding: 10px; } 
-      .slip-front, .slip-back { box-shadow: none; page-break-inside: avoid; } 
+      body { background: white; padding: 0; } 
+      .slip-container { box-shadow: none; } 
     }
   </style>
 </head>
 <body>
-  <!-- FRONT SIDE -->
-  <div class="slip-front">
-    <div class="pattern-overlay"></div>
-    
-    <div class="header">
-      <div class="header-bar">
-        <div class="header-title">Federal Republic of Nigeria</div>
-      </div>
-      <div class="sub-header">DIGITAL NIN SLIP</div>
-    </div>
-    
-    <div class="main-content">
-      <div class="left-section">
-        ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo">` : '<div class="photo" style="display: flex; align-items: center; justify-content: center; color: #666; font-size: 10px;">Photo</div>'}
+  <div class="slip-container">
+    <div class="slip">
+      <!-- Side watermarks -->
+      <div class="side-watermark-left">00000000000</div>
+      <div class="side-watermark-right">00000000000</div>
+      
+      <!-- Coat of arms watermark -->
+      <div class="watermark">
+        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="100" cy="100" rx="70" ry="80" fill="#1a4a2a"/>
+          <circle cx="100" cy="60" r="25" fill="#333"/>
+          <path d="M50 100 L100 170 L150 100" fill="#222"/>
+          <circle cx="40" cy="90" r="20" fill="#8B7355"/>
+          <circle cx="160" cy="90" r="20" fill="#8B7355"/>
+          <text x="100" y="195" text-anchor="middle" fill="#1a4a2a" font-size="8" font-weight="bold">UNITY AND FAITH, PEACE AND PROGRESS</text>
+        </svg>
       </div>
       
-      <div class="center-section">
-        <div class="field">
-          <div class="field-label">Surname/Nom</div>
-          <div class="field-value">${escapeHtml(data.lastName)}</div>
+      <!-- Header -->
+      <div class="header">
+        <div class="header-main">
+          <div class="header-title">Federal Republic of Nigeria</div>
         </div>
-        <div class="field">
-          <div class="field-label">Given Names/Prénoms</div>
-          <div class="field-value">${escapeHtml(data.firstName)}${data.middleName ? ' ' + escapeHtml(data.middleName) : ''}</div>
-        </div>
-        <div class="field-row">
-          <div class="field">
-            <div class="field-label">Date of Birth</div>
-            <div class="field-value">${formatDateShort(data.dateOfBirth)}</div>
-          </div>
-          <div class="field">
-            <div class="field-label">Sex/Sexe</div>
-            <div class="field-value">${gender}</div>
-          </div>
+        <div class="header-sub">
+          <div class="header-subtitle">Digital NIN Slip</div>
         </div>
       </div>
       
-      <div class="right-section">
-        <div class="nga-code">NGA</div>
-        <div class="qr-code">
-          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-            <rect fill="#fff" width="100" height="100"/>
-            <rect fill="#000" x="8" y="8" width="25" height="25"/>
-            <rect fill="#fff" x="13" y="13" width="15" height="15"/>
-            <rect fill="#000" x="16" y="16" width="9" height="9"/>
-            <rect fill="#000" x="67" y="8" width="25" height="25"/>
-            <rect fill="#fff" x="72" y="13" width="15" height="15"/>
-            <rect fill="#000" x="75" y="16" width="9" height="9"/>
-            <rect fill="#000" x="8" y="67" width="25" height="25"/>
-            <rect fill="#fff" x="13" y="72" width="15" height="15"/>
-            <rect fill="#000" x="16" y="75" width="9" height="9"/>
-            <rect fill="#000" x="40" y="8" width="5" height="5"/>
-            <rect fill="#000" x="50" y="8" width="5" height="5"/>
-            <rect fill="#000" x="40" y="18" width="5" height="5"/>
-            <rect fill="#000" x="55" y="18" width="5" height="5"/>
-            <rect fill="#000" x="8" y="40" width="5" height="5"/>
-            <rect fill="#000" x="18" y="45" width="5" height="5"/>
-            <rect fill="#000" x="8" y="55" width="5" height="5"/>
-            <rect fill="#000" x="40" y="40" width="20" height="20" fill="none" stroke="#000" stroke-width="2"/>
-            <rect fill="#000" x="46" y="46" width="8" height="8"/>
-            <rect fill="#000" x="67" y="40" width="5" height="5"/>
-            <rect fill="#000" x="77" y="45" width="5" height="5"/>
-            <rect fill="#000" x="87" y="40" width="5" height="5"/>
-            <rect fill="#000" x="67" y="55" width="5" height="5"/>
-            <rect fill="#000" x="82" y="55" width="5" height="5"/>
-            <rect fill="#000" x="40" y="67" width="5" height="5"/>
-            <rect fill="#000" x="50" y="72" width="5" height="5"/>
-            <rect fill="#000" x="40" y="82" width="5" height="5"/>
-            <rect fill="#000" x="55" y="87" width="5" height="5"/>
-            <rect fill="#000" x="67" y="67" width="5" height="5"/>
-            <rect fill="#000" x="77" y="72" width="5" height="5"/>
-            <rect fill="#000" x="87" y="67" width="5" height="5"/>
-            <rect fill="#000" x="67" y="82" width="5" height="5"/>
-            <rect fill="#000" x="82" y="87" width="5" height="5"/>
-          </svg>
+      <!-- Main content -->
+      <div class="content">
+        <!-- Photo -->
+        <div class="photo-section">
+          ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo">` : `
+          <div class="photo-placeholder">
+            <svg viewBox="0 0 60 80" xmlns="http://www.w3.org/2000/svg">
+              <ellipse cx="30" cy="22" rx="18" ry="20" fill="#666"/>
+              <ellipse cx="30" cy="75" rx="28" ry="25" fill="#666"/>
+            </svg>
+          </div>`}
         </div>
-        <div class="issue-date">
-          <div class="issue-label">Issue Date</div>
-          <div class="issue-value">${issueDate}</div>
+        
+        <!-- Info fields -->
+        <div class="info-section">
+          <div class="field">
+            <div class="field-label">Surname/Nom</div>
+            <div class="field-value">${escapeHtml(data.lastName) || 'RESIDENT'}</div>
+          </div>
+          <div class="field">
+            <div class="field-label">Given Names/Prénoms</div>
+            <div class="field-value">${escapeHtml(givenNames) || 'PROUD, NIGERIAN'}</div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <div class="field-label">Date of Birth</div>
+              <div class="field-value">${formatDateShort(data.dateOfBirth) || '01 OCT 1960'}</div>
+            </div>
+            <div class="field">
+              <div class="field-label">Sex/Sexe</div>
+              <div class="field-value">${gender || 'F'}</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Right section with QR and NGA -->
+        <div class="right-section">
+          <div class="qr-code">
+            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+              <rect fill="#fff" width="100" height="100"/>
+              <rect fill="#000" x="5" y="5" width="28" height="28"/>
+              <rect fill="#fff" x="10" y="10" width="18" height="18"/>
+              <rect fill="#000" x="13" y="13" width="12" height="12"/>
+              <rect fill="#000" x="67" y="5" width="28" height="28"/>
+              <rect fill="#fff" x="72" y="10" width="18" height="18"/>
+              <rect fill="#000" x="75" y="13" width="12" height="12"/>
+              <rect fill="#000" x="5" y="67" width="28" height="28"/>
+              <rect fill="#fff" x="10" y="72" width="18" height="18"/>
+              <rect fill="#000" x="13" y="75" width="12" height="12"/>
+              <rect fill="#000" x="40" y="5" width="6" height="6"/>
+              <rect fill="#000" x="50" y="5" width="6" height="6"/>
+              <rect fill="#000" x="40" y="15" width="6" height="6"/>
+              <rect fill="#000" x="54" y="15" width="6" height="6"/>
+              <rect fill="#000" x="5" y="40" width="6" height="6"/>
+              <rect fill="#000" x="15" y="48" width="6" height="6"/>
+              <rect fill="#000" x="5" y="56" width="6" height="6"/>
+              <rect fill="#000" x="40" y="40" width="20" height="20" fill="none" stroke="#000" stroke-width="3"/>
+              <rect fill="#000" x="46" y="46" width="8" height="8"/>
+              <rect fill="#000" x="67" y="40" width="6" height="6"/>
+              <rect fill="#000" x="77" y="48" width="6" height="6"/>
+              <rect fill="#000" x="89" y="40" width="6" height="6"/>
+              <rect fill="#000" x="67" y="56" width="6" height="6"/>
+              <rect fill="#000" x="83" y="56" width="6" height="6"/>
+              <rect fill="#000" x="40" y="70" width="6" height="6"/>
+              <rect fill="#000" x="50" y="78" width="6" height="6"/>
+              <rect fill="#000" x="40" y="86" width="6" height="6"/>
+              <rect fill="#000" x="56" y="89" width="6" height="6"/>
+              <rect fill="#000" x="67" y="70" width="6" height="6"/>
+              <rect fill="#000" x="77" y="78" width="6" height="6"/>
+              <rect fill="#000" x="89" y="70" width="6" height="6"/>
+              <rect fill="#000" x="67" y="86" width="6" height="6"/>
+              <rect fill="#000" x="83" y="89" width="6" height="6"/>
+            </svg>
+          </div>
+          <div class="nga-text">NGA</div>
+          <div class="issue-section">
+            <div class="issue-label">Issue Date</div>
+            <div class="issue-value">${issueDate || '01 JAN 2021'}</div>
+          </div>
         </div>
       </div>
-    </div>
-    
-    <div class="nin-section">
-      <div class="nin-label">National Identification Number (NIN)</div>
-      <div class="nin-value">${formatNIN(data.id)}</div>
-    </div>
-  </div>
-  
-  <!-- BACK SIDE - Disclaimer (rotated 180deg to appear upside down) -->
-  <div class="slip-back">
-    <div class="disclaimer-title">DISCLAIMER</div>
-    <div class="trust-text">Trust, but verify</div>
-    <div class="disclaimer-content">
-      Kindly ensure each time this ID is presented, that you verify the credentials<br>
-      using a Government-APPROVED verification resource.<br>
-      The details on the front of this NIN Slip must EXACTLY match the<br>
-      verification result.
-    </div>
-    <div class="caution-title">CAUTION!</div>
-    <div class="caution-text">
-      If this NIN was not issued to the person on the front of this document, please DO<br>
-      NOT attempt to scan, photocopy or replicate the personal data contained herein.
-    </div>
-    <div class="caution-text">
-      You are only permitted to scan the barcode for the purpose of identity verification.
-    </div>
-    <div class="fed-notice">
-      The FEDERAL GOVERNMENT of NIGERIA assumes no responsibility<br>
-      if you accept any variance in the scan result or do not scan the 2D barcode overleaf.
+      
+      <!-- NIN section -->
+      <div class="nin-section">
+        <div class="nin-label">National Identification Number (NIN)</div>
+        <div class="nin-value">${formatNIN(data.id) || '0000 000 0000'}</div>
+      </div>
     </div>
   </div>
 </body>
