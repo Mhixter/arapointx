@@ -614,6 +614,23 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
       z-index: 10;
     }
     
+    /* QR code positioned on the right side of the front card */
+    .qr-code-container {
+      position: absolute;
+      top: 25%;
+      right: 18%;
+      width: 12%;
+      height: 14%;
+      z-index: 10;
+      background: white;
+      padding: 2px;
+    }
+    
+    .qr-code-container canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+    
     @media print { 
       body { background: white; padding: 0; } 
       .slip-wrapper { box-shadow: none; } 
@@ -634,9 +651,19 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
         <div class="sex-value">${gender}</div>
         <div class="issue-value">${issueDate}</div>
         <div class="nin-value">${formatNIN(data.id)}</div>
+        <div class="qr-code-container" id="qrcode"></div>
       </div>
     </div>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script>
+    const qrData = "NIN:${escapeHtml(data.id)}|NAME:${escapeHtml(data.lastName).toUpperCase()}, ${escapeHtml(givenNames).toUpperCase()}";
+    QRCode.toCanvas(document.getElementById('qrcode'), qrData, {
+      width: 150,
+      margin: 0,
+      color: { dark: '#000000', light: '#ffffff' }
+    });
+  </script>
 </body>
 </html>
   `.trim();
