@@ -15,8 +15,8 @@ import { eq, desc } from 'drizzle-orm';
 
 const getConfiguredProviders = (): ('techhub' | 'prembly' | 'youverify')[] => {
   const providers: ('techhub' | 'prembly' | 'youverify')[] = [];
-  if (techhubService.isConfigured()) providers.push('techhub');
   if (premblyService.isConfigured()) providers.push('prembly');
+  if (techhubService.isConfigured()) providers.push('techhub');
   if (youverifyService.isConfigured()) providers.push('youverify');
   if (providers.length === 0) throw new Error('No identity verification provider configured');
   return providers;

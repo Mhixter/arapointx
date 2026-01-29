@@ -44,4 +44,4 @@ build = ["npm", "run", "build"]
 
 [userenv.shared]
 PUPPETEER_EXECUTABLE_PATH = "/nix/store/qa9cnw4v5xkxyip6mb9kxqfq1z4x2dx1-chromium-138.0.7204.100/bin/chromium"
-TECHHUB_API_KEY = "dv_7f82a46fbdb7d98564e5d9e7df64bb3a_1769642981"
+TECHHUB_API_KEY = "                             dv_618746d812664c084aedc36468524a89_1769663857                        "
