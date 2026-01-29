@@ -451,7 +451,7 @@ function generateStandardSlip(data: NINData, reference: string, generatedAt: str
   `.trim();
 }
 
-// PREMIUM SLIP - Exact NIMC Digital NIN Slip template with user data replacement
+// PREMIUM SLIP - Exact NIMC Digital NIN Slip template matching user's sample exactly
 function generatePremiumSlip(data: NINData, reference: string, generatedAt: string): string {
   const issueDate = formatDateShort(new Date().toISOString());
   const gender = data.gender?.charAt(0).toUpperCase() || 'M';
@@ -469,7 +469,7 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
       font-family: 'Roboto', Arial, sans-serif; 
-      background: #f0f0f0; 
+      background: #f5f5f5; 
       padding: 20px; 
       display: flex; 
       justify-content: center; 
@@ -478,228 +478,236 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
     }
     
     .slip-container {
-      width: 520px;
-      border-radius: 16px;
+      width: 540px;
+      border-radius: 14px;
       overflow: hidden;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.2);
       position: relative;
     }
     
-    /* Main card with green gradient background */
     .slip {
       width: 100%;
-      height: 330px;
-      background: linear-gradient(160deg, 
-        #4a9c5d 0%, 
-        #3d8a4a 15%, 
-        #2d7a3a 30%, 
-        #3d8a4a 50%, 
-        #5aac6d 70%,
-        #4a9c5d 85%,
-        #3d8a4a 100%
-      );
+      height: 345px;
+      background: 
+        radial-gradient(ellipse at 30% 70%, rgba(100,180,120,0.4) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 30%, rgba(80,160,100,0.3) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(60,140,80,0.2) 0%, transparent 60%),
+        linear-gradient(145deg, 
+          #5cb06c 0%, 
+          #4a9c5a 10%,
+          #3d8a4a 25%, 
+          #358040 40%,
+          #3d8a4a 55%,
+          #4a9c5a 70%,
+          #5cb06c 85%,
+          #4a9c5a 100%
+        );
       position: relative;
       overflow: hidden;
     }
     
-    /* Coat of arms watermark */
+    /* Coat of arms watermark - more visible */
     .watermark {
       position: absolute;
-      bottom: 40px;
+      bottom: 55px;
       left: 50%;
       transform: translateX(-50%);
-      width: 200px;
-      height: 200px;
-      opacity: 0.12;
+      width: 180px;
+      height: 180px;
+      opacity: 0.18;
       pointer-events: none;
-      z-index: 0;
+      z-index: 1;
     }
     
-    /* Side number watermarks */
+    /* Side watermarks */
     .side-watermark-left {
       position: absolute;
-      left: 8px;
+      left: 6px;
       top: 50%;
       transform: translateY(-50%) rotate(-90deg);
-      font-size: 10px;
-      color: rgba(0,0,0,0.08);
-      letter-spacing: 2px;
+      font-size: 9px;
+      color: rgba(0,50,0,0.12);
+      letter-spacing: 1px;
       white-space: nowrap;
-      font-weight: bold;
+      font-weight: 700;
+      font-family: monospace;
     }
     .side-watermark-right {
       position: absolute;
-      right: 8px;
+      right: 6px;
       top: 50%;
       transform: translateY(-50%) rotate(90deg);
-      font-size: 10px;
-      color: rgba(0,0,0,0.08);
-      letter-spacing: 2px;
+      font-size: 9px;
+      color: rgba(0,50,0,0.12);
+      letter-spacing: 1px;
       white-space: nowrap;
-      font-weight: bold;
+      font-weight: 700;
+      font-family: monospace;
     }
     
-    /* Header section */
+    /* Header */
     .header {
       position: relative;
-      z-index: 2;
+      z-index: 5;
     }
     .header-main {
-      background: linear-gradient(90deg, #2d6a3a 0%, #3d8a4a 50%, #2d6a3a 100%);
-      padding: 10px 20px;
+      background: linear-gradient(90deg, 
+        rgba(30,80,50,0.85) 0%, 
+        rgba(50,100,60,0.7) 30%,
+        rgba(60,110,70,0.6) 50%,
+        rgba(50,100,60,0.7) 70%,
+        rgba(30,80,50,0.85) 100%
+      );
+      padding: 12px 25px;
       text-align: center;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
     }
     .header-title {
       color: #fff;
-      font-size: 18px;
+      font-size: 17px;
       font-weight: 700;
-      letter-spacing: 2px;
+      letter-spacing: 2.5px;
       text-transform: uppercase;
-      text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
     }
     .header-sub {
-      background: #1a4a2a;
-      padding: 6px 20px;
+      background: linear-gradient(90deg, #1a4525 0%, #234d2d 50%, #1a4525 100%);
+      padding: 5px 25px;
       text-align: center;
     }
     .header-subtitle {
-      color: #fff;
-      font-size: 11px;
+      color: rgba(255,255,255,0.95);
+      font-size: 10px;
       font-weight: 500;
-      letter-spacing: 3px;
+      letter-spacing: 4px;
       text-transform: uppercase;
     }
     
-    /* Main content area */
+    /* Content */
     .content {
       display: flex;
-      padding: 15px 20px;
-      gap: 15px;
+      padding: 14px 22px;
+      gap: 14px;
       position: relative;
-      z-index: 2;
+      z-index: 5;
     }
     
-    /* Photo section */
-    .photo-section {
-      flex-shrink: 0;
-    }
+    .photo-section { flex-shrink: 0; }
     .photo {
-      width: 100px;
-      height: 125px;
-      background: #ccc;
-      border: 2px solid rgba(255,255,255,0.4);
+      width: 95px;
+      height: 118px;
+      background: #bbb;
+      border: 2px solid rgba(255,255,255,0.5);
       object-fit: cover;
     }
     .photo-placeholder {
-      width: 100px;
-      height: 125px;
-      background: linear-gradient(180deg, #888 0%, #666 100%);
-      border: 2px solid rgba(255,255,255,0.4);
+      width: 95px;
+      height: 118px;
+      background: linear-gradient(180deg, #8a8a8a 0%, #6a6a6a 100%);
+      border: 2px solid rgba(255,255,255,0.5);
       display: flex;
       align-items: center;
       justify-content: center;
     }
     .photo-placeholder svg {
-      width: 60px;
-      height: 80px;
-      fill: #555;
+      width: 55px;
+      height: 70px;
+      opacity: 0.6;
     }
     
-    /* Info section */
     .info-section {
       flex: 1;
       color: #fff;
+      padding-top: 2px;
     }
-    .field {
-      margin-bottom: 8px;
-    }
+    .field { margin-bottom: 7px; }
     .field-label {
-      font-size: 9px;
-      color: rgba(255,255,255,0.75);
+      font-size: 8px;
+      color: rgba(255,255,255,0.8);
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.3px;
       font-weight: 500;
     }
     .field-value {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 700;
       text-transform: uppercase;
-      margin-top: 1px;
-      text-shadow: 1px 1px 1px rgba(0,0,0,0.15);
+      margin-top: 2px;
+      text-shadow: 0 1px 1px rgba(0,0,0,0.2);
     }
     .field-row {
       display: flex;
-      gap: 25px;
-      margin-top: 10px;
+      gap: 20px;
+      margin-top: 8px;
     }
-    .field-row .field {
-      flex: 1;
-    }
+    .field-row .field { margin-bottom: 0; }
     
-    /* Right section with NGA and QR */
     .right-section {
       flex-shrink: 0;
-      width: 110px;
+      width: 105px;
       text-align: center;
       color: #fff;
     }
     .qr-code {
-      width: 80px;
-      height: 80px;
+      width: 78px;
+      height: 78px;
       background: #fff;
-      margin: 0 auto 8px;
-      padding: 3px;
-      border-radius: 4px;
+      margin: 0 auto 6px;
+      padding: 4px;
+      border-radius: 3px;
     }
-    .qr-code svg {
-      width: 100%;
-      height: 100%;
-    }
+    .qr-code svg { width: 100%; height: 100%; }
     .nga-text {
-      font-size: 26px;
+      font-size: 24px;
       font-weight: 900;
-      letter-spacing: 2px;
-      margin-bottom: 5px;
-      text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.25);
     }
-    .issue-section {
-      text-align: center;
-    }
+    .issue-section { text-align: center; }
     .issue-label {
-      font-size: 8px;
-      color: rgba(255,255,255,0.75);
+      font-size: 7px;
+      color: rgba(255,255,255,0.8);
       text-transform: uppercase;
       font-weight: 500;
+      letter-spacing: 0.5px;
     }
     .issue-value {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
+      margin-top: 1px;
     }
     
-    /* NIN section at bottom */
+    /* NIN Bottom Section */
     .nin-section {
       position: absolute;
       bottom: 0;
       left: 0;
       right: 0;
-      background: linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.25) 100%);
-      padding: 10px 20px 15px;
+      background: linear-gradient(180deg, 
+        rgba(80,140,90,0.5) 0%, 
+        rgba(60,120,70,0.6) 30%,
+        rgba(50,100,60,0.7) 100%
+      );
+      padding: 8px 22px 14px;
       text-align: center;
-      z-index: 2;
+      z-index: 5;
+      border-top: 1px solid rgba(255,255,255,0.15);
     }
     .nin-label {
-      font-size: 11px;
-      color: rgba(255,255,255,0.9);
-      margin-bottom: 5px;
+      font-size: 10px;
+      color: rgba(255,255,255,0.95);
+      margin-bottom: 4px;
       font-weight: 500;
+      letter-spacing: 0.5px;
     }
     .nin-value {
-      font-size: 38px;
+      font-size: 36px;
       font-weight: 900;
-      color: #1a3a2a;
-      letter-spacing: 8px;
-      font-family: 'Arial Black', 'Roboto', sans-serif;
-      text-shadow: 0 1px 0 rgba(255,255,255,0.3);
+      color: #1a3520;
+      letter-spacing: 6px;
+      font-family: 'Arial Black', Arial, sans-serif;
+      text-shadow: 0 1px 0 rgba(255,255,255,0.4);
     }
     
     @media print { 
@@ -711,23 +719,28 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
 <body>
   <div class="slip-container">
     <div class="slip">
-      <!-- Side watermarks -->
       <div class="side-watermark-left">00000000000</div>
       <div class="side-watermark-right">00000000000</div>
       
       <!-- Coat of arms watermark -->
       <div class="watermark">
-        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-          <ellipse cx="100" cy="100" rx="70" ry="80" fill="#1a4a2a"/>
-          <circle cx="100" cy="60" r="25" fill="#333"/>
-          <path d="M50 100 L100 170 L150 100" fill="#222"/>
-          <circle cx="40" cy="90" r="20" fill="#8B7355"/>
-          <circle cx="160" cy="90" r="20" fill="#8B7355"/>
-          <text x="100" y="195" text-anchor="middle" fill="#1a4a2a" font-size="8" font-weight="bold">UNITY AND FAITH, PEACE AND PROGRESS</text>
+        <svg viewBox="0 0 200 220" xmlns="http://www.w3.org/2000/svg">
+          <!-- Shield -->
+          <path d="M100 10 L170 50 L170 120 Q170 180 100 210 Q30 180 30 120 L30 50 Z" fill="#2a5a35" stroke="#1a4a25" stroke-width="3"/>
+          <!-- Eagle -->
+          <ellipse cx="100" cy="55" rx="28" ry="22" fill="#333"/>
+          <path d="M72 55 L60 45 M128 55 L140 45" stroke="#333" stroke-width="4"/>
+          <!-- Black Y -->
+          <path d="M50 75 L100 140 L150 75" fill="none" stroke="#222" stroke-width="18"/>
+          <!-- Horses -->
+          <ellipse cx="55" cy="100" rx="18" ry="22" fill="#8B7355"/>
+          <ellipse cx="145" cy="100" rx="18" ry="22" fill="#8B7355"/>
+          <!-- Motto ribbon -->
+          <path d="M30 195 Q100 185 170 195 L170 210 Q100 200 30 210 Z" fill="#2a5a35"/>
+          <text x="100" y="206" text-anchor="middle" fill="#fff" font-size="7" font-weight="bold" font-family="Arial">UNITY AND FAITH, PEACE AND PROGRESS</text>
         </svg>
       </div>
       
-      <!-- Header -->
       <div class="header">
         <div class="header-main">
           <div class="header-title">Federal Republic of Nigeria</div>
@@ -737,20 +750,17 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
         </div>
       </div>
       
-      <!-- Main content -->
       <div class="content">
-        <!-- Photo -->
         <div class="photo-section">
           ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo">` : `
           <div class="photo-placeholder">
             <svg viewBox="0 0 60 80" xmlns="http://www.w3.org/2000/svg">
-              <ellipse cx="30" cy="22" rx="18" ry="20" fill="#666"/>
-              <ellipse cx="30" cy="75" rx="28" ry="25" fill="#666"/>
+              <ellipse cx="30" cy="20" rx="16" ry="18" fill="#555"/>
+              <ellipse cx="30" cy="68" rx="26" ry="22" fill="#555"/>
             </svg>
           </div>`}
         </div>
         
-        <!-- Info fields -->
         <div class="info-section">
           <div class="field">
             <div class="field-label">Surname/Nom</div>
@@ -772,7 +782,6 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
           </div>
         </div>
         
-        <!-- Right section with QR and NGA -->
         <div class="right-section">
           <div class="qr-code">
             <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
@@ -819,7 +828,6 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
         </div>
       </div>
       
-      <!-- NIN section -->
       <div class="nin-section">
         <div class="nin-label">National Identification Number (NIN)</div>
         <div class="nin-value">${formatNIN(data.id) || '0000 000 0000'}</div>
