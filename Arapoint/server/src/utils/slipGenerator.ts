@@ -325,9 +325,21 @@ function generateRegularSlip(data: NINData, reference: string, generatedAt: stri
   `.trim();
 }
 
-// STANDARD SLIP - White card with coat of arms, matches sample exactly
+// STANDARD SLIP - Uses exact user template image as background with data overlay
 function generateStandardSlip(data: NINData, reference: string, generatedAt: string): string {
-  const issueDate = formatDateShort(new Date().toISOString());
+  const fullName = `${data.firstName} ${data.middleName || ''} ${data.lastName}`.replace(/\s+/g, ' ').trim();
+  const qrData = JSON.stringify({ nin: data.id, name: fullName });
+  
+  // Load the standard template as base64
+  const templatePath = path.join(__dirname, '../templates/standard_slip_template.jpg');
+  let templateSrc = '';
+  try {
+    const templateBuffer = fs.readFileSync(templatePath);
+    templateSrc = `data:image/jpeg;base64,${templateBuffer.toString('base64')}`;
+  } catch (error) {
+    console.error('Failed to load standard template:', error);
+    templateSrc = '';
+  }
   
   return `
 <!DOCTYPE html>
@@ -336,136 +348,188 @@ function generateStandardSlip(data: NINData, reference: string, generatedAt: str
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NIN Standard Slip - ${reference}</title>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;900&display=swap');
+    
+    @page {
+      size: A4;
+      margin: 10mm;
+    }
+    
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; background: #e8e8e8; padding: 30px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-    .slip { width: 580px; background: #fff; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); overflow: hidden; position: relative; padding: 25px 30px 35px; }
-    .watermark { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); opacity: 0.06; pointer-events: none; width: 280px; height: 320px; }
-    .watermark svg { width: 100%; height: 100%; }
-    .nin-watermark-left { position: absolute; left: -10px; top: 50%; transform: translateY(-50%) rotate(-90deg); font-size: 11px; color: rgba(0,0,0,0.08); letter-spacing: 3px; white-space: nowrap; }
-    .nin-watermark-right { position: absolute; right: -10px; top: 50%; transform: translateY(-50%) rotate(90deg); font-size: 11px; color: rgba(0,0,0,0.08); letter-spacing: 3px; white-space: nowrap; }
-    .coat-of-arms { width: 90px; height: 100px; margin: 0 auto 15px; display: block; }
-    .coat-of-arms svg { width: 100%; height: 100%; }
-    .content { display: flex; gap: 20px; position: relative; z-index: 1; }
-    .photo-section { flex-shrink: 0; }
-    .photo { width: 110px; height: 135px; border: 1px solid #ccc; object-fit: cover; background: #e8e8e8; }
-    .info-section { flex: 1; padding-top: 5px; }
-    .field { margin-bottom: 10px; }
-    .field-label { font-size: 11px; color: #555; font-style: italic; }
-    .field-value { font-size: 15px; font-weight: bold; color: #000; text-transform: uppercase; margin-top: 1px; }
-    .right-section { text-align: right; flex-shrink: 0; width: 120px; }
-    .nga-code { font-size: 36px; font-weight: bold; color: #333; margin-bottom: 3px; }
-    .nga-numbers { font-size: 9px; color: #aaa; letter-spacing: 1px; margin-bottom: 8px; }
-    .qr-code { width: 95px; height: 95px; margin-left: auto; border: 1px solid #ddd; background: #fff; }
-    .qr-code svg { width: 100%; height: 100%; }
-    .issue-date { margin-top: 10px; text-align: right; }
-    .issue-label { font-size: 9px; color: #c41e3a; font-weight: bold; }
-    .issue-value { font-size: 12px; color: #333; font-weight: bold; }
-    .nin-section { margin-top: 25px; text-align: center; position: relative; z-index: 1; }
-    .nin-label { font-size: 15px; font-weight: bold; color: #000; margin-bottom: 8px; }
-    .nin-value { font-size: 48px; font-weight: bold; color: #000; letter-spacing: 10px; font-family: 'Arial Black', Arial, sans-serif; }
-    @media print { body { background: white; padding: 0; } .slip { box-shadow: none; } }
+    
+    body { 
+      font-family: 'Roboto', Arial, sans-serif; 
+      background: #f5f5f5; 
+      padding: 20px; 
+      display: flex; 
+      flex-direction: column;
+      justify-content: center; 
+      align-items: center; 
+      min-height: 100vh; 
+    }
+    
+    .page-container {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 10mm;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+    }
+    
+    .slip-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 190mm;
+      background: white;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    
+    .template-bg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    
+    .data-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    
+    /* Photo positioned in the empty photo area on the card */
+    .photo-overlay {
+      position: absolute;
+      top: 27%;
+      left: 15%;
+      width: 10%;
+      height: 11%;
+      object-fit: cover;
+    }
+    
+    /* Surname field */
+    .surname-overlay {
+      position: absolute;
+      top: 28%;
+      left: 28%;
+      font-size: 1.1vw;
+      font-weight: 700;
+      color: #000;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    /* Given Names field */
+    .given-names-overlay {
+      position: absolute;
+      top: 32%;
+      left: 28%;
+      font-size: 1.1vw;
+      font-weight: 700;
+      color: #000;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    /* Date of Birth field */
+    .dob-overlay {
+      position: absolute;
+      top: 36%;
+      left: 28%;
+      font-size: 1.1vw;
+      font-weight: 700;
+      color: #000;
+      letter-spacing: 0.5px;
+    }
+    
+    /* NIN - centered below the card content */
+    .nin-overlay {
+      position: absolute;
+      top: 43%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 2.5vw;
+      font-weight: 900;
+      color: #000;
+      letter-spacing: 6px;
+      font-family: 'Arial Black', Arial, sans-serif;
+    }
+    
+    /* QR Code positioned in the QR area on the right side */
+    .qr-overlay {
+      position: absolute;
+      top: 26%;
+      right: 16%;
+      width: 10%;
+      height: auto;
+    }
+    
+    .qr-overlay canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+    
+    @media print {
+      body { 
+        background: white; 
+        padding: 0; 
+        margin: 0;
+      }
+      .page-container {
+        box-shadow: none;
+        padding: 0;
+      }
+      .slip-wrapper { 
+        box-shadow: none; 
+        max-width: 100%;
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="slip">
-    <div class="nin-watermark-left">00000000000</div>
-    <div class="nin-watermark-right">00000000000</div>
-    
-    <div class="watermark">
-      <svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
-        <ellipse cx="50" cy="55" rx="38" ry="45" fill="#228b22"/>
-        <circle cx="50" cy="28" r="14" fill="#c41e3a"/>
-        <path d="M25 55 L50 90 L75 55" fill="#333"/>
-        <circle cx="22" cy="48" r="12" fill="#ffd700"/>
-        <circle cx="78" cy="48" r="12" fill="#ffd700"/>
-      </svg>
-    </div>
-    
-    <div class="coat-of-arms">
-      <svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg">
-        <ellipse cx="50" cy="55" rx="35" ry="42" fill="#228b22"/>
-        <circle cx="50" cy="28" r="12" fill="#c41e3a"/>
-        <path d="M28 52 L50 88 L72 52" fill="#333"/>
-        <circle cx="23" cy="48" r="10" fill="#ffd700"/>
-        <circle cx="77" cy="48" r="10" fill="#ffd700"/>
-        <rect x="46" y="8" width="8" height="14" fill="#c41e3a"/>
-        <text x="50" y="108" text-anchor="middle" fill="#228b22" font-size="5" font-weight="bold">UNITY AND FAITH, PEACE AND PROGRESS</text>
-      </svg>
-    </div>
-    
-    <div class="content">
-      <div class="photo-section">
-        ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo">` : '<div class="photo" style="display: flex; align-items: center; justify-content: center; color: #999; font-size: 11px;">Photo</div>'}
-      </div>
+  <div class="page-container">
+    <div class="slip-wrapper">
+      <img src="${templateSrc}" alt="NIN Slip Template" class="template-bg">
       
-      <div class="info-section">
-        <div class="field">
-          <div class="field-label">Surname/Nom</div>
-          <div class="field-value">${escapeHtml(data.lastName)}</div>
-        </div>
-        <div class="field">
-          <div class="field-label">Given Names/Prénoms</div>
-          <div class="field-value">${escapeHtml(data.firstName)}${data.middleName ? ', ' + escapeHtml(data.middleName) : ''}</div>
-        </div>
-        <div class="field">
-          <div class="field-label">Date of Birth</div>
-          <div class="field-value">${formatDateShort(data.dateOfBirth)}</div>
-        </div>
+      <div class="data-overlay">
+        ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo-overlay">` : ''}
+        
+        <div class="surname-overlay">${escapeHtml(data.lastName)}</div>
+        <div class="given-names-overlay">${escapeHtml(data.firstName)}${data.middleName ? ' ' + escapeHtml(data.middleName) : ''}</div>
+        <div class="dob-overlay">${formatDateShort(data.dateOfBirth)}</div>
+        <div class="nin-overlay">${formatNIN(data.id)}</div>
+        
+        <div class="qr-overlay" id="qrcode"></div>
       </div>
-      
-      <div class="right-section">
-        <div class="nga-code">NGA</div>
-        <div class="nga-numbers">00000000000</div>
-        <div class="qr-code">
-          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-            <rect fill="#fff" width="100" height="100"/>
-            <rect fill="#000" x="8" y="8" width="25" height="25"/>
-            <rect fill="#fff" x="13" y="13" width="15" height="15"/>
-            <rect fill="#000" x="16" y="16" width="9" height="9"/>
-            <rect fill="#000" x="67" y="8" width="25" height="25"/>
-            <rect fill="#fff" x="72" y="13" width="15" height="15"/>
-            <rect fill="#000" x="75" y="16" width="9" height="9"/>
-            <rect fill="#000" x="8" y="67" width="25" height="25"/>
-            <rect fill="#fff" x="13" y="72" width="15" height="15"/>
-            <rect fill="#000" x="16" y="75" width="9" height="9"/>
-            <rect fill="#000" x="40" y="8" width="5" height="5"/>
-            <rect fill="#000" x="50" y="8" width="5" height="5"/>
-            <rect fill="#000" x="40" y="18" width="5" height="5"/>
-            <rect fill="#000" x="55" y="18" width="5" height="5"/>
-            <rect fill="#000" x="8" y="40" width="5" height="5"/>
-            <rect fill="#000" x="18" y="45" width="5" height="5"/>
-            <rect fill="#000" x="8" y="55" width="5" height="5"/>
-            <rect fill="#000" x="40" y="40" width="20" height="20" fill="none" stroke="#000" stroke-width="2"/>
-            <rect fill="#000" x="46" y="46" width="8" height="8"/>
-            <rect fill="#000" x="67" y="40" width="5" height="5"/>
-            <rect fill="#000" x="77" y="45" width="5" height="5"/>
-            <rect fill="#000" x="87" y="40" width="5" height="5"/>
-            <rect fill="#000" x="67" y="55" width="5" height="5"/>
-            <rect fill="#000" x="82" y="55" width="5" height="5"/>
-            <rect fill="#000" x="40" y="67" width="5" height="5"/>
-            <rect fill="#000" x="50" y="72" width="5" height="5"/>
-            <rect fill="#000" x="40" y="82" width="5" height="5"/>
-            <rect fill="#000" x="55" y="87" width="5" height="5"/>
-            <rect fill="#000" x="67" y="67" width="5" height="5"/>
-            <rect fill="#000" x="77" y="72" width="5" height="5"/>
-            <rect fill="#000" x="87" y="67" width="5" height="5"/>
-            <rect fill="#000" x="67" y="82" width="5" height="5"/>
-            <rect fill="#000" x="82" y="87" width="5" height="5"/>
-          </svg>
-        </div>
-        <div class="issue-date">
-          <div class="issue-label">ISSUE DATE</div>
-          <div class="issue-value">${issueDate}</div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="nin-section">
-      <div class="nin-label">National Identification Number (NIN)</div>
-      <div class="nin-value">${formatNIN(data.id)}</div>
     </div>
   </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const qrData = ${JSON.stringify(qrData)};
+      const qrContainer = document.getElementById('qrcode');
+      if (qrContainer && typeof QRCode !== 'undefined') {
+        QRCode.toCanvas(qrData, { 
+          width: 150,
+          margin: 1,
+          errorCorrectionLevel: 'M'
+        }, function(error, canvas) {
+          if (error) {
+            console.error('QR Code generation error:', error);
+            return;
+          }
+          qrContainer.appendChild(canvas);
+        });
+      }
+    });
+  </script>
 </body>
 </html>
   `.trim();
