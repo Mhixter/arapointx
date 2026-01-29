@@ -451,7 +451,7 @@ function generateStandardSlip(data: NINData, reference: string, generatedAt: str
   `.trim();
 }
 
-// PREMIUM SLIP - Green card matching the digital NIN slip exactly
+// PREMIUM SLIP - Green card matching the exact NIMC Digital NIN Slip with front and back
 function generatePremiumSlip(data: NINData, reference: string, generatedAt: string): string {
   const issueDate = formatDateShort(new Date().toISOString());
   const gender = data.gender?.charAt(0).toUpperCase() || 'M';
@@ -465,37 +465,129 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
   <title>Digital NIN Slip - ${reference}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; background: #1a472a; padding: 30px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-    .slip { width: 600px; height: 380px; background: linear-gradient(180deg, #1a5a2a 0%, #2d7a3a 25%, #3d8a4a 50%, #2d7a3a 75%, #1a5a2a 100%); border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.4); overflow: hidden; position: relative; }
-    .pattern-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><text x="5" y="40" fill="rgba(255,255,255,0.03)" font-size="9" transform="rotate(-45 40 40)">00000000000</text></svg>'); pointer-events: none; }
+    body { font-family: Arial, sans-serif; background: #e8e8e8; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 20px; min-height: 100vh; }
+    
+    /* FRONT SIDE - Green Card */
+    .slip-front { 
+      width: 550px; 
+      height: 340px; 
+      background: linear-gradient(135deg, #1e5631 0%, #2d7a3a 30%, #3d8a4a 50%, #2d7a3a 70%, #1e5631 100%); 
+      border-radius: 12px; 
+      box-shadow: 0 8px 30px rgba(0,0,0,0.3); 
+      overflow: hidden; 
+      position: relative; 
+    }
+    .pattern-overlay { 
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0; 
+      background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="0" y="50" fill="rgba(255,255,255,0.04)" font-size="8" transform="rotate(-45 50 50)">NIMC FEDERAL REPUBLIC</text></svg>'); 
+      pointer-events: none; 
+    }
     .header { position: relative; z-index: 1; }
-    .header-bar { background: linear-gradient(90deg, #0d3d1a 0%, #1a5a2a 50%, #0d3d1a 100%); padding: 10px 25px; }
-    .header-title { color: #fff; font-size: 18px; font-weight: bold; text-align: center; letter-spacing: 4px; text-transform: uppercase; }
-    .sub-header { background: #0d3d1a; color: #fff; font-size: 11px; text-align: center; padding: 6px; letter-spacing: 2px; }
-    .main-content { padding: 15px 25px; display: flex; gap: 18px; position: relative; z-index: 1; }
+    .header-bar { 
+      background: linear-gradient(90deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.3) 100%); 
+      padding: 12px 20px; 
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .header-title { color: #fff; font-size: 16px; font-weight: bold; text-align: center; letter-spacing: 3px; text-transform: uppercase; }
+    .sub-header { 
+      background: rgba(0,0,0,0.2); 
+      color: rgba(255,255,255,0.9); 
+      font-size: 10px; 
+      text-align: center; 
+      padding: 5px; 
+      letter-spacing: 2px; 
+    }
+    .main-content { padding: 12px 20px; display: flex; gap: 15px; position: relative; z-index: 1; }
     .left-section { flex-shrink: 0; }
-    .photo { width: 100px; height: 120px; border: 2px solid rgba(255,255,255,0.4); object-fit: cover; background: #ccc; }
-    .center-section { flex: 1; color: #fff; padding-top: 5px; }
-    .field { margin-bottom: 8px; }
-    .field-label { font-size: 9px; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 0.5px; }
-    .field-value { font-size: 14px; font-weight: bold; text-transform: uppercase; }
-    .field-row { display: flex; gap: 25px; }
+    .photo { width: 95px; height: 115px; border: 2px solid rgba(255,255,255,0.5); object-fit: cover; background: #ddd; }
+    .center-section { flex: 1; color: #fff; padding-top: 3px; }
+    .field { margin-bottom: 6px; }
+    .field-label { font-size: 8px; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 0.5px; }
+    .field-value { font-size: 13px; font-weight: bold; text-transform: uppercase; margin-top: 1px; }
+    .field-row { display: flex; gap: 20px; margin-top: 8px; }
     .field-row .field { flex: 1; }
-    .right-section { text-align: right; color: #fff; flex-shrink: 0; width: 110px; }
-    .nga-code { font-size: 34px; font-weight: bold; margin-bottom: 3px; }
-    .qr-code { width: 85px; height: 85px; margin-left: auto; background: #fff; padding: 3px; }
+    .right-section { text-align: right; color: #fff; flex-shrink: 0; width: 100px; }
+    .nga-code { font-size: 28px; font-weight: bold; margin-bottom: 2px; letter-spacing: 1px; }
+    .qr-code { width: 75px; height: 75px; margin-left: auto; background: #fff; padding: 2px; border-radius: 3px; }
     .qr-code svg { width: 100%; height: 100%; }
-    .issue-date { margin-top: 8px; text-align: right; }
-    .issue-label { font-size: 9px; color: rgba(255,255,255,0.7); }
-    .issue-value { font-size: 11px; font-weight: bold; }
-    .nin-section { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(255,255,255,0.12); padding: 12px 25px; text-align: center; z-index: 1; }
-    .nin-label { font-size: 11px; color: rgba(255,255,255,0.9); margin-bottom: 5px; }
-    .nin-value { font-size: 38px; font-weight: bold; color: #fff; letter-spacing: 12px; font-family: 'Arial Black', Arial, sans-serif; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
-    @media print { body { background: white; padding: 0; } .slip { box-shadow: none; } }
+    .issue-date { margin-top: 6px; text-align: right; }
+    .issue-label { font-size: 8px; color: rgba(255,255,255,0.7); text-transform: uppercase; }
+    .issue-value { font-size: 10px; font-weight: bold; }
+    .nin-section { 
+      position: absolute; bottom: 0; left: 0; right: 0; 
+      background: rgba(0,0,0,0.25); 
+      padding: 10px 20px; 
+      text-align: center; 
+      z-index: 1; 
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+    .nin-label { font-size: 10px; color: rgba(255,255,255,0.9); margin-bottom: 4px; }
+    .nin-value { font-size: 34px; font-weight: bold; color: #fff; letter-spacing: 10px; font-family: 'Arial Black', Arial, sans-serif; text-shadow: 1px 1px 3px rgba(0,0,0,0.4); }
+    
+    /* BACK SIDE - White Disclaimer */
+    .slip-back { 
+      width: 550px; 
+      background: #fff; 
+      border-radius: 12px; 
+      box-shadow: 0 8px 30px rgba(0,0,0,0.15); 
+      padding: 30px 25px; 
+      transform: rotate(180deg);
+    }
+    .disclaimer-title { 
+      font-size: 22px; 
+      font-weight: bold; 
+      text-align: center; 
+      color: #333; 
+      margin-bottom: 15px; 
+      letter-spacing: 3px;
+    }
+    .trust-text { 
+      font-size: 14px; 
+      font-style: italic; 
+      text-align: center; 
+      color: #666; 
+      margin-bottom: 20px; 
+    }
+    .disclaimer-content { 
+      font-size: 11px; 
+      color: #444; 
+      line-height: 1.6; 
+      text-align: center; 
+      margin-bottom: 15px;
+    }
+    .caution-title { 
+      font-size: 14px; 
+      font-weight: bold; 
+      text-align: center; 
+      color: #c00; 
+      margin: 15px 0 10px; 
+      letter-spacing: 1px;
+    }
+    .caution-text { 
+      font-size: 10px; 
+      color: #444; 
+      line-height: 1.5; 
+      text-align: center; 
+      margin-bottom: 12px;
+    }
+    .fed-notice { 
+      font-size: 9px; 
+      color: #666; 
+      text-align: center; 
+      line-height: 1.4;
+      padding-top: 10px;
+      border-top: 1px solid #eee;
+    }
+    
+    @media print { 
+      body { background: white; padding: 10px; } 
+      .slip-front, .slip-back { box-shadow: none; page-break-inside: avoid; } 
+    }
   </style>
 </head>
 <body>
-  <div class="slip">
+  <!-- FRONT SIDE -->
+  <div class="slip-front">
     <div class="pattern-overlay"></div>
     
     <div class="header">
@@ -517,7 +609,7 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
         </div>
         <div class="field">
           <div class="field-label">Given Names/Prénoms</div>
-          <div class="field-value">${escapeHtml(data.firstName)}${data.middleName ? ', ' + escapeHtml(data.middleName) : ''}</div>
+          <div class="field-value">${escapeHtml(data.firstName)}${data.middleName ? ' ' + escapeHtml(data.middleName) : ''}</div>
         </div>
         <div class="field-row">
           <div class="field">
@@ -571,7 +663,7 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
           </svg>
         </div>
         <div class="issue-date">
-          <div class="issue-label">ISSUE DATE</div>
+          <div class="issue-label">Issue Date</div>
           <div class="issue-value">${issueDate}</div>
         </div>
       </div>
@@ -580,6 +672,30 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
     <div class="nin-section">
       <div class="nin-label">National Identification Number (NIN)</div>
       <div class="nin-value">${formatNIN(data.id)}</div>
+    </div>
+  </div>
+  
+  <!-- BACK SIDE - Disclaimer (rotated 180deg to appear upside down) -->
+  <div class="slip-back">
+    <div class="disclaimer-title">DISCLAIMER</div>
+    <div class="trust-text">Trust, but verify</div>
+    <div class="disclaimer-content">
+      Kindly ensure each time this ID is presented, that you verify the credentials<br>
+      using a Government-APPROVED verification resource.<br>
+      The details on the front of this NIN Slip must EXACTLY match the<br>
+      verification result.
+    </div>
+    <div class="caution-title">CAUTION!</div>
+    <div class="caution-text">
+      If this NIN was not issued to the person on the front of this document, please DO<br>
+      NOT attempt to scan, photocopy or replicate the personal data contained herein.
+    </div>
+    <div class="caution-text">
+      You are only permitted to scan the barcode for the purpose of identity verification.
+    </div>
+    <div class="fed-notice">
+      The FEDERAL GOVERNMENT of NIGERIA assumes no responsibility<br>
+      if you accept any variance in the scan result or do not scan the 2D barcode overleaf.
     </div>
   </div>
 </body>
