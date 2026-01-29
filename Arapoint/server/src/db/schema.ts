@@ -650,6 +650,30 @@ export const agentNotifications = pgTable('agent_notifications', {
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
+// NIN Slips - Generated PDF slips for verified users
+export const ninSlips = pgTable('nin_slips', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid('user_id').references(() => users.id),
+  slipReference: varchar('slip_reference', { length: 100 }).unique().notNull(),
+  slipType: varchar('slip_type', { length: 50 }).notNull(), // standard | premium
+  nin: varchar('nin', { length: 11 }).notNull(),
+  surname: varchar('surname', { length: 255 }).notNull(),
+  firstname: varchar('firstname', { length: 255 }).notNull(),
+  middlename: varchar('middlename', { length: 255 }),
+  dateOfBirth: varchar('date_of_birth', { length: 50 }).notNull(),
+  gender: varchar('gender', { length: 20 }),
+  photo: text('photo'), // base64 encoded
+  trackingId: varchar('tracking_id', { length: 100 }),
+  verificationReference: varchar('verification_reference', { length: 100 }),
+  verificationStatus: varchar('verification_status', { length: 50 }).default('verified'),
+  pdfPath: varchar('pdf_path', { length: 500 }),
+  qrCodeData: text('qr_code_data'),
+  isPublic: boolean('is_public').default(true),
+  downloadCount: integer('download_count').default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
 // WhatsApp Templates - Admin-configurable message templates
 export const whatsappTemplates = pgTable('whatsapp_templates', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NIN Standard Slip - {{slip_reference}}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;900&display=swap');
+    
+    @page {
+      size: A4;
+      margin: 0;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body { 
+      font-family: 'Roboto', Arial, sans-serif; 
+      background: white;
+      width: 210mm;
+      min-height: 297mm;
+    }
+    
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 15mm;
+      background: white;
+    }
+    
+    .header-text {
+      text-align: center;
+      margin-bottom: 8mm;
+    }
+    
+    .header-text h1 {
+      font-size: 14pt;
+      font-weight: 400;
+      color: #000;
+      margin-bottom: 3mm;
+    }
+    
+    .header-text p {
+      font-size: 10pt;
+      color: #333;
+      line-height: 1.4;
+    }
+    
+    .slip-container {
+      width: 100%;
+      max-width: 180mm;
+      margin: 0 auto;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 3mm;
+      overflow: hidden;
+    }
+    
+    .slip-content {
+      display: flex;
+      padding: 8mm;
+      gap: 6mm;
+    }
+    
+    .photo-section {
+      flex-shrink: 0;
+    }
+    
+    .photo {
+      width: 35mm;
+      height: 45mm;
+      object-fit: cover;
+      border: 1px solid #ddd;
+      background: #f0f0f0;
+    }
+    
+    .info-section {
+      flex: 1;
+    }
+    
+    .coat-of-arms {
+      text-align: center;
+      margin-bottom: 4mm;
+    }
+    
+    .coat-of-arms img {
+      height: 18mm;
+    }
+    
+    .field-group {
+      margin-bottom: 3mm;
+    }
+    
+    .field-label {
+      font-size: 8pt;
+      color: #666;
+      font-style: italic;
+    }
+    
+    .field-value {
+      font-size: 11pt;
+      font-weight: 700;
+      color: #000;
+      text-transform: uppercase;
+    }
+    
+    .right-section {
+      flex-shrink: 0;
+      text-align: right;
+      width: 35mm;
+    }
+    
+    .nga-code {
+      font-size: 24pt;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 2mm;
+    }
+    
+    .qr-code {
+      width: 30mm;
+      height: 30mm;
+      margin-left: auto;
+    }
+    
+    .qr-code img {
+      width: 100%;
+      height: 100%;
+    }
+    
+    .nin-section {
+      text-align: center;
+      padding: 6mm;
+      border-top: 1px solid #eee;
+    }
+    
+    .nin-label {
+      font-size: 10pt;
+      font-weight: 700;
+      color: #000;
+      margin-bottom: 2mm;
+    }
+    
+    .nin-value {
+      font-size: 28pt;
+      font-weight: 900;
+      color: #000;
+      letter-spacing: 4px;
+      font-family: 'Arial Black', Arial, sans-serif;
+    }
+    
+    .disclaimer-section {
+      margin-top: 10mm;
+      padding: 8mm;
+      border: 1px solid #c00;
+      border-radius: 2mm;
+      text-align: center;
+    }
+    
+    .disclaimer-title {
+      font-size: 12pt;
+      font-weight: 700;
+      color: #c00;
+      margin-bottom: 3mm;
+    }
+    
+    .disclaimer-text {
+      font-size: 9pt;
+      color: #333;
+      line-height: 1.5;
+    }
+    
+    .caution {
+      margin-top: 4mm;
+      font-weight: 700;
+      color: #c00;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header-text">
+      <h1>Please find below your Improved NIN Slip</h1>
+      <p>You may cut it out of the paper, fold and laminate as desired.</p>
+      <p>For your security & privacy, please DO NOT permit others to make photocopies of this slip.</p>
+    </div>
+    
+    <div class="slip-container">
+      <div class="slip-content">
+        <div class="photo-section">
+          <img src="{{photo}}" alt="Photo" class="photo">
+        </div>
+        
+        <div class="info-section">
+          <div class="field-group">
+            <div class="field-label">Surname/Nom</div>
+            <div class="field-value">{{surname}}</div>
+          </div>
+          <div class="field-group">
+            <div class="field-label">Given Names/Prenoms</div>
+            <div class="field-value">{{firstname}} {{middlename}}</div>
+          </div>
+          <div class="field-group">
+            <div class="field-label">Date of Birth</div>
+            <div class="field-value">{{date_of_birth}}</div>
+          </div>
+        </div>
+        
+        <div class="right-section">
+          <div class="nga-code">NGA</div>
+          <div class="qr-code">
+            <img src="{{qr_code}}" alt="QR Code">
+          </div>
+        </div>
+      </div>
+      
+      <div class="nin-section">
+        <div class="nin-label">National Identification Number (NIN)</div>
+        <div class="nin-value">{{nin}}</div>
+      </div>
+    </div>
+    
+    <div class="disclaimer-section">
+      <div class="disclaimer-title">DISCLAIMER</div>
+      <div class="disclaimer-text">
+        <em>Trust, but verify</em><br><br>
+        Kindly ensure each time this ID is presented, that you verify the credentials using a Government-APPROVED verification resource.<br>
+        The details on the front of this NIN Slip must EXACTLY match the verification result.
+        <div class="caution">CAUTION!</div>
+        If this NIN was not issued to the person on the front of this document, please DO NOT attempt to scan, photocopy or replicate the personal data contained herein.<br>
+        You are only permitted to scan the barcode for the purpose of identity verification.<br>
+        The FEDERAL GOVERNMENT of NIGERIA assumes no responsibility if you accept any variance in the scan result or do not scan the 2D barcode overleaf.
+      </div>
+    </div>
+  </div>
+</body>
+</html>
