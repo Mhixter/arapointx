@@ -3,6 +3,7 @@ import { authMiddleware } from '../middleware/auth';
 import { walletService } from '../../services/walletService';
 import { youverifyService } from '../../services/youverifyService';
 import { premblyService } from '../../services/premblyService';
+import { techhubService } from '../../services/techhubService';
 import { virtualAccountService } from '../../services/virtualAccountService';
 import { generateNINSlip } from '../../utils/slipGenerator';
 import { ninLookupSchema, ninPhoneSchema, lostNinSchema } from '../validators/identity';
@@ -12,8 +13,9 @@ import { db } from '../../config/database';
 import { identityVerifications, identityServiceRequests, servicePricing } from '../../db/schema';
 import { eq, desc } from 'drizzle-orm';
 
-const getConfiguredProviders = (): ('prembly' | 'youverify')[] => {
-  const providers: ('prembly' | 'youverify')[] = [];
+const getConfiguredProviders = (): ('techhub' | 'prembly' | 'youverify')[] => {
+  const providers: ('techhub' | 'prembly' | 'youverify')[] = [];
+  if (techhubService.isConfigured()) providers.push('techhub');
   if (premblyService.isConfigured()) providers.push('prembly');
   if (youverifyService.isConfigured()) providers.push('youverify');
   if (providers.length === 0) throw new Error('No identity verification provider configured');
@@ -23,16 +25,26 @@ const getConfiguredProviders = (): ('prembly' | 'youverify')[] => {
 const verifyNINWithFallback = async (nin: string) => {
   const providers = getConfiguredProviders();
   let lastError: string | undefined;
+  let techhubSlipHtml: string | undefined;
   
   for (const provider of providers) {
     try {
       logger.info('Attempting NIN verification', { provider, nin: nin.substring(0, 4) + '***' });
-      const result = provider === 'prembly'
-        ? await premblyService.verifyNIN(nin)
-        : await youverifyService.verifyNIN(nin);
+      let result;
+      
+      if (provider === 'techhub') {
+        result = await techhubService.verifyNIN(nin);
+        if (result.slipHtml) {
+          techhubSlipHtml = result.slipHtml;
+        }
+      } else if (provider === 'prembly') {
+        result = await premblyService.verifyNIN(nin);
+      } else {
+        result = await youverifyService.verifyNIN(nin);
+      }
       
       if (result.success && result.data) {
-        return { ...result, provider };
+        return { ...result, provider, techhubSlipHtml };
       }
       lastError = result.error;
       logger.warn('Provider verification failed, trying next', { provider, error: result.error });
@@ -52,9 +64,15 @@ const verifyVNINWithFallback = async (vnin: string, validationData?: { firstName
   for (const provider of providers) {
     try {
       logger.info('Attempting vNIN verification', { provider });
-      const result = provider === 'prembly'
-        ? await premblyService.verifyVNIN(vnin, validationData)
-        : await youverifyService.verifyVNIN(vnin, validationData);
+      let result;
+      
+      if (provider === 'techhub') {
+        result = await techhubService.verifyVNIN(vnin, validationData);
+      } else if (provider === 'prembly') {
+        result = await premblyService.verifyVNIN(vnin, validationData);
+      } else {
+        result = await youverifyService.verifyVNIN(vnin, validationData);
+      }
       
       if (result.success && result.data) {
         return { ...result, provider };
@@ -77,9 +95,15 @@ const verifyNINWithPhoneFallback = async (nin: string, phone: string) => {
   for (const provider of providers) {
     try {
       logger.info('Attempting NIN-Phone verification', { provider, nin: nin.substring(0, 4) + '***' });
-      const result = provider === 'prembly'
-        ? await premblyService.verifyNINWithPhone(nin, phone)
-        : await youverifyService.verifyNIN(nin, { phoneToValidate: phone });
+      let result;
+      
+      if (provider === 'techhub') {
+        result = await techhubService.verifyNINWithPhone(nin, phone);
+      } else if (provider === 'prembly') {
+        result = await premblyService.verifyNINWithPhone(nin, phone);
+      } else {
+        result = await youverifyService.verifyNIN(nin, { phoneToValidate: phone });
+      }
       
       if (result.success && result.data) {
         return { ...result, provider };
