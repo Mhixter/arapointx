@@ -2,7 +2,7 @@ import puppeteer from 'puppeteer';
 import * as fs from 'fs';
 import * as path from 'path';
 import QRCode from 'qrcode';
-import { db } from '../db';
+import { db } from '../config/database';
 import { ninSlips } from '../db/schema';
 import { eq } from 'drizzle-orm';
 
@@ -203,10 +203,14 @@ export const generatePdfSlip = async (options: GenerateSlipOptions): Promise<Sli
   };
 };
 
-export const getSlipPdf = async (slipReference: string): Promise<Buffer | null> => {
+export const getSlipPdf = async (slipReference: string, userId?: string): Promise<Buffer | null> => {
   const slip = await db.select().from(ninSlips).where(eq(ninSlips.slipReference, slipReference)).limit(1);
   
   if (!slip || slip.length === 0) {
+    return null;
+  }
+  
+  if (userId && slip[0].userId && slip[0].userId !== userId) {
     return null;
   }
   
