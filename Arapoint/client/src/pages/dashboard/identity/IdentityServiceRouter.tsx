@@ -84,6 +84,8 @@ function ServiceContent({ service }: { service: any }) {
   const [requestStatus, setRequestStatus] = useState<"idle" | "pending" | "completed" | "error">("idle");
   const [result, setResult] = useState<any>(null);
   const [slipHtml, setSlipHtml] = useState<string | null>(null);
+  const [slipDownloadUrl, setSlipDownloadUrl] = useState<string | null>(null);
+  const [slipReference, setSlipReference] = useState<string | null>(null);
   const [selectedSlip, setSelectedSlip] = useState("information");
   const [selectedStatus, setSelectedStatus] = useState("");
   const [consentChecked, setConsentChecked] = useState(false);
@@ -121,6 +123,8 @@ function ServiceContent({ service }: { service: any }) {
     setIsLoading(true);
     setResult(null);
     setSlipHtml(null);
+    setSlipDownloadUrl(null);
+    setSlipReference(null);
 
     try {
       const token = getAuthToken();
@@ -186,6 +190,10 @@ function ServiceContent({ service }: { service: any }) {
       if (data.data?.slip?.html) {
         setSlipHtml(data.data.slip.html);
       }
+      if (data.data?.slip?.downloadUrl) {
+        setSlipDownloadUrl(data.data.slip.downloadUrl);
+        setSlipReference(data.data.slip.slipReference);
+      }
       
       const agentProcessedServices = ['ipe-clearance', 'validation', 'personalization', 'birth-attestation', 'nin-tracking'];
       if (agentProcessedServices.includes(service.id)) {
@@ -215,23 +223,54 @@ function ServiceContent({ service }: { service: any }) {
     }
   };
 
-  const handleDownloadSlip = () => {
-    if (!slipHtml) return;
+  const handleDownloadSlip = async () => {
+    const token = getAuthToken();
+    
+    if (slipDownloadUrl && token) {
+      try {
+        const response = await fetch(slipDownloadUrl, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) throw new Error('Download failed');
+        
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `NIN-Slip-${slipReference || Date.now()}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
 
-    const blob = new Blob([slipHtml], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${service.id}-slip-${Date.now()}.html`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+        toast({
+          title: "Slip Downloaded",
+          description: "Your NIN slip has been downloaded as PDF",
+        });
+      } catch (error) {
+        toast({
+          title: "Download Failed",
+          description: "Failed to download slip. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } else if (slipHtml) {
+      const blob = new Blob([slipHtml], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${service.id}-slip-${Date.now()}.html`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
 
-    toast({
-      title: "Slip Downloaded",
-      description: "Open the HTML file in your browser and print it",
-    });
+      toast({
+        title: "Slip Downloaded",
+        description: "Open the HTML file in your browser and print it",
+      });
+    }
   };
 
   const handlePrintSlip = () => {
@@ -1049,6 +1088,7 @@ function TransactionsHistory() {
 function VerificationsHistory() {
   const [verifications, setVerifications] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchVerifications = async () => {
@@ -1079,6 +1119,38 @@ function VerificationsHistory() {
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
+  const handleDownload = async (downloadUrl: string, slipReference: string) => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch(downloadUrl, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (!response.ok) throw new Error('Download failed');
+      
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `NIN-Slip-${slipReference}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Slip Downloaded",
+        description: "Your NIN slip has been downloaded",
+      });
+    } catch (error) {
+      toast({
+        title: "Download Failed",
+        description: "Failed to download slip. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -1092,7 +1164,7 @@ function VerificationsHistory() {
       <Card>
         <CardHeader>
           <CardTitle>Verification History</CardTitle>
-          <CardDescription>Your past identity verifications</CardDescription>
+          <CardDescription>Your past identity verifications with downloadable slips</CardDescription>
         </CardHeader>
         <CardContent>
           {verifications.length === 0 ? (
@@ -1104,16 +1176,29 @@ function VerificationsHistory() {
             <div className="space-y-4">
               {verifications.map((v: any) => (
                 <div key={v.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
+                  <div className="flex-1">
                     <p className="font-semibold">{v.verificationType?.toUpperCase().replace('_', ' ')}</p>
                     {v.nin && <p className="text-sm text-muted-foreground">NIN: {v.nin.substring(0, 4)}****</p>}
                     <p className="text-xs text-muted-foreground">
                       {new Date(v.createdAt).toLocaleString()}
                     </p>
                   </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(v.status)}`}>
-                    {v.status.charAt(0).toUpperCase() + v.status.slice(1)}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    {v.downloadUrl && v.status === 'completed' && (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleDownload(v.downloadUrl, v.slipReference)}
+                        className="gap-1"
+                      >
+                        <Download className="h-4 w-4" />
+                        Download
+                      </Button>
+                    )}
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(v.status)}`}>
+                      {v.status.charAt(0).toUpperCase() + v.status.slice(1)}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>

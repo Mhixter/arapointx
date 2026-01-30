@@ -110,6 +110,7 @@ export const identityVerifications = pgTable('identity_verifications', {
   verificationData: jsonb('verification_data'),
   slipHtml: text('slip_html'),
   slipType: varchar('slip_type', { length: 50 }),
+  slipReference: varchar('slip_reference', { length: 100 }),
   reference: varchar('reference', { length: 100 }),
   createdAt: timestamp('created_at').defaultNow(),
 });

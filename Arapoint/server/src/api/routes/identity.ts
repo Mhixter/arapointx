@@ -6,6 +6,7 @@ import { premblyService } from '../../services/premblyService';
 import { techhubService } from '../../services/techhubService';
 import { virtualAccountService } from '../../services/virtualAccountService';
 import { generateNINSlip } from '../../utils/slipGenerator';
+import { generatePdfSlip, SlipData } from '../../services/pdfSlipGenerator';
 import { ninLookupSchema, ninPhoneSchema, lostNinSchema } from '../validators/identity';
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse, generateReferenceId } from '../../utils/helpers';
@@ -317,6 +318,39 @@ router.post('/nin', async (req: Request, res: Response) => {
     const ninData = result.data as any;
     const slip = generateNINSlip(ninData, result.reference, slipType);
 
+    const pdfSlipTypeMap: Record<string, 'standard' | 'premium' | 'long'> = {
+      'information': 'standard',
+      'regular': 'standard',
+      'standard': 'standard',
+      'premium': 'premium',
+    };
+    const pdfSlipType = pdfSlipTypeMap[slipType] || 'standard';
+
+    let pdfSlipResult = null;
+    try {
+      const slipData: SlipData = {
+        nin: validation.data.nin,
+        surname: ninData.lastName || ninData.surname || '',
+        firstname: ninData.firstName || ninData.firstname || '',
+        middlename: ninData.middleName || ninData.middlename || '',
+        date_of_birth: ninData.dateOfBirth || ninData.dob || '',
+        gender: ninData.gender || '',
+        photo: ninData.photo || '',
+        tracking_id: ninData.trackingId || '',
+        verification_reference: result.reference,
+      };
+
+      pdfSlipResult = await generatePdfSlip({
+        userId: req.userId,
+        slipType: pdfSlipType,
+        data: slipData,
+      });
+
+      logger.info('PDF slip generated', { slipReference: pdfSlipResult.slipReference, userId: req.userId });
+    } catch (pdfError: any) {
+      logger.error('Failed to generate PDF slip', { error: pdfError.message, userId: req.userId });
+    }
+
     await db.insert(identityVerifications).values({
       userId: req.userId!,
       verificationType: 'nin',
@@ -325,6 +359,7 @@ router.post('/nin', async (req: Request, res: Response) => {
       verificationData: result.data,
       slipHtml: slip.html,
       slipType: slipType,
+      slipReference: pdfSlipResult?.slipReference || null,
       reference: result.reference,
     });
 
@@ -382,6 +417,8 @@ router.post('/nin', async (req: Request, res: Response) => {
       slip: {
         html: slip.html,
         generatedAt: slip.generatedAt,
+        slipReference: pdfSlipResult?.slipReference || null,
+        downloadUrl: pdfSlipResult ? `/api/slips/download/${pdfSlipResult.slipReference}` : null,
       },
       virtualAccount: virtualAccount ? {
         bankName: virtualAccount.bankName,
@@ -807,12 +844,17 @@ router.get('/history', async (req: Request, res: Response) => {
       .limit(limit)
       .offset(offset);
 
+    const historyWithDownloadUrls = history.map(record => ({
+      ...record,
+      downloadUrl: record.slipReference ? `/api/slips/download/${record.slipReference}` : null,
+    }));
+
     const allRecords = await db.select()
       .from(identityVerifications)
       .where(eq(identityVerifications.userId, req.userId!));
 
     res.json(formatResponse('success', 200, 'Identity verification history retrieved', {
-      history,
+      history: historyWithDownloadUrls,
       pagination: { 
         page, 
         limit,
