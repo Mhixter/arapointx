@@ -1,4 +1,4 @@
-import { apiClient, ApiResponse } from './client';
+import { adminApiClient, ApiResponse } from './client';
 
 export interface AdminStats {
   totalUsers: number;
@@ -94,110 +94,110 @@ export interface RpaJob {
 
 export const adminApi = {
   getStats: async (): Promise<AdminStats> => {
-    const response = await apiClient.get<ApiResponse<AdminStats>>('/admin/stats');
+    const response = await adminApiClient.get<ApiResponse<AdminStats>>('/admin/stats');
     return response.data.data;
   },
 
   getUsers: async (page = 1, limit = 20): Promise<{ users: AdminUser[]; pagination: any }> => {
-    const response = await apiClient.get<ApiResponse<{ users: AdminUser[]; pagination: any }>>('/admin/users', {
+    const response = await adminApiClient.get<ApiResponse<{ users: AdminUser[]; pagination: any }>>('/admin/users', {
       params: { page, limit },
     });
     return response.data.data;
   },
 
   getUser: async (id: string): Promise<{ user: AdminUser; recentTransactions: AdminTransaction[] }> => {
-    const response = await apiClient.get<ApiResponse<{ user: AdminUser; recentTransactions: AdminTransaction[] }>>(`/admin/users/${id}`);
+    const response = await adminApiClient.get<ApiResponse<{ user: AdminUser; recentTransactions: AdminTransaction[] }>>(`/admin/users/${id}`);
     return response.data.data;
   },
 
   updateUserStatus: async (id: string, kycStatus: string): Promise<void> => {
-    await apiClient.put(`/admin/users/${id}/status`, { kycStatus });
+    await adminApiClient.put(`/admin/users/${id}/status`, { kycStatus });
   },
 
   createUser: async (data: { name: string; email: string; phone?: string; password: string }): Promise<{ user: AdminUser }> => {
-    const response = await apiClient.post<ApiResponse<{ user: AdminUser }>>('/admin/users', data);
+    const response = await adminApiClient.post<ApiResponse<{ user: AdminUser }>>('/admin/users', data);
     return response.data.data;
   },
 
   updateUser: async (id: string, data: { name?: string; email?: string; phone?: string }): Promise<{ user: AdminUser }> => {
-    const response = await apiClient.put<ApiResponse<{ user: AdminUser }>>(`/admin/users/${id}`, data);
+    const response = await adminApiClient.put<ApiResponse<{ user: AdminUser }>>(`/admin/users/${id}`, data);
     return response.data.data;
   },
 
   fundUserWallet: async (id: string, amount: number, description?: string): Promise<{ userId: string; amount: number; newBalance: number; reference: string }> => {
-    const response = await apiClient.post<ApiResponse<{ userId: string; amount: number; newBalance: number; reference: string }>>(`/admin/users/${id}/fund`, { amount, description });
+    const response = await adminApiClient.post<ApiResponse<{ userId: string; amount: number; newBalance: number; reference: string }>>(`/admin/users/${id}/fund`, { amount, description });
     return response.data.data;
   },
 
   debitUserWallet: async (id: string, amount: number, description?: string): Promise<{ userId: string; amount: number; newBalance: number; reference: string }> => {
-    const response = await apiClient.post<ApiResponse<{ userId: string; amount: number; newBalance: number; reference: string }>>(`/admin/users/${id}/debit`, { amount, description });
+    const response = await adminApiClient.post<ApiResponse<{ userId: string; amount: number; newBalance: number; reference: string }>>(`/admin/users/${id}/debit`, { amount, description });
     return response.data.data;
   },
 
   getTransactions: async (page = 1, limit = 20): Promise<{ transactions: AdminTransaction[]; pagination: any }> => {
-    const response = await apiClient.get<ApiResponse<{ transactions: AdminTransaction[]; pagination: any }>>('/admin/transactions', {
+    const response = await adminApiClient.get<ApiResponse<{ transactions: AdminTransaction[]; pagination: any }>>('/admin/transactions', {
       params: { page, limit },
     });
     return response.data.data;
   },
 
   getBVNServices: async (page = 1, limit = 20): Promise<{ services: BVNServiceRecord[]; pagination: any }> => {
-    const response = await apiClient.get<ApiResponse<{ services: BVNServiceRecord[]; pagination: any }>>('/admin/bvn-services', {
+    const response = await adminApiClient.get<ApiResponse<{ services: BVNServiceRecord[]; pagination: any }>>('/admin/bvn-services', {
       params: { page, limit },
     });
     return response.data.data;
   },
 
   getEducationServices: async (page = 1, limit = 20): Promise<{ services: EducationServiceRecord[]; pagination: any }> => {
-    const response = await apiClient.get<ApiResponse<{ services: EducationServiceRecord[]; pagination: any }>>('/admin/education-services', {
+    const response = await adminApiClient.get<ApiResponse<{ services: EducationServiceRecord[]; pagination: any }>>('/admin/education-services', {
       params: { page, limit },
     });
     return response.data.data;
   },
 
   getVTUServices: async (page = 1, limit = 20): Promise<{ services: VTUServiceRecord[]; pagination: any }> => {
-    const response = await apiClient.get<ApiResponse<{ services: VTUServiceRecord[]; pagination: any }>>('/admin/vtu-services', {
+    const response = await adminApiClient.get<ApiResponse<{ services: VTUServiceRecord[]; pagination: any }>>('/admin/vtu-services', {
       params: { page, limit },
     });
     return response.data.data;
   },
 
   getPricing: async (): Promise<ServicePricing[]> => {
-    const response = await apiClient.get<ApiResponse<{ pricing: ServicePricing[] }>>('/admin/pricing');
+    const response = await adminApiClient.get<ApiResponse<{ pricing: ServicePricing[] }>>('/admin/pricing');
     return response.data.data.pricing;
   },
 
   getAllPricing: async (): Promise<ServicePricing[]> => {
-    const response = await apiClient.get<ApiResponse<{ pricing: ServicePricing[] }>>('/admin/pricing/all');
+    const response = await adminApiClient.get<ApiResponse<{ pricing: ServicePricing[] }>>('/admin/pricing/all');
     return response.data.data.pricing;
   },
 
   updatePricing: async (id: string, data: Partial<ServicePricing>): Promise<void> => {
-    await apiClient.put(`/admin/pricing/${id}`, data);
+    await adminApiClient.put(`/admin/pricing/${id}`, data);
   },
 
   createPricing: async (data: { serviceType: string; serviceName: string; price: number; description?: string }): Promise<ServicePricing> => {
-    const response = await apiClient.post<ApiResponse<ServicePricing>>('/admin/pricing', data);
+    const response = await adminApiClient.post<ApiResponse<ServicePricing>>('/admin/pricing', data);
     return response.data.data;
   },
 
   deletePricing: async (id: string): Promise<void> => {
-    await apiClient.delete(`/admin/pricing/${id}`);
+    await adminApiClient.delete(`/admin/pricing/${id}`);
   },
 
   seedPricing: async (): Promise<{ created: number; skipped: number }> => {
-    const response = await apiClient.post<ApiResponse<{ created: number; skipped: number }>>('/admin/pricing/seed');
+    const response = await adminApiClient.post<ApiResponse<{ created: number; skipped: number }>>('/admin/pricing/seed');
     return response.data.data;
   },
 
   getRpaJobs: async (page = 1, limit = 20, status?: string): Promise<{ jobs: RpaJob[]; pagination: any }> => {
-    const response = await apiClient.get<ApiResponse<{ jobs: RpaJob[]; pagination: any }>>('/admin/rpa/jobs', {
+    const response = await adminApiClient.get<ApiResponse<{ jobs: RpaJob[]; pagination: any }>>('/admin/rpa/jobs', {
       params: { page, limit, status },
     });
     return response.data.data;
   },
 
   retryRpaJob: async (jobId: string): Promise<void> => {
-    await apiClient.post(`/admin/rpa/retry/${jobId}`);
+    await adminApiClient.post(`/admin/rpa/retry/${jobId}`);
   },
 };

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { authMiddleware } from '../middleware/auth';
+import { adminAuthMiddleware } from '../middleware/auth';
 import { jobService } from '../../services/jobService';
 import { pricingService } from '../../services/pricingService';
 import { logger } from '../../utils/logger';
@@ -43,7 +43,7 @@ import bcrypt from 'bcryptjs';
 import { eq, desc, count, sql } from 'drizzle-orm';
 
 const router = Router();
-router.use(authMiddleware);
+router.use(adminAuthMiddleware);
 
 router.post('/vtu/scrape-data', async (req: Request, res: Response) => {
   try {

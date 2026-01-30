@@ -4,6 +4,12 @@ import { registerSchema, loginSchema, refreshTokenSchema, updateProfileSchema } 
 import { authMiddleware } from '../middleware/auth';
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
+import { db } from '../../config/database';
+import { adminUsers } from '../../db/schema';
+import { eq } from 'drizzle-orm';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { config } from '../../config/env';
 
 const router = Router();
 
@@ -45,6 +51,68 @@ router.post('/login', async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error('Login error', { error: error.message });
     res.status(401).json(formatErrorResponse(401, 'Invalid credentials'));
+  }
+});
+
+router.post('/admin/login', async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json(formatErrorResponse(400, 'Email and password are required'));
+    }
+
+    const [admin] = await db.select()
+      .from(adminUsers)
+      .where(eq(adminUsers.email, email.toLowerCase()))
+      .limit(1);
+
+    if (!admin) {
+      logger.warn('Admin login failed: user not found', { email });
+      return res.status(401).json(formatErrorResponse(401, 'Invalid admin credentials'));
+    }
+
+    if (!admin.isActive) {
+      logger.warn('Admin login failed: account inactive', { email });
+      return res.status(401).json(formatErrorResponse(401, 'Admin account is inactive'));
+    }
+
+    const isValidPassword = await bcrypt.compare(password, admin.passwordHash);
+    if (!isValidPassword) {
+      logger.warn('Admin login failed: invalid password', { email });
+      return res.status(401).json(formatErrorResponse(401, 'Invalid admin credentials'));
+    }
+
+    await db.update(adminUsers)
+      .set({ lastLogin: new Date() })
+      .where(eq(adminUsers.id, admin.id));
+
+    const accessToken = jwt.sign(
+      { adminId: admin.id, isAdmin: true },
+      config.JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+
+    const refreshToken = jwt.sign(
+      { adminId: admin.id, isAdmin: true, type: 'refresh' },
+      config.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    logger.info('Admin login successful', { adminId: admin.id, email: admin.email });
+
+    res.json(formatResponse('success', 200, 'Admin login successful', {
+      accessToken,
+      refreshToken,
+      admin: {
+        id: admin.id,
+        email: admin.email,
+        name: admin.name,
+      }
+    }));
+  } catch (error: any) {
+    logger.error('Admin login error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Admin login failed'));
   }
 });
 

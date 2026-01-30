@@ -23,22 +23,22 @@ export default function AdminLogin() {
     setIsLoading(true);
     
     try {
-      const response = await axios.post('/api/auth/login', { email, password });
-      const { accessToken, refreshToken } = response.data.data;
+      const response = await axios.post('/api/auth/admin/login', { email, password });
+      const { accessToken, refreshToken, admin } = response.data.data;
       
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
       localStorage.setItem('adminToken', accessToken);
+      localStorage.setItem('adminRefreshToken', refreshToken);
+      localStorage.setItem('adminUser', JSON.stringify(admin));
       
       toast({
         title: "Welcome Admin!",
-        description: "Successfully logged in to admin panel.",
+        description: `Successfully logged in as ${admin.name}.`,
       });
       setLocation("/admin");
     } catch (error: any) {
       toast({
         title: "Login failed",
-        description: error.response?.data?.message || "Invalid email or password",
+        description: error.response?.data?.message || "Invalid admin credentials",
         variant: "destructive",
       });
     } finally {

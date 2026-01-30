@@ -81,3 +81,35 @@ export const handleApiError = (error: AxiosError<ApiResponse<any>>): string => {
   }
   return 'An unexpected error occurred';
 };
+
+export const adminApiClient: AxiosInstance = axios.create({
+  baseURL: `${API_BASE_URL}/api`,
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+adminApiClient.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    const token = localStorage.getItem('adminToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+adminApiClient.interceptors.response.use(
+  (response) => response,
+  async (error: AxiosError) => {
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminRefreshToken');
+      localStorage.removeItem('adminUser');
+      window.location.href = '/admin/login';
+    }
+    return Promise.reject(error);
+  }
+);
