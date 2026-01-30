@@ -10,7 +10,7 @@ import { Banknote, Loader2, UserPlus, Trash2, Users, FileText, RefreshCw, CheckC
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
-const getAdminToken = () => localStorage.getItem('accessToken');
+const getAdminToken = () => localStorage.getItem('adminToken');
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   pending: { label: 'Pending', color: 'bg-gray-100 text-gray-700' },

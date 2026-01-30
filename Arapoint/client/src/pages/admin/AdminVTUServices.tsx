@@ -27,7 +27,7 @@ interface VTUService {
   createdAt: string;
 }
 
-const getAuthToken = () => localStorage.getItem('accessToken');
+const getAuthToken = () => localStorage.getItem('adminToken');
 
 export default function AdminVTUServices() {
   const { toast } = useToast();

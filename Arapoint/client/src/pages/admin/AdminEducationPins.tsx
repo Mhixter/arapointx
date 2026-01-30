@@ -45,7 +45,7 @@ interface PinOrder {
   userEmail: string;
 }
 
-const getAuthToken = () => localStorage.getItem('accessToken');
+const getAuthToken = () => localStorage.getItem('adminToken');
 
 export default function AdminEducationPins() {
   const { toast } = useToast();

@@ -92,7 +92,7 @@ const SERVICE_CATEGORIES: Record<string, string> = Object.fromEntries(
 
 const CATEGORY_LIST = ['Identity', 'Identity Agent', 'Wallet', 'Education', 'CAC', 'VTU Airtime', 'VTU Data', 'VTU Electricity', 'VTU Cable'];
 
-const getAuthToken = () => localStorage.getItem('accessToken');
+const getAuthToken = () => localStorage.getItem('adminToken');
 
 export default function AdminPricing() {
   const { toast } = useToast();
@@ -386,7 +386,7 @@ export default function AdminPricing() {
                       const res = await fetch('/api/admin/vtu/scrape-data', {
                         method: 'POST',
                         headers: { 
-                          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+                          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
                           'Content-Type': 'application/json'
                         }
                       });

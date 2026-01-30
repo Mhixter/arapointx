@@ -24,7 +24,7 @@ interface BVNService {
   createdAt: string;
 }
 
-const getAuthToken = () => localStorage.getItem('accessToken');
+const getAuthToken = () => localStorage.getItem('adminToken');
 
 export default function AdminBVNServices() {
   const { toast } = useToast();

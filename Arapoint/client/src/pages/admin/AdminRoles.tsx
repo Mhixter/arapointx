@@ -33,7 +33,7 @@ const ALL_PERMISSIONS = [
   { key: "roles", label: "Role Management", description: "Manage admin roles and permissions" },
 ];
 
-const getAuthToken = () => localStorage.getItem('accessToken');
+const getAuthToken = () => localStorage.getItem('adminToken');
 
 export default function AdminRoles() {
   const { toast } = useToast();

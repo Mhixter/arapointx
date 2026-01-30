@@ -43,7 +43,7 @@ export default function AdminSettings() {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const token = localStorage.getItem('accessToken');
+        const token = localStorage.getItem('adminToken');
         const response = await fetch('/api/admin/settings', {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -73,7 +73,7 @@ export default function AdminSettings() {
 
   const handleSave = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = localStorage.getItem('adminToken');
       const payload: any = { ...settings };
       // Map local keys to DB keys for RPA URLs
       Object.entries(settingsMap).forEach(([localKey, dbKey]) => {

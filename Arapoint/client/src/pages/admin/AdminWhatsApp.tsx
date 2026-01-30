@@ -14,7 +14,7 @@ import { MessageSquare, Settings, Users, Bell, Loader2, Plus, Trash2, RefreshCw,
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 
-const getAdminToken = () => localStorage.getItem('accessToken');
+const getAdminToken = () => localStorage.getItem('adminToken');
 
 interface WhatsAppTemplate {
   id: string;

@@ -24,7 +24,7 @@ interface IdentityService {
   createdAt: string;
 }
 
-const getAuthToken = () => localStorage.getItem('accessToken');
+const getAuthToken = () => localStorage.getItem('adminToken');
 
 export default function AdminIdentityServices() {
   const { toast } = useToast();
