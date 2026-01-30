@@ -1272,31 +1272,12 @@ function ResultSection({ result, slipHtml, onDownload, onPrint, slipContainerRef
       </Card>
       
       {slipHtml && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Download Result Slip</CardTitle>
-            <CardDescription>Your verified identity slip is ready</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div ref={slipContainerRef} className="border rounded-lg overflow-hidden mb-6">
-              <iframe 
-                srcDoc={slipHtml} 
-                className="w-full h-96 border-0"
-                title="Identity Slip Preview"
-              />
-            </div>
-            <div className="flex gap-4 justify-end">
-              <Button variant="outline" onClick={onPrint}>
-                <Printer className="mr-2 h-4 w-4" />
-                Print Slip
-              </Button>
-              <Button onClick={onDownload}>
-                <Download className="mr-2 h-4 w-4" />
-                Download Slip
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex justify-center">
+          <Button onClick={onDownload} size="lg" className="bg-primary hover:bg-primary/90">
+            <Download className="mr-2 h-5 w-5" />
+            Download NIN Slip
+          </Button>
+        </div>
       )}
     </div>
   );

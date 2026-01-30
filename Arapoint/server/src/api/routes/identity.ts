@@ -320,7 +320,7 @@ router.post('/nin', async (req: Request, res: Response) => {
 
     const pdfSlipTypeMap: Record<string, 'standard' | 'premium' | 'long'> = {
       'information': 'standard',
-      'regular': 'standard',
+      'regular': 'long',
       'standard': 'standard',
       'premium': 'premium',
     };
