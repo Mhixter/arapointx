@@ -210,6 +210,27 @@ export async function registerRoutes(
     }
   });
 
+  // Public endpoint for NIN slip pricing (no auth required)
+  app.get('/api/identity/pricing', publicRateLimiter, async (req, res) => {
+    try {
+      const { pricingService } = await import('./src/services/pricingService');
+      const [ninLookup, ninPhone] = await Promise.all([
+        pricingService.getPricing('nin_lookup'),
+        pricingService.getPricing('nin_phone'),
+      ]);
+      const slipPricing = {
+        information: ninLookup.price,
+        regular: ninLookup.price + 50,
+        standard: ninLookup.price + 100,
+        premium: ninLookup.price + 100,
+        nin_phone: ninPhone.price,
+      };
+      res.json({ status: 'success', code: 200, message: 'NIN pricing retrieved', data: { pricing: slipPricing } });
+    } catch (error: any) {
+      res.status(500).json({ status: 'error', code: 500, message: 'Failed to fetch pricing' });
+    }
+  });
+
   app.use('/api/auth', publicRateLimiter, authRoutes);
   app.use('/api/otp', publicRateLimiter, otpRoutes);
 
