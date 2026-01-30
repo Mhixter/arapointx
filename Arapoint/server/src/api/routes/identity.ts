@@ -308,8 +308,8 @@ router.post('/nin', async (req: Request, res: Response) => {
     const result = await verifyNINWithFallback(validation.data.nin);
 
     if (!result.success || !result.data) {
-      logger.warn('NIN verification failed', { userId: req.userId, error: result.error, provider: result.provider });
-      return res.status(400).json(formatErrorResponse(400, result.error || 'NIN verification failed'));
+      logger.warn('NIN verification failed - no charge', { userId: req.userId, error: result.error, provider: result.provider });
+      return res.status(400).json(formatErrorResponse(400, result.error || 'NIN verification failed. No charge applied.'));
     }
 
     await walletService.deductBalance(req.userId!, price, 'NIN Lookup', 'nin_verification');
@@ -540,8 +540,8 @@ router.post('/nin-phone', async (req: Request, res: Response) => {
     const result = await verifyNINWithPhoneFallback(validation.data.nin, validation.data.phone);
 
     if (!result.success || !result.data) {
-      logger.warn('NIN-Phone verification failed', { userId: req.userId, error: result.error, provider: result.provider });
-      return res.status(400).json(formatErrorResponse(400, result.error || 'NIN verification failed'));
+      logger.warn('NIN-Phone verification failed - no charge', { userId: req.userId, error: result.error, provider: result.provider });
+      return res.status(400).json(formatErrorResponse(400, result.error || 'NIN verification failed. No charge applied.'));
     }
 
     const ninData = result.data as any;

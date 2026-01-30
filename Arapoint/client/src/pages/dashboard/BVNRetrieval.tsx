@@ -30,7 +30,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const BVN_SERVICES = [
   { id: "retrieval", name: "BVN Retrieval", icon: FileSearch, color: "text-cyan-600", bg: "bg-cyan-100 dark:bg-cyan-900/20", desc: "Recover lost BVN details", price: 100 },
-  { id: "card", name: "BVN Card", icon: CreditCard, color: "text-indigo-600", bg: "bg-indigo-100 dark:bg-indigo-900/20", desc: "Print BVN Digital Card", price: 500 },
   { id: "modification", name: "BVN Modification", icon: FilePenLine, color: "text-violet-600", bg: "bg-violet-100 dark:bg-violet-900/20", desc: "Agent enrollment only (not bank)", price: 2500 },
 ];
 
@@ -81,10 +80,7 @@ export default function BVNRetrieval() {
         throw new Error("Please login to continue");
       }
 
-      const endpoint = selectedService === 'card' ? '/api/bvn/digital-card' : '/api/bvn/retrieve';
-      const isPremium = selectedService === 'card';
-      
-      const response = await fetch(endpoint, {
+      const response = await fetch('/api/bvn/retrieve', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -92,8 +88,7 @@ export default function BVNRetrieval() {
         },
         body: JSON.stringify({ 
           bvn,
-          premium: isPremium,
-          slipType: isPremium ? 'premium' : 'standard',
+          slipType: 'standard',
         }),
       });
 
@@ -757,7 +752,7 @@ export default function BVNRetrieval() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-heading font-bold tracking-tight">
-            {selectedService === 'card' ? 'BVN Digital Card' : 'BVN Slip'}
+            BVN Slip
           </h2>
           <p className="text-muted-foreground">Your verified BVN information from YouVerify</p>
         </div>
