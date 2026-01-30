@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLocation } from "wouter";
-import { Users, DollarSign, AlertTriangle, FileCheck, ShieldCheck, BookOpen, Smartphone, Loader2, MessageSquare } from "lucide-react";
+import { Users, DollarSign, AlertTriangle, FileCheck, ShieldCheck, BookOpen, Smartphone, Loader2, MessageSquare, Receipt } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useQuery } from "@tanstack/react-query";
 import { adminApi } from "@/lib/api";
@@ -117,6 +117,15 @@ export default function AdminDashboard() {
       desc: "Configure agent WhatsApp alerts",
       href: "/admin/whatsapp",
       count: 0
+    },
+    { 
+      title: "Transactions", 
+      icon: Receipt, 
+      color: "text-indigo-600",
+      bg: "bg-indigo-100 dark:bg-indigo-900/20",
+      desc: "View all platform transactions",
+      href: "/admin/transactions",
+      count: stats?.totalTransactions || 0
     },
   ];
 
