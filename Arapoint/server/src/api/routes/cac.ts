@@ -280,6 +280,54 @@ router.post('/requests/:id/documents', async (req: Request, res: Response) => {
   }
 });
 
+router.get('/requests/:id/documents/:docId/download', async (req: Request, res: Response) => {
+  try {
+    const { id, docId } = req.params;
+
+    // Verify user owns this request
+    const [request] = await db.select()
+      .from(cacRegistrationRequests)
+      .where(and(
+        eq(cacRegistrationRequests.id, id),
+        eq(cacRegistrationRequests.userId, req.userId!)
+      ))
+      .limit(1);
+
+    if (!request) {
+      return res.status(404).json(formatErrorResponse(404, 'Request not found'));
+    }
+
+    // Get the document and verify it belongs to this request
+    const [document] = await db.select()
+      .from(cacRequestDocuments)
+      .where(and(
+        eq(cacRequestDocuments.id, docId),
+        eq(cacRequestDocuments.requestId, id)
+      ))
+      .limit(1);
+
+    if (!document) {
+      return res.status(404).json(formatErrorResponse(404, 'Document not found'));
+    }
+
+    if (!document.fileUrl) {
+      return res.status(404).json(formatErrorResponse(404, 'File URL not available'));
+    }
+
+    logger.info('User downloading CAC document', { userId: req.userId, requestId: id, documentId: docId, documentType: document.documentType });
+
+    res.json(formatResponse('success', 200, 'Document URL retrieved', { 
+      fileUrl: document.fileUrl, 
+      fileName: document.fileName,
+      documentType: document.documentType,
+      mimeType: document.mimeType
+    }));
+  } catch (error: any) {
+    logger.error('User download document error', { error: error.message, userId: req.userId });
+    res.status(500).json(formatErrorResponse(500, 'Failed to download document'));
+  }
+});
+
 router.get('/requests/:id/messages', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;

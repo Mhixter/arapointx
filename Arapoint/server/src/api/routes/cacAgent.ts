@@ -220,6 +220,7 @@ router.get('/requests', cacAgentAuthMiddleware, async (req: Request, res: Respon
 router.get('/requests/:id', cacAgentAuthMiddleware, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const agentId = (req as any).agentId;
 
     const [request] = await db.select({
       request: cacRegistrationRequests,
@@ -236,6 +237,14 @@ router.get('/requests/:id', cacAgentAuthMiddleware, async (req: Request, res: Re
       return res.status(404).json(formatErrorResponse(404, 'Request not found'));
     }
 
+    // Authorization check: agent must be assigned to this request or request must be unassigned (for viewing before assignment)
+    const isAssigned = request.request.assignedAgentId === agentId;
+    const isUnassigned = !request.request.assignedAgentId;
+    
+    if (!isAssigned && !isUnassigned) {
+      return res.status(403).json(formatErrorResponse(403, 'Not authorized to access this request'));
+    }
+
     const documents = await db.select()
       .from(cacRequestDocuments)
       .where(eq(cacRequestDocuments.requestId, id));
@@ -245,14 +254,28 @@ router.get('/requests/:id', cacAgentAuthMiddleware, async (req: Request, res: Re
       .where(eq(cacRequestActivity.requestId, id))
       .orderBy(desc(cacRequestActivity.createdAt));
 
+    // Only include file URLs if agent is assigned - hide sensitive data from unassigned agents
+    const safeDocuments = isAssigned 
+      ? documents 
+      : documents.map(doc => ({ ...doc, fileUrl: undefined }));
+
+    const safeRequest = isAssigned 
+      ? request.request 
+      : {
+          ...request.request,
+          passportPhotoUrl: undefined,
+          signatureUrl: undefined,
+          ninSlipUrl: undefined,
+        };
+
     res.json(formatResponse('success', 200, 'Request details retrieved', {
-      ...request.request,
+      ...safeRequest,
       customer: {
         name: request.userName,
         email: request.userEmail,
         phone: request.userPhone,
       },
-      documents,
+      documents: safeDocuments,
       activity,
     }));
   } catch (error: any) {
@@ -768,6 +791,11 @@ router.get('/requests/:id/user-files/:fileType', cacAgentAuthMiddleware, async (
       return res.status(404).json(formatErrorResponse(404, 'Request not found'));
     }
 
+    // Authorization check: agent must be assigned to this request
+    if (request.assignedAgentId !== agentId) {
+      return res.status(403).json(formatErrorResponse(403, 'Not authorized to access files for this request'));
+    }
+
     let fileUrl: string | null = null;
     let fileName = '';
 
@@ -815,6 +843,16 @@ router.get('/documents/:docId/download', cacAgentAuthMiddleware, async (req: Req
 
     if (!document) {
       return res.status(404).json(formatErrorResponse(404, 'Document not found'));
+    }
+
+    // Authorization check: verify agent is assigned to the request this document belongs to
+    const [request] = await db.select()
+      .from(cacRegistrationRequests)
+      .where(eq(cacRegistrationRequests.id, document.requestId))
+      .limit(1);
+
+    if (!request || request.assignedAgentId !== agentId) {
+      return res.status(403).json(formatErrorResponse(403, 'Not authorized to access this document'));
     }
 
     if (!document.fileUrl) {

@@ -188,6 +188,10 @@ export default function CACServices() {
   const [uploadingSignature, setUploadingSignature] = useState(false);
   const [uploadingNinSlip, setUploadingNinSlip] = useState(false);
   const [agentOnlineStatus, setAgentOnlineStatus] = useState<{ isOnline: boolean; lastSeen: string | null }>({ isOnline: false, lastSeen: null });
+  const [showDocuments, setShowDocuments] = useState(false);
+  const [documentsRequest, setDocumentsRequest] = useState<any>(null);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [loadingDocuments, setLoadingDocuments] = useState(false);
 
   const handleFileUpload = async (file: File, type: 'passport' | 'signature' | 'ninSlip') => {
     const setUploading = type === 'passport' ? setUploadingPassport : type === 'signature' ? setUploadingSignature : setUploadingNinSlip;
@@ -268,6 +272,44 @@ export default function CACServices() {
       console.error('Failed to fetch requests:', error);
     } finally {
       setLoadingRequests(false);
+    }
+  };
+
+  const viewDocuments = async (request: any) => {
+    setDocumentsRequest(request);
+    setShowDocuments(true);
+    setLoadingDocuments(true);
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`/api/cac/requests/${request.id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        setDocuments(data.data.documents || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch documents:', error);
+    } finally {
+      setLoadingDocuments(false);
+    }
+  };
+
+  const downloadDocument = async (requestId: string, docId: string, fileName: string) => {
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`/api/cac/requests/${requestId}/documents/${docId}/download`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.status === 'success' && data.data.fileUrl) {
+        window.open(data.data.fileUrl, '_blank');
+      } else {
+        toast({ title: "Download Failed", description: data.message || "Could not download document", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error('Failed to download document:', error);
+      toast({ title: "Error", description: "Failed to download document", variant: "destructive" });
     }
   };
 
@@ -759,11 +801,17 @@ export default function CACServices() {
                           <p className="text-xs text-muted-foreground mb-1">{req.serviceName || req.serviceType.replace('_', ' ')}</p>
                           <p className="text-[10px] text-muted-foreground italic">Ref: {req.id.substring(0, 8)} • {new Date(req.createdAt).toLocaleDateString()}</p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Button variant="outline" size="sm" className="h-8" onClick={() => openChat(req)}>
                             <MessageCircle className="h-4 w-4 mr-1.5" />
                             Chat {req.unreadCount > 0 && <span className="ml-1 px-1.5 py-0.5 bg-red-600 text-white rounded-full text-[10px]">{req.unreadCount}</span>}
                           </Button>
+                          {(req.status === 'completed' || req.status === 'submitted_to_cac') && (
+                            <Button variant="outline" size="sm" className="h-8" onClick={() => viewDocuments(req)}>
+                              <FileText className="h-4 w-4 mr-1.5" />
+                              Documents
+                            </Button>
+                          )}
                           {req.status === 'completed' && req.certificateUrl && (
                             <Button variant="default" size="sm" className="h-8 bg-green-600 hover:bg-green-700" asChild>
                               <a href={req.certificateUrl} target="_blank" rel="noopener noreferrer"><Download className="h-4 w-4 mr-1.5" />Certificate</a>
@@ -911,6 +959,47 @@ export default function CACServices() {
                 {sendingMessage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDocuments} onOpenChange={setShowDocuments}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Documents</DialogTitle>
+            <DialogDescription>
+              {documentsRequest?.businessName} - Agent-uploaded documents
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            {loadingDocuments ? (
+              <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+            ) : documents.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">No documents uploaded by agent yet.</div>
+            ) : (
+              documents.map((doc: any) => (
+                <div key={doc.id} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:border-primary/50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <FileText className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">{doc.documentType?.replace('_', ' ') || 'Document'}</p>
+                      <p className="text-xs text-muted-foreground">{doc.fileName || 'Untitled'}</p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-8"
+                    onClick={() => downloadDocument(documentsRequest.id, doc.id, doc.fileName)}
+                  >
+                    <Download className="h-4 w-4 mr-1.5" />
+                    Download
+                  </Button>
+                </div>
+              ))
+            )}
           </div>
         </DialogContent>
       </Dialog>
