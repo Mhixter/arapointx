@@ -69,15 +69,6 @@
       text-transform: uppercase;
     }
     
-    .dob-overlay {
-      position: absolute;
-      top: {{dob_top}};
-      left: {{dob_left}};
-      font-size: {{dob_size}};
-      font-weight: 700;
-      color: #000;
-    }
-    
     .sex-overlay {
       position: absolute;
       top: {{sex_top}};
@@ -98,18 +89,6 @@
       font-family: 'Arial Black', Arial, sans-serif;
     }
     
-    .qr-overlay {
-      position: absolute;
-      top: {{qr_top}};
-      right: {{qr_right}};
-      width: {{qr_width}};
-    }
-    
-    .qr-overlay img {
-      width: 100%;
-      height: auto;
-    }
-    
     .tracking-id-overlay {
       position: absolute;
       top: {{tracking_top}};
@@ -128,12 +107,8 @@
       <img src="{{photo}}" alt="Photo" class="photo-overlay">
       <div class="surname-overlay">{{surname}}</div>
       <div class="given-names-overlay">{{firstname}} {{middlename}}</div>
-      <div class="dob-overlay">{{date_of_birth}}</div>
       <div class="sex-overlay">{{gender}}</div>
       <div class="nin-overlay">{{nin}}</div>
-      <div class="qr-overlay">
-        <img src="{{qr_code}}" alt="QR Code">
-      </div>
       <div class="tracking-id-overlay">{{tracking_id}}</div>
     </div>
   </div>
