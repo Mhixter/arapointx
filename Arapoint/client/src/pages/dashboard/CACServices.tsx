@@ -764,9 +764,9 @@ export default function CACServices() {
                             <MessageCircle className="h-4 w-4 mr-1.5" />
                             Chat {req.unreadCount > 0 && <span className="ml-1 px-1.5 py-0.5 bg-red-600 text-white rounded-full text-[10px]">{req.unreadCount}</span>}
                           </Button>
-                          {req.status === 'completed' && req.documentUrl && (
+                          {req.status === 'completed' && req.certificateUrl && (
                             <Button variant="default" size="sm" className="h-8 bg-green-600 hover:bg-green-700" asChild>
-                              <a href={req.documentUrl} target="_blank" rel="noopener noreferrer"><Download className="h-4 w-4 mr-1.5" />Docs</a>
+                              <a href={req.certificateUrl} target="_blank" rel="noopener noreferrer"><Download className="h-4 w-4 mr-1.5" />Certificate</a>
                             </Button>
                           )}
                         </div>

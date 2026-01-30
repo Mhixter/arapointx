@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { Building2, Loader2, Clock, CheckCircle2, XCircle, User, LogOut, FileText, RefreshCw, Eye, MessageCircle, Send, Upload, DollarSign, Settings, Save, Plus, Trash2 } from "lucide-react";
+import { Building2, Loader2, Clock, CheckCircle2, XCircle, User, LogOut, FileText, RefreshCw, Eye, MessageCircle, Send, Upload, DollarSign, Settings, Save, Plus, Trash2, Download } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -746,6 +746,47 @@ export default function CACAgentDashboard() {
                   {selectedRequest.customerNotes && <p><span className="text-muted-foreground">Customer Notes:</span> {selectedRequest.customerNotes}</p>}
                 </div>
               </div>
+
+              {(selectedRequest.passportPhotoUrl || selectedRequest.signatureUrl || selectedRequest.ninSlipUrl) && (
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold mb-2">Customer Uploaded Files</h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    {selectedRequest.passportPhotoUrl && (
+                      <a 
+                        href={selectedRequest.passportPhotoUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex flex-col items-center p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors"
+                      >
+                        <Download className="h-5 w-5 text-primary mb-1" />
+                        <span className="text-xs text-center">Passport Photo</span>
+                      </a>
+                    )}
+                    {selectedRequest.signatureUrl && (
+                      <a 
+                        href={selectedRequest.signatureUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex flex-col items-center p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors"
+                      >
+                        <Download className="h-5 w-5 text-primary mb-1" />
+                        <span className="text-xs text-center">Signature</span>
+                      </a>
+                    )}
+                    {selectedRequest.ninSlipUrl && (
+                      <a 
+                        href={selectedRequest.ninSlipUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex flex-col items-center p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors"
+                      >
+                        <Download className="h-5 w-5 text-primary mb-1" />
+                        <span className="text-xs text-center">NIN Slip</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {selectedRequest.documents?.length > 0 && (
                 <div className="border-t pt-4">

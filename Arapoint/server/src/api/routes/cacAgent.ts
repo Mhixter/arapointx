@@ -749,4 +749,90 @@ router.delete('/service-types/:id', cacAgentAuthMiddleware, async (req: Request,
   }
 });
 
+router.get('/requests/:id/user-files/:fileType', cacAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { id, fileType } = req.params;
+    const agentId = (req as any).agentId;
+
+    const validFileTypes = ['passport', 'signature', 'nin_slip'];
+    if (!validFileTypes.includes(fileType)) {
+      return res.status(400).json(formatErrorResponse(400, 'Invalid file type. Must be: passport, signature, or nin_slip'));
+    }
+
+    const [request] = await db.select()
+      .from(cacRegistrationRequests)
+      .where(eq(cacRegistrationRequests.id, id))
+      .limit(1);
+
+    if (!request) {
+      return res.status(404).json(formatErrorResponse(404, 'Request not found'));
+    }
+
+    let fileUrl: string | null = null;
+    let fileName = '';
+
+    switch (fileType) {
+      case 'passport':
+        fileUrl = request.passportPhotoUrl;
+        fileName = 'passport_photo';
+        break;
+      case 'signature':
+        fileUrl = request.signatureUrl;
+        fileName = 'signature';
+        break;
+      case 'nin_slip':
+        fileUrl = request.ninSlipUrl;
+        fileName = 'nin_slip';
+        break;
+    }
+
+    if (!fileUrl) {
+      return res.status(404).json(formatErrorResponse(404, `${fileType} file not uploaded by user`));
+    }
+
+    logger.info('CAC agent downloading user file', { agentId, requestId: id, fileType });
+
+    res.json(formatResponse('success', 200, 'File URL retrieved', { 
+      fileUrl, 
+      fileName,
+      fileType 
+    }));
+  } catch (error: any) {
+    logger.error('Download user file error (agent)', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get file'));
+  }
+});
+
+router.get('/documents/:docId/download', cacAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { docId } = req.params;
+    const agentId = (req as any).agentId;
+
+    const [document] = await db.select()
+      .from(cacRequestDocuments)
+      .where(eq(cacRequestDocuments.id, docId))
+      .limit(1);
+
+    if (!document) {
+      return res.status(404).json(formatErrorResponse(404, 'Document not found'));
+    }
+
+    if (!document.fileUrl) {
+      return res.status(404).json(formatErrorResponse(404, 'File URL not available'));
+    }
+
+    logger.info('CAC agent downloading document', { agentId, documentId: docId, documentType: document.documentType });
+
+    res.json(formatResponse('success', 200, 'Document URL retrieved', { 
+      fileUrl: document.fileUrl, 
+      fileName: document.fileName,
+      documentType: document.documentType,
+      mimeType: document.mimeType
+    }));
+  } catch (error: any) {
+    logger.error('Download document error (agent)', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to download document'));
+  }
+});
+
 export default router;
