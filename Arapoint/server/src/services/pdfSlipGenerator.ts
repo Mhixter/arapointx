@@ -322,13 +322,14 @@ export const generatePdfSlip = async (options: GenerateSlipOptions): Promise<Sli
     
     const page = await browser.newPage();
     
-    await page.setViewport({ width: 1240, height: 1754 });
+    await page.setViewport({ width: 1267, height: 1652 });
     
     await page.setContent(populatedHtml, { waitUntil: 'networkidle0' });
     
     await page.pdf({
       path: pdfPath,
-      format: 'A4',
+      width: '1267px',
+      height: '1652px',
       printBackground: true,
       margin: { top: '0', right: '0', bottom: '0', left: '0' }
     });
