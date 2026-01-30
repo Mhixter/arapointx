@@ -75,7 +75,7 @@ const defaultPositions: Record<"standard" | "premium" | "long", SlipPositions> =
       dob_left: "40.1%",
       dob_size: "15px",
       nin_top: "60.9%",
-      nin_left: "39.5%",
+      nin_left: "35.5%",
       nin_size: "40px",
       qr_top: "43.5%",
       qr_right: "26.5%",
