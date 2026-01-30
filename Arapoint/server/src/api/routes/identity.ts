@@ -276,6 +276,30 @@ Copy these values to update slipGenerator.ts
   }
 });
 
+router.get('/pricing', async (req: Request, res: Response) => {
+  try {
+    const { pricingService } = await import('../../services/pricingService');
+    
+    const [ninLookup, ninPhone] = await Promise.all([
+      pricingService.getPricing('nin_lookup'),
+      pricingService.getPricing('nin_phone'),
+    ]);
+    
+    const slipPricing = {
+      information: ninLookup.price,
+      regular: ninLookup.price + 50,
+      standard: ninLookup.price + 100,
+      premium: ninLookup.price + 100,
+      nin_phone: ninPhone.price,
+    };
+    
+    res.json(formatResponse('success', 200, 'NIN pricing retrieved', { pricing: slipPricing }));
+  } catch (error: any) {
+    logger.error('Failed to fetch NIN pricing', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to fetch pricing'));
+  }
+});
+
 router.use(authMiddleware);
 
 const getServicePrice = async (serviceType: string, defaultPrice: number): Promise<number> => {

@@ -6,16 +6,17 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Loader2, Search, CheckCircle2, Download, Printer, Clock, FileText, AlertCircle, AlertTriangle } from "lucide-react";
 import { SERVICES } from "../IdentityVerification";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useQuery } from "@tanstack/react-query";
 import slipInfo from '@assets/image_1764211401623.png';
 import slipRegular from '@assets/image_1764211451522.png';
 import slipStandard from '@assets/image_1764211490940.png';
 import slipPremium from '@assets/image_1764211520708.png';
 
-const SLIP_TYPES = [
+const DEFAULT_SLIP_TYPES = [
   { id: "information", name: "Information Slip", price: 200, image: slipInfo },
   { id: "regular", name: "Regular Slip", price: 250, image: slipRegular },
   { id: "standard", name: "Standard Slip", price: 300, image: slipStandard },
@@ -92,6 +93,30 @@ function ServiceContent({ service }: { service: any }) {
   const [error, setError] = useState("");
   const { toast } = useToast();
   const slipContainerRef = useRef<HTMLDivElement>(null);
+
+  const { data: pricingData } = useQuery({
+    queryKey: ['/api/identity/pricing'],
+    queryFn: async () => {
+      try {
+        const res = await fetch('/api/identity/pricing');
+        const json = await res.json();
+        return json.data?.pricing || null;
+      } catch {
+        return null;
+      }
+    },
+    staleTime: 60000,
+  });
+
+  const SLIP_TYPES = useMemo(() => {
+    const pricing = pricingData;
+    return [
+      { id: "information", name: "Information Slip", price: pricing?.information || 200, image: slipInfo },
+      { id: "regular", name: "Regular Slip", price: pricing?.regular || 250, image: slipRegular },
+      { id: "standard", name: "Standard Slip", price: pricing?.standard || 300, image: slipStandard },
+      { id: "premium", name: "Premium Slip", price: pricing?.premium || 300, image: slipPremium },
+    ];
+  }, [pricingData]);
 
   const getAuthToken = () => {
     return localStorage.getItem('accessToken');

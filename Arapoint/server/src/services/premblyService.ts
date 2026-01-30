@@ -128,8 +128,9 @@ class PremblyService {
         logger.info('Prembly NIN verification successful', { reference });
         return { success: true, data: ninData, reference };
       } else {
-        const errorMsg = response.data.detail || response.data.message || 'NIN verification failed';
-        logger.warn('Prembly NIN verification failed', { error: errorMsg, reference });
+        const rawError = response.data.detail || response.data.message || 'NIN verification failed';
+        const errorMsg = this.normalizeErrorMessage(rawError, response.data.response_code);
+        logger.warn('Prembly NIN verification failed', { error: errorMsg, reference, responseCode: response.data.response_code });
         return { 
           success: false, 
           error: errorMsg, 
@@ -145,10 +146,11 @@ class PremblyService {
         responseData: error.response?.data,
       });
       
-      const errorMsg = error.response?.data?.detail || 
+      const rawError = error.response?.data?.detail || 
                        error.response?.data?.message || 
                        error.message || 
                        'NIN verification failed';
+      const errorMsg = this.normalizeErrorMessage(rawError, error.response?.data?.response_code);
       
       return { 
         success: false, 
@@ -375,6 +377,27 @@ class PremblyService {
         errorCode: error.response?.data?.response_code,
       };
     }
+  }
+
+  private normalizeErrorMessage(rawError: string, responseCode?: string): string {
+    const lowerError = rawError.toLowerCase();
+    
+    if (
+      lowerError.includes('no record') ||
+      lowerError.includes('not found') ||
+      lowerError.includes('invalid nin') ||
+      lowerError.includes('does not exist') ||
+      responseCode === '01' ||
+      responseCode === '02'
+    ) {
+      return 'No record found. Please verify the NIN and try again.';
+    }
+    
+    if (lowerError.includes('invalid') || lowerError.includes('wrong format')) {
+      return 'Invalid format. Please check the input and try again.';
+    }
+    
+    return rawError;
   }
 
   isConfigured(): boolean {
