@@ -8,29 +8,27 @@
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;900&display=swap');
     
     @page {
-      size: A4;
       margin: 0;
     }
     
     * { margin: 0; padding: 0; box-sizing: border-box; }
     
-    body { 
+    html, body { 
       font-family: 'Roboto', Arial, sans-serif; 
       background: white;
-      width: 210mm;
-      min-height: 297mm;
+      margin: 0;
+      padding: 0;
     }
     
     .page {
-      width: 210mm;
-      min-height: 297mm;
       position: relative;
+      display: inline-block;
     }
     
     .template-bg {
-      width: 100%;
-      height: auto;
       display: block;
+      max-width: 100%;
+      height: auto;
     }
     
     .data-overlay {
@@ -44,18 +42,18 @@
     
     .photo-overlay {
       position: absolute;
-      top: 20%;
-      left: 10%;
-      width: 18%;
+      top: {{photo_top}};
+      left: {{photo_left}};
+      width: {{photo_width}};
       height: auto;
       object-fit: cover;
     }
     
     .surname-overlay {
       position: absolute;
-      top: 21%;
-      left: 32%;
-      font-size: 1.4vw;
+      top: {{surname_top}};
+      left: {{surname_left}};
+      font-size: {{surname_size}};
       font-weight: 700;
       color: #000;
       text-transform: uppercase;
@@ -63,9 +61,9 @@
     
     .given-names-overlay {
       position: absolute;
-      top: 27%;
-      left: 32%;
-      font-size: 1.4vw;
+      top: {{names_top}};
+      left: {{names_left}};
+      font-size: {{names_size}};
       font-weight: 700;
       color: #000;
       text-transform: uppercase;
@@ -73,28 +71,27 @@
     
     .dob-overlay {
       position: absolute;
-      top: 33%;
-      left: 32%;
-      font-size: 1.2vw;
+      top: {{dob_top}};
+      left: {{dob_left}};
+      font-size: {{dob_size}};
       font-weight: 700;
       color: #000;
     }
     
     .sex-overlay {
       position: absolute;
-      top: 33%;
-      left: 55%;
-      font-size: 1.2vw;
+      top: {{sex_top}};
+      left: {{sex_left}};
+      font-size: {{sex_size}};
       font-weight: 700;
       color: #000;
     }
     
     .nin-overlay {
       position: absolute;
-      top: 44%;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 2.5vw;
+      top: {{nin_top}};
+      left: {{nin_left}};
+      font-size: {{nin_size}};
       font-weight: 900;
       color: #000;
       letter-spacing: 5px;
@@ -103,9 +100,9 @@
     
     .qr-overlay {
       position: absolute;
-      top: 18%;
-      right: 10%;
-      width: 14%;
+      top: {{qr_top}};
+      right: {{qr_right}};
+      width: {{qr_width}};
     }
     
     .qr-overlay img {
@@ -115,9 +112,9 @@
     
     .tracking-id-overlay {
       position: absolute;
-      top: 39%;
-      left: 32%;
-      font-size: 1vw;
+      top: {{tracking_top}};
+      left: {{tracking_left}};
+      font-size: {{tracking_size}};
       font-weight: 600;
       color: #333;
     }

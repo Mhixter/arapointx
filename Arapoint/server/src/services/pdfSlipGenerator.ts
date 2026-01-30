@@ -6,6 +6,125 @@ import { db } from '../config/database';
 import { ninSlips } from '../db/schema';
 import { eq } from 'drizzle-orm';
 
+export interface SlipPositions {
+  photo_top: string;
+  photo_left: string;
+  photo_width: string;
+  surname_top: string;
+  surname_left: string;
+  surname_size: string;
+  names_top: string;
+  names_left: string;
+  names_size: string;
+  dob_top: string;
+  dob_left: string;
+  dob_size: string;
+  nin_top: string;
+  nin_left: string;
+  nin_size: string;
+  qr_top: string;
+  qr_right: string;
+  qr_width: string;
+  sex_top?: string;
+  sex_left?: string;
+  sex_size?: string;
+  issue_top?: string;
+  issue_right?: string;
+  issue_size?: string;
+  tracking_top?: string;
+  tracking_left?: string;
+  tracking_size?: string;
+}
+
+const defaultPositions: Record<'standard' | 'premium' | 'long', SlipPositions> = {
+  standard: {
+    photo_top: '27%',
+    photo_left: '14.5%',
+    photo_width: '12%',
+    surname_top: '28%',
+    surname_left: '30%',
+    surname_size: '1.3vw',
+    names_top: '32.5%',
+    names_left: '30%',
+    names_size: '1.3vw',
+    dob_top: '37%',
+    dob_left: '30%',
+    dob_size: '1.2vw',
+    nin_top: '43.5%',
+    nin_left: '50%',
+    nin_size: '2.2vw',
+    qr_top: '26%',
+    qr_right: '14%',
+    qr_width: '11%'
+  },
+  premium: {
+    photo_top: '26%',
+    photo_left: '7%',
+    photo_width: '14%',
+    surname_top: '27%',
+    surname_left: '27%',
+    surname_size: '1.2vw',
+    names_top: '32%',
+    names_left: '27%',
+    names_size: '1.2vw',
+    dob_top: '38%',
+    dob_left: '27%',
+    dob_size: '1.1vw',
+    nin_top: '45%',
+    nin_left: '50%',
+    nin_size: '2vw',
+    qr_top: '25%',
+    qr_right: '18%',
+    qr_width: '10%',
+    sex_top: '38%',
+    sex_left: '42%',
+    sex_size: '1.1vw',
+    issue_top: '40%',
+    issue_right: '6%',
+    issue_size: '0.9vw'
+  },
+  long: {
+    photo_top: '20%',
+    photo_left: '10%',
+    photo_width: '18%',
+    surname_top: '21%',
+    surname_left: '32%',
+    surname_size: '1.4vw',
+    names_top: '27%',
+    names_left: '32%',
+    names_size: '1.4vw',
+    dob_top: '33%',
+    dob_left: '32%',
+    dob_size: '1.2vw',
+    nin_top: '44%',
+    nin_left: '50%',
+    nin_size: '2.5vw',
+    qr_top: '18%',
+    qr_right: '10%',
+    qr_width: '14%',
+    sex_top: '33%',
+    sex_left: '55%',
+    sex_size: '1.2vw',
+    tracking_top: '39%',
+    tracking_left: '32%',
+    tracking_size: '1vw'
+  }
+};
+
+let customPositions: Record<string, SlipPositions> = {};
+
+export const getSlipPositions = (slipType: 'standard' | 'premium' | 'long'): SlipPositions => {
+  return customPositions[slipType] || defaultPositions[slipType];
+};
+
+export const setSlipPositions = (slipType: 'standard' | 'premium' | 'long', positions: Partial<SlipPositions>): SlipPositions => {
+  const current = getSlipPositions(slipType);
+  customPositions[slipType] = { ...current, ...positions };
+  return customPositions[slipType];
+};
+
+export const getDefaultPositions = () => defaultPositions;
+
 export interface SlipData {
   nin: string;
   surname: string;
@@ -130,6 +249,7 @@ export const generatePdfSlip = async (options: GenerateSlipOptions): Promise<Sli
   
   let template = loadTemplate(slipType);
   const templateImage = loadTemplateImage(slipType);
+  const positions = getSlipPositions(slipType);
   
   const photoSrc = data.photo 
     ? (data.photo.startsWith('data:') ? data.photo : `data:image/jpeg;base64,${data.photo}`)
@@ -148,6 +268,33 @@ export const generatePdfSlip = async (options: GenerateSlipOptions): Promise<Sli
     verification_url: verificationUrl,
     issue_date: formatDate(new Date().toISOString()),
     tracking_id: data.tracking_id || '',
+    photo_top: positions.photo_top,
+    photo_left: positions.photo_left,
+    photo_width: positions.photo_width,
+    surname_top: positions.surname_top,
+    surname_left: positions.surname_left,
+    surname_size: positions.surname_size,
+    names_top: positions.names_top,
+    names_left: positions.names_left,
+    names_size: positions.names_size,
+    dob_top: positions.dob_top,
+    dob_left: positions.dob_left,
+    dob_size: positions.dob_size,
+    nin_top: positions.nin_top,
+    nin_left: positions.nin_left,
+    nin_size: positions.nin_size,
+    qr_top: positions.qr_top,
+    qr_right: positions.qr_right,
+    qr_width: positions.qr_width,
+    sex_top: positions.sex_top || '',
+    sex_left: positions.sex_left || '',
+    sex_size: positions.sex_size || '',
+    issue_top: positions.issue_top || '',
+    issue_right: positions.issue_right || '',
+    issue_size: positions.issue_size || '',
+    tracking_top: positions.tracking_top || '',
+    tracking_left: positions.tracking_left || '',
+    tracking_size: positions.tracking_size || '',
     template_image: templateImage
   };
   
@@ -178,8 +325,8 @@ export const generatePdfSlip = async (options: GenerateSlipOptions): Promise<Sli
     
     await page.pdf({
       path: pdfPath,
-      format: 'A4',
       printBackground: true,
+      preferCSSPageSize: true,
       margin: { top: '0', right: '0', bottom: '0', left: '0' }
     });
     
