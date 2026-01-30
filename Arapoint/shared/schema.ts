@@ -221,3 +221,39 @@ export const nbais_schools = pgTable('nbais_schools', {
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').defaultNow(),
 });
+
+export const cac_requests = pgTable('cac_requests', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  user_id: uuid('user_id').references(() => users.id).notNull(),
+  agent_id: uuid('agent_id').references(() => users.id),
+  business_name: varchar('business_name', { length: 255 }).notNull(),
+  business_type: varchar('business_type', { length: 100 }).notNull(),
+  status: varchar('status', { length: 50 }).default('pending'),
+  reference: varchar('reference', { length: 100 }).unique().notNull(),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').defaultNow(),
+  completed_at: timestamp('completed_at'),
+});
+
+export const cac_files = pgTable('cac_files', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  cac_request_id: uuid('cac_request_id').references(() => cac_requests.id).notNull(),
+  uploaded_by: uuid('uploaded_by').references(() => users.id).notNull(),
+  file_type: varchar('file_type', { length: 50 }).notNull(),
+  file_name: varchar('file_name', { length: 255 }).notNull(),
+  file_key: varchar('file_key', { length: 500 }).notNull(),
+  file_size: integer('file_size'),
+  is_result: boolean('is_result').default(false),
+  created_at: timestamp('created_at').defaultNow(),
+});
+
+export const bvn_verifications = pgTable('bvn_verifications', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  user_id: uuid('user_id').references(() => users.id).notNull(),
+  bvn: varchar('bvn', { length: 11 }).notNull(),
+  reference: varchar('reference', { length: 100 }).unique().notNull(),
+  verification_data: jsonb('verification_data'),
+  pdf_key: varchar('pdf_key', { length: 500 }),
+  status: varchar('status', { length: 50 }).default('completed'),
+  created_at: timestamp('created_at').defaultNow(),
+});

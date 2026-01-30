@@ -426,4 +426,37 @@ router.get('/requests/:id/documents', async (req: Request, res: Response) => {
   }
 });
 
+router.get('/documents/:docId/download', async (req: Request, res: Response) => {
+  try {
+    const { docId } = req.params;
+
+    const [document] = await db.select()
+      .from(cacRequestDocuments)
+      .where(eq(cacRequestDocuments.id, docId))
+      .limit(1);
+
+    if (!document) {
+      return res.status(404).json(formatErrorResponse(404, 'Document not found'));
+    }
+
+    const [request] = await db.select()
+      .from(cacRegistrationRequests)
+      .where(eq(cacRegistrationRequests.id, document.requestId))
+      .limit(1);
+
+    if (!request || request.userId !== req.userId) {
+      return res.status(403).json(formatErrorResponse(403, 'Access denied'));
+    }
+
+    if (document.fileUrl) {
+      return res.redirect(document.fileUrl);
+    }
+
+    res.status(404).json(formatErrorResponse(404, 'File URL not available'));
+  } catch (error: any) {
+    logger.error('Download document error', { error: error.message, userId: req.userId });
+    res.status(500).json(formatErrorResponse(500, 'Failed to download document'));
+  }
+});
+
 export default router;

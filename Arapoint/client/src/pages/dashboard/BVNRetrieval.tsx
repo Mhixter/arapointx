@@ -747,138 +747,93 @@ export default function BVNRetrieval() {
 
   const fullName = `${retrievedData.lastName || retrievedData.surname || ''} ${retrievedData.firstName || retrievedData.firstname || ''} ${retrievedData.middleName || retrievedData.othername || ''}`.trim();
 
+  const allFields = [
+    { label: 'BVN Number', value: retrievedData.id || bvn, highlight: true },
+    { label: 'Surname', value: retrievedData.lastName || retrievedData.surname },
+    { label: 'First Name', value: retrievedData.firstName || retrievedData.firstname },
+    { label: 'Middle Name', value: retrievedData.middleName || retrievedData.othername },
+    { label: 'Date of Birth', value: retrievedData.dateOfBirth },
+    { label: 'Gender', value: retrievedData.gender },
+    { label: 'Phone Number', value: retrievedData.phone },
+    { label: 'Email', value: retrievedData.email },
+    { label: 'State of Origin', value: retrievedData.stateOfOrigin },
+    { label: 'LGA of Origin', value: retrievedData.lgaOfOrigin },
+    { label: 'Residential Address', value: retrievedData.residentialAddress || retrievedData.address },
+    { label: 'State of Residence', value: retrievedData.stateOfResidence },
+    { label: 'LGA of Residence', value: retrievedData.lgaOfResidence },
+    { label: 'Enrollment Branch', value: retrievedData.enrollmentBranch },
+    { label: 'Enrollment Institution', value: retrievedData.enrollmentInstitution },
+    { label: 'Enrollment Bank', value: retrievedData.enrollmentBank },
+    { label: 'Nationality', value: retrievedData.nationality },
+    { label: 'Marital Status', value: retrievedData.maritalStatus },
+    { label: 'Registration Date', value: retrievedData.registrationDate },
+    { label: 'Watchlist Status', value: retrievedData.watchListed !== undefined ? (retrievedData.watchListed ? 'WATCHLISTED' : 'NOT WATCHLISTED') : null, status: retrievedData.watchListed !== undefined ? (retrievedData.watchListed ? 'danger' : 'success') : null },
+  ].filter(f => f.value !== null && f.value !== undefined && f.value !== '');
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-heading font-bold tracking-tight">
-            BVN Slip
+            BVN Verification Result
           </h2>
-          <p className="text-muted-foreground">Your verified BVN information from YouVerify</p>
+          <p className="text-muted-foreground">Your verified BVN information</p>
         </div>
-        <Button variant="outline" onClick={() => {
-          setRetrievedData(null);
-          setSlipHtml(null);
-          setBvn("");
-          setSelectedService(null);
-        }}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => {
+            setRetrievedData(null);
+            setSlipHtml(null);
+            setBvn("");
+            setSelectedService(null);
+          }}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+          {slipHtml && (
+            <Button onClick={handleDownloadSlip}>
+              <Download className="h-4 w-4 mr-2" />
+              Download PDF
+            </Button>
+          )}
+        </div>
       </div>
 
-      <Card className="w-full max-w-2xl border-primary/30 shadow-lg">
-        <div className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground p-6 rounded-t-lg">
-          <div className="flex justify-between items-start">
-            <div>
-              <h3 className="text-2xl font-bold">Bank Verification Number</h3>
-              <p className="text-primary-foreground/80 text-sm mt-1">Nigeria Inter-Bank Settlement System</p>
-            </div>
-            <div className="flex gap-2">
-              {slipHtml && (
-                <>
-                  <Button 
-                    onClick={handlePrintSlip}
-                    variant="secondary"
-                    size="sm"
-                  >
-                    <Printer className="h-4 w-4 mr-2" />
-                    Print
-                  </Button>
-                  <Button 
-                    onClick={handleDownloadSlip}
-                    variant="secondary"
-                    size="sm"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <CardContent className="pt-8 pb-8">
-          <div className="flex flex-col md:flex-row gap-6 mb-8">
-            <div className="flex-shrink-0">
-              {retrievedData.photo ? (
-                <img 
-                  src={retrievedData.photo.startsWith('data:') ? retrievedData.photo : `data:image/jpeg;base64,${retrievedData.photo}`} 
-                  alt="Photo" 
-                  className="w-32 h-40 rounded-lg object-cover border-2 border-primary/30 shadow-md bg-muted" 
-                />
-              ) : (
-                <div className="w-32 h-40 rounded-lg border-2 border-primary/30 shadow-md bg-muted flex items-center justify-center text-muted-foreground text-sm">
-                  No Photo
-                </div>
-              )}
-            </div>
-            <div className="flex-1">
-              <div className="border-b-2 border-dashed border-primary/20 pb-4 mb-4">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1">Full Name</p>
-                <p className="text-2xl font-bold text-primary">{fullName || 'N/A'}</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1">BVN Number</p>
-                <p className="text-3xl font-mono font-bold tracking-[0.15em]">{retrievedData.id || bvn}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Date of Birth</p>
-              <p className="text-lg font-medium mt-1">{retrievedData.dateOfBirth || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Gender</p>
-              <p className="text-lg font-medium mt-1">{retrievedData.gender || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Phone Number</p>
-              <p className="text-lg font-medium mt-1">{retrievedData.phone || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Email</p>
-              <p className="text-lg font-medium mt-1">{retrievedData.email || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Enrollment Branch</p>
-              <p className="text-lg font-medium mt-1">{retrievedData.enrollmentBranch || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Enrollment Institution</p>
-              <p className="text-lg font-medium mt-1">{retrievedData.enrollmentInstitution || 'N/A'}</p>
-            </div>
-            {retrievedData.watchListed !== undefined && (
-              <div className="md:col-span-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Watchlist Status</p>
-                <p className={`text-lg font-bold mt-1 ${retrievedData.watchListed ? 'text-red-600' : 'text-green-600'}`}>
-                  {retrievedData.watchListed ? 'WATCHLISTED' : 'NOT WATCHLISTED'}
-                </p>
+      <Card className="w-full max-w-3xl">
+        <CardHeader className="border-b">
+          <div className="flex items-center gap-4">
+            {retrievedData.photo ? (
+              <img 
+                src={retrievedData.photo.startsWith('data:') ? retrievedData.photo : `data:image/jpeg;base64,${retrievedData.photo}`} 
+                alt="Photo" 
+                className="w-24 h-28 rounded object-cover border bg-muted" 
+              />
+            ) : (
+              <div className="w-24 h-28 rounded border bg-muted flex items-center justify-center text-muted-foreground text-xs">
+                No Photo
               </div>
             )}
+            <div>
+              <CardTitle className="text-2xl">{fullName || 'N/A'}</CardTitle>
+              <p className="text-muted-foreground font-mono text-lg mt-1">{retrievedData.id || bvn}</p>
+            </div>
           </div>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <table className="w-full">
+            <tbody>
+              {allFields.map((field, idx) => (
+                <tr key={idx} className={idx % 2 === 0 ? 'bg-muted/30' : ''}>
+                  <td className="py-3 px-4 font-medium text-muted-foreground w-1/3">{field.label}</td>
+                  <td className={`py-3 px-4 ${field.highlight ? 'font-mono font-bold text-lg' : ''} ${field.status === 'danger' ? 'text-red-600 font-bold' : ''} ${field.status === 'success' ? 'text-green-600 font-bold' : ''}`}>
+                    {field.value || 'N/A'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </CardContent>
       </Card>
 
-      {slipHtml && (
-        <Card className="w-full max-w-2xl">
-          <CardHeader>
-            <CardTitle>Printable Slip Preview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div ref={slipContainerRef} className="border rounded-lg overflow-hidden">
-              <iframe 
-                srcDoc={slipHtml} 
-                className="w-full h-96 border-0"
-                title="BVN Slip Preview"
-              />
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

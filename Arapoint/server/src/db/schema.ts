@@ -690,3 +690,42 @@ export const whatsappTemplates = pgTable('whatsapp_templates', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
+
+// CAC Requests - Business registration requests with file sharing between users and agents
+export const cacRequests = pgTable('cac_requests', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  agentId: uuid('agent_id').references(() => users.id),
+  businessName: varchar('business_name', { length: 255 }).notNull(),
+  businessType: varchar('business_type', { length: 100 }).notNull(), // business_name, limited_company, etc.
+  status: varchar('status', { length: 50 }).default('pending'), // pending, processing, completed, rejected
+  reference: varchar('reference', { length: 100 }).unique().notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+  completedAt: timestamp('completed_at'),
+});
+
+// CAC Files - Files shared between users and agents for CAC requests
+export const cacFiles = pgTable('cac_files', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  cacRequestId: uuid('cac_request_id').references(() => cacRequests.id).notNull(),
+  uploadedBy: uuid('uploaded_by').references(() => users.id).notNull(),
+  fileType: varchar('file_type', { length: 50 }).notNull(), // signature, passport, nin_slip, cac_result
+  fileName: varchar('file_name', { length: 255 }).notNull(),
+  fileKey: varchar('file_key', { length: 500 }).notNull(), // Object storage key
+  fileSize: integer('file_size'),
+  isResult: boolean('is_result').default(false), // true for files uploaded by agent as result
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// BVN Verifications - Store BVN verification results with downloadable PDF
+export const bvnVerifications = pgTable('bvn_verifications', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  bvn: varchar('bvn', { length: 11 }).notNull(),
+  reference: varchar('reference', { length: 100 }).unique().notNull(),
+  verificationData: jsonb('verification_data'),
+  pdfKey: varchar('pdf_key', { length: 500 }), // Object storage key for PDF
+  status: varchar('status', { length: 50 }).default('completed'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
