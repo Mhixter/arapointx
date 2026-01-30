@@ -24,300 +24,120 @@
     .page {
       width: 210mm;
       min-height: 297mm;
-      padding: 15mm;
-      background: white;
-    }
-    
-    .header-text {
-      text-align: center;
-      margin-bottom: 8mm;
-    }
-    
-    .header-text h1 {
-      font-size: 14pt;
-      font-weight: 400;
-      color: #000;
-      margin-bottom: 3mm;
-    }
-    
-    .header-text p {
-      font-size: 10pt;
-      color: #333;
-      line-height: 1.4;
-    }
-    
-    .slip-card {
-      width: 100%;
-      max-width: 180mm;
-      margin: 0 auto 10mm;
-      background: linear-gradient(135deg, #1a5f1a 0%, #228b22 50%, #2e8b2e 100%);
-      border-radius: 4mm;
-      padding: 8mm;
-      color: white;
       position: relative;
-      overflow: hidden;
     }
     
-    .slip-card::before {
-      content: '';
+    .template-bg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    
+    .data-overlay {
       position: absolute;
       top: 0;
       left: 0;
-      right: 0;
-      bottom: 0;
-      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/></svg>');
-      background-size: 30mm;
-      opacity: 0.3;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
     }
     
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 6mm;
-      position: relative;
-      z-index: 1;
-    }
-    
-    .coat-of-arms {
-      width: 25mm;
-      text-align: center;
-    }
-    
-    .coat-of-arms img {
-      height: 20mm;
-    }
-    
-    .card-title {
-      text-align: center;
-      flex: 1;
-    }
-    
-    .card-title h2 {
-      font-size: 11pt;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 2mm;
-    }
-    
-    .card-title h3 {
-      font-size: 9pt;
-      font-weight: 400;
-    }
-    
-    .nga-badge {
-      font-size: 20pt;
-      font-weight: 900;
-      color: #ffd700;
-    }
-    
-    .card-content {
-      display: flex;
-      gap: 6mm;
-      position: relative;
-      z-index: 1;
-    }
-    
-    .photo-section {
-      flex-shrink: 0;
-    }
-    
-    .photo {
-      width: 35mm;
-      height: 45mm;
+    .photo-overlay {
+      position: absolute;
+      top: 26%;
+      left: 7%;
+      width: 14%;
+      height: auto;
       object-fit: cover;
-      border: 2px solid #ffd700;
-      background: #f0f0f0;
     }
     
-    .info-section {
-      flex: 1;
-    }
-    
-    .field-group {
-      margin-bottom: 3mm;
-    }
-    
-    .field-label {
-      font-size: 7pt;
-      color: rgba(255,255,255,0.7);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    
-    .field-value {
-      font-size: 11pt;
+    .surname-overlay {
+      position: absolute;
+      top: 27%;
+      left: 27%;
+      font-size: 1.2vw;
       font-weight: 700;
       color: #fff;
       text-transform: uppercase;
     }
     
-    .inline-fields {
-      display: flex;
-      gap: 10mm;
+    .given-names-overlay {
+      position: absolute;
+      top: 32%;
+      left: 27%;
+      font-size: 1.2vw;
+      font-weight: 700;
+      color: #fff;
+      text-transform: uppercase;
     }
     
-    .right-section {
-      flex-shrink: 0;
-      text-align: right;
+    .dob-overlay {
+      position: absolute;
+      top: 38%;
+      left: 27%;
+      font-size: 1.1vw;
+      font-weight: 700;
+      color: #fff;
     }
     
-    .qr-code {
-      width: 28mm;
-      height: 28mm;
-      background: white;
-      padding: 1mm;
-      border-radius: 1mm;
+    .sex-overlay {
+      position: absolute;
+      top: 38%;
+      left: 42%;
+      font-size: 1.1vw;
+      font-weight: 700;
+      color: #fff;
     }
     
-    .qr-code img {
-      width: 100%;
-      height: 100%;
-    }
-    
-    .issue-date {
-      margin-top: 3mm;
-      font-size: 8pt;
-      color: #ffd700;
-    }
-    
-    .nin-section {
-      margin-top: 6mm;
-      text-align: center;
-      padding-top: 5mm;
-      border-top: 1px solid rgba(255,255,255,0.3);
-      position: relative;
-      z-index: 1;
-    }
-    
-    .nin-label {
-      font-size: 9pt;
-      font-weight: 600;
-      color: rgba(255,255,255,0.8);
-      margin-bottom: 2mm;
-    }
-    
-    .nin-value {
-      font-size: 26pt;
+    .nin-overlay {
+      position: absolute;
+      top: 45%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 2vw;
       font-weight: 900;
       color: #ffd700;
       letter-spacing: 4px;
       font-family: 'Arial Black', Arial, sans-serif;
     }
     
-    .card-back {
+    .qr-overlay {
+      position: absolute;
+      top: 25%;
+      right: 18%;
+      width: 10%;
+    }
+    
+    .qr-overlay img {
       width: 100%;
-      max-width: 180mm;
-      margin: 0 auto;
-      background: linear-gradient(135deg, #1a5f1a 0%, #228b22 50%, #2e8b2e 100%);
-      border-radius: 4mm;
-      padding: 8mm;
-      color: white;
-    }
-    
-    .back-content {
-      display: flex;
-      gap: 8mm;
-    }
-    
-    .barcode-section {
-      flex: 1;
-      text-align: center;
-    }
-    
-    .barcode-section img {
-      max-width: 80mm;
       height: auto;
     }
     
-    .verification-section {
-      flex: 1;
-      text-align: center;
-      font-size: 9pt;
-      line-height: 1.6;
-    }
-    
-    .verification-url {
+    .issue-date-overlay {
+      position: absolute;
+      top: 40%;
+      right: 6%;
+      font-size: 0.9vw;
+      font-weight: 600;
       color: #ffd700;
-      font-weight: 700;
-      margin-top: 3mm;
     }
   </style>
 </head>
 <body>
   <div class="page">
-    <div class="header-text">
-      <h1>Please find below your new High Resolution NIN Slip</h1>
-      <p>You may cut it out of the paper, fold and laminate as desired.</p>
-      <p>For your security & privacy, please DO NOT permit others to make photocopies of this slip.</p>
-    </div>
+    <img src="{{template_image}}" alt="Template" class="template-bg">
     
-    <div class="slip-card">
-      <div class="card-header">
-        <div class="coat-of-arms">
-          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Coat_of_arms_of_Nigeria.svg/200px-Coat_of_arms_of_Nigeria.svg.png" alt="Coat of Arms">
-        </div>
-        <div class="card-title">
-          <h2>Federal Republic of Nigeria</h2>
-          <h3>National Identity Management Commission</h3>
-        </div>
-        <div class="nga-badge">NGA</div>
+    <div class="data-overlay">
+      <img src="{{photo}}" alt="Photo" class="photo-overlay">
+      <div class="surname-overlay">{{surname}}</div>
+      <div class="given-names-overlay">{{firstname}} {{middlename}}</div>
+      <div class="dob-overlay">{{date_of_birth}}</div>
+      <div class="sex-overlay">{{gender}}</div>
+      <div class="nin-overlay">{{nin}}</div>
+      <div class="qr-overlay">
+        <img src="{{qr_code}}" alt="QR Code">
       </div>
-      
-      <div class="card-content">
-        <div class="photo-section">
-          <img src="{{photo}}" alt="Photo" class="photo">
-        </div>
-        
-        <div class="info-section">
-          <div class="field-group">
-            <div class="field-label">Surname/Nom</div>
-            <div class="field-value">{{surname}}</div>
-          </div>
-          <div class="field-group">
-            <div class="field-label">Given Names/Prenoms</div>
-            <div class="field-value">{{firstname}} {{middlename}}</div>
-          </div>
-          <div class="inline-fields">
-            <div class="field-group">
-              <div class="field-label">Date of Birth</div>
-              <div class="field-value">{{date_of_birth}}</div>
-            </div>
-            <div class="field-group">
-              <div class="field-label">Sex</div>
-              <div class="field-value">{{gender}}</div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="right-section">
-          <div class="qr-code">
-            <img src="{{qr_code}}" alt="QR Code">
-          </div>
-          <div class="issue-date">Issue: {{issue_date}}</div>
-        </div>
-      </div>
-      
-      <div class="nin-section">
-        <div class="nin-label">National Identification Number (NIN)</div>
-        <div class="nin-value">{{nin}}</div>
-      </div>
-    </div>
-    
-    <div class="card-back">
-      <div class="back-content">
-        <div class="barcode-section">
-          <img src="{{qr_code}}" alt="Verification QR">
-        </div>
-        <div class="verification-section">
-          <p><strong>Kindly ensure you scan the barcode to verify the credentials.</strong></p>
-          <p class="verification-url">{{verification_url}}</p>
-          <p style="margin-top:4mm; font-size:8pt; color:rgba(255,255,255,0.7);">
-            Slip Reference: {{slip_reference}}
-          </p>
-        </div>
-      </div>
+      <div class="issue-date-overlay">{{issue_date}}</div>
     </div>
   </div>
 </body>

@@ -20,7 +20,7 @@ export interface SlipData {
 
 export interface GenerateSlipOptions {
   userId?: string;
-  slipType: 'standard' | 'premium';
+  slipType: 'standard' | 'premium' | 'long';
   data: SlipData;
 }
 
@@ -61,12 +61,21 @@ const getBaseUrl = (): string => {
     : process.env.BASE_URL || 'http://localhost:5000';
 };
 
-const loadTemplate = (slipType: 'standard' | 'premium'): string => {
+const loadTemplate = (slipType: 'standard' | 'premium' | 'long'): string => {
   const templatePath = path.join(process.cwd(), 'server/src/templates', `${slipType}.html`);
   if (!fs.existsSync(templatePath)) {
     throw new Error(`Template not found: ${slipType}.html`);
   }
   return fs.readFileSync(templatePath, 'utf-8');
+};
+
+const loadTemplateImage = (slipType: 'standard' | 'premium' | 'long'): string => {
+  const imagePath = path.join(process.cwd(), 'server/src/templates', `${slipType}_template-1.png`);
+  if (!fs.existsSync(imagePath)) {
+    throw new Error(`Template image not found: ${slipType}_template-1.png`);
+  }
+  const imageBuffer = fs.readFileSync(imagePath);
+  return `data:image/png;base64,${imageBuffer.toString('base64')}`;
 };
 
 const generateQRCode = async (data: object): Promise<string> => {
@@ -120,6 +129,7 @@ export const generatePdfSlip = async (options: GenerateSlipOptions): Promise<Sli
   const qrCodeImage = await generateQRCode(qrCodeData);
   
   let template = loadTemplate(slipType);
+  const templateImage = loadTemplateImage(slipType);
   
   const photoSrc = data.photo 
     ? (data.photo.startsWith('data:') ? data.photo : `data:image/jpeg;base64,${data.photo}`)
@@ -137,7 +147,8 @@ export const generatePdfSlip = async (options: GenerateSlipOptions): Promise<Sli
     slip_reference: slipReference,
     verification_url: verificationUrl,
     issue_date: formatDate(new Date().toISOString()),
-    tracking_id: data.tracking_id || ''
+    tracking_id: data.tracking_id || '',
+    template_image: templateImage
   };
   
   const populatedHtml = injectDataIntoTemplate(template, templateData);

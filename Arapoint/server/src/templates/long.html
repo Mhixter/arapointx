@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NIN Standard Slip - {{slip_reference}}</title>
+  <title>NIN Long Slip - {{slip_reference}}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;900&display=swap');
     
@@ -44,18 +44,18 @@
     
     .photo-overlay {
       position: absolute;
-      top: 27%;
-      left: 14.5%;
-      width: 12%;
+      top: 20%;
+      left: 10%;
+      width: 18%;
       height: auto;
       object-fit: cover;
     }
     
     .surname-overlay {
       position: absolute;
-      top: 28%;
-      left: 30%;
-      font-size: 1.3vw;
+      top: 21%;
+      left: 32%;
+      font-size: 1.4vw;
       font-weight: 700;
       color: #000;
       text-transform: uppercase;
@@ -63,9 +63,9 @@
     
     .given-names-overlay {
       position: absolute;
-      top: 32.5%;
-      left: 30%;
-      font-size: 1.3vw;
+      top: 27%;
+      left: 32%;
+      font-size: 1.4vw;
       font-weight: 700;
       color: #000;
       text-transform: uppercase;
@@ -73,8 +73,17 @@
     
     .dob-overlay {
       position: absolute;
-      top: 37%;
-      left: 30%;
+      top: 33%;
+      left: 32%;
+      font-size: 1.2vw;
+      font-weight: 700;
+      color: #000;
+    }
+    
+    .sex-overlay {
+      position: absolute;
+      top: 33%;
+      left: 55%;
       font-size: 1.2vw;
       font-weight: 700;
       color: #000;
@@ -82,26 +91,35 @@
     
     .nin-overlay {
       position: absolute;
-      top: 43.5%;
+      top: 44%;
       left: 50%;
       transform: translateX(-50%);
-      font-size: 2.2vw;
+      font-size: 2.5vw;
       font-weight: 900;
       color: #000;
-      letter-spacing: 4px;
+      letter-spacing: 5px;
       font-family: 'Arial Black', Arial, sans-serif;
     }
     
     .qr-overlay {
       position: absolute;
-      top: 26%;
-      right: 14%;
-      width: 11%;
+      top: 18%;
+      right: 10%;
+      width: 14%;
     }
     
     .qr-overlay img {
       width: 100%;
       height: auto;
+    }
+    
+    .tracking-id-overlay {
+      position: absolute;
+      top: 39%;
+      left: 32%;
+      font-size: 1vw;
+      font-weight: 600;
+      color: #333;
     }
   </style>
 </head>
@@ -114,10 +132,12 @@
       <div class="surname-overlay">{{surname}}</div>
       <div class="given-names-overlay">{{firstname}} {{middlename}}</div>
       <div class="dob-overlay">{{date_of_birth}}</div>
+      <div class="sex-overlay">{{gender}}</div>
       <div class="nin-overlay">{{nin}}</div>
       <div class="qr-overlay">
         <img src="{{qr_code}}" alt="QR Code">
       </div>
+      <div class="tracking-id-overlay">{{tracking_id}}</div>
     </div>
   </div>
 </body>

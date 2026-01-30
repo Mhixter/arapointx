@@ -17,7 +17,7 @@ const verifyNinSchema = z.object({
   photo: z.string().optional(),
   tracking_id: z.string().optional(),
   verification_reference: z.string().optional(),
-  slip_type: z.enum(['standard', 'premium']).default('standard')
+  slip_type: z.enum(['standard', 'premium', 'long']).default('standard')
 });
 
 router.post('/verify-nin', authMiddleware, async (req: Request, res: Response) => {
