@@ -12,7 +12,7 @@ import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse, generateReferenceId } from '../../utils/helpers';
 import { db } from '../../config/database';
 import { identityVerifications, identityServiceRequests, servicePricing } from '../../db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
 
 const getConfiguredProviders = (): ('techhub' | 'prembly' | 'youverify')[] => {
   const providers: ('techhub' | 'prembly' | 'youverify')[] = [];
@@ -837,29 +837,32 @@ router.get('/history', async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 20;
     const offset = (page - 1) * limit;
 
-    const history = await db.select()
-      .from(identityVerifications)
-      .where(eq(identityVerifications.userId, req.userId!))
-      .orderBy(desc(identityVerifications.createdAt))
-      .limit(limit)
-      .offset(offset);
+    const [history, countResult] = await Promise.all([
+      db.select()
+        .from(identityVerifications)
+        .where(eq(identityVerifications.userId, req.userId!))
+        .orderBy(desc(identityVerifications.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db.select({ count: sql<number>`count(*)::int` })
+        .from(identityVerifications)
+        .where(eq(identityVerifications.userId, req.userId!))
+    ]);
+
+    const total = countResult[0]?.count || 0;
 
     const historyWithDownloadUrls = history.map(record => ({
       ...record,
       downloadUrl: record.slipReference ? `/api/slips/download/${record.slipReference}` : null,
     }));
 
-    const allRecords = await db.select()
-      .from(identityVerifications)
-      .where(eq(identityVerifications.userId, req.userId!));
-
     res.json(formatResponse('success', 200, 'Identity verification history retrieved', {
       history: historyWithDownloadUrls,
       pagination: { 
         page, 
         limit,
-        total: allRecords.length,
-        totalPages: Math.ceil(allRecords.length / limit),
+        total,
+        totalPages: Math.ceil(total / limit),
       },
     }));
   } catch (error: any) {
