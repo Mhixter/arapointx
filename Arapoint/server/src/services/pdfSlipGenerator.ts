@@ -43,16 +43,16 @@ const defaultPositions: Record<'standard' | 'premium' | 'long', SlipPositions> =
     photo_width: '10%',
     surname_top: '35.3%',
     surname_left: '41.5%',
-    surname_size: '0.8vw',
+    surname_size: '10px',
     names_top: '38%',
     names_left: '41.5%',
-    names_size: '0.8vw',
+    names_size: '10px',
     dob_top: '41%',
     dob_left: '41.5%',
-    dob_size: '0.8vw',
+    dob_size: '10px',
     nin_top: '45%',
     nin_left: '39.5%',
-    nin_size: '2.2vw',
+    nin_size: '18px',
     qr_top: '34.5%',
     qr_right: '29.5%',
     qr_width: '12%'
@@ -63,25 +63,25 @@ const defaultPositions: Record<'standard' | 'premium' | 'long', SlipPositions> =
     photo_width: '10.5%',
     surname_top: '49.3%',
     surname_left: '40.1%',
-    surname_size: '1.0vw',
+    surname_size: '12px',
     names_top: '53%',
     names_left: '40.1%',
-    names_size: '1.0vw',
+    names_size: '12px',
     dob_top: '56.7%',
     dob_left: '40.1%',
-    dob_size: '1.0vw',
+    dob_size: '12px',
     nin_top: '60.9%',
     nin_left: '38.9%',
-    nin_size: '2.3vw',
+    nin_size: '18px',
     qr_top: '43.5%',
     qr_right: '26.5%',
     qr_width: '12.5%',
     sex_top: '56.9%',
     sex_left: '55%',
-    sex_size: '1vw',
+    sex_size: '12px',
     issue_top: '57%',
     issue_right: '28%',
-    issue_size: '0.9vw'
+    issue_size: '11px'
   },
   long: {
     photo_top: '42%',
@@ -89,25 +89,25 @@ const defaultPositions: Record<'standard' | 'premium' | 'long', SlipPositions> =
     photo_width: '13.8%',
     surname_top: '43.7%',
     surname_left: '35.4%',
-    surname_size: '0.9vw',
+    surname_size: '11px',
     names_top: '47.5%',
     names_left: '37.4%',
-    names_size: '0.9vw',
+    names_size: '11px',
     dob_top: '',
     dob_left: '',
     dob_size: '',
     nin_top: '47.3%',
     nin_left: '10%',
-    nin_size: '1.1vw',
+    nin_size: '14px',
     qr_top: '',
     qr_right: '',
     qr_width: '',
     sex_top: '54%',
     sex_left: '35%',
-    sex_size: '1vw',
+    sex_size: '12px',
     tracking_top: '43.7%',
     tracking_left: '13%',
-    tracking_size: '0.9vw'
+    tracking_size: '11px'
   }
 };
 
@@ -321,12 +321,15 @@ export const generatePdfSlip = async (options: GenerateSlipOptions): Promise<Sli
     });
     
     const page = await browser.newPage();
+    
+    await page.setViewport({ width: 1240, height: 1754 });
+    
     await page.setContent(populatedHtml, { waitUntil: 'networkidle0' });
     
     await page.pdf({
       path: pdfPath,
+      format: 'A4',
       printBackground: true,
-      preferCSSPageSize: true,
       margin: { top: '0', right: '0', bottom: '0', left: '0' }
     });
     

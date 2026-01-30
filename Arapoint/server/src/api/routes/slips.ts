@@ -268,9 +268,9 @@ router.get('/analyzer/:type', async (req: Request, res: Response) => {
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: Arial, sans-serif; background: #1a1a2e; color: #fff; min-height: 100vh; }
     .container { display: flex; gap: 20px; padding: 20px; }
-    .preview { flex: 1; position: relative; }
-    .preview-inner { position: relative; display: inline-block; }
-    .template-img { max-width: 100%; height: auto; display: block; }
+    .preview { flex: 1; position: relative; overflow: auto; }
+    .preview-inner { position: relative; display: inline-block; width: 794px; height: 1123px; }
+    .template-img { width: 794px; height: 1123px; display: block; object-fit: contain; }
     .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
     .controls { width: 400px; background: #16213e; padding: 20px; border-radius: 10px; max-height: 90vh; overflow-y: auto; }
     h1 { margin-bottom: 20px; color: #e94560; font-size: 20px; }
