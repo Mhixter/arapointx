@@ -89,7 +89,6 @@
       font-size: {{nin_size}};
       font-weight: 900;
       color: #000;
-      letter-spacing: 5px;
       font-family: 'Arial Black', Arial, sans-serif;
     }
     
@@ -99,7 +98,18 @@
       left: {{tracking_left}};
       font-size: {{tracking_size}};
       font-weight: 600;
-      color: #333;
+      color: #000;
+    }
+    
+    .address-overlay {
+      position: absolute;
+      top: {{address_top}};
+      left: {{address_left}};
+      font-size: {{address_size}};
+      font-weight: 600;
+      color: #000;
+      max-width: 40%;
+      text-transform: uppercase;
     }
   </style>
 </head>
@@ -114,6 +124,7 @@
       <div class="sex-overlay">{{gender}}</div>
       <div class="nin-overlay">{{nin}}</div>
       <div class="tracking-id-overlay">{{tracking_id}}</div>
+      <div class="address-overlay">{{address}}</div>
     </div>
   </div>
 </body>

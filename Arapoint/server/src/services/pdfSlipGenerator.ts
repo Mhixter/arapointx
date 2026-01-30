@@ -34,6 +34,9 @@ export interface SlipPositions {
   tracking_top?: string;
   tracking_left?: string;
   tracking_size?: string;
+  address_top?: string;
+  address_left?: string;
+  address_size?: string;
 }
 
 const defaultPositions: Record<'standard' | 'premium' | 'long', SlipPositions> = {
@@ -43,16 +46,16 @@ const defaultPositions: Record<'standard' | 'premium' | 'long', SlipPositions> =
     photo_width: '10%',
     surname_top: '35.3%',
     surname_left: '41.5%',
-    surname_size: '10px',
+    surname_size: '12px',
     names_top: '38%',
     names_left: '41.5%',
-    names_size: '10px',
+    names_size: '12px',
     dob_top: '41%',
     dob_left: '41.5%',
-    dob_size: '10px',
+    dob_size: '12px',
     nin_top: '45%',
     nin_left: '39.5%',
-    nin_size: '18px',
+    nin_size: '40px',
     qr_top: '34.5%',
     qr_right: '29.5%',
     qr_width: '12%'
@@ -63,51 +66,54 @@ const defaultPositions: Record<'standard' | 'premium' | 'long', SlipPositions> =
     photo_width: '10.5%',
     surname_top: '49.3%',
     surname_left: '40.1%',
-    surname_size: '12px',
+    surname_size: '15px',
     names_top: '53%',
     names_left: '40.1%',
-    names_size: '12px',
+    names_size: '15px',
     dob_top: '56.7%',
     dob_left: '40.1%',
-    dob_size: '12px',
+    dob_size: '15px',
     nin_top: '60.9%',
     nin_left: '38.9%',
-    nin_size: '18px',
+    nin_size: '43px',
     qr_top: '43.5%',
     qr_right: '26.5%',
     qr_width: '12.5%',
     sex_top: '56.9%',
     sex_left: '55%',
-    sex_size: '12px',
+    sex_size: '15px',
     issue_top: '57%',
     issue_right: '28%',
-    issue_size: '11px'
+    issue_size: '15px'
   },
   long: {
     photo_top: '42%',
     photo_left: '81.5%',
     photo_width: '13.8%',
-    surname_top: '43.7%',
+    surname_top: '44%',
     surname_left: '35.4%',
-    surname_size: '11px',
+    surname_size: '16px',
     names_top: '47.5%',
     names_left: '37.4%',
-    names_size: '11px',
+    names_size: '16px',
     dob_top: '',
     dob_left: '',
     dob_size: '',
     nin_top: '47.3%',
     nin_left: '10%',
-    nin_size: '14px',
+    nin_size: '16px',
     qr_top: '',
     qr_right: '',
     qr_width: '',
-    sex_top: '54%',
+    sex_top: '54.1%',
     sex_left: '35%',
-    sex_size: '12px',
+    sex_size: '16px',
     tracking_top: '43.7%',
     tracking_left: '13%',
-    tracking_size: '11px'
+    tracking_size: '16px',
+    address_top: '58%',
+    address_left: '10%',
+    address_size: '14px'
   }
 };
 
@@ -135,6 +141,7 @@ export interface SlipData {
   photo?: string;
   tracking_id?: string;
   verification_reference?: string;
+  address?: string;
 }
 
 export interface GenerateSlipOptions {
@@ -159,7 +166,7 @@ const formatNIN = (nin: string): string => {
   if (!nin) return '';
   const cleaned = nin.replace(/\D/g, '');
   if (cleaned.length === 11) {
-    return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 7)} ${cleaned.slice(7)}`;
+    return `${cleaned.slice(0, 4)} ${cleaned.slice(4, 7)} ${cleaned.slice(7)}`;
   }
   return cleaned;
 };
@@ -295,6 +302,10 @@ export const generatePdfSlip = async (options: GenerateSlipOptions): Promise<Sli
     tracking_top: positions.tracking_top || '',
     tracking_left: positions.tracking_left || '',
     tracking_size: positions.tracking_size || '',
+    address: data.address?.toUpperCase() || '',
+    address_top: positions.address_top || '',
+    address_left: positions.address_left || '',
+    address_size: positions.address_size || '',
     template_image: templateImage
   };
   

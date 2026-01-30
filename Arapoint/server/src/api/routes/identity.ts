@@ -338,6 +338,7 @@ router.post('/nin', async (req: Request, res: Response) => {
         photo: ninData.photo || '',
         tracking_id: ninData.trackingId || '',
         verification_reference: result.reference,
+        address: ninData.address || '',
       };
 
       pdfSlipResult = await generatePdfSlip({
