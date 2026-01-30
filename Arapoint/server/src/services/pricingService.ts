@@ -13,13 +13,17 @@ const DEFAULT_PRICES: Record<string, { price: number; name: string; description:
   
   // NIN Services
   nin_lookup: { price: 150, name: 'NIN Lookup', description: 'Basic NIN verification' },
-  nin_phone: { price: 200, name: 'NIN + Phone Lookup', description: 'NIN verification with phone number' },
+  nin_phone: { price: 180, name: 'NIN By Phone', description: 'NIN verification with phone number' },
   vnin: { price: 200, name: 'vNIN Lookup', description: 'Virtual NIN verification' },
   lost_nin: { price: 500, name: 'Lost NIN Recovery', description: 'Lost NIN recovery service' },
   ipe_clearance: { price: 1000, name: 'IPE Clearance', description: 'IPE clearance check' },
   validation_nin: { price: 1000, name: 'NIN Validation', description: 'NIN validation service' },
   birth_attestation: { price: 2000, name: 'Birth Attestation', description: 'Birth attestation service' },
   nin_tracking: { price: 250, name: 'NIN Tracking', description: 'NIN application tracking' },
+  nin_slip_information: { price: 150, name: 'NIN Slip Information', description: 'NIN information slip' },
+  nin_slip_regular: { price: 160, name: 'NIN Slip Regular', description: 'NIN regular/long slip' },
+  nin_slip_standard: { price: 160, name: 'NIN Slip Standard', description: 'NIN standard slip' },
+  nin_slip_premium: { price: 180, name: 'NIN Slip Premium', description: 'NIN premium slip' },
   
   // BVN Services
   bvn_retrieval: { price: 100, name: 'BVN Retrieval', description: 'Basic BVN verification' },
