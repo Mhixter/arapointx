@@ -16,7 +16,6 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { NIGERIAN_STATES_LGA } from "@/lib/locationData";
 import { ObjectUploader } from "@/components/ObjectUploader";
-import { useUpload } from "@/hooks/use-upload";
 
 const CAC_BUSINESS_NATURES = [
   "Abattoir and Meat Selling Services",
@@ -181,7 +180,6 @@ export default function CACServices() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { getUploadParameters } = useUpload();
   const [businessNatureOpen, setBusinessNatureOpen] = useState(false);
   const [passportPreview, setPassportPreview] = useState<string | null>(null);
   const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
@@ -198,25 +196,33 @@ export default function CACServices() {
     
     setUploading(true);
     try {
-      // 1. Get presigned URL
-      const { url, publicUrl, fields } = await getUploadParameters(file.name, file.type);
-      
-      // 2. Upload to storage
-      const formDataUpload = new FormData();
-      Object.entries(fields).forEach(([key, value]) => {
-        formDataUpload.append(key, value as string);
-      });
-      formDataUpload.append('file', file);
-
-      const uploadResponse = await fetch(url, {
+      // 1. Request presigned URL from backend
+      const response = await fetch('/api/uploads/request-url', {
         method: 'POST',
-        body: formDataUpload,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: file.name,
+          size: file.size,
+          contentType: file.type || 'application/octet-stream',
+        }),
+      });
+      
+      if (!response.ok) throw new Error('Failed to get upload URL');
+      
+      const { uploadURL, objectPath } = await response.json();
+      
+      // 2. Upload file directly to presigned URL
+      const uploadResponse = await fetch(uploadURL, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
       });
 
       if (!uploadResponse.ok) throw new Error('Failed to upload to storage');
 
-      // 3. Update state with public URL
-      setPreview(publicUrl);
+      // 3. Update state with object path (served via /objects/... route)
+      const publicUrl = objectPath;
+      setPreview(URL.createObjectURL(file));
       setFormData((prev: any) => ({ ...prev, [fieldName]: publicUrl }));
       
       toast({ title: "Uploaded", description: `${type === 'passport' ? 'Passport photo' : type === 'signature' ? 'Signature' : 'NIN slip'} uploaded successfully` });
@@ -357,25 +363,32 @@ export default function CACServices() {
       let fileData = null;
 
       if (file) {
-        // 1. Get presigned URL
-        const { url, publicUrl, fields } = await getUploadParameters(file.name, file.type);
-        
-        // 2. Upload to storage
-        const formDataUpload = new FormData();
-        Object.entries(fields).forEach(([key, value]) => {
-          formDataUpload.append(key, value as string);
-        });
-        formDataUpload.append('file', file);
-
-        const uploadResponse = await fetch(url, {
+        // 1. Request presigned URL from backend
+        const presignedResponse = await fetch('/api/uploads/request-url', {
           method: 'POST',
-          body: formDataUpload,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: file.name,
+            size: file.size,
+            contentType: file.type || 'application/octet-stream',
+          }),
+        });
+        
+        if (!presignedResponse.ok) throw new Error('Failed to get upload URL');
+        
+        const { uploadURL, objectPath } = await presignedResponse.json();
+        
+        // 2. Upload file directly to presigned URL
+        const uploadResponse = await fetch(uploadURL, {
+          method: 'PUT',
+          body: file,
+          headers: { 'Content-Type': file.type || 'application/octet-stream' },
         });
 
         if (!uploadResponse.ok) throw new Error('Failed to upload file');
         
         fileData = {
-          url: publicUrl,
+          url: objectPath,
           name: file.name,
           type: file.type
         };
