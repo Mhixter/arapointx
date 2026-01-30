@@ -851,11 +851,10 @@ export default function CACAgentDashboard() {
                     accept=".pdf"
                     label="Upload CAC Certificate"
                     getUploadUrl={async () => {
-                      const token = getAgentToken();
-                      const res = await fetch('/api/upload/get-url', {
+                      const res = await fetch('/api/uploads/request-url', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                        body: JSON.stringify({ prefix: 'cac-certificates' })
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: 'cac-certificate.pdf', contentType: 'application/pdf' })
                       });
                       return res.json();
                     }}
@@ -869,11 +868,10 @@ export default function CACAgentDashboard() {
                     accept=".pdf"
                     label="Upload Status Report"
                     getUploadUrl={async () => {
-                      const token = getAgentToken();
-                      const res = await fetch('/api/upload/get-url', {
+                      const res = await fetch('/api/uploads/request-url', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                        body: JSON.stringify({ prefix: 'cac-status-reports' })
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: 'status-report.pdf', contentType: 'application/pdf' })
                       });
                       return res.json();
                     }}
