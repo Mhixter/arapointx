@@ -342,8 +342,8 @@ router.post('/nin', async (req: Request, res: Response) => {
     const ninData = result.data as any;
     const slip = generateNINSlip(ninData, result.reference, slipType);
 
-    const pdfSlipTypeMap: Record<string, 'standard' | 'premium' | 'long'> = {
-      'information': 'standard',
+    const pdfSlipTypeMap: Record<string, 'standard' | 'premium' | 'long' | 'full_info'> = {
+      'information': 'full_info',
       'regular': 'long',
       'standard': 'standard',
       'premium': 'premium',
@@ -363,6 +363,12 @@ router.post('/nin', async (req: Request, res: Response) => {
         tracking_id: ninData.trackingId || '',
         verification_reference: result.reference,
         address: ninData.address || '',
+        phone: ninData.phone || '',
+        state: ninData.state || ninData.stateOfResidence || '',
+        lga: ninData.lga || ninData.lgaOfResidence || '',
+        birthState: ninData.birthState || ninData.stateOfOrigin || '',
+        birthLga: ninData.birthLga || ninData.lgaOfOrigin || '',
+        nationality: ninData.nationality || 'Nigerian',
       };
 
       pdfSlipResult = await generatePdfSlip({

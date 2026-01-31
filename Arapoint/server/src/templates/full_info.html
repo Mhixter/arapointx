@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NIN Full Information Slip - {{slip_reference}}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;900&display=swap');
+    
+    @page {
+      size: A4;
+      margin: 0;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    html, body { 
+      font-family: 'Roboto', Arial, sans-serif; 
+      background: white;
+      margin: 0;
+      padding: 0;
+      width: 1162px;
+      height: 1758px;
+    }
+    
+    .page {
+      position: relative;
+      width: 1162px;
+      height: 1758px;
+    }
+    
+    .template-bg {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    
+    .data-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    
+    .photo-overlay {
+      position: absolute;
+      top: {{photo_top}};
+      left: {{photo_left}};
+      width: {{photo_width}};
+      height: auto;
+      object-fit: cover;
+    }
+    
+    .surname-overlay {
+      position: absolute;
+      top: {{surname_top}};
+      left: {{surname_left}};
+      font-size: {{surname_size}};
+      font-weight: 700;
+      color: #000;
+      text-transform: uppercase;
+    }
+    
+    .given-names-overlay {
+      position: absolute;
+      top: {{names_top}};
+      left: {{names_left}};
+      font-size: {{names_size}};
+      font-weight: 700;
+      color: #000;
+      text-transform: uppercase;
+    }
+    
+    .dob-overlay {
+      position: absolute;
+      top: {{dob_top}};
+      left: {{dob_left}};
+      font-size: {{dob_size}};
+      font-weight: 700;
+      color: #000;
+    }
+    
+    .sex-overlay {
+      position: absolute;
+      top: {{sex_top}};
+      left: {{sex_left}};
+      font-size: {{sex_size}};
+      font-weight: 700;
+      color: #000;
+    }
+    
+    .nin-overlay {
+      position: absolute;
+      top: {{nin_top}};
+      left: {{nin_left}};
+      font-size: {{nin_size}};
+      font-weight: 900;
+      color: #000;
+      letter-spacing: 2px;
+      font-family: 'Arial Black', Arial, sans-serif;
+    }
+    
+    .qr-overlay {
+      position: absolute;
+      top: {{qr_top}};
+      right: {{qr_right}};
+      width: {{qr_width}};
+    }
+    
+    .qr-overlay img {
+      width: 100%;
+      height: auto;
+    }
+    
+    .issue-date-overlay {
+      position: absolute;
+      top: {{issue_top}};
+      left: {{issue_left}};
+      font-size: {{issue_size}};
+      font-weight: 600;
+      color: #000;
+    }
+    
+    .tracking-overlay {
+      position: absolute;
+      top: {{tracking_top}};
+      left: {{tracking_left}};
+      font-size: {{tracking_size}};
+      font-weight: 600;
+      color: #000;
+    }
+    
+    .address-overlay {
+      position: absolute;
+      top: {{address_top}};
+      left: {{address_left}};
+      font-size: {{address_size}};
+      font-weight: 600;
+      color: #000;
+      max-width: 50%;
+    }
+    
+    .phone-overlay {
+      position: absolute;
+      top: {{phone_top}};
+      left: {{phone_left}};
+      font-size: {{phone_size}};
+      font-weight: 600;
+      color: #000;
+    }
+    
+    .state-overlay {
+      position: absolute;
+      top: {{state_top}};
+      left: {{state_left}};
+      font-size: {{state_size}};
+      font-weight: 600;
+      color: #000;
+    }
+    
+    .lga-overlay {
+      position: absolute;
+      top: {{lga_top}};
+      left: {{lga_left}};
+      font-size: {{lga_size}};
+      font-weight: 600;
+      color: #000;
+    }
+    
+    .birth-state-overlay {
+      position: absolute;
+      top: {{birth_state_top}};
+      left: {{birth_state_left}};
+      font-size: {{birth_state_size}};
+      font-weight: 600;
+      color: #000;
+    }
+    
+    .birth-lga-overlay {
+      position: absolute;
+      top: {{birth_lga_top}};
+      left: {{birth_lga_left}};
+      font-size: {{birth_lga_size}};
+      font-weight: 600;
+      color: #000;
+    }
+    
+    .nationality-overlay {
+      position: absolute;
+      top: {{nationality_top}};
+      left: {{nationality_left}};
+      font-size: {{nationality_size}};
+      font-weight: 600;
+      color: #000;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <img src="{{template_image}}" alt="Template" class="template-bg">
+    
+    <div class="data-overlay">
+      <img src="{{photo}}" alt="Photo" class="photo-overlay">
+      <div class="surname-overlay">{{surname}}</div>
+      <div class="given-names-overlay">{{firstname}} {{middlename}}</div>
+      <div class="dob-overlay">{{date_of_birth}}</div>
+      <div class="sex-overlay">{{gender}}</div>
+      <div class="nin-overlay">{{nin}}</div>
+      <div class="qr-overlay">
+        <img src="{{qr_code}}" alt="QR Code">
+      </div>
+      <div class="issue-date-overlay">{{issue_date}}</div>
+      <div class="tracking-overlay">{{tracking_id}}</div>
+      <div class="phone-overlay">{{phone}}</div>
+      <div class="address-overlay">{{address}}</div>
+      <div class="state-overlay">{{state}}</div>
+      <div class="lga-overlay">{{lga}}</div>
+      <div class="birth-state-overlay">{{birth_state}}</div>
+      <div class="birth-lga-overlay">{{birth_lga}}</div>
+      <div class="nationality-overlay">{{nationality}}</div>
+    </div>
+  </div>
+</body>
+</html>

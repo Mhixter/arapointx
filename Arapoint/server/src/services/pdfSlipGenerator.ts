@@ -30,6 +30,7 @@ export interface SlipPositions {
   sex_size?: string;
   issue_top?: string;
   issue_right?: string;
+  issue_left?: string;
   issue_size?: string;
   tracking_top?: string;
   tracking_left?: string;
@@ -37,9 +38,27 @@ export interface SlipPositions {
   address_top?: string;
   address_left?: string;
   address_size?: string;
+  phone_top?: string;
+  phone_left?: string;
+  phone_size?: string;
+  state_top?: string;
+  state_left?: string;
+  state_size?: string;
+  lga_top?: string;
+  lga_left?: string;
+  lga_size?: string;
+  birth_state_top?: string;
+  birth_state_left?: string;
+  birth_state_size?: string;
+  birth_lga_top?: string;
+  birth_lga_left?: string;
+  birth_lga_size?: string;
+  nationality_top?: string;
+  nationality_left?: string;
+  nationality_size?: string;
 }
 
-const defaultPositions: Record<"standard" | "premium" | "long", SlipPositions> =
+const defaultPositions: Record<"standard" | "premium" | "long" | "full_info", SlipPositions> =
   {
     standard: {
       photo_top: "33%",
@@ -116,18 +135,68 @@ const defaultPositions: Record<"standard" | "premium" | "long", SlipPositions> =
       address_left: "10%",
       address_size: "14px",
     },
+    full_info: {
+      photo_top: "18%",
+      photo_left: "10%",
+      photo_width: "18%",
+      surname_top: "19%",
+      surname_left: "32%",
+      surname_size: "14px",
+      names_top: "23%",
+      names_left: "32%",
+      names_size: "14px",
+      dob_top: "27%",
+      dob_left: "32%",
+      dob_size: "14px",
+      nin_top: "35%",
+      nin_left: "32%",
+      nin_size: "16px",
+      qr_top: "18%",
+      qr_right: "8%",
+      qr_width: "15%",
+      sex_top: "31%",
+      sex_left: "32%",
+      sex_size: "14px",
+      issue_top: "39%",
+      issue_left: "32%",
+      issue_size: "14px",
+      tracking_top: "43%",
+      tracking_left: "32%",
+      tracking_size: "14px",
+      address_top: "51%",
+      address_left: "32%",
+      address_size: "13px",
+      phone_top: "55%",
+      phone_left: "32%",
+      phone_size: "14px",
+      state_top: "59%",
+      state_left: "32%",
+      state_size: "14px",
+      lga_top: "63%",
+      lga_left: "32%",
+      lga_size: "14px",
+      birth_state_top: "67%",
+      birth_state_left: "32%",
+      birth_state_size: "14px",
+      birth_lga_top: "71%",
+      birth_lga_left: "32%",
+      birth_lga_size: "14px",
+      nationality_top: "75%",
+      nationality_left: "32%",
+      nationality_size: "14px",
+    },
   };
 
 let customPositions: Record<string, SlipPositions> = {};
 
 export const getSlipPositions = (
-  slipType: "standard" | "premium" | "long",
+  slipType: "standard" | "premium" | "long" | "full_info",
 ): SlipPositions => {
   return customPositions[slipType] || defaultPositions[slipType];
 };
 
 export const setSlipPositions = (
-  slipType: "standard" | "premium" | "long",
+  slipType: "standard" | "premium" | "long" | "full_info",
   positions: Partial<SlipPositions>,
 ): SlipPositions => {
   const current = getSlipPositions(slipType);
@@ -148,11 +217,20 @@ export interface SlipData {
   tracking_id?: string;
   verification_reference?: string;
   address?: string;
+  phone?: string;
+  state?: string;
+  lga?: string;
+  birthState?: string;
+  birthLga?: string;
+  town?: string;
+  nationality?: string;
+  maritalStatus?: string;
+  email?: string;
 }
 
 export interface GenerateSlipOptions {
   userId?: string;
-  slipType: "standard" | "premium" | "long";
+  slipType: "standard" | "premium" | "long" | "full_info";
   data: SlipData;
 }
 
@@ -199,7 +277,7 @@ const getBaseUrl = (): string => {
     : process.env.BASE_URL || "http://localhost:5000";
 };
 
-const loadTemplate = (slipType: "standard" | "premium" | "long"): string => {
+const loadTemplate = (slipType: "standard" | "premium" | "long" | "full_info"): string => {
   const templatePath = path.join(
     process.cwd(),
     "server/src/templates",
@@ -212,15 +290,24 @@ const loadTemplate = (slipType: "standard" | "premium" | "long"): string => {
 };
 
 const loadTemplateImage = (
-  slipType: "standard" | "premium" | "long",
+  slipType: "standard" | "premium" | "long" | "full_info",
 ): string => {
   const imagePath = path.join(
     process.cwd(),
     "server/src/templates",
-    `${slipType}_template-1.png`,
+    `${slipType}_template.png`,
   );
   if (!fs.existsSync(imagePath)) {
-    throw new Error(`Template image not found: ${slipType}_template-1.png`);
+    const altPath = path.join(
+      process.cwd(),
+      "server/src/templates",
+      `${slipType}_template-1.png`,
+    );
+    if (!fs.existsSync(altPath)) {
+      throw new Error(`Template image not found: ${slipType}_template.png`);
+    }
+    const imageBuffer = fs.readFileSync(altPath);
+    return `data:image/png;base64,${imageBuffer.toString("base64")}`;
   }
   const imageBuffer = fs.readFileSync(imagePath);
   return `data:image/png;base64,${imageBuffer.toString("base64")}`;
@@ -335,6 +422,31 @@ export const generatePdfSlip = async (
     address_top: positions.address_top || "",
     address_left: positions.address_left || "",
     address_size: positions.address_size || "",
+    phone: data.phone || "",
+    phone_top: positions.phone_top || "",
+    phone_left: positions.phone_left || "",
+    phone_size: positions.phone_size || "",
+    state: data.state?.toUpperCase() || "",
+    state_top: positions.state_top || "",
+    state_left: positions.state_left || "",
+    state_size: positions.state_size || "",
+    lga: data.lga?.toUpperCase() || "",
+    lga_top: positions.lga_top || "",
+    lga_left: positions.lga_left || "",
+    lga_size: positions.lga_size || "",
+    birth_state: data.birthState?.toUpperCase() || "",
+    birth_state_top: positions.birth_state_top || "",
+    birth_state_left: positions.birth_state_left || "",
+    birth_state_size: positions.birth_state_size || "",
+    birth_lga: data.birthLga?.toUpperCase() || "",
+    birth_lga_top: positions.birth_lga_top || "",
+    birth_lga_left: positions.birth_lga_left || "",
+    birth_lga_size: positions.birth_lga_size || "",
+    nationality: data.nationality?.toUpperCase() || "NIGERIAN",
+    nationality_top: positions.nationality_top || "",
+    nationality_left: positions.nationality_left || "",
+    nationality_size: positions.nationality_size || "",
+    issue_left: positions.issue_left || "",
     template_image: templateImage,
   };
 
@@ -362,14 +474,18 @@ export const generatePdfSlip = async (
 
     const page = await browser.newPage();
 
-    await page.setViewport({ width: 1267, height: 1652 });
+    const dimensions = slipType === 'full_info' 
+      ? { width: 1162, height: 1758 }
+      : { width: 1267, height: 1652 };
+
+    await page.setViewport(dimensions);
 
     await page.setContent(populatedHtml, { waitUntil: "networkidle0" });
 
     await page.pdf({
       path: pdfPath,
-      width: "1267px",
-      height: "1652px",
+      width: `${dimensions.width}px`,
+      height: `${dimensions.height}px`,
       printBackground: true,
       margin: { top: "0", right: "0", bottom: "0", left: "0" },
     });
