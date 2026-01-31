@@ -135,6 +135,9 @@ router.get('/template-image', async (req, res) => {
       templatePath = path.join(process.cwd(), 'server/src/templates/standard_slip_template.jpg');
     } else if (type === 'regular') {
       templatePath = path.join(process.cwd(), 'server/src/templates/regular_slip_template.jpg');
+    } else if (type === 'full_info' || type === 'information') {
+      templatePath = path.join(process.cwd(), 'server/src/templates/full_info_template.png');
+      contentType = 'image/png';
     }
     
     logger.info('Serving template image', { templatePath, exists: fs.existsSync(templatePath) });
@@ -273,6 +276,259 @@ Copy these values to update slipGenerator.ts
   } catch (error: any) {
     logger.error('Slip analyzer error', { error: error.message });
     res.status(500).json({ error: 'Failed to analyze slip' });
+  }
+});
+
+// Full Info Slip Position Analyzer - for the information slip with all fields
+router.get('/full-info-analyzer', async (req: Request, res: Response) => {
+  try {
+    const fullInfoHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Full Info Slip Position Analyzer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; background: #1a1a2e; padding: 20px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { color: #eee; margin-bottom: 20px; text-align: center; }
+    .controls { background: #16213e; padding: 20px; border-radius: 8px; margin-bottom: 20px; color: white; }
+    .controls h3 { margin-bottom: 15px; color: #00d9ff; }
+    .control-section { margin-bottom: 20px; padding: 15px; background: #0f3460; border-radius: 5px; }
+    .control-section h4 { margin-bottom: 10px; color: #e94560; }
+    .control-group { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+    .control-item { display: flex; flex-direction: column; }
+    .control-item label { font-size: 11px; margin-bottom: 3px; color: #ccc; }
+    .control-item input { width: 70px; padding: 5px; border: 1px solid #444; background: #1a1a2e; color: white; border-radius: 3px; }
+    .slip-wrapper { position: relative; width: 100%; background: white; margin-bottom: 20px; border-radius: 8px; overflow: hidden; }
+    .template-bg { width: 100%; height: auto; display: block; }
+    .overlay-marker { position: absolute; border: 2px dashed; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold; cursor: move; }
+    .marker-photo { border-color: #ff6b6b; color: #ff6b6b; }
+    .marker-text { border-color: #4ecdc4; color: #4ecdc4; }
+    .marker-qr { border-color: #ffe66d; color: #ffe66d; }
+    .marker-extra { border-color: #a8e6cf; color: #a8e6cf; }
+    .position-info { background: #0f3460; color: #00ff88; padding: 20px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 12px; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+    .update-btn { background: #e94560; color: white; padding: 12px 25px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 15px; }
+    .update-btn:hover { background: #ff6b81; }
+    .copy-btn { background: #4ecdc4; color: #1a1a2e; padding: 12px 25px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-left: 10px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Full Info Slip Position Analyzer</h1>
+    
+    <div class="controls">
+      <div class="control-section">
+        <h4>Photo & QR Code</h4>
+        <div class="control-group">
+          <div class="control-item"><label>Photo Top %</label><input type="number" id="photo-top" value="18" step="0.5"></div>
+          <div class="control-item"><label>Photo Left %</label><input type="number" id="photo-left" value="10" step="0.5"></div>
+          <div class="control-item"><label>Photo Width %</label><input type="number" id="photo-width" value="18" step="0.5"></div>
+          <div class="control-item"><label>QR Top %</label><input type="number" id="qr-top" value="18" step="0.5"></div>
+          <div class="control-item"><label>QR Right %</label><input type="number" id="qr-right" value="8" step="0.5"></div>
+          <div class="control-item"><label>QR Width %</label><input type="number" id="qr-width" value="15" step="0.5"></div>
+        </div>
+      </div>
+      
+      <div class="control-section">
+        <h4>Basic Info (Surname, Names, DOB, Gender, NIN)</h4>
+        <div class="control-group">
+          <div class="control-item"><label>Surname Top %</label><input type="number" id="surname-top" value="19" step="0.5"></div>
+          <div class="control-item"><label>Surname Left %</label><input type="number" id="surname-left" value="32" step="0.5"></div>
+          <div class="control-item"><label>Names Top %</label><input type="number" id="names-top" value="23" step="0.5"></div>
+          <div class="control-item"><label>Names Left %</label><input type="number" id="names-left" value="32" step="0.5"></div>
+        </div>
+        <div class="control-group">
+          <div class="control-item"><label>DOB Top %</label><input type="number" id="dob-top" value="27" step="0.5"></div>
+          <div class="control-item"><label>DOB Left %</label><input type="number" id="dob-left" value="32" step="0.5"></div>
+          <div class="control-item"><label>Gender Top %</label><input type="number" id="sex-top" value="31" step="0.5"></div>
+          <div class="control-item"><label>Gender Left %</label><input type="number" id="sex-left" value="32" step="0.5"></div>
+        </div>
+        <div class="control-group">
+          <div class="control-item"><label>NIN Top %</label><input type="number" id="nin-top" value="35" step="0.5"></div>
+          <div class="control-item"><label>NIN Left %</label><input type="number" id="nin-left" value="32" step="0.5"></div>
+          <div class="control-item"><label>NIN Size px</label><input type="number" id="nin-size" value="16" step="1"></div>
+        </div>
+      </div>
+      
+      <div class="control-section">
+        <h4>Additional Info (Issue Date, Tracking, Phone, Address)</h4>
+        <div class="control-group">
+          <div class="control-item"><label>Issue Top %</label><input type="number" id="issue-top" value="39" step="0.5"></div>
+          <div class="control-item"><label>Issue Left %</label><input type="number" id="issue-left" value="32" step="0.5"></div>
+          <div class="control-item"><label>Tracking Top %</label><input type="number" id="tracking-top" value="43" step="0.5"></div>
+          <div class="control-item"><label>Tracking Left %</label><input type="number" id="tracking-left" value="32" step="0.5"></div>
+        </div>
+        <div class="control-group">
+          <div class="control-item"><label>Phone Top %</label><input type="number" id="phone-top" value="55" step="0.5"></div>
+          <div class="control-item"><label>Phone Left %</label><input type="number" id="phone-left" value="32" step="0.5"></div>
+          <div class="control-item"><label>Address Top %</label><input type="number" id="address-top" value="51" step="0.5"></div>
+          <div class="control-item"><label>Address Left %</label><input type="number" id="address-left" value="32" step="0.5"></div>
+        </div>
+      </div>
+      
+      <div class="control-section">
+        <h4>Location Info (State, LGA, Origin)</h4>
+        <div class="control-group">
+          <div class="control-item"><label>State Top %</label><input type="number" id="state-top" value="59" step="0.5"></div>
+          <div class="control-item"><label>State Left %</label><input type="number" id="state-left" value="32" step="0.5"></div>
+          <div class="control-item"><label>LGA Top %</label><input type="number" id="lga-top" value="63" step="0.5"></div>
+          <div class="control-item"><label>LGA Left %</label><input type="number" id="lga-left" value="32" step="0.5"></div>
+        </div>
+        <div class="control-group">
+          <div class="control-item"><label>Birth State Top %</label><input type="number" id="birth-state-top" value="67" step="0.5"></div>
+          <div class="control-item"><label>Birth State Left %</label><input type="number" id="birth-state-left" value="32" step="0.5"></div>
+          <div class="control-item"><label>Birth LGA Top %</label><input type="number" id="birth-lga-top" value="71" step="0.5"></div>
+          <div class="control-item"><label>Birth LGA Left %</label><input type="number" id="birth-lga-left" value="32" step="0.5"></div>
+        </div>
+        <div class="control-group">
+          <div class="control-item"><label>Nationality Top %</label><input type="number" id="nationality-top" value="75" step="0.5"></div>
+          <div class="control-item"><label>Nationality Left %</label><input type="number" id="nationality-left" value="32" step="0.5"></div>
+        </div>
+      </div>
+      
+      <button class="update-btn" onclick="updatePositions()">Update Positions</button>
+      <button class="copy-btn" onclick="copyToClipboard()">Copy JSON</button>
+    </div>
+    
+    <div class="slip-wrapper">
+      <img src="/api/identity/template-image?type=full_info" alt="Template" class="template-bg" id="template-img">
+      <div class="overlay-marker marker-photo" id="photo-marker" style="top:18%;left:10%;width:18%;height:20%;">PHOTO</div>
+      <div class="overlay-marker marker-qr" id="qr-marker" style="top:18%;right:8%;width:15%;height:18%;">QR</div>
+      <div class="overlay-marker marker-text" id="surname-marker" style="top:19%;left:32%;width:25%;height:3%;">SURNAME</div>
+      <div class="overlay-marker marker-text" id="names-marker" style="top:23%;left:32%;width:30%;height:3%;">NAMES</div>
+      <div class="overlay-marker marker-text" id="dob-marker" style="top:27%;left:32%;width:15%;height:3%;">DOB</div>
+      <div class="overlay-marker marker-text" id="sex-marker" style="top:31%;left:32%;width:10%;height:3%;">GENDER</div>
+      <div class="overlay-marker marker-text" id="nin-marker" style="top:35%;left:32%;width:25%;height:3%;">NIN</div>
+      <div class="overlay-marker marker-extra" id="issue-marker" style="top:39%;left:32%;width:20%;height:3%;">ISSUE DATE</div>
+      <div class="overlay-marker marker-extra" id="tracking-marker" style="top:43%;left:32%;width:25%;height:3%;">TRACKING</div>
+      <div class="overlay-marker marker-extra" id="address-marker" style="top:51%;left:32%;width:40%;height:3%;">ADDRESS</div>
+      <div class="overlay-marker marker-extra" id="phone-marker" style="top:55%;left:32%;width:20%;height:3%;">PHONE</div>
+      <div class="overlay-marker marker-extra" id="state-marker" style="top:59%;left:32%;width:20%;height:3%;">STATE</div>
+      <div class="overlay-marker marker-extra" id="lga-marker" style="top:63%;left:32%;width:20%;height:3%;">LGA</div>
+      <div class="overlay-marker marker-extra" id="birth-state-marker" style="top:67%;left:32%;width:20%;height:3%;">BIRTH STATE</div>
+      <div class="overlay-marker marker-extra" id="birth-lga-marker" style="top:71%;left:32%;width:20%;height:3%;">BIRTH LGA</div>
+      <div class="overlay-marker marker-extra" id="nationality-marker" style="top:75%;left:32%;width:15%;height:3%;">NATIONALITY</div>
+    </div>
+    
+    <div class="position-info" id="position-output">
+Adjust the inputs above and click "Update Positions" to see changes.
+The JSON output below can be used to update pdfSlipGenerator.ts
+    </div>
+  </div>
+  
+  <script>
+    function updatePositions() {
+      document.getElementById('photo-marker').style.top = document.getElementById('photo-top').value + '%';
+      document.getElementById('photo-marker').style.left = document.getElementById('photo-left').value + '%';
+      document.getElementById('photo-marker').style.width = document.getElementById('photo-width').value + '%';
+      document.getElementById('qr-marker').style.top = document.getElementById('qr-top').value + '%';
+      document.getElementById('qr-marker').style.right = document.getElementById('qr-right').value + '%';
+      document.getElementById('qr-marker').style.width = document.getElementById('qr-width').value + '%';
+      document.getElementById('surname-marker').style.top = document.getElementById('surname-top').value + '%';
+      document.getElementById('surname-marker').style.left = document.getElementById('surname-left').value + '%';
+      document.getElementById('names-marker').style.top = document.getElementById('names-top').value + '%';
+      document.getElementById('names-marker').style.left = document.getElementById('names-left').value + '%';
+      document.getElementById('dob-marker').style.top = document.getElementById('dob-top').value + '%';
+      document.getElementById('dob-marker').style.left = document.getElementById('dob-left').value + '%';
+      document.getElementById('sex-marker').style.top = document.getElementById('sex-top').value + '%';
+      document.getElementById('sex-marker').style.left = document.getElementById('sex-left').value + '%';
+      document.getElementById('nin-marker').style.top = document.getElementById('nin-top').value + '%';
+      document.getElementById('nin-marker').style.left = document.getElementById('nin-left').value + '%';
+      document.getElementById('issue-marker').style.top = document.getElementById('issue-top').value + '%';
+      document.getElementById('issue-marker').style.left = document.getElementById('issue-left').value + '%';
+      document.getElementById('tracking-marker').style.top = document.getElementById('tracking-top').value + '%';
+      document.getElementById('tracking-marker').style.left = document.getElementById('tracking-left').value + '%';
+      document.getElementById('phone-marker').style.top = document.getElementById('phone-top').value + '%';
+      document.getElementById('phone-marker').style.left = document.getElementById('phone-left').value + '%';
+      document.getElementById('address-marker').style.top = document.getElementById('address-top').value + '%';
+      document.getElementById('address-marker').style.left = document.getElementById('address-left').value + '%';
+      document.getElementById('state-marker').style.top = document.getElementById('state-top').value + '%';
+      document.getElementById('state-marker').style.left = document.getElementById('state-left').value + '%';
+      document.getElementById('lga-marker').style.top = document.getElementById('lga-top').value + '%';
+      document.getElementById('lga-marker').style.left = document.getElementById('lga-left').value + '%';
+      document.getElementById('birth-state-marker').style.top = document.getElementById('birth-state-top').value + '%';
+      document.getElementById('birth-state-marker').style.left = document.getElementById('birth-state-left').value + '%';
+      document.getElementById('birth-lga-marker').style.top = document.getElementById('birth-lga-top').value + '%';
+      document.getElementById('birth-lga-marker').style.left = document.getElementById('birth-lga-left').value + '%';
+      document.getElementById('nationality-marker').style.top = document.getElementById('nationality-top').value + '%';
+      document.getElementById('nationality-marker').style.left = document.getElementById('nationality-left').value + '%';
+      
+      const output = generateOutput();
+      document.getElementById('position-output').textContent = output;
+    }
+    
+    function generateOutput() {
+      return JSON.stringify({
+        "photo_top": document.getElementById('photo-top').value + "%",
+        "photo_left": document.getElementById('photo-left').value + "%",
+        "photo_width": document.getElementById('photo-width').value + "%",
+        "surname_top": document.getElementById('surname-top').value + "%",
+        "surname_left": document.getElementById('surname-left').value + "%",
+        "surname_size": "14px",
+        "names_top": document.getElementById('names-top').value + "%",
+        "names_left": document.getElementById('names-left').value + "%",
+        "names_size": "14px",
+        "dob_top": document.getElementById('dob-top').value + "%",
+        "dob_left": document.getElementById('dob-left').value + "%",
+        "dob_size": "14px",
+        "nin_top": document.getElementById('nin-top').value + "%",
+        "nin_left": document.getElementById('nin-left').value + "%",
+        "nin_size": document.getElementById('nin-size').value + "px",
+        "qr_top": document.getElementById('qr-top').value + "%",
+        "qr_right": document.getElementById('qr-right').value + "%",
+        "qr_width": document.getElementById('qr-width').value + "%",
+        "sex_top": document.getElementById('sex-top').value + "%",
+        "sex_left": document.getElementById('sex-left').value + "%",
+        "sex_size": "14px",
+        "issue_top": document.getElementById('issue-top').value + "%",
+        "issue_left": document.getElementById('issue-left').value + "%",
+        "issue_size": "14px",
+        "tracking_top": document.getElementById('tracking-top').value + "%",
+        "tracking_left": document.getElementById('tracking-left').value + "%",
+        "tracking_size": "14px",
+        "address_top": document.getElementById('address-top').value + "%",
+        "address_left": document.getElementById('address-left').value + "%",
+        "address_size": "13px",
+        "phone_top": document.getElementById('phone-top').value + "%",
+        "phone_left": document.getElementById('phone-left').value + "%",
+        "phone_size": "14px",
+        "state_top": document.getElementById('state-top').value + "%",
+        "state_left": document.getElementById('state-left').value + "%",
+        "state_size": "14px",
+        "lga_top": document.getElementById('lga-top').value + "%",
+        "lga_left": document.getElementById('lga-left').value + "%",
+        "lga_size": "14px",
+        "birth_state_top": document.getElementById('birth-state-top').value + "%",
+        "birth_state_left": document.getElementById('birth-state-left').value + "%",
+        "birth_state_size": "14px",
+        "birth_lga_top": document.getElementById('birth-lga-top').value + "%",
+        "birth_lga_left": document.getElementById('birth-lga-left').value + "%",
+        "birth_lga_size": "14px",
+        "nationality_top": document.getElementById('nationality-top').value + "%",
+        "nationality_left": document.getElementById('nationality-left').value + "%",
+        "nationality_size": "14px"
+      }, null, 2);
+    }
+    
+    function copyToClipboard() {
+      const output = generateOutput();
+      navigator.clipboard.writeText(output).then(() => {
+        alert('JSON copied to clipboard!');
+      });
+    }
+  </script>
+</body>
+</html>
+    `.trim();
+
+    res.setHeader('Content-Type', 'text/html');
+    res.send(fullInfoHtml);
+  } catch (error: any) {
+    logger.error('Full info analyzer error', { error: error.message });
+    res.status(500).json({ error: 'Failed to load analyzer' });
   }
 });
 
