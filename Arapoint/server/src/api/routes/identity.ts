@@ -327,7 +327,7 @@ router.get('/full-info-analyzer', async (req: Request, res: Response) => {
         <div class="control-section">
           <h4>Photo & QR Code</h4>
           <div class="control-group">
-            <div class="control-item"><label>Photo Top %</label><input type="number" id="photo-top" value="18" step="0.5"></div>
+            <div class="control-item"><label>Photo Top %</label><input type="number" id="photo-top" value="25" step="0.5"></div>
             <div class="control-item"><label>Photo Left %</label><input type="number" id="photo-left" value="10" step="0.5"></div>
             <div class="control-item"><label>Photo Width %</label><input type="number" id="photo-width" value="18" step="0.5"></div>
           </div>
@@ -407,7 +407,7 @@ router.get('/full-info-analyzer', async (req: Request, res: Response) => {
     <div class="right-panel">
       <div class="slip-wrapper">
         <img src="/api/identity/template-image?type=full_info" alt="Template" class="template-bg" id="template-img">
-        <div class="overlay-marker marker-photo" id="photo-marker" style="top:18%;left:10%;width:18%;height:20%;">PHOTO</div>
+        <div class="overlay-marker marker-photo" id="photo-marker" style="top:25%;left:10%;width:18%;height:20%;">PHOTO</div>
         <div class="overlay-marker marker-qr" id="qr-marker" style="top:18%;right:8%;width:15%;height:18%;">QR</div>
         <div class="overlay-marker marker-text" id="surname-marker" style="top:19%;left:32%;width:25%;height:3%;">SURNAME</div>
         <div class="overlay-marker marker-text" id="names-marker" style="top:23%;left:32%;width:30%;height:3%;">NAMES</div>
