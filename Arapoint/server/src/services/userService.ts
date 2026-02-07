@@ -187,6 +187,26 @@ export const userService = {
     };
   },
 
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const isValidPassword = await bcrypt.compare(currentPassword, user.passwordHash || '');
+    if (!isValidPassword) {
+      throw new Error('Current password is incorrect');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await db.update(users)
+      .set({ passwordHash, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+
+    logger.info('Password changed', { userId });
+    return { success: true };
+  },
+
   generateTokens(payload: TokenPayload): AuthTokens {
     const accessToken = jwt.sign(payload, config.JWT_SECRET, { expiresIn: '1h' });
     const refreshToken = jwt.sign(payload, config.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });

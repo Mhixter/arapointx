@@ -82,6 +82,11 @@ export const authApi = {
     localStorage.removeItem('refreshToken');
   },
 
+  changePassword: async (data: { currentPassword: string; newPassword: string }): Promise<{ message: string }> => {
+    const response = await apiClient.post<ApiResponse<{ message: string }>>('/auth/change-password', data);
+    return response.data.data;
+  },
+
   refreshToken: async (refreshToken: string): Promise<AuthResponse> => {
     const response = await apiClient.post<ApiResponse<AuthResponse>>('/auth/refresh', { refreshToken });
     return response.data.data;

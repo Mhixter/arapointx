@@ -529,6 +529,36 @@ router.get('/services', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/test-email', async (req: Request, res: Response) => {
+  try {
+    const { to } = req.body;
+    if (!to) {
+      return res.status(400).json(formatErrorResponse(400, 'Email address is required'));
+    }
+
+    const { sendEmail } = await import('../../services/emailService');
+    const sent = await sendEmail(
+      to,
+      'Arapoint - Test Email',
+      `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #16a34a;">Arapoint SMTP Test</h2>
+        <p>This is a test email from your Arapoint platform.</p>
+        <p>If you received this, your email configuration is working correctly.</p>
+        <p style="color: #666; font-size: 12px;">Sent at: ${new Date().toISOString()}</p>
+      </div>`
+    );
+
+    if (sent) {
+      res.json(formatResponse('success', 200, 'Test email sent successfully'));
+    } else {
+      res.status(500).json(formatErrorResponse(500, 'Failed to send test email. Check your SMTP configuration.'));
+    }
+  } catch (error: any) {
+    logger.error('Test email error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, error.message || 'Failed to send test email'));
+  }
+});
+
 router.post('/settings', async (req: Request, res: Response) => {
   try {
     const settings = req.body;

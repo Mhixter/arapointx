@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Bell, Shield, Database, Globe, Save } from "lucide-react";
+import { Bell, Shield, Database, Globe, Save, Mail, Loader2, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/contexts/SettingsContext";
 
@@ -31,7 +31,15 @@ export default function AdminSettings() {
     necoUrl: "",
     nabtebUrl: "",
     mbaisUrl: "",
+    smtpHost: "smtp.gmail.com",
+    smtpPort: "587",
+    smtpUser: "",
+    smtpPass: "",
+    smtpFromName: "Arapoint",
+    smtpFromEmail: "",
   });
+  const [testEmail, setTestEmail] = useState("");
+  const [sendingTest, setSendingTest] = useState(false);
 
   const settingsMap: Record<string, string> = {
     waecUrl: 'rpa_provider_url_waec',
@@ -117,10 +125,14 @@ export default function AdminSettings() {
       </div>
 
       <Tabs defaultValue="general" className="space-y-4 sm:space-y-6">
-        <TabsList className="grid w-full grid-cols-4 h-auto p-1 gap-1">
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto p-1 gap-1">
           <TabsTrigger value="general" className="gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm">
             <Globe className="h-3 w-3 sm:h-4 sm:w-4" />
             <span className="hidden xs:inline sm:inline">General</span>
+          </TabsTrigger>
+          <TabsTrigger value="email" className="gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm">
+            <Mail className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden xs:inline sm:inline">Email</span>
           </TabsTrigger>
           <TabsTrigger value="notifications" className="gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm">
             <Bell className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -132,7 +144,7 @@ export default function AdminSettings() {
           </TabsTrigger>
           <TabsTrigger value="education" className="gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm">
             <Database className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span className="hidden xs:inline sm:inline">Education RPA</span>
+            <span className="hidden xs:inline sm:inline">Education</span>
           </TabsTrigger>
           <TabsTrigger value="advanced" className="gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm">
             <Database className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -229,6 +241,147 @@ export default function AdminSettings() {
                   </Select>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="email" className="space-y-4 sm:space-y-6">
+          <Card>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">SMTP Configuration</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Configure Gmail SMTP for sending OTP emails and notifications</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-0 space-y-3 sm:space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label htmlFor="smtp-host" className="text-xs sm:text-sm">SMTP Host</Label>
+                  <Input
+                    id="smtp-host"
+                    placeholder="smtp.gmail.com"
+                    value={settings.smtpHost}
+                    onChange={(e) => setSettings(prev => ({ ...prev, smtpHost: e.target.value }))}
+                    className="h-8 sm:h-9 text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label htmlFor="smtp-port" className="text-xs sm:text-sm">SMTP Port</Label>
+                  <Input
+                    id="smtp-port"
+                    placeholder="587"
+                    value={settings.smtpPort}
+                    onChange={(e) => setSettings(prev => ({ ...prev, smtpPort: e.target.value }))}
+                    className="h-8 sm:h-9 text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label htmlFor="smtp-user" className="text-xs sm:text-sm">Gmail Address</Label>
+                  <Input
+                    id="smtp-user"
+                    type="email"
+                    placeholder="your-email@gmail.com"
+                    value={settings.smtpUser}
+                    onChange={(e) => setSettings(prev => ({ ...prev, smtpUser: e.target.value }))}
+                    className="h-8 sm:h-9 text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label htmlFor="smtp-pass" className="text-xs sm:text-sm">App Password</Label>
+                  <Input
+                    id="smtp-pass"
+                    type="password"
+                    placeholder="Gmail App Password"
+                    value={settings.smtpPass}
+                    onChange={(e) => setSettings(prev => ({ ...prev, smtpPass: e.target.value }))}
+                    className="h-8 sm:h-9 text-sm"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Sender Information</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Configure the sender name and email for outgoing messages</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-0 space-y-3 sm:space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label htmlFor="smtp-from-name" className="text-xs sm:text-sm">Sender Name</Label>
+                  <Input
+                    id="smtp-from-name"
+                    placeholder="Arapoint"
+                    value={settings.smtpFromName}
+                    onChange={(e) => setSettings(prev => ({ ...prev, smtpFromName: e.target.value }))}
+                    className="h-8 sm:h-9 text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label htmlFor="smtp-from-email" className="text-xs sm:text-sm">Sender Email</Label>
+                  <Input
+                    id="smtp-from-email"
+                    type="email"
+                    placeholder="noreply@arapoint.com.ng"
+                    value={settings.smtpFromEmail}
+                    onChange={(e) => setSettings(prev => ({ ...prev, smtpFromEmail: e.target.value }))}
+                    className="h-8 sm:h-9 text-sm"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Test Email</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Send a test email to verify your SMTP configuration</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-0 space-y-3 sm:space-y-4">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                <Input
+                  type="email"
+                  placeholder="test@example.com"
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
+                  className="h-8 sm:h-9 text-sm flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 sm:h-9 text-xs sm:text-sm"
+                  disabled={sendingTest || !testEmail}
+                  onClick={async () => {
+                    setSendingTest(true);
+                    try {
+                      const token = localStorage.getItem('adminToken');
+                      const response = await fetch('/api/admin/test-email', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ to: testEmail })
+                      });
+                      const data = await response.json();
+                      if (response.ok) {
+                        toast({ title: "Test Email Sent", description: "Check your inbox for the test email." });
+                      } else {
+                        toast({ title: "Failed", description: data.message || "Failed to send test email", variant: "destructive" });
+                      }
+                    } catch (err) {
+                      toast({ title: "Error", description: "Failed to send test email", variant: "destructive" });
+                    } finally {
+                      setSendingTest(false);
+                    }
+                  }}
+                >
+                  {sendingTest ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Send className="h-3 w-3 mr-1" />}
+                  Send Test
+                </Button>
+              </div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
+                Save your SMTP settings first, then send a test email to confirm everything works.
+              </p>
             </CardContent>
           </Card>
         </TabsContent>

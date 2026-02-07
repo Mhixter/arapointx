@@ -45,7 +45,7 @@ export const otpService = {
       const sent = await sendEmail(email, config.subject, config.html, config.text);
 
       if (sent) {
-        logger.info('OTP email sent successfully via Resend', { email, purpose });
+        logger.info('OTP email sent successfully via SMTP', { email, purpose });
       } else {
         logger.warn('OTP email send returned false', { email, purpose });
       }

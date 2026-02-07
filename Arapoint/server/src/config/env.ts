@@ -37,6 +37,8 @@ export const config = {
   SMTP_PORT: parseInt(process.env.SMTP_PORT || '587'),
   SMTP_USER: process.env.SMTP_USER || '',
   SMTP_PASS: process.env.SMTP_PASS || '',
+  SMTP_FROM_NAME: process.env.SMTP_FROM_NAME || 'Arapoint',
+  SMTP_FROM_EMAIL: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || 'noreply@arapoint.com.ng',
   
   // Admin
   ADMIN_EMAIL: process.env.ADMIN_EMAIL || 'admin@arapoint.com',

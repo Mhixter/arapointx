@@ -100,7 +100,10 @@ Arapoint/
 - `DATABASE_URL` - PostgreSQL connection string
 - `JWT_SECRET` - JWT signing secret
 - `REFRESH_TOKEN_SECRET` - Refresh token secret
-- `SENDGRID_API_KEY` - SendGrid API key (optional, OTPs logged in dev mode)
+- `SMTP_USER` - Gmail address for sending emails (optional, OTPs logged in dev mode)
+- `SMTP_PASS` - Gmail App Password for SMTP authentication
+- `SMTP_HOST` - SMTP server host (default: smtp.gmail.com)
+- `SMTP_PORT` - SMTP server port (default: 587)
 
 ## Running the Project
 ```bash
@@ -214,6 +217,21 @@ Railway auto-deploys on push. Check logs for any issues.
 - Maximum 20 concurrent RPA jobs with exponential backoff retry
 
 ## Recent Changes
+- 2026-02-07: Replaced SendGrid email service with Nodemailer Gmail SMTP for OTP delivery
+  - Email service now reads SMTP config from both environment variables and admin settings database
+  - When SMTP is not configured, OTPs are logged to console in development mode
+  - Admin can configure SMTP settings (host, port, Gmail address, app password) from admin dashboard
+  - Added test email functionality in admin settings to verify SMTP configuration
+- 2026-02-07: Enhanced user Settings page with working functionality
+  - Profile editing (name, phone) with API calls
+  - Password change with validation
+  - Dark mode toggle using theme provider
+  - Notification preferences (local state)
+- 2026-02-07: Enhanced admin Settings page with Email/SMTP configuration tab
+  - SMTP host, port, Gmail address, app password configuration
+  - Sender name and email configuration
+  - Test email sending functionality
+- 2026-02-07: Added change password API route (POST /api/auth/change-password)
 - 2025-12-20: Added Identity Agent Services system for manual identity processing (NIN Validation, IPE Clearance, NIN Personalization)
   - New tables: identityAgents, identityServiceRequests, identityRequestActivity
   - Agent dashboard at `/agent/identity` for request pickup and completion

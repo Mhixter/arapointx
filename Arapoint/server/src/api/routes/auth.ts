@@ -209,6 +209,29 @@ router.put('/profile', authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
+router.post('/change-password', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json(formatErrorResponse(400, 'Current password and new password are required'));
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json(formatErrorResponse(400, 'New password must be at least 8 characters'));
+    }
+
+    await userService.changePassword(req.userId!, currentPassword, newPassword);
+    res.json(formatResponse('success', 200, 'Password changed successfully'));
+  } catch (error: any) {
+    logger.error('Change password error', { error: error.message, userId: req.userId });
+    if (error.message === 'Current password is incorrect') {
+      return res.status(400).json(formatErrorResponse(400, error.message));
+    }
+    res.status(500).json(formatErrorResponse(500, 'Failed to change password'));
+  }
+});
+
 router.get('/dashboard', authMiddleware, async (req: Request, res: Response) => {
   try {
     const dashboard = await userService.getDashboard(req.userId!);
