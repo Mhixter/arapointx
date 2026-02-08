@@ -40,7 +40,7 @@ const hasValidVerificationData = (data: any): boolean => {
   return hasDob || hasId;
 };
 
-const verifyNINWithFallback = async (nin: string) => {
+const verifyNINWithFallback = async (nin: string): Promise<{ success: boolean; data?: any; error?: string; reference: string; provider: string; techhubSlipHtml?: string; rawResponse?: any; slipHtml?: string }> => {
   const providers = getConfiguredProviders();
   let lastError: string | undefined;
   let techhubSlipHtml: string | undefined;
@@ -80,7 +80,7 @@ const verifyNINWithFallback = async (nin: string) => {
   return { success: false, error: lastError || 'All verification providers failed', reference: '', provider: providers[0] };
 };
 
-const verifyVNINWithFallback = async (vnin: string, validationData?: { firstName?: string; lastName?: string; dateOfBirth?: string }) => {
+const verifyVNINWithFallback = async (vnin: string, validationData?: { firstName?: string; lastName?: string; dateOfBirth?: string }): Promise<{ success: boolean; data?: any; error?: string; reference: string; provider: string }> => {
   const providers = getConfiguredProviders();
   let lastError: string | undefined;
   
@@ -116,7 +116,7 @@ const verifyVNINWithFallback = async (vnin: string, validationData?: { firstName
   return { success: false, error: lastError || 'All verification providers failed', reference: '', provider: providers[0] };
 };
 
-const verifyNINWithPhoneFallback = async (nin: string, phone: string) => {
+const verifyNINWithPhoneFallback = async (nin: string, phone: string): Promise<{ success: boolean; data?: any; error?: string; reference: string; provider: string }> => {
   const providers = getConfiguredProviders();
   let lastError: string | undefined;
   
