@@ -436,30 +436,56 @@ class PremblyService {
         number: phone,
       });
 
+      logger.info('Prembly phone-to-NIN raw response keys', { 
+        reference,
+        topKeys: Object.keys(response.data || {}),
+        dataKeys: response.data?.data ? Object.keys(response.data.data) : [],
+        hasNinNested: !!response.data?.data?.nin,
+        ninType: typeof response.data?.data?.nin,
+        ninNestedKeys: response.data?.data?.nin && typeof response.data.data.nin === 'object' ? Object.keys(response.data.data.nin) : [],
+      });
+
       if (response.data.status === true && response.data.response_code === '00') {
-        const rawData = response.data.nin_data || response.data.data || response.data;
+        const outerData = response.data.data || {};
+        const ninNested = (outerData.nin && typeof outerData.nin === 'object') ? outerData.nin : null;
+        const rawData = ninNested || outerData;
+        
+        const ninNumber = ninNested?.nin || ninNested?.centralID || outerData.nin_number || outerData.nin || '';
         
         const ninData: NINData = {
-          id: rawData.nin || rawData.centralID || '',
-          firstName: rawData.firstname || rawData.firstName || '',
-          middleName: rawData.middlename || rawData.middleName || '',
-          lastName: rawData.surname || rawData.lastName || '',
-          dateOfBirth: rawData.birthdate || rawData.dateOfBirth || '',
-          gender: rawData.gender || '',
-          phone: rawData.telephoneno || rawData.phoneNumber || rawData.phone || phone,
-          email: rawData.email || '',
-          address: rawData.residence_address || rawData.residenceAddress || '',
-          town: rawData.residence_town || rawData.town || '',
-          lga: rawData.residence_lga || rawData.lgaOfResidence || '',
-          state: rawData.residence_state || rawData.stateOfResidence || '',
-          birthState: rawData.birth_state || rawData.birthstate || rawData.birthState || '',
-          birthLga: rawData.birth_lga || rawData.birthlga || rawData.birthLga || '',
+          id: typeof ninNumber === 'string' ? ninNumber : (rawData.centralID || ''),
+          firstName: rawData.firstname || outerData.firstName || outerData.firstname || '',
+          middleName: rawData.middlename || outerData.middleName || outerData.middlename || '',
+          lastName: rawData.surname || outerData.lastName || outerData.lastname || outerData.surname || '',
+          dateOfBirth: rawData.birthdate || outerData.dateOfBirth || outerData.date_of_birth || '',
+          gender: rawData.gender || outerData.gender || '',
+          phone: rawData.telephoneno || outerData.phoneNumber || outerData.phone || rawData.phone || phone,
+          email: rawData.email || outerData.email || '',
+          address: rawData.residence_address || outerData.residenceAddress || outerData.address || '',
+          town: rawData.residence_town || outerData.town || '',
+          lga: rawData.residence_lga || outerData.lgaOfResidence || rawData.self_origin_lga || '',
+          state: rawData.residence_state || outerData.stateOfResidence || rawData.self_origin_state || '',
+          birthState: rawData.birthstate || rawData.birth_state || outerData.stateOfOrigin || '',
+          birthLga: rawData.birthlga || rawData.birth_lga || outerData.lgaOfOrigin || '',
           birthCountry: rawData.birthcountry || rawData.birth_country || 'Nigeria',
-          photo: rawData.photo || rawData.base64Image || '',
+          photo: rawData.photo || outerData.photo || outerData.base64Image || '',
           nationality: rawData.birthcountry || 'Nigeria',
+          maritalStatus: rawData.maritalstatus || outerData.maritalStatus || '',
+          height: rawData.heigth || rawData.height || '',
+          educationalLevel: rawData.educationallevel || outerData.educationalLevel || '',
+          employmentStatus: rawData.employmentstatus || outerData.employmentStatus || '',
         };
 
-        logger.info('Prembly phone-to-NIN retrieval successful', { reference });
+        logger.info('Prembly phone-to-NIN mapped data', { 
+          reference,
+          hasNin: !!ninData.id,
+          hasPhoto: !!ninData.photo,
+          hasDob: !!ninData.dateOfBirth,
+          dobValue: ninData.dateOfBirth,
+          hasAddress: !!ninData.address,
+          hasGender: !!ninData.gender,
+        });
+
         return { success: true, data: ninData, reference };
       } else {
         const rawError = response.data.detail || response.data.message || 'Phone number lookup failed';
@@ -476,6 +502,7 @@ class PremblyService {
       logger.error('Prembly phone-to-NIN retrieval error', { 
         error: error.message, 
         reference,
+        responseData: error.response?.data,
       });
       
       const rawError = error.response?.data?.detail || 
