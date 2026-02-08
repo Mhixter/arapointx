@@ -165,7 +165,8 @@ function ServiceContent({ service }: { service: any }) {
         body = { nin: inputValue, slipType: selectedSlip };
       } else if (service.id === "nin-phone") {
         endpoint = '/api/identity/nin-phone';
-        body = { phone: inputValue, slipType: selectedSlip };
+        const ninValue = formData.get("nin") as string;
+        body = { nin: ninValue, phone: inputValue, slipType: selectedSlip };
       } else if (service.id === "nin-tracking") {
         endpoint = '/api/identity/nin-tracking';
         body = { trackingId: inputValue, slipType: selectedSlip };
