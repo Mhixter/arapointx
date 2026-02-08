@@ -21,6 +21,23 @@ const getConfiguredProviders = (): ('prembly' | 'youverify')[] => {
   return providers;
 };
 
+const isRealValue = (val: any): boolean => {
+  if (!val || typeof val !== 'string') return false;
+  const v = val.trim().toLowerCase();
+  return v.length > 0 && v !== 'n/a' && v !== 'unknown' && v !== 'null' && v !== 'undefined' && v !== 'none';
+};
+
+const hasValidBVNData = (data: any): boolean => {
+  if (!data || typeof data !== 'object') return false;
+  const hasFirstName = isRealValue(data.firstName) || isRealValue(data.first_name);
+  const hasLastName = isRealValue(data.lastName) || isRealValue(data.last_name);
+  const hasName = hasFirstName || hasLastName;
+  if (!hasName) return false;
+  const hasDob = isRealValue(data.dateOfBirth) || isRealValue(data.dob) || isRealValue(data.date_of_birth);
+  const hasId = isRealValue(data.id) || isRealValue(data.bvn) || isRealValue(data.BVN);
+  return hasDob || hasId;
+};
+
 const verifyBVNWithFallback = async (bvn: string, isPremium: boolean) => {
   const providers = getConfiguredProviders();
   let lastError: string | undefined;
@@ -32,11 +49,16 @@ const verifyBVNWithFallback = async (bvn: string, isPremium: boolean) => {
         ? await premblyService.verifyBVN(bvn, isPremium)
         : await youverifyService.verifyBVN(bvn, isPremium);
       
-      if (result.success && result.data) {
+      if (result.success && result.data && hasValidBVNData(result.data)) {
         return { ...result, provider };
       }
-      lastError = result.error;
-      logger.warn('Provider verification failed, trying next', { provider, error: result.error });
+      if (result.success && result.data && !hasValidBVNData(result.data)) {
+        lastError = 'No record found for the provided BVN. Please double-check and try again.';
+        logger.warn('Provider returned empty BVN data', { provider });
+      } else {
+        lastError = result.error;
+      }
+      logger.warn('Provider verification failed, trying next', { provider, error: lastError });
     } catch (error: any) {
       lastError = error.message;
       logger.warn('Provider threw error, trying next', { provider, error: error.message });

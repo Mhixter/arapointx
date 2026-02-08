@@ -203,8 +203,9 @@ class PremblyService {
         logger.info('Prembly BVN verification successful', { reference });
         return { success: true, data: bvnData, reference };
       } else {
-        const errorMsg = response.data.detail || response.data.message || 'BVN verification failed';
-        logger.warn('Prembly BVN verification failed', { error: errorMsg, reference });
+        const rawError = response.data.detail || response.data.message || 'BVN verification failed';
+        const errorMsg = this.normalizeErrorMessage(rawError, response.data.response_code);
+        logger.warn('Prembly BVN verification failed', { error: errorMsg, reference, responseCode: response.data.response_code });
         return { 
           success: false, 
           error: errorMsg, 
@@ -220,10 +221,11 @@ class PremblyService {
         responseData: error.response?.data,
       });
       
-      const errorMsg = error.response?.data?.detail || 
+      const rawError = error.response?.data?.detail || 
                        error.response?.data?.message || 
                        error.message || 
                        'BVN verification failed';
+      const errorMsg = this.normalizeErrorMessage(rawError, error.response?.data?.response_code);
       
       return { 
         success: false, 
@@ -278,8 +280,9 @@ class PremblyService {
         logger.info('Prembly vNIN verification successful', { reference });
         return { success: true, data: ninData, reference };
       } else {
-        const errorMsg = response.data.detail || response.data.message || 'vNIN verification failed';
-        logger.warn('Prembly vNIN verification failed', { error: errorMsg, reference });
+        const rawError = response.data.detail || response.data.message || 'vNIN verification failed';
+        const errorMsg = this.normalizeErrorMessage(rawError, response.data.response_code);
+        logger.warn('Prembly vNIN verification failed', { error: errorMsg, reference, responseCode: response.data.response_code });
         return { 
           success: false, 
           error: errorMsg, 
@@ -295,10 +298,11 @@ class PremblyService {
         responseData: error.response?.data,
       });
       
-      const errorMsg = error.response?.data?.detail || 
+      const rawError = error.response?.data?.detail || 
                        error.response?.data?.message || 
                        error.message || 
                        'vNIN verification failed';
+      const errorMsg = this.normalizeErrorMessage(rawError, error.response?.data?.response_code);
       
       return { 
         success: false, 
@@ -350,8 +354,9 @@ class PremblyService {
         logger.info('Prembly NIN+Phone verification successful', { reference, phoneMatch });
         return { success: true, data: ninData, reference, phoneMatch };
       } else {
-        const errorMsg = response.data.detail || response.data.message || 'NIN+Phone verification failed';
-        logger.warn('Prembly NIN+Phone verification failed', { error: errorMsg, reference });
+        const rawError = response.data.detail || response.data.message || 'NIN+Phone verification failed';
+        const errorMsg = this.normalizeErrorMessage(rawError, response.data.response_code);
+        logger.warn('Prembly NIN+Phone verification failed', { error: errorMsg, reference, responseCode: response.data.response_code });
         return { 
           success: false, 
           error: errorMsg, 
@@ -365,10 +370,11 @@ class PremblyService {
         reference,
       });
       
-      const errorMsg = error.response?.data?.detail || 
+      const rawError = error.response?.data?.detail || 
                        error.response?.data?.message || 
                        error.message || 
                        'NIN+Phone verification failed';
+      const errorMsg = this.normalizeErrorMessage(rawError, error.response?.data?.response_code);
       
       return { 
         success: false, 
@@ -385,16 +391,36 @@ class PremblyService {
     if (
       lowerError.includes('no record') ||
       lowerError.includes('not found') ||
-      lowerError.includes('invalid nin') ||
       lowerError.includes('does not exist') ||
+      lowerError.includes('no result') ||
+      lowerError.includes('no data') ||
+      lowerError.includes('record not') ||
       responseCode === '01' ||
       responseCode === '02'
     ) {
-      return 'No record found. Please verify the NIN and try again.';
+      return 'No record found for the provided ID number. Please double-check and try again.';
+    }
+
+    if (
+      lowerError.includes('invalid nin') ||
+      lowerError.includes('invalid bvn') ||
+      lowerError.includes('invalid vnin') ||
+      lowerError.includes('invalid number') ||
+      lowerError.includes('invalid id')
+    ) {
+      return 'The ID number provided is invalid. Please check the format and try again.';
     }
     
-    if (lowerError.includes('invalid') || lowerError.includes('wrong format')) {
+    if (lowerError.includes('invalid') || lowerError.includes('wrong format') || lowerError.includes('bad request')) {
       return 'Invalid format. Please check the input and try again.';
+    }
+
+    if (lowerError.includes('insufficient') || lowerError.includes('credit') || lowerError.includes('balance')) {
+      return 'Verification service temporarily unavailable. Please try again later.';
+    }
+
+    if (lowerError.includes('timeout') || lowerError.includes('timed out')) {
+      return 'Verification request timed out. Please try again.';
     }
     
     return rawError;

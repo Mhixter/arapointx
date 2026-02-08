@@ -91,7 +91,18 @@ class TechhubService {
             const rawData = response.data;
             logger.info('TechHub API response received', { endpoint: endpoint.url, hasData: !!rawData });
 
+            if (this.isErrorResponse(rawData)) {
+              const errorMsg = rawData.message || rawData.detail || rawData.error || 'NIN not found';
+              logger.warn('TechHub returned error response', { endpoint: endpoint.url, error: errorMsg });
+              return { success: false, error: errorMsg, reference };
+            }
+
             const normalizedData = this.normalizeResponse(rawData, nin);
+
+            if (!this.hasValidData(normalizedData)) {
+              logger.warn('TechHub returned empty/invalid data', { endpoint: endpoint.url });
+              return { success: false, error: 'No record found for the provided NIN', reference };
+            }
             
             return {
               success: true,
@@ -134,7 +145,13 @@ class TechhubService {
       );
 
       if (response.data) {
+        if (this.isErrorResponse(response.data)) {
+          return { success: false, error: response.data.message || response.data.detail || 'NIN not found' };
+        }
         const normalizedData = this.normalizeResponse(response.data, nin);
+        if (!this.hasValidData(normalizedData)) {
+          return { success: false, error: 'No record found for the provided NIN' };
+        }
         return {
           success: true,
           data: normalizedData,
@@ -147,6 +164,28 @@ class TechhubService {
     } catch (error: any) {
       return { success: false, error: error.message };
     }
+  }
+
+  private isErrorResponse(rawData: any): boolean {
+    if (rawData.status === false || rawData.success === false) return true;
+    if (rawData.error && !rawData.data && !rawData.result) return true;
+    const msg = (rawData.message || rawData.detail || '').toLowerCase();
+    if (msg.includes('not found') || msg.includes('no record') || msg.includes('invalid') || msg.includes('does not exist')) return true;
+    const code = rawData.response_code || rawData.responseCode || rawData.code;
+    if (code === '01' || code === '02' || code === 404) return true;
+    return false;
+  }
+
+  private isRealValue(val: any): boolean {
+    if (!val || typeof val !== 'string') return false;
+    const v = val.trim().toLowerCase();
+    return v.length > 0 && v !== 'n/a' && v !== 'unknown' && v !== 'null' && v !== 'undefined' && v !== 'none';
+  }
+
+  private hasValidData(data: TechhubNINData): boolean {
+    const hasName = this.isRealValue(data.firstName) || this.isRealValue(data.lastName);
+    if (!hasName) return false;
+    return this.isRealValue(data.dateOfBirth) || this.isRealValue(data.nin) || this.isRealValue(data.id);
   }
 
   private normalizeResponse(rawData: any, nin: string): TechhubNINData {
@@ -191,7 +230,14 @@ class TechhubService {
       });
 
       if (response.data) {
+        if (this.isErrorResponse(response.data)) {
+          const errorMsg = response.data.message || response.data.detail || response.data.error || 'NIN not found for the provided phone number';
+          return { success: false, error: errorMsg, reference };
+        }
         const normalizedData = this.normalizeResponse(response.data, nin);
+        if (!this.hasValidData(normalizedData)) {
+          return { success: false, error: 'No record found for the provided phone number', reference };
+        }
         return {
           success: true,
           data: normalizedData,
@@ -227,7 +273,14 @@ class TechhubService {
       });
 
       if (response.data) {
+        if (this.isErrorResponse(response.data)) {
+          const errorMsg = response.data.message || response.data.detail || response.data.error || 'vNIN not found';
+          return { success: false, error: errorMsg, reference };
+        }
         const normalizedData = this.normalizeResponse(response.data, vnin);
+        if (!this.hasValidData(normalizedData)) {
+          return { success: false, error: 'No record found for the provided vNIN', reference };
+        }
         return {
           success: true,
           data: normalizedData,

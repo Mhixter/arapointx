@@ -208,10 +208,17 @@ function ServiceContent({ service }: { service: any }) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Verification failed');
+        const errorMsg = data.message || data.error || 'Verification failed';
+        throw new Error(errorMsg);
       }
 
-      setResult(data.data?.data || data.data);
+      const resultData = data.data?.data || data.data;
+      const hasValidResult = resultData && (
+        resultData.firstName || resultData.lastName || resultData.dateOfBirth || 
+        resultData.firstname || resultData.surname || resultData.message
+      );
+
+      setResult(resultData);
       if (data.data?.slip?.html) {
         setSlipHtml(data.data.slip.html);
       }
@@ -227,6 +234,8 @@ function ServiceContent({ service }: { service: any }) {
           title: "Request Submitted",
           description: data.data?.message || `Your ${service.name} request has been submitted`,
         });
+      } else if (!hasValidResult) {
+        throw new Error('No record found for the provided ID. Please double-check and try again.');
       } else {
         setRequestStatus("completed");
         toast({
@@ -240,7 +249,7 @@ function ServiceContent({ service }: { service: any }) {
       setRequestStatus("error");
       toast({
         title: "Verification Failed",
-        description: err.message || 'An error occurred',
+        description: err.message || 'An error occurred during verification',
         variant: "destructive",
       });
     } finally {

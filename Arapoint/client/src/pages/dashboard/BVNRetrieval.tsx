@@ -95,23 +95,34 @@ export default function BVNRetrieval() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'BVN verification failed');
+        const errorMsg = data.message || data.error || 'BVN verification failed';
+        throw new Error(errorMsg);
       }
 
-      setRetrievedData(data.data?.data || data.data);
+      const resultData = data.data?.data || data.data;
+      const hasValidResult = resultData && (
+        resultData.firstName || resultData.lastName || resultData.dateOfBirth ||
+        resultData.first_name || resultData.last_name
+      );
+
+      if (!hasValidResult) {
+        throw new Error('No record found for the provided BVN. Please double-check and try again.');
+      }
+
+      setRetrievedData(resultData);
       if (data.data?.slip?.html) {
         setSlipHtml(data.data.slip.html);
       }
       
       toast({
         title: "BVN Retrieved Successfully",
-        description: `Your BVN details have been retrieved via YouVerify.`,
+        description: "Your BVN details have been retrieved successfully.",
       });
     } catch (err: any) {
       setError(err.message || 'BVN verification failed');
       toast({
         title: "BVN Verification Failed",
-        description: err.message || 'An error occurred',
+        description: err.message || 'An error occurred during verification',
         variant: "destructive",
       });
     } finally {

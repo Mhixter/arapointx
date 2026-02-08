@@ -23,6 +23,23 @@ const getConfiguredProviders = (): ('techhub' | 'prembly' | 'youverify')[] => {
   return providers;
 };
 
+const isRealValue = (val: any): boolean => {
+  if (!val || typeof val !== 'string') return false;
+  const v = val.trim().toLowerCase();
+  return v.length > 0 && v !== 'n/a' && v !== 'unknown' && v !== 'null' && v !== 'undefined' && v !== 'none';
+};
+
+const hasValidVerificationData = (data: any): boolean => {
+  if (!data || typeof data !== 'object') return false;
+  const hasFirstName = isRealValue(data.firstName) || isRealValue(data.firstname) || isRealValue(data.first_name);
+  const hasLastName = isRealValue(data.lastName) || isRealValue(data.surname) || isRealValue(data.last_name);
+  const hasName = hasFirstName || hasLastName;
+  if (!hasName) return false;
+  const hasDob = isRealValue(data.dateOfBirth) || isRealValue(data.dob) || isRealValue(data.birthdate) || isRealValue(data.date_of_birth);
+  const hasId = isRealValue(data.id) || isRealValue(data.nin) || isRealValue(data.NIN);
+  return hasDob || hasId;
+};
+
 const verifyNINWithFallback = async (nin: string) => {
   const providers = getConfiguredProviders();
   let lastError: string | undefined;
@@ -44,11 +61,16 @@ const verifyNINWithFallback = async (nin: string) => {
         result = await youverifyService.verifyNIN(nin);
       }
       
-      if (result.success && result.data) {
+      if (result.success && result.data && hasValidVerificationData(result.data)) {
         return { ...result, provider, techhubSlipHtml };
       }
-      lastError = result.error;
-      logger.warn('Provider verification failed, trying next', { provider, error: result.error });
+      if (result.success && result.data && !hasValidVerificationData(result.data)) {
+        lastError = 'No record found for the provided NIN. Please double-check and try again.';
+        logger.warn('Provider returned empty data', { provider });
+      } else {
+        lastError = result.error;
+      }
+      logger.warn('Provider verification failed, trying next', { provider, error: lastError });
     } catch (error: any) {
       lastError = error.message;
       logger.warn('Provider threw error, trying next', { provider, error: error.message });
@@ -75,11 +97,16 @@ const verifyVNINWithFallback = async (vnin: string, validationData?: { firstName
         result = await youverifyService.verifyVNIN(vnin, validationData);
       }
       
-      if (result.success && result.data) {
+      if (result.success && result.data && hasValidVerificationData(result.data)) {
         return { ...result, provider };
       }
-      lastError = result.error;
-      logger.warn('Provider verification failed, trying next', { provider, error: result.error });
+      if (result.success && result.data && !hasValidVerificationData(result.data)) {
+        lastError = 'No record found for the provided vNIN. Please double-check and try again.';
+        logger.warn('Provider returned empty data', { provider });
+      } else {
+        lastError = result.error;
+      }
+      logger.warn('Provider verification failed, trying next', { provider, error: lastError });
     } catch (error: any) {
       lastError = error.message;
       logger.warn('Provider threw error, trying next', { provider, error: error.message });
@@ -106,11 +133,16 @@ const verifyNINWithPhoneFallback = async (nin: string, phone: string) => {
         result = await youverifyService.verifyNIN(nin, { phoneToValidate: phone });
       }
       
-      if (result.success && result.data) {
+      if (result.success && result.data && hasValidVerificationData(result.data)) {
         return { ...result, provider };
       }
-      lastError = result.error;
-      logger.warn('Provider verification failed, trying next', { provider, error: result.error });
+      if (result.success && result.data && !hasValidVerificationData(result.data)) {
+        lastError = 'No record found for the provided phone number. Please double-check and try again.';
+        logger.warn('Provider returned empty data', { provider });
+      } else {
+        lastError = result.error;
+      }
+      logger.warn('Provider verification failed, trying next', { provider, error: lastError });
     } catch (error: any) {
       lastError = error.message;
       logger.warn('Provider threw error, trying next', { provider, error: error.message });
