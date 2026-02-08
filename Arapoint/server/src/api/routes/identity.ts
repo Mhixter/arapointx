@@ -875,12 +875,57 @@ router.post('/nin-phone', async (req: Request, res: Response) => {
     const slipType = (req.body.slipType as 'information' | 'regular' | 'standard' | 'premium') || 'standard';
     const slip = generateNINSlip(ninData, result.reference, slipType);
 
+    const pdfSlipTypeMap: Record<string, 'standard' | 'premium' | 'long' | 'full_info'> = {
+      'information': 'full_info',
+      'regular': 'long',
+      'standard': 'standard',
+      'premium': 'premium',
+    };
+    const pdfSlipType = pdfSlipTypeMap[slipType] || 'standard';
+
+    let pdfSlipResult = null;
+    try {
+      const slipData: SlipData = {
+        nin: ninData.id || '',
+        surname: ninData.lastName || ninData.surname || '',
+        firstname: ninData.firstName || ninData.firstname || '',
+        middlename: ninData.middleName || ninData.middlename || '',
+        date_of_birth: ninData.dateOfBirth || ninData.dob || '',
+        gender: ninData.gender || '',
+        photo: ninData.photo || '',
+        tracking_id: ninData.trackingId || '',
+        verification_reference: result.reference,
+        address: ninData.address || '',
+        phone: ninData.phone || validation.data.phone,
+        state: ninData.state || ninData.stateOfResidence || '',
+        lga: ninData.lga || ninData.lgaOfResidence || '',
+        birthState: ninData.birthState || ninData.stateOfOrigin || '',
+        birthLga: ninData.birthLga || ninData.lgaOfOrigin || '',
+        nationality: ninData.nationality || 'Nigerian',
+      };
+
+      pdfSlipResult = await generatePdfSlip({
+        userId: req.userId,
+        slipType: pdfSlipType,
+        data: slipData,
+      });
+
+      logger.info('PDF slip generated for phone-to-NIN', { slipReference: pdfSlipResult.slipReference, userId: req.userId });
+    } catch (pdfError: any) {
+      logger.error('Failed to generate PDF slip for phone-to-NIN', { error: pdfError.message, userId: req.userId });
+    }
+
     await db.insert(identityVerifications).values({
       userId: req.userId!,
       verificationType: 'nin_phone',
+      nin: ninData.id || null,
       phone: validation.data.phone,
       status: 'completed',
       verificationData: result.data,
+      slipHtml: slip.html,
+      slipType: slipType,
+      slipReference: pdfSlipResult?.slipReference || null,
+      reference: result.reference,
     });
 
     logger.info('Phone-to-NIN retrieval successful', { userId: req.userId, reference: result.reference });
@@ -894,11 +939,18 @@ router.post('/nin-phone', async (req: Request, res: Response) => {
         dateOfBirth: ninData.dateOfBirth,
         gender: ninData.gender,
         phone: ninData.phone,
+        email: ninData.email,
         nin: ninData.id,
+        address: ninData.address || '',
+        state: ninData.state || '',
+        lga: ninData.lga || '',
+        photo: ninData.photo,
       },
       slip: {
         html: slip.html,
         generatedAt: slip.generatedAt,
+        slipReference: pdfSlipResult?.slipReference || null,
+        downloadUrl: pdfSlipResult ? `/api/slips/download/${pdfSlipResult.slipReference}` : null,
       },
       price,
     }));
