@@ -63,7 +63,9 @@ async function getTransporter() {
     lastSmtpConfig = configKey;
   }
 
-  return { transport: transporter, fromName: smtpConfig.smtpFromName, fromEmail: smtpConfig.smtpFromEmail };
+  const fromEmail = smtpConfig.smtpHost === 'smtp.gmail.com' ? smtpConfig.smtpUser : smtpConfig.smtpFromEmail;
+
+  return { transport: transporter, fromName: smtpConfig.smtpFromName, fromEmail };
 }
 
 export async function sendEmail(to: string, subject: string, html: string, text?: string): Promise<boolean> {

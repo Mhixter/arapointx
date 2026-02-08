@@ -98,10 +98,31 @@ export default function Signup() {
     setIsLoading(true);
     
     try {
+      if (formData.password.length < 8) {
+        toast({
+          title: "Password Too Short",
+          description: "Password must be at least 8 characters long.",
+          variant: "destructive",
+        });
+        setStep("details");
+        setIsLoading(false);
+        return;
+      }
+
+      if (otp.length !== 6) {
+        toast({
+          title: "Invalid OTP",
+          description: "Please enter the 6-digit code sent to your email.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
       const response = await apiClient.post('/otp/register', {
         email: formData.email,
-        name: `${formData.firstName} ${formData.lastName}`,
-        phone: formData.phone,
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        phone: formData.phone || undefined,
         password: formData.password,
         otp: otp,
       });
@@ -117,9 +138,18 @@ export default function Signup() {
       });
       setLocation("/dashboard");
     } catch (error: any) {
+      const errorData = error.response?.data;
+      let errorMsg = "Invalid OTP. Please try again.";
+      
+      if (errorData?.errors && Array.isArray(errorData.errors)) {
+        errorMsg = errorData.errors.map((e: any) => e.message).join('. ');
+      } else if (errorData?.message) {
+        errorMsg = errorData.message;
+      }
+
       toast({
-        title: "Verification Failed",
-        description: error.response?.data?.message || "Invalid OTP. Please try again.",
+        title: "Registration Failed",
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {
@@ -192,12 +222,11 @@ export default function Signup() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
+                <Label htmlFor="phone">Phone Number <span className="text-muted-foreground text-xs">(optional)</span></Label>
                 <Input 
                   id="phone" 
                   type="tel" 
-                  placeholder="+234..." 
-                  required 
+                  placeholder="+2348012345678" 
                   className="h-11"
                   value={formData.phone}
                   onChange={(e) => setFormData({...formData, phone: e.target.value})}
