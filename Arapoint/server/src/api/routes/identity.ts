@@ -116,21 +116,19 @@ const verifyVNINWithFallback = async (vnin: string, validationData?: { firstName
   return { success: false, error: lastError || 'All verification providers failed', reference: '', provider: providers[0] };
 };
 
-const verifyNINWithPhoneFallback = async (nin: string, phone: string): Promise<{ success: boolean; data?: any; error?: string; reference: string; provider: string }> => {
+const retrieveNINByPhone = async (phone: string): Promise<{ success: boolean; data?: any; error?: string; reference: string; provider: string }> => {
   const providers = getConfiguredProviders();
   let lastError: string | undefined;
   
   for (const provider of providers) {
     try {
-      logger.info('Attempting NIN-Phone verification', { provider, nin: nin.substring(0, 4) + '***' });
+      logger.info('Attempting phone-to-NIN retrieval', { provider, phone: phone.substring(0, 4) + '***' });
       let result;
       
-      if (provider === 'techhub') {
-        result = await techhubService.verifyNINWithPhone(nin, phone);
-      } else if (provider === 'prembly') {
-        result = await premblyService.verifyNINWithPhone(nin, phone);
+      if (provider === 'prembly') {
+        result = await premblyService.retrieveNINByPhone(phone);
       } else {
-        result = await youverifyService.verifyNIN(nin, { phoneToValidate: phone });
+        continue;
       }
       
       if (result.success && result.data && hasValidVerificationData(result.data)) {
@@ -142,14 +140,14 @@ const verifyNINWithPhoneFallback = async (nin: string, phone: string): Promise<{
       } else {
         lastError = result.error;
       }
-      logger.warn('Provider verification failed, trying next', { provider, error: lastError });
+      logger.warn('Phone-to-NIN retrieval failed, trying next', { provider, error: lastError });
     } catch (error: any) {
       lastError = error.message;
       logger.warn('Provider threw error, trying next', { provider, error: error.message });
     }
   }
   
-  return { success: false, error: lastError || 'All verification providers failed', reference: '', provider: providers[0] };
+  return { success: false, error: lastError || 'Phone-to-NIN retrieval failed. This service requires Prembly provider.', reference: '', provider: providers[0] };
 };
 
 const router = Router();
@@ -861,20 +859,18 @@ router.post('/nin-phone', async (req: Request, res: Response) => {
       return res.status(402).json(formatErrorResponse(402, 'Insufficient wallet balance'));
     }
 
-    logger.info('NIN-Phone verification started', { userId: req.userId });
+    logger.info('Phone-to-NIN retrieval started', { userId: req.userId });
 
-    const result = await verifyNINWithPhoneFallback(validation.data.nin, validation.data.phone);
+    const result = await retrieveNINByPhone(validation.data.phone);
 
     if (!result.success || !result.data) {
-      logger.warn('NIN-Phone verification failed - no charge', { userId: req.userId, error: result.error, provider: result.provider });
-      return res.status(400).json(formatErrorResponse(400, result.error || 'NIN verification failed. No charge applied.'));
+      logger.warn('Phone-to-NIN retrieval failed - no charge', { userId: req.userId, error: result.error, provider: result.provider });
+      return res.status(400).json(formatErrorResponse(400, result.error || 'NIN retrieval failed. No charge applied.'));
     }
 
     const ninData = result.data as any;
-    const phoneMatch = ninData.phone === validation.data.phone || 
-                       ninData.phone?.replace(/\D/g, '').includes(validation.data.phone.replace(/\D/g, ''));
 
-    await walletService.deductBalance(req.userId!, price, 'NIN + Phone Verification', 'nin_phone_verification');
+    await walletService.deductBalance(req.userId!, price, 'NIN Retrieval (Phone)', 'nin_phone_verification');
 
     const slipType = (req.body.slipType as 'information' | 'regular' | 'standard' | 'premium') || 'standard';
     const slip = generateNINSlip(ninData, result.reference, slipType);
@@ -882,17 +878,15 @@ router.post('/nin-phone', async (req: Request, res: Response) => {
     await db.insert(identityVerifications).values({
       userId: req.userId!,
       verificationType: 'nin_phone',
-      nin: validation.data.nin,
       phone: validation.data.phone,
       status: 'completed',
-      verificationData: { ...result.data, phoneMatch },
+      verificationData: result.data,
     });
 
-    logger.info('NIN-Phone verification successful', { userId: req.userId, reference: result.reference, phoneMatch });
+    logger.info('Phone-to-NIN retrieval successful', { userId: req.userId, reference: result.reference });
 
-    res.json(formatResponse('success', 200, 'NIN-Phone verification successful', {
+    res.json(formatResponse('success', 200, 'NIN retrieved successfully', {
       reference: result.reference,
-      phoneMatch,
       data: {
         firstName: ninData.firstName,
         middleName: ninData.middleName,
@@ -900,8 +894,7 @@ router.post('/nin-phone', async (req: Request, res: Response) => {
         dateOfBirth: ninData.dateOfBirth,
         gender: ninData.gender,
         phone: ninData.phone,
-        registeredPhone: ninData.phone,
-        providedPhone: validation.data.phone,
+        nin: ninData.id,
       },
       slip: {
         html: slip.html,
@@ -910,7 +903,7 @@ router.post('/nin-phone', async (req: Request, res: Response) => {
       price,
     }));
   } catch (error: any) {
-    logger.error('NIN-Phone verification error', { error: error.message, userId: req.userId });
+    logger.error('Phone-to-NIN retrieval error', { error: error.message, userId: req.userId });
     
     if (error.message === 'Insufficient wallet balance') {
       return res.status(402).json(formatErrorResponse(402, error.message));

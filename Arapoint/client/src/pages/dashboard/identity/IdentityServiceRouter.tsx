@@ -165,8 +165,7 @@ function ServiceContent({ service }: { service: any }) {
         body = { nin: inputValue, slipType: selectedSlip };
       } else if (service.id === "nin-phone") {
         endpoint = '/api/identity/nin-phone';
-        const ninValue = formData.get("nin") as string;
-        body = { nin: ninValue, phone: inputValue, slipType: selectedSlip };
+        body = { phone: inputValue, slipType: selectedSlip };
       } else if (service.id === "nin-tracking") {
         endpoint = '/api/identity/nin-tracking';
         body = { trackingId: inputValue, slipType: selectedSlip };
@@ -500,18 +499,18 @@ function ServiceContent({ service }: { service: any }) {
               </div>
 
               <div>
-                <Label className="text-sm font-medium mb-3 block">2. Supply ID Number</Label>
+                <Label className="text-sm font-medium mb-3 block">2. Enter Your Phone Number</Label>
                 <div className="space-y-2">
                   <Input 
                     name="input"
-                    placeholder="PHONE NUMBER" 
-                    maxLength={11} 
+                    placeholder="Enter phone number (e.g. 08012345678)" 
+                    maxLength={15} 
                     inputMode="numeric"
                     pattern="[0-9]*"
                     required 
                     className="h-12 font-mono text-lg tracking-widest uppercase bg-gray-50" 
                   />
-                  <p className="text-xs text-muted-foreground">We'll never share your details with anyone else.</p>
+                  <p className="text-xs text-muted-foreground">Enter the phone number linked to your NIN to retrieve your details.</p>
                 </div>
               </div>
 

@@ -426,6 +426,73 @@ class PremblyService {
     return rawError;
   }
 
+  async retrieveNINByPhone(phone: string): Promise<VerificationResult> {
+    const reference = generateReferenceId();
+    
+    try {
+      logger.info('Prembly phone-to-NIN retrieval started', { phone: phone.substring(0, 4) + '***', reference });
+
+      const response = await this.getClient().post('/phone_number', {
+        number: phone,
+      });
+
+      if (response.data.status === true && response.data.response_code === '00') {
+        const rawData = response.data.nin_data || response.data.data || response.data;
+        
+        const ninData: NINData = {
+          id: rawData.nin || rawData.centralID || '',
+          firstName: rawData.firstname || rawData.firstName || '',
+          middleName: rawData.middlename || rawData.middleName || '',
+          lastName: rawData.surname || rawData.lastName || '',
+          dateOfBirth: rawData.birthdate || rawData.dateOfBirth || '',
+          gender: rawData.gender || '',
+          phone: rawData.telephoneno || rawData.phoneNumber || rawData.phone || phone,
+          email: rawData.email || '',
+          address: rawData.residence_address || rawData.residenceAddress || '',
+          town: rawData.residence_town || rawData.town || '',
+          lga: rawData.residence_lga || rawData.lgaOfResidence || '',
+          state: rawData.residence_state || rawData.stateOfResidence || '',
+          birthState: rawData.birth_state || rawData.birthstate || rawData.birthState || '',
+          birthLga: rawData.birth_lga || rawData.birthlga || rawData.birthLga || '',
+          birthCountry: rawData.birthcountry || rawData.birth_country || 'Nigeria',
+          photo: rawData.photo || rawData.base64Image || '',
+          nationality: rawData.birthcountry || 'Nigeria',
+        };
+
+        logger.info('Prembly phone-to-NIN retrieval successful', { reference });
+        return { success: true, data: ninData, reference };
+      } else {
+        const rawError = response.data.detail || response.data.message || 'Phone number lookup failed';
+        const errorMsg = this.normalizeErrorMessage(rawError, response.data.response_code);
+        logger.warn('Prembly phone-to-NIN retrieval failed', { error: errorMsg, reference, responseCode: response.data.response_code });
+        return { 
+          success: false, 
+          error: errorMsg, 
+          reference,
+          errorCode: response.data.response_code,
+        };
+      }
+    } catch (error: any) {
+      logger.error('Prembly phone-to-NIN retrieval error', { 
+        error: error.message, 
+        reference,
+      });
+      
+      const rawError = error.response?.data?.detail || 
+                       error.response?.data?.message || 
+                       error.message || 
+                       'Phone number lookup failed';
+      const errorMsg = this.normalizeErrorMessage(rawError, error.response?.data?.response_code);
+      
+      return { 
+        success: false, 
+        error: errorMsg, 
+        reference,
+        errorCode: error.response?.data?.response_code,
+      };
+    }
+  }
+
   isConfigured(): boolean {
     return !!(process.env.PREMBLY_API_KEY && (process.env.PREMBLY_PUBLIC || process.env.PREMBLY_APP_ID));
   }
