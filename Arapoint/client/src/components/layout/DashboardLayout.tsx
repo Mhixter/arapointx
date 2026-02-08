@@ -34,11 +34,30 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { authApi } from "@/lib/api/auth";
+import { useIdleTimeout } from "@/hooks/useIdleTimeout";
+import { useToast } from "@/hooks/use-toast";
 import arapointLogo from "@assets/generated_images/arapoint_solution_logo.png";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  const { toast } = useToast();
+
+  useIdleTimeout({
+    timeoutMs: 300000,
+    onTimeout: () => {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      toast({
+        title: "Session Expired",
+        description: "You were logged out due to inactivity.",
+        variant: "destructive",
+      });
+      setLocation('/auth/login');
+    },
+  });
 
   const accessToken = localStorage.getItem('accessToken');
   

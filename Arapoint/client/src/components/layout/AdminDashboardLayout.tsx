@@ -12,13 +12,49 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { MOCK_USER } from "@/lib/mockData";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useIdleTimeout } from "@/hooks/useIdleTimeout";
+import { useToast } from "@/hooks/use-toast";
 import arapointLogo from "@assets/generated_images/arapoint_solution_logo.png";
 
 export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const { toast } = useToast();
+
+  const adminUser = useMemo(() => {
+    try {
+      const stored = localStorage.getItem('adminUser');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const adminName = adminUser?.name || adminUser?.email || 'Admin';
+  const adminEmail = adminUser?.email || '';
+
+  useIdleTimeout({
+    timeoutMs: 300000,
+    onTimeout: () => {
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminRefreshToken');
+      localStorage.removeItem('adminUser');
+      toast({
+        title: "Session Expired",
+        description: "You were logged out due to inactivity.",
+        variant: "destructive",
+      });
+      setLocation('/admin/login');
+    },
+  });
+
+  const handleSignOut = () => {
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminRefreshToken');
+    localStorage.removeItem('adminUser');
+    setLocation('/admin/login');
+  };
 
   const navItems = [
     { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -61,15 +97,13 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
       <div className="p-4 border-t border-sidebar-border">
         <div className="bg-sidebar-accent/50 rounded-lg p-4 mb-4">
           <p className="text-xs text-sidebar-foreground/60 mb-1">Admin Account</p>
-          <p className="text-sm font-bold text-sidebar-foreground">{MOCK_USER.name}</p>
-          <p className="text-xs text-sidebar-foreground/60 capitalize mt-1">{MOCK_USER.role}</p>
+          <p className="text-sm font-bold text-sidebar-foreground">{adminName}</p>
+          <p className="text-xs text-sidebar-foreground/60 mt-1">{adminEmail}</p>
         </div>
-        <Link href="/auth/login">
-          <Button variant="ghost" className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50">
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
-          </Button>
-        </Link>
+        <Button variant="ghost" className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50" onClick={handleSignOut}>
+          <LogOut className="h-4 w-4 mr-2" />
+          Sign Out
+        </Button>
       </div>
     </div>
   );

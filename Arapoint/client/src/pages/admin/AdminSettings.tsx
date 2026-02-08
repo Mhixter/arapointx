@@ -48,6 +48,8 @@ export default function AdminSettings() {
     mbaisUrl: 'rpa_provider_url_mbais',
   };
 
+  const booleanKeys = ['maintenanceMode', 'emailNotifications', 'smsNotifications', 'twoFactorAuth'];
+
   useEffect(() => {
     const fetchSettings = async () => {
       try {
@@ -64,10 +66,15 @@ export default function AdminSettings() {
             Object.entries(settingsMap).forEach(([localKey, dbKey]) => {
               if (data.data[dbKey]) mappedSettings[localKey] = data.data[dbKey];
             });
-            // Also include other non-mapped settings
             Object.entries(data.data).forEach(([key, value]) => {
               const reverseMap = Object.entries(settingsMap).find(([_, dbKey]) => dbKey === key);
               if (!reverseMap) mappedSettings[key] = value;
+            });
+            booleanKeys.forEach((key) => {
+              if (key in mappedSettings) {
+                if (mappedSettings[key] === "true") mappedSettings[key] = true;
+                else if (mappedSettings[key] === "false") mappedSettings[key] = false;
+              }
             });
             setSettings(prev => ({ ...prev, ...mappedSettings }));
           }
@@ -79,42 +86,88 @@ export default function AdminSettings() {
     fetchSettings();
   }, []);
 
-  const handleSave = async () => {
+  const saveTabSettings = async (fields: Record<string, any>, tabName: string, shouldRefetch = false) => {
     try {
       const token = localStorage.getItem('adminToken');
-      const payload: any = { ...settings };
-      // Map local keys to DB keys for RPA URLs
-      Object.entries(settingsMap).forEach(([localKey, dbKey]) => {
-        if (payload[localKey] !== undefined) {
-          payload[dbKey] = payload[localKey];
-          // We don't delete the localKey here to avoid state mismatch if the UI relies on it
-        }
-      });
-
       const response = await fetch('/api/admin/settings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(fields)
       });
-      
+
       if (!response.ok) throw new Error('Failed to save settings');
 
-      await refetchSettings();
-      
+      if (shouldRefetch) {
+        await refetchSettings();
+      }
+
       toast({
-        title: "Settings Saved",
-        description: "Your settings have been updated successfully.",
+        title: `${tabName} Settings Saved`,
+        description: `Your ${tabName.toLowerCase()} settings have been updated successfully.`,
       });
     } catch (err) {
       toast({
         title: "Error",
-        description: "Failed to save settings. Please try again.",
+        description: `Failed to save ${tabName.toLowerCase()} settings. Please try again.`,
         variant: "destructive"
       });
     }
+  };
+
+  const handleSaveGeneral = () => {
+    saveTabSettings({
+      siteName: settings.siteName,
+      siteEmail: settings.siteEmail,
+      sitePhone: settings.sitePhone,
+      siteAddress: settings.siteAddress,
+      maintenanceMode: settings.maintenanceMode,
+      currency: settings.currency,
+      timezone: settings.timezone,
+    }, "General", true);
+  };
+
+  const handleSaveEmail = () => {
+    saveTabSettings({
+      smtpHost: settings.smtpHost,
+      smtpPort: settings.smtpPort,
+      smtpUser: settings.smtpUser,
+      smtpPass: settings.smtpPass,
+      smtpFromName: settings.smtpFromName,
+      smtpFromEmail: settings.smtpFromEmail,
+    }, "Email");
+  };
+
+  const handleSaveNotifications = () => {
+    saveTabSettings({
+      emailNotifications: settings.emailNotifications,
+      smsNotifications: settings.smsNotifications,
+    }, "Notifications");
+  };
+
+  const handleSaveSecurity = () => {
+    saveTabSettings({
+      twoFactorAuth: settings.twoFactorAuth,
+      sessionTimeout: settings.sessionTimeout,
+      maxLoginAttempts: settings.maxLoginAttempts,
+    }, "Security");
+  };
+
+  const handleSaveEducation = () => {
+    saveTabSettings({
+      [settingsMap.waecUrl]: settings.waecUrl,
+      [settingsMap.necoUrl]: settings.necoUrl,
+      [settingsMap.nabtebUrl]: settings.nabtebUrl,
+      [settingsMap.mbaisUrl]: settings.mbaisUrl,
+    }, "Education");
+  };
+
+  const handleSaveAdvanced = () => {
+    saveTabSettings({
+      maintenanceMode: settings.maintenanceMode,
+    }, "Advanced");
   };
 
   return (
@@ -243,6 +296,12 @@ export default function AdminSettings() {
               </div>
             </CardContent>
           </Card>
+          <div className="flex justify-end pt-2">
+            <Button onClick={handleSaveGeneral} size="sm" className="h-9 sm:h-10 text-xs sm:text-sm px-4 sm:px-6">
+              <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+              Save General Settings
+            </Button>
+          </div>
         </TabsContent>
 
         <TabsContent value="email" className="space-y-4 sm:space-y-6">
@@ -384,6 +443,12 @@ export default function AdminSettings() {
               </p>
             </CardContent>
           </Card>
+          <div className="flex justify-end pt-2">
+            <Button onClick={handleSaveEmail} size="sm" className="h-9 sm:h-10 text-xs sm:text-sm px-4 sm:px-6">
+              <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+              Save Email Settings
+            </Button>
+          </div>
         </TabsContent>
 
         <TabsContent value="notifications" className="space-y-4 sm:space-y-6">
@@ -418,6 +483,12 @@ export default function AdminSettings() {
               </div>
             </CardContent>
           </Card>
+          <div className="flex justify-end pt-2">
+            <Button onClick={handleSaveNotifications} size="sm" className="h-9 sm:h-10 text-xs sm:text-sm px-4 sm:px-6">
+              <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+              Save Notification Settings
+            </Button>
+          </div>
         </TabsContent>
 
         <TabsContent value="security" className="space-y-4 sm:space-y-6">
@@ -463,6 +534,12 @@ export default function AdminSettings() {
               </div>
             </CardContent>
           </Card>
+          <div className="flex justify-end pt-2">
+            <Button onClick={handleSaveSecurity} size="sm" className="h-9 sm:h-10 text-xs sm:text-sm px-4 sm:px-6">
+              <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+              Save Security Settings
+            </Button>
+          </div>
         </TabsContent>
 
         <TabsContent value="education" className="space-y-4 sm:space-y-6">
@@ -516,6 +593,12 @@ export default function AdminSettings() {
               </div>
             </CardContent>
           </Card>
+          <div className="flex justify-end pt-2">
+            <Button onClick={handleSaveEducation} size="sm" className="h-9 sm:h-10 text-xs sm:text-sm px-4 sm:px-6">
+              <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+              Save Education Settings
+            </Button>
+          </div>
         </TabsContent>
 
         <TabsContent value="advanced" className="space-y-4 sm:space-y-6">
@@ -555,15 +638,14 @@ export default function AdminSettings() {
               </div>
             </CardContent>
           </Card>
+          <div className="flex justify-end pt-2">
+            <Button onClick={handleSaveAdvanced} size="sm" className="h-9 sm:h-10 text-xs sm:text-sm px-4 sm:px-6">
+              <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+              Save Advanced Settings
+            </Button>
+          </div>
         </TabsContent>
       </Tabs>
-
-      <div className="flex justify-end pt-2">
-        <Button onClick={handleSave} size="sm" className="h-9 sm:h-10 text-xs sm:text-sm px-4 sm:px-6">
-          <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
-          Save All Settings
-        </Button>
-      </div>
     </div>
   );
 }
