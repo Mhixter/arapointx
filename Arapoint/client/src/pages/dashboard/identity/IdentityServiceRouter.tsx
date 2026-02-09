@@ -414,7 +414,7 @@ function ServiceContent({ service }: { service: any }) {
                     inputMode="numeric"
                     pattern="[0-9]*"
                     required 
-                    className="h-12 font-mono text-lg tracking-widest uppercase bg-gray-50" 
+                    className="h-12 font-mono text-lg tracking-widest uppercase bg-gray-50 dark:bg-gray-800 dark:text-white" 
                   />
                   <p className="text-xs text-muted-foreground">We'll never share your details with anyone else.</p>
                 </div>
@@ -508,7 +508,7 @@ function ServiceContent({ service }: { service: any }) {
                     inputMode="numeric"
                     pattern="[0-9]*"
                     required 
-                    className="h-12 font-mono text-lg tracking-widest uppercase bg-gray-50" 
+                    className="h-12 font-mono text-lg tracking-widest uppercase bg-gray-50 dark:bg-gray-800 dark:text-white" 
                   />
                   <p className="text-xs text-muted-foreground">Enter the phone number linked to your NIN to retrieve your details.</p>
                 </div>
@@ -602,7 +602,7 @@ function ServiceContent({ service }: { service: any }) {
                     name="input"
                     placeholder="TRACKING ID" 
                     required 
-                    className="h-12 font-mono text-lg tracking-widest uppercase bg-gray-50" 
+                    className="h-12 font-mono text-lg tracking-widest uppercase bg-gray-50 dark:bg-gray-800 dark:text-white" 
                   />
                   <p className="text-xs text-muted-foreground">We'll never share your details with anyone else.</p>
                 </div>
@@ -728,7 +728,7 @@ function ServiceContent({ service }: { service: any }) {
                     name="trackingId"
                     placeholder="Enter Tracking ID" 
                     required 
-                    className="h-12 bg-gray-50" 
+                    className="h-12 bg-gray-50 dark:bg-gray-800 dark:text-white" 
                   />
                   <p className="text-xs text-muted-foreground">We'll never share your details with anyone else.</p>
                 </div>
@@ -857,7 +857,7 @@ function ServiceContent({ service }: { service: any }) {
                     placeholder="Enter NIN" 
                     maxLength={11}
                     required 
-                    className="h-12 bg-gray-50" 
+                    className="h-12 bg-gray-50 dark:bg-gray-800 dark:text-white" 
                   />
                   <p className="text-xs text-muted-foreground">We'll never share your details with anyone else.</p>
                 </div>
