@@ -23,6 +23,7 @@ export const config = {
   PAYSTACK_PUBLIC_KEY: process.env.PAYSTACK_PUBLIC_KEY || '',
   PALMPAY_API_KEY: process.env.PALMPAY_API_KEY || '',
   PALMPAY_SECRET_KEY: process.env.PALMPAY_SECRET_KEY || '',
+  PALMPAY_APP_ID: process.env.PALMPAY_APP_ID || '',
   
   // Service Credentials
   BVN_SERVICE_USERNAME: process.env.BVN_SERVICE_USERNAME || '',

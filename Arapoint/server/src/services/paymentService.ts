@@ -191,6 +191,7 @@ export const paymentService = {
           headers: {
             'Authorization': `Bearer ${palmpayApiKey}`,
             'x-secret-key': palmpaySecretKey,
+            'x-app-id': config.PALMPAY_APP_ID,
             'Content-Type': 'application/json',
           },
         }
@@ -244,6 +245,7 @@ export const paymentService = {
           headers: {
             'Authorization': `Bearer ${palmpayApiKey}`,
             'x-secret-key': palmpaySecretKey,
+            'x-app-id': config.PALMPAY_APP_ID,
           },
         }
       );
