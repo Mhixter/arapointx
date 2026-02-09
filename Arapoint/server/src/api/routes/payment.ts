@@ -5,6 +5,7 @@ import { paymentService } from '../../services/paymentService';
 import { walletService } from '../../services/walletService';
 import { virtualAccountService } from '../../services/virtualAccountService';
 import { payvesselService } from '../../services/payvesselService';
+import { palmpayVirtualAccountService, verifyPalmpayCallbackSignature } from '../../services/palmpayVirtualAccountService';
 import { paystackInitSchema, paystackVerifySchema, palmpayInitSchema, palmpayVerifySchema } from '../validators/payment';
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
@@ -309,6 +310,73 @@ router.get('/payvessel/status', authMiddleware, async (req: Request, res: Respon
   } catch (error: any) {
     logger.error('Payvessel status error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to check Payvessel status'));
+  }
+});
+
+router.post('/palmpay/va-webhook', async (req: Request, res: Response) => {
+  try {
+    const payload = req.body;
+
+    logger.info('PalmPay VA webhook received', {
+      orderNo: payload.orderNo,
+      orderStatus: payload.orderStatus,
+      amount: payload.orderAmount,
+      virtualAccountNo: payload.virtualAccountNo,
+    });
+
+    const palmpayPublicKey = process.env.PALMPAY_PUBLIC_KEY;
+    if (palmpayPublicKey && payload.sign) {
+      const isValid = verifyPalmpayCallbackSignature(payload, palmpayPublicKey);
+      if (!isValid) {
+        logger.warn('Invalid PalmPay VA webhook signature', { orderNo: payload.orderNo });
+        return res.status(200).send('success');
+      }
+    }
+
+    if (payload.orderStatus === 1) {
+      const accountNumber = payload.virtualAccountNo;
+      const amountInKobo = payload.orderAmount;
+      const amountInNaira = amountInKobo / 100;
+      const reference = payload.orderNo;
+
+      if (accountNumber && amountInNaira > 0 && reference) {
+        const userId = await virtualAccountService.findUserByAccountNumber(accountNumber);
+
+        if (userId) {
+          await walletService.addBalance(userId, amountInNaira, reference, 'palmpay');
+          logger.info('PalmPay VA payment credited', {
+            reference,
+            amount: amountInNaira,
+            userId,
+            accountNumber,
+            payerName: payload.payerAccountName,
+            payerBank: payload.payerBankName,
+          });
+        } else {
+          logger.warn('PalmPay VA webhook: user not found for account', { accountNumber });
+        }
+      }
+    }
+
+    res.status(200).send('success');
+  } catch (error: any) {
+    logger.error('PalmPay VA webhook error', { error: error.message });
+    res.status(200).send('success');
+  }
+});
+
+router.get('/palmpay/va-status', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const configured = palmpayVirtualAccountService.isConfigured();
+
+    res.json(formatResponse('success', 200, 'PalmPay VA status', {
+      configured,
+      provider: 'palmpay',
+      webhookUrl: `${process.env.REPLIT_DEV_DOMAIN || ''}/api/payment/palmpay/va-webhook`,
+    }));
+  } catch (error: any) {
+    logger.error('PalmPay VA status error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to check PalmPay VA status'));
   }
 });
 

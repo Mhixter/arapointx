@@ -2,6 +2,7 @@ import { db } from '../config/database';
 import { virtualAccounts, users } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { logger } from '../utils/logger';
+import { palmpayVirtualAccountService } from './palmpayVirtualAccountService';
 import { payvesselService } from './payvesselService';
 
 interface VirtualAccountResult {
@@ -16,7 +17,7 @@ interface VirtualAccountResult {
 
 export const virtualAccountService = {
   isConfigured(): boolean {
-    return payvesselService.isConfigured();
+    return palmpayVirtualAccountService.isConfigured() || payvesselService.isConfigured();
   },
 
   async generateVirtualAccountForUser(userId: string, nin?: string, bvn?: string): Promise<VirtualAccountResult> {
@@ -25,11 +26,11 @@ export const virtualAccountService = {
       .where(eq(virtualAccounts.userId, userId))
       .limit(1);
 
-    if (existingAccount.length > 0 && existingAccount[0].accountNumber && existingAccount[0].providerSlug === 'payvessel') {
+    if (existingAccount.length > 0 && existingAccount[0].accountNumber) {
       return {
         success: true,
         account: {
-          bankName: existingAccount[0].bankName || '9Payment Service Bank',
+          bankName: existingAccount[0].bankName || 'PalmPay',
           accountNumber: existingAccount[0].accountNumber,
           accountName: existingAccount[0].accountName || 'Arapoint Account',
         },
@@ -53,14 +54,6 @@ export const virtualAccountService = {
     const userNin = nin || user.nin;
     const userBvn = bvn || user.bvn;
 
-    // PayVessel account is ONLY created after NIN/BVN verification
-    if (!payvesselService.isConfigured()) {
-      return {
-        success: false,
-        message: 'Payment gateway not configured. Please contact support.',
-      };
-    }
-
     if (!userNin && !userBvn) {
       return {
         success: false,
@@ -68,58 +61,133 @@ export const virtualAccountService = {
       };
     }
 
-    const result = await payvesselService.createVirtualAccount({
-      email: user.email,
-      name: user.name,
-      phoneNumber: user.phone || '08000000000',
-      bvn: userBvn || undefined,
-      nin: userNin || undefined,
-    });
+    if (!this.isConfigured()) {
+      return {
+        success: false,
+        message: 'Payment gateway not configured. Please contact support.',
+      };
+    }
 
-    if (!result.success || !result.account) {
+    const palmpayConfigured = palmpayVirtualAccountService.isConfigured();
+    const payvesselConfigured = payvesselService.isConfigured();
+
+    if (palmpayConfigured) {
+      const identityType = userNin ? 'personal_nin' : 'personal';
+      const licenseNumber = userNin || userBvn || '';
+
+      const result = await palmpayVirtualAccountService.createVirtualAccount({
+        virtualAccountName: `${user.name} - Arapoint`,
+        customerName: user.name,
+        identityType,
+        licenseNumber,
+        email: user.email,
+        accountReference: `arapoint_${userId}`,
+      });
+
+      if (result.success && result.account) {
+        await db.insert(virtualAccounts).values({
+          userId: userId,
+          bankName: result.account.bankName,
+          bankCode: 'palmpay',
+          accountNumber: result.account.accountNumber,
+          accountName: result.account.accountName,
+          dedicatedAccountId: result.account.trackingReference,
+          providerSlug: 'palmpay',
+          isActive: true,
+        }).onConflictDoUpdate({
+          target: virtualAccounts.userId,
+          set: {
+            bankName: result.account.bankName,
+            bankCode: 'palmpay',
+            accountNumber: result.account.accountNumber,
+            accountName: result.account.accountName,
+            dedicatedAccountId: result.account.trackingReference,
+            providerSlug: 'palmpay',
+            isActive: true,
+            updatedAt: new Date(),
+          },
+        });
+
+        logger.info('Virtual account created via PalmPay', {
+          userId,
+          accountNumber: result.account.accountNumber,
+        });
+
+        return {
+          success: true,
+          account: {
+            bankName: result.account.bankName,
+            accountNumber: result.account.accountNumber,
+            accountName: result.account.accountName,
+          },
+          message: 'Virtual account created successfully via PalmPay',
+        };
+      }
+
+      logger.warn('PalmPay VA creation failed, trying PayVessel fallback', {
+        userId,
+        error: result.error,
+      });
+    }
+
+    if (payvesselConfigured) {
+      const result = await payvesselService.createVirtualAccount({
+        email: user.email,
+        name: user.name,
+        phoneNumber: user.phone || '08000000000',
+        bvn: userBvn || undefined,
+        nin: userNin || undefined,
+      });
+
+      if (result.success && result.account) {
+        await db.insert(virtualAccounts).values({
+          userId: userId,
+          bankName: result.account.bankName,
+          bankCode: '120001',
+          accountNumber: result.account.accountNumber,
+          accountName: result.account.accountName,
+          dedicatedAccountId: result.account.trackingReference,
+          providerSlug: 'payvessel',
+          isActive: true,
+        }).onConflictDoUpdate({
+          target: virtualAccounts.userId,
+          set: {
+            bankName: result.account.bankName,
+            bankCode: '120001',
+            accountNumber: result.account.accountNumber,
+            accountName: result.account.accountName,
+            dedicatedAccountId: result.account.trackingReference,
+            providerSlug: 'payvessel',
+            isActive: true,
+            updatedAt: new Date(),
+          },
+        });
+
+        logger.info('Virtual account created via PayVessel (fallback)', {
+          userId,
+          accountNumber: result.account.accountNumber,
+        });
+
+        return {
+          success: true,
+          account: {
+            bankName: result.account.bankName,
+            accountNumber: result.account.accountNumber,
+            accountName: result.account.accountName,
+          },
+          message: 'Virtual account created successfully',
+        };
+      }
+
       return {
         success: false,
         message: result.error || 'Failed to generate virtual account. Please try again later.',
       };
     }
 
-    await db.insert(virtualAccounts).values({
-      userId: userId,
-      bankName: result.account.bankName,
-      bankCode: '120001',
-      accountNumber: result.account.accountNumber,
-      accountName: result.account.accountName,
-      dedicatedAccountId: result.account.trackingReference,
-      providerSlug: 'payvessel',
-      isActive: true,
-    }).onConflictDoUpdate({
-      target: virtualAccounts.userId,
-      set: {
-        bankName: result.account.bankName,
-        bankCode: '120001',
-        accountNumber: result.account.accountNumber,
-        accountName: result.account.accountName,
-        dedicatedAccountId: result.account.trackingReference,
-        providerSlug: 'payvessel',
-        isActive: true,
-        updatedAt: new Date(),
-      },
-    });
-
-    logger.info('Virtual account created via Payvessel', { 
-      userId, 
-      accountNumber: result.account.accountNumber,
-      trackingReference: result.account.trackingReference,
-    });
-
     return {
-      success: true,
-      account: {
-        bankName: result.account.bankName,
-        accountNumber: result.account.accountNumber,
-        accountName: result.account.accountName,
-      },
-      message: 'Virtual account created successfully',
+      success: false,
+      message: 'No payment gateway available for virtual account creation. Please contact support.',
     };
   },
 
@@ -143,7 +211,7 @@ export const virtualAccountService = {
       return {
         configured: true,
         account: {
-          bankName: existingAccount[0].bankName || '9Payment Service Bank',
+          bankName: existingAccount[0].bankName || 'PalmPay',
           accountNumber: existingAccount[0].accountNumber,
           accountName: existingAccount[0].accountName || 'Arapoint Account',
         },
@@ -151,7 +219,7 @@ export const virtualAccountService = {
       };
     }
 
-    if (!payvesselService.isConfigured()) {
+    if (!this.isConfigured()) {
       return {
         configured: false,
         message: 'Payment gateway not configured',
