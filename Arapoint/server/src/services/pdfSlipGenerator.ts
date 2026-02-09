@@ -74,7 +74,7 @@ const defaultPositions: Record<"standard" | "premium" | "long" | "full_info", Sl
       dob_left: "41.5%",
       dob_size: "12px",
       nin_top: "45%",
-      nin_left: "40%",
+      nin_left: "36%",
       nin_size: "40px",
       qr_top: "34.5%",
       qr_right: "29.5%",
