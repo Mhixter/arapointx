@@ -93,7 +93,7 @@ router.post('/virtual-account/generate', async (req: Request, res: Response) => 
     const { nin, bvn } = req.body;
 
     if (!nin && !bvn) {
-      return res.status(400).json(formatErrorResponse(400, 'NIN or BVN is required for virtual account generation. PayVessel requires identity verification.'));
+      return res.status(400).json(formatErrorResponse(400, 'NIN or BVN is required for virtual account generation. Identity verification is needed.'));
     }
 
     if (nin && nin.length !== 11) {
@@ -110,7 +110,7 @@ router.post('/virtual-account/generate', async (req: Request, res: Response) => 
       return res.status(400).json(formatErrorResponse(400, result.message));
     }
 
-    logger.info('Virtual account generated via PayVessel', { userId: req.userId, accountNumber: result.account?.accountNumber });
+    logger.info('Virtual account generated', { userId: req.userId, accountNumber: result.account?.accountNumber });
     
     res.json(formatResponse('success', 200, result.message, {
       account: result.account,

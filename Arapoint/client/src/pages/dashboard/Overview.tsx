@@ -181,13 +181,13 @@ export default function Overview() {
         setVirtualAccount(data.data.account);
         toast({
           title: "Account Generated",
-          description: "Your virtual bank account has been created successfully via PayVessel.",
+          description: "Your virtual bank account has been created successfully.",
         });
       }
     } catch (error: any) {
       toast({
         title: "Account Generation Failed",
-        description: error.message || "PayVessel could not verify your NIN. Please check and try again.",
+        description: error.message || "Could not generate your account. Please check your NIN and try again.",
         variant: "destructive",
       });
     } finally {

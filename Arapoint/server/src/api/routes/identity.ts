@@ -749,7 +749,7 @@ router.post('/nin', async (req: Request, res: Response) => {
         bankName: virtualAccount.bankName,
         accountNumber: virtualAccount.accountNumber,
         accountName: virtualAccount.accountName,
-        message: 'Your PayVessel virtual account has been automatically generated!'
+        message: 'Your virtual account has been automatically generated!'
       } : null,
       price,
     }));
