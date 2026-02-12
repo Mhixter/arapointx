@@ -22,23 +22,48 @@ async function seedAdmin() {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
   try {
-    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [adminEmail]);
+    const adminEmail = process.env.ADMIN_EMAIL || 'saidumuhammed664@gmail.com';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'Mhixter664@gmail.com';
+    const adminName = process.env.ADMIN_NAME || 'Super Admin';
+
+    // First check in admin_users table
+    const existingAdmin = await pool.query('SELECT id FROM admin_users WHERE email = $1', [adminEmail]);
     
-    if (existing.rows.length > 0) {
-      console.log(`[Seed] Admin user ${adminEmail} already exists, skipping`);
+    if (existingAdmin.rows.length > 0) {
+      console.log(`[Seed] Admin user ${adminEmail} already exists in admin_users, updating password`);
+      const passwordHash = await bcrypt.hash(adminPassword, 10);
+      await pool.query('UPDATE admin_users SET password_hash = $1 WHERE email = $2', [passwordHash, adminEmail]);
+      // Remove double end call and ensure clean exit
       await pool.end();
-      return;
+      process.exit(0);
+    }
+
+    // Ensure we have a Super Admin role
+    let roleId;
+    const existingRole = await pool.query("SELECT id FROM admin_roles WHERE name = 'Super Admin'");
+    if (existingRole.rows.length === 0) {
+      const roleResult = await pool.query(
+        "INSERT INTO admin_roles (name, description, permissions) VALUES ('Super Admin', 'Full system access', '[\"all\"]') RETURNING id"
+      );
+      roleId = roleResult.rows[0].id;
+    } else {
+      roleId = existingRole.rows[0].id;
     }
 
     const passwordHash = await bcrypt.hash(adminPassword, 10);
     
     await pool.query(
-      `INSERT INTO users (email, name, password_hash, email_verified, kyc_status) 
-       VALUES ($1, $2, $3, true, 'verified')`,
-      [adminEmail, adminName, passwordHash]
+      `INSERT INTO admin_users (email, name, password_hash, role_id, is_active) 
+       VALUES ($1, $2, $3, $4, true)`,
+      [adminEmail, adminName, passwordHash, roleId]
     );
 
-    console.log(`[Seed] Admin user ${adminEmail} created successfully!`);
+    console.log(`[Seed] Admin user ${adminEmail} created successfully in admin_users table!`);
+    
+    // Clean up from users table if it exists there erroneously
+    await pool.query('DELETE FROM users WHERE email = $1', [adminEmail]);
+    console.log(`[Seed] Removed ${adminEmail} from users table to ensure admin-only access.`);
+
   } catch (error: any) {
     if (error.code === '42P01') {
       console.log('[Seed] Users table does not exist yet, will retry after migrations');
