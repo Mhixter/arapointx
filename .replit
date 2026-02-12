@@ -17,10 +17,10 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Start application"
+args = "Server Backend"
 
 [[workflows.workflow]]
-name = "Start application"
+name = "Server Backend"
 author = "agent"
 
 [workflows.workflow.metadata]
@@ -28,7 +28,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd Arapoint && npm run dev"
+args = "cd Arapoint && npx tsx server/index.ts"
 waitForPort = 5000
 
 [[ports]]
@@ -45,3 +45,10 @@ build = ["npm", "run", "build"]
 [userenv.shared]
 PUPPETEER_EXECUTABLE_PATH = "/nix/store/qa9cnw4v5xkxyip6mb9kxqfq1z4x2dx1-chromium-138.0.7204.100/bin/chromium"
 TECHHUB_API_KEY = "                             dv_618746d812664c084aedc36468524a89_1769663857                        "
+NODE_ENV = "development"
+RPA_MAX_CONCURRENT_JOBS = "5"
+ADMIN_NAME = "Admin User"
+ADMIN_PASSWORD = "AdminPassword123!"
+JWT_SECRET = "your_jwt_secret_key_here_at_least_32_chars_long"
+ADMIN_EMAIL = "saidumuhammed664@gmail.com"
+PORT = "5000"
