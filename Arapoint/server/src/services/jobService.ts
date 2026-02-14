@@ -279,6 +279,21 @@ export const jobService = {
       .set(updateData)
       .where(eq(rpaJobs.id, jobId));
 
+    // Synchronize status with service tables
+    if (status === 'completed' || status === 'failed') {
+      await db.update(educationServices)
+        .set({ 
+          status, 
+          resultData: result,
+          updatedAt: new Date() 
+        })
+        .where(eq(educationServices.jobId, jobId));
+      
+      await db.update(identityVerifications)
+        .set({ status })
+        .where(eq(identityVerifications.reference, jobId));
+    }
+
     logger.info('Job status updated', { jobId, status });
   },
 

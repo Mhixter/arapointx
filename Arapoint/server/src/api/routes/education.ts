@@ -7,8 +7,8 @@ import { jambSchema, waecSchema, necoSchema, nabtebSchema, nbaisSchema } from '.
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { educationServices, servicePricing, educationPins, educationPinOrders, users, nbaisSchools } from '../../db/schema';
-import { eq, desc, and, sql, count } from 'drizzle-orm';
+import { educationServices, servicePricing, educationPins, educationPinOrders, users, nbaisSchools, rpaJobs } from '../../db/schema';
+import { eq, desc, and, sql, count, or } from 'drizzle-orm';
 import { sendEmail } from '../../services/emailService';
 import { getSchoolsByState, getSchoolsCount } from '../../rpa/workers/nbaisSchoolScraper';
 
@@ -211,6 +211,42 @@ router.get('/history', async (req: Request, res: Response) => {
       .orderBy(desc(educationServices.createdAt))
       .limit(limit)
       .offset(offset);
+
+    // If no records in educationServices, check rpaJobs as fallback for pending/failed jobs
+    if (history.length === 0 && page === 1) {
+      const jobs = await db.select()
+        .from(rpaJobs)
+        .where(and(
+          eq(rpaJobs.userId, req.userId!),
+          or(
+            eq(rpaJobs.serviceType, 'jamb_score'),
+            eq(rpaJobs.serviceType, 'waec_result'),
+            eq(rpaJobs.serviceType, 'neco_result'),
+            eq(rpaJobs.serviceType, 'nabteb_result'),
+            eq(rpaJobs.serviceType, 'nbais_result')
+          )
+        ))
+        .orderBy(desc(rpaJobs.createdAt))
+        .limit(limit);
+      
+      const mappedJobs = jobs.map(job => ({
+        id: job.id,
+        userId: job.userId,
+        jobId: job.id,
+        serviceType: job.serviceType,
+        registrationNumber: (job.queryData as any)?.registrationNumber || 'N/A',
+        examYear: (job.queryData as any)?.examYear,
+        status: job.status,
+        resultData: job.result,
+        createdAt: job.createdAt,
+        updatedAt: job.completedAt || job.createdAt
+      }));
+
+      return res.json(formatResponse('success', 200, 'Education services history retrieved', {
+        history: mappedJobs,
+        pagination: { page, limit },
+      }));
+    }
 
     res.json(formatResponse('success', 200, 'Education services history retrieved', {
       history,
