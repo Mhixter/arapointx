@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, AlertCircle, CheckCircle2, FileUp, FileText, FileCheck, Gift, RotateCw, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { servicesApi } from "@/lib/api/services";
 
 const JAMB_SERVICES = [
   {
@@ -74,22 +75,38 @@ export default function JAMBServices() {
   const [isLoading, setIsLoading] = useState(false);
   const [requestComplete, setRequestComplete] = useState(false);
   const [completedService, setCompletedService] = useState<any>(null);
+  const [formData, setFormData] = useState<Record<string, any>>({});
 
   const service = selectedService ? JAMB_SERVICES.find(s => s.id === selectedService) : null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleInputChange = (name: string, value: any) => {
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedService || !service) return;
+    
     setIsLoading(true);
 
-    setTimeout(() => {
+    try {
+      const result = await servicesApi.education.submitRequest(selectedService, formData);
+      
       setIsLoading(false);
       setRequestComplete(true);
       setCompletedService(service);
       toast({
         title: "Request Submitted",
-        description: `Your ${service?.name} request has been submitted successfully.`,
+        description: `Your ${service.name} request has been submitted successfully (ID: ${result.trackingId}).`,
       });
-    }, 2000);
+    } catch (error: any) {
+      setIsLoading(false);
+      toast({
+        title: "Submission Failed",
+        description: error.message || "Failed to submit request. Please check your balance.",
+        variant: "destructive"
+      });
+    }
   };
 
   if (requestComplete && completedService) {
@@ -156,6 +173,7 @@ export default function JAMBServices() {
                       required={field.required}
                       className="h-10"
                       accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={(e) => handleInputChange(field.name, e.target.files?.[0]?.name || "")}
                     />
                   ) : (
                     <Input
@@ -164,6 +182,8 @@ export default function JAMBServices() {
                       placeholder={field.placeholder || ""}
                       required={field.required}
                       className="h-10"
+                      value={formData[field.name] || ""}
+                      onChange={(e) => handleInputChange(field.name, e.target.value)}
                     />
                   )}
                 </div>

@@ -10,6 +10,11 @@ const DEFAULT_PRICES: Record<string, { price: number; name: string; description:
   neco: { price: 1000, name: 'NECO Result Lookup', description: 'NECO result checking service' },
   nabteb: { price: 1000, name: 'NABTEB Result Lookup', description: 'NABTEB result checking service' },
   nbais: { price: 1000, name: 'NBAIS Result Lookup', description: 'NBAIS result checking service' },
+  'olevel-upload': { price: 2000, name: "O'Level Upload", description: "O'Level upload service" },
+  'admission-letter': { price: 1500, name: 'Admission Letter', description: 'JAMB Admission Letter retrieval' },
+  'original-result': { price: 1800, name: 'Original Result', description: 'JAMB Original Result retrieval' },
+  'pin-vending': { price: 1000, name: 'PIN Vending', description: 'JAMB PIN vending service' },
+  'reprinting-caps': { price: 3000, name: 'Reprinting & Caps', description: 'JAMB Reprinting & CAPS service' },
   
   // NIN Services
   nin_lookup: { price: 150, name: 'NIN Lookup', description: 'Basic NIN verification' },

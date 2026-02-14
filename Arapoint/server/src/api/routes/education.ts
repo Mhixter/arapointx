@@ -5,15 +5,63 @@ import { walletService } from '../../services/walletService';
 import { pricingService } from '../../services/pricingService';
 import { jambSchema, waecSchema, necoSchema, nabtebSchema, nbaisSchema } from '../validators/education';
 import { logger } from '../../utils/logger';
-import { formatResponse, formatErrorResponse } from '../../utils/helpers';
+import { formatResponse, formatErrorResponse, generateReferenceId } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { educationServices, servicePricing, educationPins, educationPinOrders, users, nbaisSchools, rpaJobs } from '../../db/schema';
+import { educationServices, servicePricing, educationPins, educationPinOrders, users, nbaisSchools, rpaJobs, educationServiceRequests } from '../../db/schema';
 import { eq, desc, and, sql, count, or } from 'drizzle-orm';
 import { sendEmail } from '../../services/emailService';
 import { getSchoolsByState, getSchoolsCount } from '../../rpa/workers/nbaisSchoolScraper';
 
 const router = Router();
 router.use(authMiddleware);
+
+// Manual Service Request (O'Level Upload, Admission Letter, etc.)
+router.post('/request', async (req: Request, res: Response) => {
+  try {
+    const { serviceId, formData } = req.body;
+
+    if (!serviceId) {
+      return res.status(400).json(formatErrorResponse(400, 'Service ID is required'));
+    }
+
+    // Get pricing - default to serviceId if not found in pricingService
+    const price = await pricingService.getPrice(serviceId).catch(() => 2000);
+    const serviceInfo = await pricingService.getPricing(serviceId).catch(() => ({ serviceName: serviceId.replace(/-/g, ' ').toUpperCase() }));
+
+    // Deduct balance
+    await walletService.deductBalance(req.userId!, price, `Education Service: ${serviceInfo.serviceName}`);
+
+    const trackingId = `EDU${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 100)}`;
+
+    const [request] = await db.insert(educationServiceRequests).values({
+      userId: req.userId!,
+      trackingId,
+      serviceType: serviceId,
+      registrationNumber: formData.regNumber || formData['jamb-reg'] || 'N/A',
+      examYear: formData.examYear?.toString(),
+      candidateName: formData.fullName || 'N/A',
+      fee: price.toFixed(2),
+      status: 'pending',
+      customerNotes: JSON.stringify(formData),
+      isPaid: true,
+      paymentReference: generateReferenceId(),
+    }).returning();
+
+    logger.info('Education service request created', { userId: req.userId, trackingId, serviceId });
+
+    res.status(201).json(formatResponse('success', 201, 'Request submitted successfully', {
+      trackingId,
+      price,
+      status: 'pending'
+    }));
+  } catch (error: any) {
+    logger.error('Education request error', { error: error.message, userId: req.userId });
+    if (error.message === 'Insufficient wallet balance') {
+      return res.status(402).json(formatErrorResponse(402, error.message));
+    }
+    res.status(500).json(formatErrorResponse(500, 'Failed to process request'));
+  }
+});
 
 router.post('/jamb', async (req: Request, res: Response) => {
   try {
@@ -212,8 +260,34 @@ router.get('/history', async (req: Request, res: Response) => {
       .limit(limit)
       .offset(offset);
 
+    // Get manual requests as well
+    const manualHistory = await db.select()
+      .from(educationServiceRequests)
+      .where(eq(educationServiceRequests.userId, req.userId!))
+      .orderBy(desc(educationServiceRequests.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    // Merge and sort
+    const mergedHistory = [
+      ...history.map(h => ({ ...h, type: 'rpa' })),
+      ...manualHistory.map(h => ({ 
+        id: h.id,
+        userId: h.userId,
+        jobId: h.trackingId,
+        serviceType: h.serviceType,
+        registrationNumber: h.registrationNumber,
+        examYear: h.examYear ? parseInt(h.examYear) : undefined,
+        status: h.status,
+        createdAt: h.createdAt,
+        updatedAt: h.updatedAt,
+        type: 'manual'
+      }))
+    ].sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime())
+     .slice(0, limit);
+
     // If no records in educationServices, check rpaJobs as fallback for pending/failed jobs
-    if (history.length === 0 && page === 1) {
+    if (mergedHistory.length === 0 && page === 1) {
       const jobs = await db.select()
         .from(rpaJobs)
         .where(and(
@@ -249,7 +323,7 @@ router.get('/history', async (req: Request, res: Response) => {
     }
 
     res.json(formatResponse('success', 200, 'Education services history retrieved', {
-      history,
+      history: mergedHistory,
       pagination: { page, limit },
     }));
   } catch (error: any) {

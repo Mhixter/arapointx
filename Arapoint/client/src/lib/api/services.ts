@@ -138,6 +138,10 @@ export const servicesApi = {
       const response = await apiClient.get<ApiResponse<{ history: any[] }>>('/education/history');
       return response.data.data.history;
     },
+    submitRequest: async (serviceId: string, formData: any): Promise<any> => {
+      const response = await apiClient.post<ApiResponse<any>>('/education/request', { serviceId, formData });
+      return response.data.data;
+    },
   },
 
   vtu: {
