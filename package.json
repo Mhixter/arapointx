@@ -17,12 +17,18 @@
     "@uppy/core": "^5.2.0",
     "@uppy/dashboard": "^5.1.0",
     "@uppy/react": "^5.1.1",
+    "drizzle-zod": "^0.8.3",
     "google-auth-library": "^10.5.0",
     "html2canvas": "^1.4.1",
     "nanoid": "^5.1.6",
     "nodemailer": "^8.0.1",
+    "openai": "^6.22.0",
+    "p-limit": "^7.3.0",
+    "p-retry": "^7.1.1",
     "puppeteer": "^24.36.1",
     "qrcode": "^1.5.4",
-    "react-qr-code": "^2.0.18"
+    "react-qr-code": "^2.0.18",
+    "zod": "^4.3.6",
+    "zod-validation-error": "^5.0.0"
   }
 }

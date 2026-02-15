@@ -502,6 +502,47 @@ export const identityRequestActivity = pgTable('identity_request_activity', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+// Support Tickets
+export const supportTickets = pgTable('support_tickets', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  status: varchar('status', { length: 20 }).default('open').notNull(), // open, pending, resolved, closed
+  priority: varchar('priority', { length: 20 }).default('medium'), // low, medium, high, urgent
+  assignedAgentId: uuid('assigned_agent_id').references(() => adminUsers.id),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Support Conversations
+export const supportConversations = pgTable('support_conversations', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  ticketId: uuid('ticket_id').references(() => supportTickets.id).notNull(),
+  lastMessageAt: timestamp('last_message_at').defaultNow(),
+  summary: text('summary'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Support Messages
+export const supportMessages = pgTable('support_messages', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  conversationId: uuid('conversation_id').references(() => supportConversations.id).notNull(),
+  senderType: varchar('sender_type', { length: 20 }).notNull(), // user, ai, agent, system
+  senderId: uuid('sender_id'), // userId for user, adminId for agent, null for ai/system
+  content: text('content').notNull(),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Support Internal Notes
+export const supportInternalNotes = pgTable('support_internal_notes', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  ticketId: uuid('ticket_id').references(() => supportTickets.id).notNull(),
+  agentId: uuid('agent_id').references(() => adminUsers.id).notNull(),
+  note: text('note').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 // Education PIN Inventory
 export const educationPins = pgTable('education_pins', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),

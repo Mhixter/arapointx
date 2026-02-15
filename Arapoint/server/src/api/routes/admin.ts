@@ -34,7 +34,10 @@ import {
   nbaisSchools,
   whatsappTemplates,
   agentChannels,
-  agentNotifications
+  agentNotifications,
+  supportTickets,
+  supportConversations,
+  supportMessages
 } from '../../db/schema';
 import { whatsappService } from '../../services/whatsappService';
 import { scrapeNbaisSchools, getSchoolsCount } from '../../rpa/workers/nbaisSchoolScraper';
@@ -2628,6 +2631,39 @@ router.post('/whatsapp/notifications/process', async (req: Request, res: Respons
   } catch (error: any) {
     logger.error('Process notifications error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to process notifications'));
+  }
+});
+
+// Support Ticket Management
+router.get('/support/tickets', async (req: Request, res: Response) => {
+  try {
+    const tickets = await db.select()
+      .from(supportTickets)
+      .orderBy(desc(supportTickets.createdAt));
+    res.json(formatResponse('success', 200, 'Tickets retrieved', tickets));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to get tickets'));
+  }
+});
+
+router.get('/support/tickets/:id/messages', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const [conversation] = await db.select()
+      .from(supportConversations)
+      .where(eq(supportConversations.ticketId, id))
+      .limit(1);
+    
+    if (!conversation) return res.json(formatResponse('success', 200, 'No messages', []));
+
+    const messages = await db.select()
+      .from(supportMessages)
+      .where(eq(supportMessages.conversationId, conversation.id))
+      .orderBy(supportMessages.createdAt);
+    
+    res.json(formatResponse('success', 200, 'Messages retrieved', messages));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to get messages'));
   }
 });
 

@@ -50,6 +50,7 @@ import Profile from "@/pages/dashboard/Profile";
 import Settings from "@/pages/dashboard/Settings";
 import Notifications from "@/pages/dashboard/Notifications";
 import Chat from "@/pages/dashboard/Chat";
+import AdminSupportDashboard from "@/pages/admin/SupportDashboard";
 
 // Admin Imports
 import AdminLogin from "@/pages/admin/AdminLogin";
@@ -170,6 +171,11 @@ function Router() {
       <Route path="/admin/transactions">
         <AdminCRUDLayout>
           <AdminTransactions />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/support">
+        <AdminCRUDLayout>
+          <AdminSupportDashboard />
         </AdminCRUDLayout>
       </Route>
       

@@ -28,6 +28,7 @@ import a2cAgentRoutes from "./src/api/routes/a2cAgent";
 import pricingRoutes from "./src/api/routes/pricing";
 import rpaRoutes from "./src/api/routes/rpa";
 import slipsRoutes from "./src/api/routes/slips";
+import supportRoutes from "./src/api/routes/support";
 
 import { publicRateLimiter, authenticatedRateLimiter } from "./src/api/middleware/rateLimit";
 import { errorHandler } from "./src/api/middleware/errorHandler";
@@ -261,6 +262,7 @@ export async function registerRoutes(
   app.use('/api/a2c-agent', a2cAgentRoutes);
   app.use('/api/rpa-techhub', authenticatedRateLimiter, rpaRoutes);
   app.use('/api/slips', slipsRoutes);
+  app.use('/api/support', authenticatedRateLimiter, supportRoutes);
   
   // Public verification page route (no /api prefix)
   app.get('/verify-slip/:reference', (req, res) => {

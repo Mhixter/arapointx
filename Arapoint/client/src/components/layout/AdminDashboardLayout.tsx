@@ -8,7 +8,9 @@ import {
   Menu,
   Users,
   BarChart3,
-  Package
+  Package,
+  Headset,
+  MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -65,6 +67,8 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     { href: "/admin/vtu", label: "VTU Services", icon: Smartphone },
     { href: "/admin/users", label: "User Management", icon: Users },
     { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+    { href: "/admin/support", label: "Support Chat", icon: Headset },
+    { href: "/admin/whatsapp", label: "WhatsApp", icon: MessageSquare },
   ];
 
   const NavContent = () => (
