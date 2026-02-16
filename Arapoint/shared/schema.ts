@@ -114,6 +114,53 @@ export const identity_verifications = pgTable('identity_verifications', {
   created_at: timestamp('created_at').defaultNow(),
 });
 
+export const admin_roles = pgTable('admin_roles', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar('name', { length: 50 }).notNull().unique(), 
+  permissions: jsonb('permissions').notNull().default([]),
+  created_at: timestamp('created_at').defaultNow(),
+});
+
+export const admin_users = pgTable('admin_users', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar('name', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }).unique().notNull(),
+  password_hash: varchar('password_hash', { length: 255 }).notNull(),
+  role_id: uuid('role_id').references(() => admin_roles.id),
+  is_active: boolean('is_active').default(true),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').defaultNow(),
+});
+
+export const support_tickets = pgTable('support_tickets', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  user_id: uuid('user_id').references(() => users.id).notNull(),
+  assigned_agent_id: uuid('assigned_agent_id').references(() => admin_users.id),
+  subject: varchar('subject', { length: 255 }).notNull(),
+  category: varchar('category', { length: 100 }).notNull(),
+  priority: varchar('priority', { length: 20 }).default('medium'),
+  status: varchar('status', { length: 20 }).default('open'),
+  created_at: timestamp('created_at').defaultNow(),
+  updated_at: timestamp('updated_at').defaultNow(),
+});
+
+export const support_conversations = pgTable('support_conversations', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  ticket_id: uuid('ticket_id').references(() => support_tickets.id).notNull(),
+  is_active: boolean('is_active').default(true),
+  created_at: timestamp('created_at').defaultNow(),
+});
+
+export const support_messages = pgTable('support_messages', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  conversation_id: uuid('conversation_id').references(() => support_conversations.id).notNull(),
+  sender_id: uuid('sender_id').notNull(), 
+  sender_type: varchar('sender_type', { length: 20 }).notNull(), 
+  content: text('content').notNull(),
+  is_read: boolean('is_read').default(false),
+  created_at: timestamp('created_at').defaultNow(),
+});
+
 export const birth_attestations = pgTable('birth_attestations', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   user_id: uuid('user_id').references(() => users.id),

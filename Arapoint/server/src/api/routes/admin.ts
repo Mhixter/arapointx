@@ -35,9 +35,13 @@ import {
   whatsappTemplates,
   agentChannels,
   agentNotifications,
-  supportTickets,
-  supportConversations,
-  supportMessages
+} from '../../db/schema';
+import { 
+  supportTickets as support_tickets, 
+  supportConversations as support_conversations, 
+  supportMessages as support_messages, 
+  adminUsers as admin_users, 
+  adminRoles as admin_roles 
 } from '../../db/schema';
 import { whatsappService } from '../../services/whatsappService';
 import { scrapeNbaisSchools, getSchoolsCount } from '../../rpa/workers/nbaisSchoolScraper';
@@ -2638,10 +2642,11 @@ router.post('/whatsapp/notifications/process', async (req: Request, res: Respons
 router.get('/support/tickets', async (req: Request, res: Response) => {
   try {
     const tickets = await db.select()
-      .from(supportTickets)
-      .orderBy(desc(supportTickets.createdAt));
+      .from(support_tickets)
+      .orderBy(desc(support_tickets.createdAt));
     res.json(formatResponse('success', 200, 'Tickets retrieved', tickets));
   } catch (error: any) {
+    logger.error('Get tickets error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to get tickets'));
   }
 });
@@ -2650,20 +2655,34 @@ router.get('/support/tickets/:id/messages', async (req: Request, res: Response) 
   try {
     const { id } = req.params;
     const [conversation] = await db.select()
-      .from(supportConversations)
-      .where(eq(supportConversations.ticketId, id))
+      .from(support_conversations)
+      .where(eq(support_conversations.ticketId, id))
       .limit(1);
     
     if (!conversation) return res.json(formatResponse('success', 200, 'No messages', []));
 
     const messages = await db.select()
-      .from(supportMessages)
-      .where(eq(supportMessages.conversationId, conversation.id))
-      .orderBy(supportMessages.createdAt);
+      .from(support_messages)
+      .where(eq(support_messages.conversationId, conversation.id))
+      .orderBy(support_messages.createdAt);
     
     res.json(formatResponse('success', 200, 'Messages retrieved', messages));
   } catch (error: any) {
+    logger.error('Get messages error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to get messages'));
+  }
+});
+
+// Agent Management
+router.get('/support/agents', async (req: Request, res: Response) => {
+  try {
+    const agents = await db.select()
+      .from(admin_users)
+      .innerJoin(admin_roles, eq(admin_users.roleId, admin_roles.id))
+      .where(eq(admin_roles.name, 'support_agent'));
+    res.json(formatResponse('success', 200, 'Agents retrieved', agents));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to get agents'));
   }
 });
 

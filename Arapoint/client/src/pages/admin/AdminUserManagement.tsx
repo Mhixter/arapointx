@@ -36,6 +36,7 @@ export default function AdminUserManagement() {
   const [showFundModal, setShowFundModal] = useState(false);
   const [showDebitModal, setShowDebitModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showAgentModal, setShowAgentModal] = useState(false);
   
   const [createForm, setCreateForm] = useState({ name: '', email: '', phone: '', password: '' });
   const [editForm, setEditForm] = useState({ name: '', email: '', phone: '' });
@@ -408,6 +409,21 @@ export default function AdminUserManagement() {
               {createUserMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Create User
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAgentModal} onOpenChange={setShowAgentModal}>
+        <DialogContent className="max-w-[95vw] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Manage Support Agents</DialogTitle>
+            <DialogDescription>Assign support agent roles to existing administrators or users</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm">Functionality to promote users to Support Agents will be available here.</p>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setShowAgentModal(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
