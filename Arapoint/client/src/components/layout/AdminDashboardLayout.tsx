@@ -68,6 +68,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     { href: "/admin/users", label: "User Management", icon: Users },
     { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
     { href: "/admin/support", label: "Support Chat", icon: Headset },
+    { href: "/admin/transactions", label: "Transactions", icon: BarChart3 },
     { href: "/admin/whatsapp", label: "WhatsApp", icon: MessageSquare },
   ];
 
