@@ -66,8 +66,8 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     { href: "/admin/education-pins", label: "Education PINs", icon: Package },
     { href: "/admin/vtu", label: "VTU Services", icon: Smartphone },
     { href: "/admin/users", label: "User Management", icon: Users },
-    { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
     { href: "/admin/support", label: "Support Chat", icon: Headset },
+    { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
     { href: "/admin/transactions", label: "Transactions", icon: BarChart3 },
     { href: "/admin/whatsapp", label: "WhatsApp", icon: MessageSquare },
   ];
