@@ -75,6 +75,8 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     { href: "/admin/support", label: "Support Chat", icon: Headset },
     { href: "/admin/roles", label: "Role Management", icon: ShieldCheck },
     { href: "/admin/settings", label: "Settings", icon: SettingsIcon },
+    { href: "/admin/transactions", label: "Transactions", icon: BarChart3 },
+    { href: "/admin/whatsapp", label: "WhatsApp", icon: MessageSquare },
   ];
 
   const NavContent = () => (
