@@ -73,9 +73,9 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     { href: "/admin/pricing", label: "Pricing Management", icon: BarChart3 },
     { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
     { href: "/admin/support", label: "Support Chat", icon: Headset },
+    { href: "/admin/transactions", label: "Transactions", icon: BarChart3 },
     { href: "/admin/roles", label: "Role Management", icon: ShieldCheck },
     { href: "/admin/settings", label: "Settings", icon: SettingsIcon },
-    { href: "/admin/transactions", label: "Transactions", icon: BarChart3 },
     { href: "/admin/whatsapp", label: "WhatsApp", icon: MessageSquare },
   ];
 
@@ -84,14 +84,14 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
       <div className="h-16 flex items-center px-6 border-b border-sidebar-border">
         <Link href="/admin">
           <a className="flex items-center gap-2 font-heading font-bold text-xl text-sidebar-primary tracking-tight">
-            <div className="h-10 w-10 logo-cycle">
+            <div className="h-10 w-10">
               <img src={arapointLogo} alt="Arapoint" className="h-9 w-9 object-contain" />
             </div>
             <span className="text-sidebar-foreground">Arapoint Admin</span>
           </a>
         </Link>
       </div>
-      <div className="flex-1 py-6 px-3 space-y-1">
+      <div className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = location === item.href || location.startsWith(item.href + "/");
@@ -106,11 +106,11 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
           );
         })}
       </div>
-      <div className="p-4 border-t border-sidebar-border">
+      <div className="p-4 border-t border-sidebar-border mt-auto">
         <div className="bg-sidebar-accent/50 rounded-lg p-4 mb-4">
           <p className="text-xs text-sidebar-foreground/60 mb-1">Admin Account</p>
-          <p className="text-sm font-bold text-sidebar-foreground">{adminName}</p>
-          <p className="text-xs text-sidebar-foreground/60 mt-1">{adminEmail}</p>
+          <p className="text-sm font-bold text-sidebar-foreground truncate">{adminName}</p>
+          <p className="text-xs text-sidebar-foreground/60 mt-1 truncate">{adminEmail}</p>
         </div>
         <Button variant="ghost" className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50" onClick={handleSignOut}>
           <LogOut className="h-4 w-4 mr-2" />
