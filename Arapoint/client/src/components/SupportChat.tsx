@@ -124,6 +124,8 @@ export default function SupportChat() {
   const [sending, setSending] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [escalating, setEscalating] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -291,6 +293,7 @@ export default function SupportChat() {
   const handleCreateTicket = async () => {
     if (!subject.trim() || !initialMessage.trim()) return;
     setCreating(true);
+    setCreateError(null);
     try {
       const res = await apiClient.post("/support/tickets", {
         subject: subject.trim(),
@@ -310,8 +313,8 @@ export default function SupportChat() {
       setCategory("general");
       setInitialMessage("");
       openChat(newTicket);
-    } catch {
-      // error handled silently
+    } catch (error: any) {
+      setCreateError(error.response?.data?.message || "Failed to create ticket. Please try again.");
     } finally {
       setCreating(false);
     }
@@ -392,8 +395,10 @@ export default function SupportChat() {
         setMessages((prev) => [...prev, sysMsg]);
         setTicketStatus("escalated");
       }
-    } catch {
+    } catch (error: any) {
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setChatError(error.response?.data?.message || "Failed to send message. Please try again.");
+      setTimeout(() => setChatError(null), 5000);
     } finally {
       setSending(false);
     }
@@ -597,6 +602,15 @@ export default function SupportChat() {
             </div>
           )}
 
+          {chatError && (
+            <div className="px-4 py-2 border-t bg-red-50">
+              <p className="text-xs text-red-600 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {chatError}
+              </p>
+            </div>
+          )}
+
           {isActive && (
             <form onSubmit={handleSend} className="p-3 border-t flex gap-2">
               <Input
@@ -746,6 +760,39 @@ export default function SupportChat() {
 
             <TabsContent value="new" className="flex-1 overflow-auto px-4 pb-4 mt-3">
               <div className="space-y-4">
+                {createError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+                    <p className="text-sm text-red-700">{createError}</p>
+                  </div>
+                )}
+
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2">Quick issue selection:</p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {[
+                      { subject: "Failed Transaction", category: "wallet", message: "I have a failed transaction that was debited but not completed." },
+                      { subject: "NIN Verification Issue", category: "identity", message: "I'm having trouble with my NIN verification." },
+                      { subject: "BVN Retrieval Problem", category: "identity", message: "I need help retrieving my BVN details." },
+                      { subject: "Wallet Funding Issue", category: "wallet", message: "I'm unable to fund my wallet." },
+                      { subject: "WAEC Result Check", category: "education", message: "I need help checking my WAEC result." },
+                      { subject: "Airtime/Data Issue", category: "vtu", message: "I purchased airtime/data but didn't receive it." },
+                    ].map((quick, i) => (
+                      <button
+                        key={i}
+                        className="text-left text-xs p-2 rounded-md border hover:bg-primary/5 hover:border-primary/30 transition-colors"
+                        onClick={() => {
+                          setSubject(quick.subject);
+                          setCategory(quick.category);
+                          setInitialMessage(quick.message);
+                        }}
+                      >
+                        {quick.subject}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">Subject</label>
                   <Input

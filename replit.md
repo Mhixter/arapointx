@@ -78,13 +78,17 @@ Preferred communication style: Simple, everyday language.
 - **Architecture**: Production-quality support with ticket lifecycle management
 - **Ticket Lifecycle**: open -> escalated -> assigned -> in_progress -> resolved -> closed
 - **Reference IDs**: ARP-XXXXXX format for ticket tracking
-- **AI First Response**: OpenAI (gpt-4o-mini) handles initial user queries, escalates to human agents when needed
+- **AI First Response**: OpenAI (gpt-4o-mini) handles initial user queries; AI detects complex issues via [ESCALATE] tag and auto-escalates
+- **Auto-assign**: On escalation, system finds available support agent (least active tickets) and auto-assigns. If no agent available, ticket stays in escalated queue.
 - **Auto-close**: Tickets auto-close after 30 minutes of inactivity (checked on message poll)
 - **Presence/Typing**: Polling-based (4s messages, 10s heartbeat) for online status and typing indicators via `support_presence` table
+- **AI Reply Suggestions**: POST `/admin/support/tickets/:id/suggestions` generates 3 contextual reply suggestions for agents
 - **User Routes**: `Arapoint/server/src/api/routes/support.ts` - create ticket, active tickets, message polling, escalation, presence
-- **Admin Routes**: In `Arapoint/server/src/api/routes/admin.ts` - ticket list with filters, assign/reply/resolve/close, internal notes, agent management, stats
-- **User Component**: `Arapoint/client/src/components/SupportChat.tsx` - full chat UI with ticket creation, tracking, polling
-- **Admin Component**: `Arapoint/client/src/pages/admin/SupportDashboard.tsx` - agent dashboard with ticket list, detail panel, message thread, notes
+- **Admin Routes**: In `Arapoint/server/src/api/routes/admin.ts` - ticket list with filters, assign/reply/resolve/close, internal notes, agent management, stats, AI suggestions
+- **User Component**: `Arapoint/client/src/components/SupportChat.tsx` - full chat UI with quick issue selection, ticket creation, tracking, polling, error display
+- **Admin Component**: `Arapoint/client/src/pages/admin/SupportDashboard.tsx` - admin dashboard with ticket list, detail panel, message thread, notes, AI reply suggestions
+- **Agent Login**: `Arapoint/client/src/pages/support/SupportAgentLogin.tsx` - Dedicated support agent login at `/support/agent/login`
+- **Agent Dashboard**: `Arapoint/client/src/pages/support/SupportAgentDashboard.tsx` - Agent-specific dashboard at `/support/agent/dashboard` with ticket management, reply suggestions, notes
 
 ### Frontend UI
 - **shadcn/ui**: Component library built on Radix UI primitives

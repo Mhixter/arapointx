@@ -8,8 +8,9 @@ import {
   supportPresence,
   users,
   adminUsers,
+  adminRoles,
 } from '../../db/schema';
-import { eq, and, desc, gt, or, sql } from 'drizzle-orm';
+import { eq, and, desc, gt, or, sql, count, asc } from 'drizzle-orm';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { logger } from '../../utils/logger';
 import OpenAI from 'openai';
@@ -21,6 +22,82 @@ const openai = new OpenAI({
 });
 
 router.use(authMiddleware);
+
+async function findAvailableAgent(): Promise<{ id: string; name: string } | null> {
+  try {
+    const agents = await db.select({
+      id: adminUsers.id,
+      name: adminUsers.name,
+    })
+      .from(adminUsers)
+      .innerJoin(adminRoles, eq(adminUsers.roleId, adminRoles.id))
+      .where(and(
+        eq(adminRoles.name, 'support_agent'),
+        eq(adminUsers.isActive, true)
+      ));
+
+    if (agents.length === 0) return null;
+
+    let bestAgent: { id: string; name: string } | null = null;
+    let lowestCount = Infinity;
+
+    for (const agent of agents) {
+      const [result] = await db.select({ count: count() })
+        .from(supportTickets)
+        .where(and(
+          eq(supportTickets.assignedAgentId, agent.id),
+          sql`${supportTickets.status} IN ('assigned', 'in_progress', 'escalated')`
+        ));
+
+      const activeCount = Number(result?.count || 0);
+      if (activeCount === 0) return agent;
+      if (activeCount < lowestCount) {
+        lowestCount = activeCount;
+        bestAgent = agent;
+      }
+    }
+
+    return bestAgent;
+  } catch (error) {
+    logger.error('Find available agent error', { error });
+    return null;
+  }
+}
+
+async function autoAssignTicket(ticketId: string, conversationId: string): Promise<{ agentName: string } | null> {
+  const agent = await findAvailableAgent();
+  if (!agent) return null;
+
+  const now = new Date();
+  await db.update(supportTickets)
+    .set({
+      assignedAgentId: agent.id,
+      assignedAt: now,
+      status: 'assigned',
+      lastActivityAt: now,
+      updatedAt: now,
+    })
+    .where(eq(supportTickets.id, ticketId));
+
+  await db.insert(supportMessages).values({
+    conversationId,
+    senderType: 'system',
+    senderName: 'System',
+    content: `Agent ${agent.name} has been assigned to your ticket and will assist you shortly.`,
+  });
+
+  await db.insert(supportPresence).values({
+    ticketId,
+    participantId: agent.id,
+    participantType: 'agent',
+    participantName: agent.name,
+    isOnline: false,
+    lastSeenAt: now,
+  }).onConflictDoNothing();
+
+  logger.info('Ticket auto-assigned', { ticketId, agentId: agent.id, agentName: agent.name });
+  return { agentName: agent.name };
+}
 
 function generateReferenceId(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -389,10 +466,16 @@ router.post('/conversations/:id/messages', async (req: Request, res: Response) =
         conversationId: id,
         senderType: 'system',
         senderName: 'System',
-        content: 'Your ticket has been escalated to a human support agent. An agent will be assigned to you shortly. Please wait.',
+        content: 'Your ticket has been escalated to a human support agent. Finding an available agent...',
       });
 
-      return res.status(201).json(formatResponse('success', 201, 'Message sent and ticket escalated', { message, escalated: true }));
+      const assigned = await autoAssignTicket(conv.ticketId, id);
+
+      return res.status(201).json(formatResponse('success', 201, 'Message sent and ticket escalated', {
+        message,
+        escalated: true,
+        assignedAgent: assigned?.agentName || null,
+      }));
     }
 
     const history = await db.select()
@@ -407,20 +490,31 @@ router.post('/conversations/:id/messages', async (req: Request, res: Response) =
     }));
 
     let aiContent = '';
+    let shouldEscalate = false;
     try {
       const response = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
-            content: `You are Arapoint Support AI. Help with identity verification (NIN, BVN), education services (JAMB, WAEC, NECO), VTU services, wallet funding, and CAC registration. Be concise and helpful. If you cannot resolve the issue, suggest typing "agent" to speak with a human.`
+            content: `You are Arapoint Support AI. Help with identity verification (NIN, BVN), education services (JAMB, WAEC, NECO), VTU services, wallet funding, and CAC registration. Be concise and helpful.
+
+IMPORTANT: If the issue is complex and requires human intervention (e.g. failed transactions, payment disputes, account locked, refund requests, verification failures needing manual review, technical errors, urgent account issues), you MUST end your response with the exact tag [ESCALATE] on a new line. This will automatically connect the user to a human agent.
+
+Do NOT escalate for simple informational questions, how-to guides, or general FAQs.`
           },
           ...messagesForAI,
         ],
       });
       aiContent = response.choices[0].message.content || 'I apologize, I am having trouble responding.';
+
+      if (aiContent.includes('[ESCALATE]')) {
+        shouldEscalate = true;
+        aiContent = aiContent.replace(/\[ESCALATE\]/g, '').trim();
+      }
     } catch {
-      aiContent = 'I am currently unable to process your request. Type "agent" to speak with a human support agent.';
+      aiContent = 'I am currently unable to process your request. Let me connect you with a human support agent.';
+      shouldEscalate = true;
     }
 
     await db.insert(supportMessages).values({
@@ -429,6 +523,28 @@ router.post('/conversations/:id/messages', async (req: Request, res: Response) =
       senderName: 'AI Assistant',
       content: aiContent,
     });
+
+    if (shouldEscalate) {
+      await db.update(supportTickets)
+        .set({ status: 'escalated', escalatedAt: now, priority: 'high', lastActivityAt: now, updatedAt: now })
+        .where(eq(supportTickets.id, conv.ticketId));
+
+      await db.insert(supportMessages).values({
+        conversationId: id,
+        senderType: 'system',
+        senderName: 'System',
+        content: 'This issue requires human assistance. Finding an available support agent for you...',
+      });
+
+      const assigned = await autoAssignTicket(conv.ticketId, id);
+
+      return res.status(201).json(formatResponse('success', 201, 'Message processed and escalated', {
+        message,
+        aiResponse: aiContent,
+        escalated: true,
+        assignedAgent: assigned?.agentName || null,
+      }));
+    }
 
     res.status(201).json(formatResponse('success', 201, 'Message processed', { message, aiResponse: aiContent }));
   } catch (error: any) {
@@ -457,10 +573,14 @@ router.post('/conversations/:id/escalate', async (req: Request, res: Response) =
       conversationId: id,
       senderType: 'system',
       senderName: 'System',
-      content: 'Your ticket has been escalated to a human support agent. An agent will be assigned shortly.',
+      content: 'Your ticket has been escalated to a human support agent. Finding an available agent...',
     });
 
-    res.json(formatResponse('success', 200, 'Ticket escalated'));
+    const assigned = await autoAssignTicket(conv.ticketId, id);
+
+    res.json(formatResponse('success', 200, 'Ticket escalated', {
+      assignedAgent: assigned?.agentName || null,
+    }));
   } catch (error: any) {
     res.status(500).json(formatErrorResponse(500, 'Failed to escalate'));
   }

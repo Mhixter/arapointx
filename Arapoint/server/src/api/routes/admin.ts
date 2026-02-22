@@ -51,6 +51,12 @@ import { scrapeNbaisSchools, getSchoolsCount } from '../../rpa/workers/nbaisScho
 import { browserPool } from '../../rpa/browserPool';
 import bcrypt from 'bcryptjs';
 import { eq, desc, count, sql, and, or, gt, asc } from 'drizzle-orm';
+import OpenAI from 'openai';
+
+const openai = new OpenAI({
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+});
 
 const router = Router();
 router.use(adminAuthMiddleware);
@@ -2927,6 +2933,75 @@ router.post('/support/tickets/:id/reply', async (req: Request, res: Response) =>
     res.status(201).json(formatResponse('success', 201, 'Reply sent', { message }));
   } catch (error: any) {
     res.status(500).json(formatErrorResponse(500, 'Failed to send reply'));
+  }
+});
+
+router.post('/support/tickets/:id/suggestions', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const [conv] = await db.select()
+      .from(support_conversations)
+      .where(eq(support_conversations.ticketId, id))
+      .limit(1);
+
+    if (!conv) return res.status(404).json(formatErrorResponse(404, 'Conversation not found'));
+
+    const msgs = await db.select()
+      .from(support_messages)
+      .where(eq(support_messages.conversationId, conv.id))
+      .orderBy(desc(support_messages.createdAt))
+      .limit(15);
+
+    const conversationHistory = msgs.reverse().map(m => `${m.senderType}: ${m.content}`).join('\n');
+
+    const [ticket] = await db.select({ subject: support_tickets.subject, category: support_tickets.category })
+      .from(support_tickets).where(eq(support_tickets.id, id)).limit(1);
+
+    let suggestions: string[] = [];
+    try {
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `You are an AI assistant helping a support agent at Arapoint (Nigerian identity verification and fintech platform). Based on the conversation below, generate exactly 3 helpful reply suggestions the agent could send to the user.
+
+Each suggestion should be professional, helpful, and directly address the user's concern. Keep each suggestion concise (1-3 sentences max).
+
+Return ONLY a JSON array of 3 strings, no other text. Example: ["suggestion 1", "suggestion 2", "suggestion 3"]
+
+Ticket subject: ${ticket?.subject || 'Support request'}
+Category: ${ticket?.category || 'general'}`
+          },
+          { role: 'user', content: conversationHistory },
+        ],
+      });
+
+      const raw = response.choices[0].message.content || '[]';
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          suggestions = parsed.slice(0, 3).map(String);
+        }
+      } catch {
+        const matches = raw.match(/"([^"]+)"/g);
+        if (matches) {
+          suggestions = matches.slice(0, 3).map(m => m.replace(/"/g, ''));
+        }
+      }
+    } catch (error) {
+      logger.error('AI suggestion error', { error });
+      suggestions = [
+        'Thank you for reaching out. Let me look into this for you.',
+        'I understand your concern. Could you please provide more details?',
+        'I\'m working on resolving this issue. I\'ll update you shortly.',
+      ];
+    }
+
+    res.json(formatResponse('success', 200, 'Suggestions generated', { suggestions }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to generate suggestions'));
   }
 });
 

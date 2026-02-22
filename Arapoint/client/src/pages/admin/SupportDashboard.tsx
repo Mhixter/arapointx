@@ -44,6 +44,7 @@ import {
   Circle,
   Wifi,
   WifiOff,
+  Sparkles,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -131,6 +132,8 @@ export default function SupportDashboard() {
   const [showAgentModal, setShowAgentModal] = useState(false);
   const [agentForm, setAgentForm] = useState({ name: "", email: "", password: "" });
   const [isTyping, setIsTyping] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastMessageTimestamp = useRef<string | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -381,6 +384,21 @@ export default function SupportDashboard() {
   const handleSendReply = () => {
     if (!replyContent.trim()) return;
     replyMutation.mutate(replyContent.trim());
+    setSuggestions([]);
+  };
+
+  const fetchSuggestions = async () => {
+    if (!selectedTicketId) return;
+    setLoadingSuggestions(true);
+    setSuggestions([]);
+    try {
+      const res = await adminApiClient.post(`/admin/support/tickets/${selectedTicketId}/suggestions`);
+      setSuggestions(res.data.data.suggestions || []);
+    } catch {
+      toast({ title: "Error", description: "Failed to get suggestions", variant: "destructive" });
+    } finally {
+      setLoadingSuggestions(false);
+    }
   };
 
   const handleAddNote = () => {
@@ -650,6 +668,25 @@ export default function SupportDashboard() {
                       <div ref={messagesEndRef} />
                     </div>
                   </ScrollArea>
+                  {suggestions.length > 0 && (
+                    <div className="px-3 py-2 border-t bg-violet-50/50">
+                      <div className="flex items-center gap-1 mb-1.5">
+                        <Sparkles className="h-3 w-3 text-violet-500" />
+                        <span className="text-[10px] font-medium text-violet-700">AI Suggestions</span>
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        {suggestions.map((s, i) => (
+                          <button
+                            key={i}
+                            className="text-left text-xs px-3 py-2 bg-white border border-violet-200 rounded-lg hover:bg-violet-50 transition-colors text-gray-700 leading-relaxed"
+                            onClick={() => setReplyContent(s)}
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className="p-3 border-t flex gap-2">
                     <Textarea
                       placeholder="Type your reply..."
@@ -674,6 +711,20 @@ export default function SupportDashboard() {
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
                         <Send className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={fetchSuggestions}
+                      disabled={loadingSuggestions}
+                      title="Get AI reply suggestions"
+                      className="shrink-0"
+                    >
+                      {loadingSuggestions ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4 text-violet-500" />
                       )}
                     </Button>
                   </div>

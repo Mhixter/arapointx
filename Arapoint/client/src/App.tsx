@@ -51,6 +51,8 @@ import Settings from "@/pages/dashboard/Settings";
 import Notifications from "@/pages/dashboard/Notifications";
 import Chat from "@/pages/dashboard/Chat";
 import AdminSupportDashboard from "@/pages/admin/SupportDashboard";
+import SupportAgentLogin from "@/pages/support/SupportAgentLogin";
+import SupportAgentDashboard from "@/pages/support/SupportAgentDashboard";
 
 // Admin Imports
 import AdminLogin from "@/pages/admin/AdminLogin";
@@ -76,6 +78,10 @@ import AdminCRUDLayout from "@/components/layout/AdminCRUDLayout";
 function Router() {
   return (
     <Switch>
+      {/* Support Agent Routes */}
+      <Route path="/support/agent/login" component={SupportAgentLogin} />
+      <Route path="/support/agent/dashboard" component={SupportAgentDashboard} />
+
       {/* Agent Routes - outside MainLayout */}
       <Route path="/agent/login" component={CACAgentLogin} />
       <Route path="/agent/dashboard" component={CACAgentDashboard} />
