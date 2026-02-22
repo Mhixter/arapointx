@@ -63,6 +63,7 @@ const ALL_NAV_ITEMS = [
   { href: "/admin/education-agents", label: "Education Agents", icon: GraduationCap, permission: "education" },
   { href: "/admin/a2c-agents", label: "A2C Agents", icon: DollarSign, permission: "vtu" },
   { href: "/admin/pricing", label: "Pricing Management", icon: DollarSign, permission: "pricing" },
+  { href: "/admin/support", label: "Support Chat", icon: Headset, permission: "analytics" },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3, permission: "analytics" },
   { href: "/admin/roles", label: "Role Management", icon: Shield, permission: "roles" },
   { href: "/admin/settings", label: "Settings", icon: Settings, permission: "settings" },

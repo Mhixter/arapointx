@@ -174,9 +174,9 @@ function Router() {
         </AdminCRUDLayout>
       </Route>
       <Route path="/admin/support">
-        <AdminDashboardLayout>
+        <AdminCRUDLayout>
           <AdminSupportDashboard />
-        </AdminDashboardLayout>
+        </AdminCRUDLayout>
       </Route>
       
       {/* Main routes with header/footer */}
