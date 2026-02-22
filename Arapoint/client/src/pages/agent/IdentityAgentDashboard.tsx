@@ -117,11 +117,16 @@ export default function IdentityAgentDashboard() {
       const uploadUrlData = await uploadUrlRes.json();
       if (!uploadUrlData.uploadURL) throw new Error('Failed to get upload URL');
 
-      await fetch(uploadUrlData.uploadURL, {
+      const putRes = await fetch(uploadUrlData.uploadURL, {
         method: 'PUT',
-        headers: { 'Content-Type': file.type || 'application/octet-stream' },
-        body: file
+        headers: { 
+          'Content-Type': file.type || 'application/octet-stream',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: file,
       });
+
+      if (!putRes.ok) throw new Error('File upload PUT failed');
 
       return uploadUrlData.objectPath;
     } catch (error) {
@@ -199,6 +204,16 @@ export default function IdentityAgentDashboard() {
       'gender_correction': 'Gender Correction',
       'duplicate_nin': 'Duplicate NIN',
       'other': 'Other Issue',
+    };
+    return labels[type] || type;
+  };
+
+  const getSlipTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      'information': 'Information Slip',
+      'regular': 'Regular Slip',
+      'standard': 'Standard Slip',
+      'premium': 'Premium Slip',
     };
     return labels[type] || type;
   };
@@ -332,6 +347,9 @@ export default function IdentityAgentDashboard() {
                           <strong>Customer:</strong> {request.userName || 'N/A'}
                         </p>
                         {request.nin && <p className="text-sm"><strong>NIN:</strong> {request.nin}</p>}
+                        {request.updateFields?.slipType && (
+                          <p className="text-xs"><strong>Slip:</strong> {getSlipTypeLabel(request.updateFields.slipType)}</p>
+                        )}
                         <p className="text-xs text-muted-foreground">
                           {new Date(request.createdAt).toLocaleDateString()}
                         </p>
@@ -377,6 +395,17 @@ export default function IdentityAgentDashboard() {
                   <div className="col-span-2">
                     <strong>Validation Type:</strong>{' '}
                     <Badge className="bg-orange-100 text-orange-700">{getValidationTypeLabel(selectedRequest.updateFields.validationType)}</Badge>
+                  </div>
+                )}
+                {selectedRequest.updateFields?.slipType && (
+                  <div>
+                    <strong>Slip Type:</strong>{' '}
+                    <Badge className="bg-blue-100 text-blue-700">{getSlipTypeLabel(selectedRequest.updateFields.slipType)}</Badge>
+                  </div>
+                )}
+                {selectedRequest.updateFields?.statusType && (
+                  <div>
+                    <strong>Status Type:</strong> {selectedRequest.updateFields.statusType}
                   </div>
                 )}
               </div>

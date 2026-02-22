@@ -16,7 +16,8 @@ import jwt from 'jsonwebtoken';
 import { authMiddleware } from '../middleware/auth';
 import { pricingService } from '../../services/pricingService';
 import { walletService } from '../../services/walletService';
-import { objectStorageService } from '../../services/objectStorage';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_here';
@@ -265,13 +266,46 @@ router.put('/requests/:id/status', identityAgentAuthMiddleware, async (req: Requ
   }
 });
 
+const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
+
 router.post('/upload-url', identityAgentAuthMiddleware, async (req: Request, res: Response) => {
   try {
-    const result = await objectStorageService.getObjectEntityUploadURL('identity-slips');
-    res.json(result);
+    const { randomUUID } = await import('crypto');
+    const fileId = randomUUID();
+    const fileName = `identity-slip-${fileId}`;
+    const uploadURL = `/api/identity-agent/upload-local/${fileName}`;
+    const objectPath = `/uploads/${fileName}`;
+
+    res.json({ uploadURL, objectPath });
   } catch (error: any) {
     logger.error('Agent upload URL error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to get upload URL'));
+  }
+});
+
+router.put('/upload-local/:fileName', identityAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { fileName } = req.params;
+    const safeName = path.basename(fileName);
+    const filePath = path.join(UPLOADS_DIR, safeName);
+
+    const chunks: Buffer[] = [];
+    req.on('data', (chunk: Buffer) => chunks.push(chunk));
+    req.on('end', () => {
+      const buffer = Buffer.concat(chunks);
+      fs.writeFileSync(filePath, buffer);
+      res.status(200).json({ success: true, path: `/uploads/${safeName}` });
+    });
+    req.on('error', (err) => {
+      logger.error('Upload stream error', { error: err.message });
+      res.status(500).json(formatErrorResponse(500, 'Upload failed'));
+    });
+  } catch (error: any) {
+    logger.error('Agent file upload error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to upload file'));
   }
 });
 
@@ -320,7 +354,7 @@ router.get('/my-requests', authMiddleware, async (req: Request, res: Response) =
 router.post('/request', authMiddleware, async (req: Request, res: Response) => {
   try {
     const userId = req.userId!;
-    const { serviceType, nin, newTrackingId, updateFields, customerNotes, validationType } = req.body;
+    const { serviceType, nin, newTrackingId, updateFields, customerNotes, validationType, slipType } = req.body;
 
     if (!serviceType || !MANUAL_SERVICE_TYPES.includes(serviceType)) {
       return res.status(400).json(formatErrorResponse(400, 'Invalid service type'));
@@ -341,6 +375,7 @@ router.post('/request', authMiddleware, async (req: Request, res: Response) => {
 
     const updateFieldsData: any = {};
     if (validationType) updateFieldsData.validationType = validationType;
+    if (slipType) updateFieldsData.slipType = slipType;
     if (updateFields) updateFieldsData.fields = updateFields;
 
     const [request] = await db.insert(identityServiceRequests).values({

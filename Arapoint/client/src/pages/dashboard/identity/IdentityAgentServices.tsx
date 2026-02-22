@@ -40,7 +40,7 @@ const getToken = () => localStorage.getItem('accessToken');
 export default function IdentityAgentServices() {
   const { toast } = useToast();
   const [selectedService, setSelectedService] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ nin: '', newTrackingId: '', updateFields: '', customerNotes: '', validationType: '' });
+  const [formData, setFormData] = useState({ nin: '', newTrackingId: '', updateFields: '', customerNotes: '', validationType: '', slipType: 'standard' });
   const [loading, setLoading] = useState(false);
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [requests, setRequests] = useState<any[]>([]);
@@ -125,7 +125,7 @@ export default function IdentityAgentServices() {
       const data = await response.json();
       if (data.status === 'success') {
         toast({ title: "Request Submitted", description: `Tracking ID: ${data.data.request.trackingId}` });
-        setFormData({ nin: '', newTrackingId: '', updateFields: '', customerNotes: '', validationType: '' });
+        setFormData({ nin: '', newTrackingId: '', updateFields: '', customerNotes: '', validationType: '', slipType: 'standard' });
         setSelectedService(null);
         fetchMyRequests();
       } else {
@@ -256,6 +256,21 @@ export default function IdentityAgentServices() {
                   )}
 
                   <div>
+                    <Label htmlFor="slipType">Preferred Slip Type</Label>
+                    <Select value={formData.slipType} onValueChange={(v) => setFormData(prev => ({ ...prev, slipType: v }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select slip type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="information">Information Slip</SelectItem>
+                        <SelectItem value="regular">Regular Slip</SelectItem>
+                        <SelectItem value="standard">Standard Slip</SelectItem>
+                        <SelectItem value="premium">Premium Slip</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
                     <Label htmlFor="notes">Additional Notes</Label>
                     <Textarea
                       id="notes"
@@ -313,6 +328,9 @@ export default function IdentityAgentServices() {
                         </div>
                         <p className="text-xs text-muted-foreground">{getServiceName(req.serviceType)}</p>
                         <p className="text-xs text-muted-foreground">₦{parseFloat(req.fee || 0).toLocaleString()}</p>
+                        {req.status === 'completed' && req.agentNotes && (
+                          <p className="text-xs text-green-600 truncate max-w-[250px]">Agent: {req.agentNotes}</p>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         {req.status === 'completed' && req.slipUrl && (
@@ -367,18 +385,35 @@ export default function IdentityAgentServices() {
                     <p className="text-sm">{selectedRequest.customerNotes}</p>
                   </div>
                 )}
-                {selectedRequest.agentNotes && (
+                {selectedRequest.status === 'completed' && (
+                  <div className="col-span-2 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 space-y-2">
+                    <p className="font-medium text-green-700 dark:text-green-400 text-sm">Request Completed</p>
+                    {selectedRequest.agentNotes && (
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Agent Feedback</Label>
+                        <p className="text-sm mt-1">{selectedRequest.agentNotes}</p>
+                      </div>
+                    )}
+                    {selectedRequest.slipUrl && (
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Completed Document</Label>
+                        <div className="mt-1">
+                          <a href={selectedRequest.slipUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 underline text-sm font-medium">
+                            <FileText className="h-4 w-4" />
+                            Download Slip
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                    {!selectedRequest.agentNotes && !selectedRequest.slipUrl && (
+                      <p className="text-sm text-muted-foreground">No additional feedback provided by the agent.</p>
+                    )}
+                  </div>
+                )}
+                {selectedRequest.status !== 'completed' && selectedRequest.agentNotes && (
                   <div className="col-span-2">
                     <Label className="text-muted-foreground">Agent Notes</Label>
                     <p className="text-sm">{selectedRequest.agentNotes}</p>
-                  </div>
-                )}
-                {selectedRequest.slipUrl && (
-                  <div className="col-span-2">
-                    <Label className="text-muted-foreground">Completed Slip</Label>
-                    <a href={selectedRequest.slipUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline text-sm">
-                      Download Slip
-                    </a>
                   </div>
                 )}
               </div>
