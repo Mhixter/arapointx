@@ -66,11 +66,11 @@ class PremblyService {
   private client: AxiosInstance | null = null;
 
   private getClient(): AxiosInstance {
-    const apiKey = process.env.PREMBLY_API_KEY;
-    const appId = process.env.PREMBLY_PUBLIC || process.env.PREMBLY_APP_ID;
+    const secretKey = process.env.PREMBLY_SECRET_KEY;
+    const publicKey = process.env.PREMBLY_PUBLIC_KEY;
 
-    if (!apiKey || !appId) {
-      throw new Error('PREMBLY_API_KEY and PREMBLY_PUBLIC (App ID) are not configured');
+    if (!secretKey || !publicKey) {
+      throw new Error('PREMBLY_SECRET_KEY and PREMBLY_PUBLIC_KEY are not configured');
     }
 
     if (!this.client) {
@@ -79,8 +79,8 @@ class PremblyService {
         timeout: 30000,
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'app-id': appId,
+          'x-api-key': secretKey,
+          'app-id': publicKey,
         },
       });
     }
@@ -505,7 +505,7 @@ class PremblyService {
   }
 
   isConfigured(): boolean {
-    return !!(process.env.PREMBLY_API_KEY && (process.env.PREMBLY_PUBLIC || process.env.PREMBLY_APP_ID));
+    return !!(process.env.PREMBLY_SECRET_KEY && process.env.PREMBLY_PUBLIC_KEY);
   }
 }
 
