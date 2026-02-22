@@ -12,7 +12,9 @@ import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse, generateReferenceId } from '../../utils/helpers';
 import { db } from '../../config/database';
 import { identityVerifications, identityServiceRequests, servicePricing } from '../../db/schema';
-import { eq, desc, sql } from 'drizzle-orm';
+import { eq, desc, sql, and } from 'drizzle-orm';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const getConfiguredProviders = (): ('techhub' | 'prembly' | 'youverify')[] => {
   const providers: ('techhub' | 'prembly' | 'youverify')[] = [];
@@ -1207,31 +1209,60 @@ router.get('/history', async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
-    const offset = (page - 1) * limit;
 
-    const [history, countResult] = await Promise.all([
+    const [apiVerifications, serviceRequests] = await Promise.all([
       db.select()
         .from(identityVerifications)
         .where(eq(identityVerifications.userId, req.userId!))
-        .orderBy(desc(identityVerifications.createdAt))
-        .limit(limit)
-        .offset(offset),
-      db.select({ count: sql<number>`count(*)::int` })
-        .from(identityVerifications)
-        .where(eq(identityVerifications.userId, req.userId!))
+        .orderBy(desc(identityVerifications.createdAt)),
+      db.select()
+        .from(identityServiceRequests)
+        .where(eq(identityServiceRequests.userId, req.userId!))
+        .orderBy(desc(identityServiceRequests.createdAt)),
     ]);
 
-    const total = countResult[0]?.count || 0;
-
-    const historyWithDownloadUrls = history.map(record => ({
-      ...record,
+    const apiRecords = apiVerifications.map(record => ({
+      id: record.id,
+      source: 'api' as const,
+      verificationType: record.verificationType,
+      nin: record.nin,
+      status: record.status,
       downloadUrl: record.slipReference ? `/api/slips/download/${record.slipReference}` : null,
+      slipReference: record.slipReference,
+      createdAt: record.createdAt,
     }));
 
+    const serviceRecords = serviceRequests.map(record => ({
+      id: record.id,
+      source: 'agent' as const,
+      verificationType: record.serviceType,
+      nin: record.nin,
+      status: record.status,
+      trackingId: record.trackingId,
+      agentNotes: record.agentNotes,
+      slipUrl: record.slipUrl && !record.slipUrl.startsWith('file://') ? record.slipUrl : null,
+      fee: record.fee,
+      updateFields: record.updateFields,
+      customerNotes: record.customerNotes,
+      downloadUrl: record.slipUrl && !record.slipUrl.startsWith('file://') ? `/api/identity/service-slip/${record.id}` : null,
+      createdAt: record.createdAt,
+    }));
+
+    const combined = [...apiRecords, ...serviceRecords]
+      .sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      });
+
+    const total = combined.length;
+    const offset = (page - 1) * limit;
+    const paged = combined.slice(offset, offset + limit);
+
     res.json(formatResponse('success', 200, 'Identity verification history retrieved', {
-      history: historyWithDownloadUrls,
-      pagination: { 
-        page, 
+      history: paged,
+      pagination: {
+        page,
         limit,
         total,
         totalPages: Math.ceil(total / limit),
@@ -1240,6 +1271,35 @@ router.get('/history', async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error('Identity history error', { error: error.message, userId: req.userId });
     res.status(500).json(formatErrorResponse(500, 'Failed to get history'));
+  }
+});
+
+router.get('/service-slip/:id', async (req: Request, res: Response) => {
+  try {
+    const [request] = await db.select()
+      .from(identityServiceRequests)
+      .where(and(
+        eq(identityServiceRequests.id, req.params.id),
+        eq(identityServiceRequests.userId, req.userId!)
+      ))
+      .limit(1);
+
+    if (!request || !request.slipUrl) {
+      return res.status(404).json(formatErrorResponse(404, 'Slip not found'));
+    }
+
+    if (request.slipUrl.startsWith('/uploads/')) {
+      const filePath = path.join(process.cwd(), request.slipUrl);
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json(formatErrorResponse(404, 'File not found'));
+      }
+      return res.sendFile(filePath);
+    }
+
+    return res.status(404).json(formatErrorResponse(404, 'Slip not available'));
+  } catch (error: any) {
+    logger.error('Service slip download error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to download slip'));
   }
 });
 

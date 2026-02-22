@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Loader2, Search, CheckCircle2, Download, Printer, Clock, FileText, AlertCircle, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Loader2, Search, CheckCircle2, Download, Printer, Clock, FileText, AlertCircle, AlertTriangle, Eye } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SERVICES } from "../IdentityVerification";
 import { useState, useRef, useEffect, useMemo } from "react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -1147,11 +1148,37 @@ function VerificationsHistory() {
   const getStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
       pending: 'bg-yellow-100 text-yellow-800',
+      pickup: 'bg-blue-100 text-blue-800',
       completed: 'bg-green-100 text-green-800',
       failed: 'bg-red-100 text-red-800',
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      pending: 'Pending',
+      pickup: 'In Progress',
+      completed: 'Completed',
+      failed: 'Failed',
+    };
+    return labels[status] || status;
+  };
+
+  const getServiceLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      nin_verification: 'NIN Verification',
+      nin_phone: 'NIN by Phone',
+      nin_tracking: 'NIN by Tracking',
+      nin_validation: 'NIN Validation',
+      ipe_clearance: 'IPE Clearance',
+      nin_personalization: 'NIN Personalization',
+      bvn_verification: 'BVN Verification',
+    };
+    return labels[type] || type?.toUpperCase().replace(/_/g, ' ') || 'Unknown';
+  };
+
+  const [selectedVerification, setSelectedVerification] = useState<any>(null);
 
   const handleDownload = async (downloadUrl: string, slipReference: string) => {
     try {
@@ -1209,33 +1236,132 @@ function VerificationsHistory() {
           ) : (
             <div className="space-y-4">
               {verifications.map((v: any) => (
-                <div key={v.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex-1">
-                    <p className="font-semibold">{v.verificationType?.toUpperCase().replace('_', ' ')}</p>
-                    {v.nin && <p className="text-sm text-muted-foreground">NIN: {v.nin.substring(0, 4)}****</p>}
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(v.createdAt).toLocaleString()}
-                    </p>
+                <div key={v.id} className="border rounded-lg p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold">{getServiceLabel(v.verificationType)}</p>
+                        {v.trackingId && <span className="text-xs text-muted-foreground font-mono">{v.trackingId}</span>}
+                      </div>
+                      {v.nin && <p className="text-sm text-muted-foreground">NIN: {v.nin.substring(0, 4)}****</p>}
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(v.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {v.source === 'api' && v.downloadUrl && v.status === 'completed' && (
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleDownload(v.downloadUrl, v.slipReference)}
+                          className="gap-1"
+                        >
+                          <Download className="h-4 w-4" />
+                          Download
+                        </Button>
+                      )}
+                      {v.source === 'agent' && v.downloadUrl && v.status === 'completed' && (
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleDownload(v.downloadUrl, v.trackingId || v.id)}
+                          className="gap-1"
+                        >
+                          <Download className="h-4 w-4" />
+                          Download Slip
+                        </Button>
+                      )}
+                      {v.source === 'agent' && (
+                        <Button 
+                          size="sm" 
+                          variant="ghost"
+                          onClick={() => setSelectedVerification(v)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(v.status)}`}>
+                        {getStatusLabel(v.status)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    {v.downloadUrl && v.status === 'completed' && (
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handleDownload(v.downloadUrl, v.slipReference)}
-                        className="gap-1"
-                      >
-                        <Download className="h-4 w-4" />
-                        Download
-                      </Button>
-                    )}
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(v.status)}`}>
-                      {v.status.charAt(0).toUpperCase() + v.status.slice(1)}
-                    </span>
-                  </div>
+                  {v.source === 'agent' && v.status === 'completed' && v.agentNotes && (
+                    <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800">
+                      <p className="text-xs font-medium text-green-700 dark:text-green-400">Agent Feedback:</p>
+                      <p className="text-sm mt-1">{v.agentNotes}</p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
+          )}
+
+          {selectedVerification && (
+            <Dialog open={!!selectedVerification} onOpenChange={() => setSelectedVerification(null)}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Request Details</DialogTitle>
+                  <DialogDescription>{selectedVerification.trackingId}</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground text-xs">Service</p>
+                      <p className="font-medium">{getServiceLabel(selectedVerification.verificationType)}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground text-xs">Status</p>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(selectedVerification.status)}`}>
+                        {getStatusLabel(selectedVerification.status)}
+                      </span>
+                    </div>
+                    {selectedVerification.fee && (
+                      <div>
+                        <p className="text-muted-foreground text-xs">Fee</p>
+                        <p className="font-medium">₦{parseFloat(selectedVerification.fee).toLocaleString()}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-muted-foreground text-xs">Date</p>
+                      <p>{new Date(selectedVerification.createdAt).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                  {selectedVerification.status === 'completed' && (
+                    <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 space-y-2">
+                      <p className="font-medium text-green-700 dark:text-green-400 text-sm">Request Completed</p>
+                      {selectedVerification.agentNotes && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Agent Feedback</p>
+                          <p className="text-sm mt-1">{selectedVerification.agentNotes}</p>
+                        </div>
+                      )}
+                      {selectedVerification.downloadUrl && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Completed Document</p>
+                          <Button 
+                            variant="link" 
+                            className="p-0 h-auto text-blue-600 underline text-sm font-medium mt-1"
+                            onClick={() => handleDownload(selectedVerification.downloadUrl, selectedVerification.trackingId || selectedVerification.id)}
+                          >
+                            <Download className="h-4 w-4 mr-1" />
+                            Download Slip
+                          </Button>
+                        </div>
+                      )}
+                      {!selectedVerification.agentNotes && !selectedVerification.slipUrl && (
+                        <p className="text-sm text-muted-foreground">No additional feedback provided by the agent.</p>
+                      )}
+                    </div>
+                  )}
+                  {selectedVerification.customerNotes && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Your Notes</p>
+                      <p className="text-sm mt-1">{selectedVerification.customerNotes}</p>
+                    </div>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
           )}
         </CardContent>
       </Card>
