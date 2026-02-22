@@ -8,6 +8,7 @@ import {
   Menu,
   Users,
   BarChart3,
+  Headset,
   Settings,
   DollarSign,
   Shield,
