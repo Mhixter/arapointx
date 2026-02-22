@@ -6,8 +6,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { IdCard, Loader2, Clock, CheckCircle2, User, LogOut, FileText, RefreshCw, Eye } from "lucide-react";
-import { useState, useEffect } from "react";
+import { IdCard, Loader2, Clock, CheckCircle2, User, LogOut, FileText, RefreshCw, Eye, Upload } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 
@@ -31,6 +31,9 @@ export default function IdentityAgentDashboard() {
   const [showDetails, setShowDetails] = useState(false);
   const [showStatusUpdate, setShowStatusUpdate] = useState(false);
   const [updateData, setUpdateData] = useState({ status: '', agentNotes: '', slipUrl: '' });
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const token = getAgentToken();
@@ -104,16 +107,53 @@ export default function IdentityAgentDashboard() {
     setLocation('/agent/identity');
   };
 
+  const uploadSlipFile = async (file: File): Promise<string | null> => {
+    try {
+      const token = getAgentToken();
+      const uploadUrlRes = await fetch('/api/identity-agent/upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      });
+      const uploadUrlData = await uploadUrlRes.json();
+      if (!uploadUrlData.uploadURL) throw new Error('Failed to get upload URL');
+
+      await fetch(uploadUrlData.uploadURL, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+        body: file
+      });
+
+      return uploadUrlData.objectPath;
+    } catch (error) {
+      console.error('File upload error:', error);
+      return null;
+    }
+  };
+
   const handleUpdateStatus = async () => {
     if (!updateData.status || !selectedRequest) return;
     
     setLoading(true);
     try {
+      let slipUrl = updateData.slipUrl;
+
+      if (updateData.status === 'completed' && selectedFile) {
+        setUploadingFile(true);
+        const uploadedUrl = await uploadSlipFile(selectedFile);
+        setUploadingFile(false);
+        if (!uploadedUrl) {
+          toast({ title: "Upload failed", description: "Could not upload the slip file. Please try again.", variant: "destructive" });
+          setLoading(false);
+          return;
+        }
+        slipUrl = uploadedUrl;
+      }
+
       const token = getAgentToken();
       const response = await fetch(`/api/identity-agent/requests/${selectedRequest.id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(updateData)
+        body: JSON.stringify({ status: updateData.status, agentNotes: updateData.agentNotes, slipUrl })
       });
       const data = await response.json();
       if (data.status === 'success') {
@@ -123,6 +163,7 @@ export default function IdentityAgentDashboard() {
         setShowStatusUpdate(false);
         setSelectedRequest(null);
         setUpdateData({ status: '', agentNotes: '', slipUrl: '' });
+        setSelectedFile(null);
       } else {
         toast({ title: "Failed", description: data.message, variant: "destructive" });
       }
@@ -130,6 +171,7 @@ export default function IdentityAgentDashboard() {
       toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
     } finally {
       setLoading(false);
+      setUploadingFile(false);
     }
   };
 
@@ -268,7 +310,7 @@ export default function IdentityAgentDashboard() {
                           {getServiceTypeLabel(request.serviceType)}
                         </p>
                         <p className="text-sm">
-                          <strong>Customer:</strong> {request.userName || 'N/A'} ({request.userEmail || 'N/A'})
+                          <strong>Customer:</strong> {request.userName || 'N/A'}
                         </p>
                         {request.nin && <p className="text-sm"><strong>NIN:</strong> {request.nin}</p>}
                         <p className="text-xs text-muted-foreground">
@@ -310,9 +352,6 @@ export default function IdentityAgentDashboard() {
                 <div><strong>Service:</strong> {getServiceTypeLabel(selectedRequest.serviceType)}</div>
                 <div><strong>Status:</strong> {getStatusBadge(selectedRequest.status)}</div>
                 <div><strong>Customer:</strong> {selectedRequest.userName}</div>
-                <div><strong>Email:</strong> {selectedRequest.userEmail}</div>
-                <div><strong>Phone:</strong> {selectedRequest.userPhone || 'N/A'}</div>
-                <div><strong>Fee:</strong> {selectedRequest.fee}</div>
                 {selectedRequest.nin && <div><strong>NIN:</strong> {selectedRequest.nin}</div>}
                 {selectedRequest.newTrackingId && <div><strong>New Tracking ID:</strong> {selectedRequest.newTrackingId}</div>}
               </div>
@@ -368,12 +407,53 @@ export default function IdentityAgentDashboard() {
 
             {updateData.status === 'completed' && (
               <div className="space-y-2">
-                <Label>Slip/Result URL</Label>
-                <Input 
-                  value={updateData.slipUrl}
-                  onChange={(e) => setUpdateData(prev => ({ ...prev, slipUrl: e.target.value }))}
-                  placeholder="Enter URL to slip or result document..."
+                <Label>Upload Slip/Result Document</Label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      if (file.size > 10 * 1024 * 1024) {
+                        toast({ title: "File too large", description: "Maximum file size is 10MB", variant: "destructive" });
+                        return;
+                      }
+                      setSelectedFile(file);
+                    }
+                  }}
                 />
+                <div 
+                  className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer hover:border-blue-400 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {selectedFile ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <FileText className="h-5 w-5 text-blue-600" />
+                      <span className="text-sm font-medium">{selectedFile.name}</span>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <Upload className="h-8 w-8 mx-auto text-gray-400" />
+                      <p className="text-sm text-muted-foreground">Click to upload slip or result document</p>
+                      <p className="text-xs text-muted-foreground">PDF, PNG, JPG, DOC (max 10MB)</p>
+                    </div>
+                  )}
+                </div>
+                {uploadingFile && (
+                  <div className="flex items-center gap-2 text-sm text-blue-600">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Uploading file...
+                  </div>
+                )}
               </div>
             )}
           </div>

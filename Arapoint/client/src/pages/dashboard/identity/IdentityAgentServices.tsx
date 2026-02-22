@@ -82,8 +82,18 @@ export default function IdentityAgentServices() {
     e.preventDefault();
     if (!selectedService) return;
 
-    if (!formData.nin && !formData.newTrackingId) {
-      toast({ title: "Missing Information", description: "Please provide NIN or tracking ID", variant: "destructive" });
+    if (!formData.nin) {
+      toast({ title: "NIN Required", description: "Please enter a valid 11-digit NIN", variant: "destructive" });
+      return;
+    }
+
+    if (!/^\d{11}$/.test(formData.nin)) {
+      toast({ title: "Invalid NIN", description: "NIN must be exactly 11 digits", variant: "destructive" });
+      return;
+    }
+
+    if (selectedService === 'nin_personalization' && !formData.updateFields?.trim()) {
+      toast({ title: "Missing Information", description: "Please specify which fields to update", variant: "destructive" });
       return;
     }
 
@@ -178,9 +188,14 @@ export default function IdentityAgentServices() {
                       <Input
                         id="nin"
                         value={formData.nin}
-                        onChange={(e) => setFormData(prev => ({ ...prev, nin: e.target.value }))}
-                        placeholder="Enter NIN number"
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          setFormData(prev => ({ ...prev, nin: val }));
+                        }}
+                        placeholder="Enter 11-digit NIN"
                         maxLength={11}
+                        inputMode="numeric"
+                        pattern="\d{11}"
                       />
                     </div>
                     <div>

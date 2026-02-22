@@ -22,6 +22,7 @@ const DEFAULT_PRICES: Record<string, { price: number; name: string; description:
   vnin: { price: 200, name: 'vNIN Lookup', description: 'Virtual NIN verification' },
   lost_nin: { price: 500, name: 'Lost NIN Recovery', description: 'Lost NIN recovery service' },
   ipe_clearance: { price: 1000, name: 'IPE Clearance', description: 'IPE clearance check' },
+  nin_personalization: { price: 1500, name: 'NIN Personalization', description: 'NIN personalization service' },
   validation_nin: { price: 1000, name: 'NIN Validation', description: 'NIN validation service' },
   birth_attestation: { price: 2000, name: 'Birth Attestation', description: 'Birth attestation service' },
   nin_tracking: { price: 250, name: 'NIN Tracking', description: 'NIN application tracking' },
