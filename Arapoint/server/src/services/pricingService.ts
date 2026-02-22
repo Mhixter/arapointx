@@ -35,7 +35,7 @@ const DEFAULT_PRICES: Record<string, { price: number; name: string; description:
   bvn_retrieval: { price: 100, name: 'BVN Retrieval', description: 'Basic BVN verification' },
   bvn_retrieval_premium: { price: 200, name: 'BVN Retrieval Premium', description: 'Premium BVN verification with full details' },
   bvn_digital_card: { price: 500, name: 'BVN Digital Card', description: 'BVN digital card generation' },
-  bvn_modification: { price: 1000, name: 'BVN Modification', description: 'BVN modification request' },
+  bvn_modification: { price: 2500, name: 'BVN Modification', description: 'BVN modification request' },
   
   // CAC Services
   cac_basic: { price: 2000, name: 'CAC Basic Search', description: 'Basic CAC company search' },
