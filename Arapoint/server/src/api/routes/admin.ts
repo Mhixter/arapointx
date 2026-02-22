@@ -2686,4 +2686,61 @@ router.get('/support/agents', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/support/agents', async (req: Request, res: Response) => {
+  try {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json(formatErrorResponse(400, 'Name, email, and password are required'));
+    }
+
+    const existingUser = await db.select()
+      .from(admin_users)
+      .where(eq(admin_users.email, email.toLowerCase()))
+      .limit(1);
+
+    if (existingUser.length > 0) {
+      return res.status(409).json(formatErrorResponse(409, 'Email already exists'));
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    let supportRole = await db.select()
+      .from(admin_roles)
+      .where(eq(admin_roles.name, 'support_agent'))
+      .limit(1);
+
+    if (supportRole.length === 0) {
+      const [newRole] = await db.insert(admin_roles).values({
+        name: 'support_agent',
+        description: 'Support Agent role with access to support tickets',
+        permissions: ['support:view', 'support:reply'],
+        isActive: true,
+      }).returning();
+      supportRole = [newRole];
+    }
+
+    const [newAgent] = await db.insert(admin_users).values({
+      name,
+      email: email.toLowerCase(),
+      passwordHash,
+      roleId: supportRole[0].id,
+      isActive: true,
+    }).returning();
+
+    logger.info('Support agent created', { agentId: newAgent.id, email, createdBy: req.userId });
+
+    res.status(201).json(formatResponse('success', 201, 'Support agent created successfully', {
+      agent: {
+        id: newAgent.id,
+        name: newAgent.name,
+        email: newAgent.email,
+      },
+    }));
+  } catch (error: any) {
+    logger.error('Create support agent error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to create support agent'));
+  }
+});
+
 export default router;
