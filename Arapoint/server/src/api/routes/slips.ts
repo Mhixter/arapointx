@@ -200,7 +200,7 @@ router.get('/positions/:type', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/positions/:type', authMiddleware, async (req: Request, res: Response) => {
+router.post('/positions/:type', async (req: Request, res: Response) => {
   try {
     const slipType = req.params.type as 'standard' | 'premium' | 'long' | 'full_info';
     if (!['standard', 'premium', 'long', 'full_info'].includes(slipType)) {
