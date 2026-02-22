@@ -78,7 +78,10 @@ export default function SupportAgentDashboard() {
   const { toast } = useToast();
   const [_, setLocation] = useLocation();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevMessageCountRef = useRef(0);
+  const userScrolledUpRef = useRef(false);
 
   const [agent, setAgent] = useState<any>(null);
   const [tickets, setTickets] = useState<any[]>([]);
@@ -191,8 +194,18 @@ export default function SupportAgentDashboard() {
     return () => clearInterval(interval);
   }, [selectedTicketId, fetchMessages, fetchTicketDetail, fetchNotes]);
 
+  const handleScrollChange = useCallback(() => {
+    const el = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    userScrolledUpRef.current = distanceFromBottom > 100;
+  }, []);
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages.length > prevMessageCountRef.current && !userScrolledUpRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+    prevMessageCountRef.current = messages.length;
   }, [messages]);
 
   useEffect(() => {
@@ -395,6 +408,8 @@ export default function SupportAgentDashboard() {
                         onClick={() => {
                           setSelectedTicketId(t.id);
                           setSuggestions([]);
+                          userScrolledUpRef.current = false;
+                          prevMessageCountRef.current = 0;
                         }}
                       >
                         <div className="flex justify-between items-start mb-1">
@@ -494,7 +509,7 @@ export default function SupportAgentDashboard() {
 
                 {!showNotes ? (
                   <>
-                    <ScrollArea className="flex-1">
+                    <ScrollArea className="flex-1" ref={scrollAreaRef} onScrollCapture={handleScrollChange}>
                       <div className="p-4 space-y-3">
                         {messages.map((msg: any) => {
                           if (msg.senderType === "system") {

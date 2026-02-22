@@ -135,8 +135,11 @@ export default function SupportDashboard() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const lastMessageTimestamp = useRef<string | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevMessageCountRef = useRef(0);
+  const userScrolledUpRef = useRef(false);
 
   const { data: statsData } = useQuery({
     queryKey: ["admin", "support", "stats"],
@@ -216,8 +219,19 @@ export default function SupportDashboard() {
     return () => clearInterval(interval);
   }, [selectedTicketId, isTyping]);
 
+  const handleScrollChange = useCallback(() => {
+    const el = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    userScrolledUpRef.current = distanceFromBottom > 100;
+  }, []);
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const msgs = messagesData?.messages || [];
+    if (msgs.length > prevMessageCountRef.current && !userScrolledUpRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+    prevMessageCountRef.current = msgs.length;
   }, [messagesData?.messages]);
 
   const handleTypingChange = useCallback(
@@ -503,6 +517,8 @@ export default function SupportDashboard() {
                         onClick={() => {
                           setSelectedTicketId(t.id);
                           lastMessageTimestamp.current = null;
+                          userScrolledUpRef.current = false;
+                          prevMessageCountRef.current = 0;
                         }}
                       >
                         <div className="flex justify-between items-start mb-1">
@@ -624,7 +640,7 @@ export default function SupportDashboard() {
                 </TabsList>
 
                 <TabsContent value="messages" className="flex-1 flex flex-col overflow-hidden mt-0 p-0">
-                  <ScrollArea className="flex-1 p-4">
+                  <ScrollArea className="flex-1 p-4" ref={scrollAreaRef} onScrollCapture={handleScrollChange}>
                     <div className="space-y-3">
                       {messages.map((m: any) => {
                         const isAgent = m.senderType?.toUpperCase() === "AGENT";
