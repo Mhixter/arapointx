@@ -168,12 +168,12 @@ router.get('/verify/:reference', publicRateLimiter, async (req: Request, res: Re
 
 router.get('/positions/:type', async (req: Request, res: Response) => {
   try {
-    const slipType = req.params.type as 'standard' | 'premium' | 'long';
-    if (!['standard', 'premium', 'long'].includes(slipType)) {
+    const slipType = req.params.type as 'standard' | 'premium' | 'long' | 'full_info';
+    if (!['standard', 'premium', 'long', 'full_info'].includes(slipType)) {
       return res.status(400).json({
         status: 'error',
         code: 400,
-        message: 'Invalid slip type. Must be standard, premium, or long'
+        message: 'Invalid slip type. Must be standard, premium, long, or full_info'
       });
     }
 
@@ -202,12 +202,12 @@ router.get('/positions/:type', async (req: Request, res: Response) => {
 
 router.post('/positions/:type', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const slipType = req.params.type as 'standard' | 'premium' | 'long';
-    if (!['standard', 'premium', 'long'].includes(slipType)) {
+    const slipType = req.params.type as 'standard' | 'premium' | 'long' | 'full_info';
+    if (!['standard', 'premium', 'long', 'full_info'].includes(slipType)) {
       return res.status(400).json({
         status: 'error',
         code: 400,
-        message: 'Invalid slip type. Must be standard, premium, or long'
+        message: 'Invalid slip type. Must be standard, premium, long, or full_info'
       });
     }
 
@@ -234,17 +234,18 @@ router.post('/positions/:type', authMiddleware, async (req: Request, res: Respon
 
 router.get('/analyzer/:type', async (req: Request, res: Response) => {
   try {
-    const slipType = req.params.type as 'standard' | 'premium' | 'long';
-    if (!['standard', 'premium', 'long'].includes(slipType)) {
+    const slipType = req.params.type as 'standard' | 'premium' | 'long' | 'full_info';
+    if (!['standard', 'premium', 'long', 'full_info'].includes(slipType)) {
       return res.status(400).json({
         status: 'error',
         code: 400,
-        message: 'Invalid slip type. Must be standard, premium, or long'
+        message: 'Invalid slip type. Must be standard, premium, long, or full_info'
       });
     }
 
     const positions = getSlipPositions(slipType);
-    const templatePath = path.join(process.cwd(), 'server/src/templates', `${slipType}_template-1.png`);
+    const templateFileName = slipType === 'full_info' ? 'full_info_template.png' : `${slipType}_template-1.png`;
+    const templatePath = path.join(process.cwd(), 'server/src/templates', templateFileName);
     
     if (!fs.existsSync(templatePath)) {
       return res.status(404).json({
@@ -269,8 +270,8 @@ router.get('/analyzer/:type', async (req: Request, res: Response) => {
     body { font-family: Arial, sans-serif; background: #1a1a2e; color: #fff; min-height: 100vh; }
     .container { display: flex; gap: 20px; padding: 20px; }
     .preview { flex: 1; position: relative; overflow: auto; }
-    .preview-inner { position: relative; display: inline-block; width: 1267px; height: 1652px; }
-    .template-img { width: 1267px; height: 1652px; display: block; }
+    .preview-inner { position: relative; display: inline-block; width: ${slipType === 'full_info' ? '1162px' : '1267px'}; height: ${slipType === 'full_info' ? '1758px' : '1652px'}; }
+    .template-img { width: ${slipType === 'full_info' ? '1162px' : '1267px'}; height: ${slipType === 'full_info' ? '1758px' : '1652px'}; display: block; }
     .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
     .controls { width: 400px; background: #16213e; padding: 20px; border-radius: 10px; max-height: 90vh; overflow-y: auto; }
     h1 { margin-bottom: 20px; color: #e94560; font-size: 20px; }
@@ -309,8 +310,15 @@ router.get('/analyzer/:type', async (req: Request, res: Response) => {
         <button class="tab" data-section="nin">NIN</button>
         <button class="tab" data-section="qr">QR</button>
         ${slipType !== 'standard' ? '<button class="tab" data-section="sex">Sex</button>' : ''}
-        ${slipType === 'premium' ? '<button class="tab" data-section="issue">Issue Date</button>' : ''}
-        ${slipType === 'long' ? '<button class="tab" data-section="tracking">Tracking</button>' : ''}
+        ${slipType === 'premium' || slipType === 'full_info' ? '<button class="tab" data-section="issue">Issue Date</button>' : ''}
+        ${slipType === 'long' || slipType === 'full_info' ? '<button class="tab" data-section="tracking">Tracking</button>' : ''}
+        ${slipType === 'long' || slipType === 'full_info' ? '<button class="tab" data-section="address">Address</button>' : ''}
+        ${slipType === 'full_info' ? '<button class="tab" data-section="phone">Phone</button>' : ''}
+        ${slipType === 'full_info' ? '<button class="tab" data-section="state">State</button>' : ''}
+        ${slipType === 'full_info' ? '<button class="tab" data-section="lga">LGA</button>' : ''}
+        ${slipType === 'full_info' ? '<button class="tab" data-section="birth_state">Birth State</button>' : ''}
+        ${slipType === 'full_info' ? '<button class="tab" data-section="birth_lga">Birth LGA</button>' : ''}
+        ${slipType === 'full_info' ? '<button class="tab" data-section="nationality">Nationality</button>' : ''}
       </div>
       
       <div id="sections">
@@ -374,12 +382,60 @@ router.get('/analyzer/:type', async (req: Request, res: Response) => {
         </div>
         ` : ''}
         
-        ${slipType === 'long' ? `
+        ${slipType === 'long' || slipType === 'full_info' ? `
         <div class="section" data-section="tracking" style="display:none">
           <h2>Tracking ID Position</h2>
           <div class="field"><label>Top</label><input type="text" id="tracking_top" value="${positions.tracking_top || ''}"></div>
           <div class="field"><label>Left</label><input type="text" id="tracking_left" value="${positions.tracking_left || ''}"></div>
           <div class="field"><label>Font Size</label><input type="text" id="tracking_size" value="${positions.tracking_size || ''}"></div>
+        </div>
+        ` : ''}
+        
+        ${slipType === 'long' || slipType === 'full_info' ? `
+        <div class="section" data-section="address" style="display:none">
+          <h2>Address Position</h2>
+          <div class="field"><label>Top</label><input type="text" id="address_top" value="${positions.address_top || ''}"></div>
+          <div class="field"><label>Left</label><input type="text" id="address_left" value="${positions.address_left || ''}"></div>
+          <div class="field"><label>Font Size</label><input type="text" id="address_size" value="${positions.address_size || ''}"></div>
+        </div>
+        ` : ''}
+        
+        ${slipType === 'full_info' ? `
+        <div class="section" data-section="phone" style="display:none">
+          <h2>Phone Position</h2>
+          <div class="field"><label>Top</label><input type="text" id="phone_top" value="${positions.phone_top || ''}"></div>
+          <div class="field"><label>Left</label><input type="text" id="phone_left" value="${positions.phone_left || ''}"></div>
+          <div class="field"><label>Font Size</label><input type="text" id="phone_size" value="${positions.phone_size || ''}"></div>
+        </div>
+        <div class="section" data-section="state" style="display:none">
+          <h2>State Position</h2>
+          <div class="field"><label>Top</label><input type="text" id="state_top" value="${positions.state_top || ''}"></div>
+          <div class="field"><label>Left</label><input type="text" id="state_left" value="${positions.state_left || ''}"></div>
+          <div class="field"><label>Font Size</label><input type="text" id="state_size" value="${positions.state_size || ''}"></div>
+        </div>
+        <div class="section" data-section="lga" style="display:none">
+          <h2>LGA Position</h2>
+          <div class="field"><label>Top</label><input type="text" id="lga_top" value="${positions.lga_top || ''}"></div>
+          <div class="field"><label>Left</label><input type="text" id="lga_left" value="${positions.lga_left || ''}"></div>
+          <div class="field"><label>Font Size</label><input type="text" id="lga_size" value="${positions.lga_size || ''}"></div>
+        </div>
+        <div class="section" data-section="birth_state" style="display:none">
+          <h2>Birth State Position</h2>
+          <div class="field"><label>Top</label><input type="text" id="birth_state_top" value="${positions.birth_state_top || ''}"></div>
+          <div class="field"><label>Left</label><input type="text" id="birth_state_left" value="${positions.birth_state_left || ''}"></div>
+          <div class="field"><label>Font Size</label><input type="text" id="birth_state_size" value="${positions.birth_state_size || ''}"></div>
+        </div>
+        <div class="section" data-section="birth_lga" style="display:none">
+          <h2>Birth LGA Position</h2>
+          <div class="field"><label>Top</label><input type="text" id="birth_lga_top" value="${positions.birth_lga_top || ''}"></div>
+          <div class="field"><label>Left</label><input type="text" id="birth_lga_left" value="${positions.birth_lga_left || ''}"></div>
+          <div class="field"><label>Font Size</label><input type="text" id="birth_lga_size" value="${positions.birth_lga_size || ''}"></div>
+        </div>
+        <div class="section" data-section="nationality" style="display:none">
+          <h2>Nationality Position</h2>
+          <div class="field"><label>Top</label><input type="text" id="nationality_top" value="${positions.nationality_top || ''}"></div>
+          <div class="field"><label>Left</label><input type="text" id="nationality_left" value="${positions.nationality_left || ''}"></div>
+          <div class="field"><label>Font Size</label><input type="text" id="nationality_size" value="${positions.nationality_size || ''}"></div>
         </div>
         ` : ''}
       </div>
@@ -425,8 +481,15 @@ router.get('/analyzer/:type', async (req: Request, res: Response) => {
       html += '<div class="text-box" style="top:'+pos.nin_top+';left:'+pos.nin_left+';font-size:'+pos.nin_size+';">123 4567 8901</div>';
       html += '<div class="qr-box" style="top:'+pos.qr_top+';right:'+pos.qr_right+';width:'+pos.qr_width+';aspect-ratio:1;">QR</div>';
       if (pos.sex_top) html += '<div class="text-box" style="top:'+pos.sex_top+';left:'+pos.sex_left+';font-size:'+pos.sex_size+';">M</div>';
-      if (pos.issue_top) html += '<div class="text-box" style="top:'+pos.issue_top+';right:'+pos.issue_right+';font-size:'+pos.issue_size+';">30 JAN 2026</div>';
-      if (pos.tracking_top) html += '<div class="text-box" style="top:'+pos.tracking_top+';left:'+pos.tracking_left+';font-size:'+pos.tracking_size+';">TRK123456</div>';
+      if (pos.issue_top) html += '<div class="text-box" style="top:'+pos.issue_top+';right:'+(pos.issue_right||pos.issue_left)+';font-size:'+pos.issue_size+';">30 JAN 2026</div>';
+      if (pos.tracking_top) html += '<div class="text-box" style="top:'+pos.tracking_top+';left:'+pos.tracking_left+';font-size:'+pos.tracking_size+';">TRK-AB12CD34EF56</div>';
+      if (pos.address_top) html += '<div class="text-box" style="top:'+pos.address_top+';left:'+pos.address_left+';font-size:'+pos.address_size+';max-width:40%;">123 SAMPLE STREET, LAGOS</div>';
+      if (pos.phone_top) html += '<div class="text-box" style="top:'+pos.phone_top+';left:'+pos.phone_left+';font-size:'+pos.phone_size+';">08012345678</div>';
+      if (pos.state_top) html += '<div class="text-box" style="top:'+pos.state_top+';left:'+pos.state_left+';font-size:'+pos.state_size+';">LAGOS</div>';
+      if (pos.lga_top) html += '<div class="text-box" style="top:'+pos.lga_top+';left:'+pos.lga_left+';font-size:'+pos.lga_size+';">IKEJA</div>';
+      if (pos.birth_state_top) html += '<div class="text-box" style="top:'+pos.birth_state_top+';left:'+pos.birth_state_left+';font-size:'+pos.birth_state_size+';">OGUN</div>';
+      if (pos.birth_lga_top) html += '<div class="text-box" style="top:'+pos.birth_lga_top+';left:'+pos.birth_lga_left+';font-size:'+pos.birth_lga_size+';">ABEOKUTA</div>';
+      if (pos.nationality_top) html += '<div class="text-box" style="top:'+pos.nationality_top+';left:'+pos.nationality_left+';font-size:'+pos.nationality_size+';">NIGERIAN</div>';
       overlay.innerHTML = html;
       document.getElementById('jsonOutput').textContent = JSON.stringify(pos, null, 2);
     }

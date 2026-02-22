@@ -649,6 +649,23 @@ router.post('/nin', async (req: Request, res: Response) => {
 
     let pdfSlipResult = null;
     try {
+      const generateTrackingId = (): string => {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let id = '';
+        for (let i = 0; i < 16; i++) {
+          id += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return id;
+      };
+
+      const addressParts = [
+        ninData.address || '',
+        ninData.town || '',
+        ninData.lga || ninData.lgaOfResidence || '',
+        ninData.state || ninData.stateOfResidence || '',
+      ].filter(Boolean);
+      const fullAddress = addressParts.join(', ') || 'N/A';
+
       const slipData: SlipData = {
         nin: validation.data.nin,
         surname: ninData.lastName || ninData.surname || '',
@@ -657,9 +674,9 @@ router.post('/nin', async (req: Request, res: Response) => {
         date_of_birth: ninData.dateOfBirth || ninData.dob || '',
         gender: ninData.gender || '',
         photo: ninData.photo || '',
-        tracking_id: ninData.trackingId || '',
+        tracking_id: ninData.trackingId || ninData.centralId || generateTrackingId(),
         verification_reference: result.reference,
-        address: ninData.address || '',
+        address: fullAddress,
         phone: ninData.phone || '',
         state: ninData.state || ninData.stateOfResidence || '',
         lga: ninData.lga || ninData.lgaOfResidence || '',
