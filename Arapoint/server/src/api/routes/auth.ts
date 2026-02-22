@@ -5,7 +5,7 @@ import { authMiddleware } from '../middleware/auth';
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { adminUsers } from '../../db/schema';
+import { adminUsers, adminRoles } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -87,8 +87,17 @@ router.post('/admin/login', async (req: Request, res: Response) => {
       .set({ lastLogin: new Date() })
       .where(eq(adminUsers.id, admin.id));
 
+    let roleName = 'admin';
+    if (admin.roleId) {
+      const [role] = await db.select({ name: adminRoles.name })
+        .from(adminRoles)
+        .where(eq(adminRoles.id, admin.roleId))
+        .limit(1);
+      if (role) roleName = role.name;
+    }
+
     const accessToken = jwt.sign(
-      { adminId: admin.id, isAdmin: true },
+      { adminId: admin.id, isAdmin: true, role: roleName },
       config.JWT_SECRET,
       { expiresIn: '8h' }
     );
@@ -99,7 +108,7 @@ router.post('/admin/login', async (req: Request, res: Response) => {
       { expiresIn: '7d' }
     );
 
-    logger.info('Admin login successful', { adminId: admin.id, email: admin.email });
+    logger.info('Admin login successful', { adminId: admin.id, email: admin.email, role: roleName });
 
     res.json(formatResponse('success', 200, 'Admin login successful', {
       accessToken,
@@ -108,6 +117,7 @@ router.post('/admin/login', async (req: Request, res: Response) => {
         id: admin.id,
         email: admin.email,
         name: admin.name,
+        role: roleName,
       }
     }));
   } catch (error: any) {

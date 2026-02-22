@@ -31,10 +31,10 @@ export default function AdminLogin() {
       localStorage.setItem('adminUser', JSON.stringify(admin));
       
       toast({
-        title: "Welcome Admin!",
+        title: admin.role === 'support_agent' ? "Welcome!" : "Welcome Admin!",
         description: `Successfully logged in as ${admin.name}.`,
       });
-      setLocation("/admin");
+      setLocation(admin.role === 'support_agent' ? "/admin/support" : "/admin");
     } catch (error: any) {
       toast({
         title: "Login failed",

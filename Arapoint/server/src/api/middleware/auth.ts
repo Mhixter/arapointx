@@ -12,6 +12,7 @@ declare global {
       userId?: string;
       adminId?: string;
       isAdmin?: boolean;
+      adminRole?: string;
     }
   }
 }
@@ -99,6 +100,7 @@ export const adminAuthMiddleware = async (req: Request, res: Response, next: Nex
     req.adminId = decoded.adminId;
     req.userId = decoded.adminId;
     req.isAdmin = true;
+    req.adminRole = decoded.role || 'admin';
     next();
   } catch (error) {
     logger.error('Admin auth error:', error);
@@ -108,4 +110,18 @@ export const adminAuthMiddleware = async (req: Request, res: Response, next: Nex
       message: 'Invalid admin token',
     });
   }
+};
+
+export const requireAdminRole = (...allowedRoles: string[]) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const role = req.adminRole || 'admin';
+    if (allowedRoles.includes(role) || role === 'super_admin' || role === 'admin') {
+      return next();
+    }
+    return res.status(403).json({
+      status: 'error',
+      code: 403,
+      message: 'You do not have permission to access this resource',
+    });
+  };
 };

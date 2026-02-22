@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { adminAuthMiddleware } from '../middleware/auth';
 import { jobService } from '../../services/jobService';
 import { pricingService } from '../../services/pricingService';
@@ -54,6 +54,18 @@ import { eq, desc, count, sql, and, or, gt, asc } from 'drizzle-orm';
 
 const router = Router();
 router.use(adminAuthMiddleware);
+
+const supportAgentGuard = (req: Request, res: Response, next: NextFunction) => {
+  if (req.adminRole === 'support_agent' && !req.path.startsWith('/support/')) {
+    return res.status(403).json({
+      status: 'error',
+      code: 403,
+      message: 'Support agents can only access support-related endpoints',
+    });
+  }
+  next();
+};
+router.use(supportAgentGuard);
 
 router.post('/vtu/scrape-data', async (req: Request, res: Response) => {
   try {

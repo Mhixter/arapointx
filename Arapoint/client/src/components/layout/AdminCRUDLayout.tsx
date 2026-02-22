@@ -29,15 +29,15 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { useState, useEffect } from "react";
 import arapointLogo from "@assets/generated_images/arapoint_solution_logo.png";
 
-const ADMIN_ROLES = {
+const ADMIN_ROLES: Record<string, { name: string; permissions: string[]; color: string }> = {
   super_admin: {
     name: "Super Admin",
-    permissions: ["users", "identity", "bvn", "education", "vtu", "cac", "pricing", "analytics", "settings", "roles"],
+    permissions: ["users", "identity", "bvn", "education", "vtu", "cac", "pricing", "analytics", "settings", "roles", "support"],
     color: "bg-red-500"
   },
   admin: {
     name: "Admin",
-    permissions: ["users", "identity", "bvn", "education", "vtu", "cac", "analytics"],
+    permissions: ["users", "identity", "bvn", "education", "vtu", "cac", "analytics", "support"],
     color: "bg-blue-500"
   },
   operator: {
@@ -49,6 +49,11 @@ const ADMIN_ROLES = {
     name: "Viewer",
     permissions: ["analytics"],
     color: "bg-gray-500"
+  },
+  support_agent: {
+    name: "Support Agent",
+    permissions: ["support"],
+    color: "bg-teal-500"
   }
 };
 
@@ -64,7 +69,7 @@ const ALL_NAV_ITEMS = [
   { href: "/admin/education-agents", label: "Education Agents", icon: GraduationCap, permission: "education" },
   { href: "/admin/a2c-agents", label: "A2C Agents", icon: DollarSign, permission: "vtu" },
   { href: "/admin/pricing", label: "Pricing Management", icon: DollarSign, permission: "pricing" },
-  { href: "/admin/support", label: "Support Chat", icon: Headset, permission: "analytics" },
+  { href: "/admin/support", label: "Support Chat", icon: Headset, permission: "support" },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3, permission: "analytics" },
   { href: "/admin/roles", label: "Role Management", icon: Shield, permission: "roles" },
   { href: "/admin/settings", label: "Settings", icon: Settings, permission: "settings" },
@@ -72,14 +77,25 @@ const ALL_NAV_ITEMS = [
 
 interface AdminCRUDLayoutProps {
   children: React.ReactNode;
-  currentRole?: keyof typeof ADMIN_ROLES;
+  currentRole?: string;
 }
 
-export default function AdminCRUDLayout({ children, currentRole = "super_admin" }: AdminCRUDLayoutProps) {
-  const [location] = useLocation();
+function getAdminUser() {
+  try {
+    const stored = localStorage.getItem('adminUser');
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return null;
+}
+
+export default function AdminCRUDLayout({ children, currentRole }: AdminCRUDLayoutProps) {
+  const [location, setLocation] = useLocation();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  
+  const adminUser = getAdminUser();
+  const resolvedRole = currentRole || adminUser?.role || 'super_admin';
   
   useEffect(() => {
     const checkMobile = () => {
@@ -92,8 +108,14 @@ export default function AdminCRUDLayout({ children, currentRole = "super_admin" 
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  useEffect(() => {
+    if (resolvedRole === 'support_agent' && location !== '/admin/support') {
+      setLocation('/admin/support');
+    }
+  }, [resolvedRole, location, setLocation]);
   
-  const role = ADMIN_ROLES[currentRole];
+  const role = ADMIN_ROLES[resolvedRole] || ADMIN_ROLES['super_admin'];
   const permissions = role?.permissions || [];
   
   const navItems = ALL_NAV_ITEMS.filter(item => 
@@ -164,27 +186,33 @@ export default function AdminCRUDLayout({ children, currentRole = "super_admin" 
             <div className="flex items-center gap-2 sm:gap-3">
               <Avatar className="h-9 w-9 sm:h-10 sm:w-10 border-2 border-primary flex-shrink-0">
                 <AvatarImage src="" />
-                <AvatarFallback className="bg-primary text-white text-xs sm:text-sm">SA</AvatarFallback>
+                <AvatarFallback className="bg-primary text-white text-xs sm:text-sm">
+                  {(adminUser?.name || 'SA').substring(0, 2).toUpperCase()}
+                </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-xs sm:text-sm font-semibold text-white truncate">Super Admin</p>
-                <p className="text-[10px] sm:text-xs text-slate-400 truncate">arapoint@arapoint.com.ng</p>
+                <p className="text-xs sm:text-sm font-semibold text-white truncate">{adminUser?.name || 'Admin'}</p>
+                <p className="text-[10px] sm:text-xs text-slate-400 truncate">{adminUser?.email || ''}</p>
               </div>
             </div>
           </div>
         )}
-        <Link href="/auth/login" className="block">
-          <Button 
-            variant="ghost" 
-            className={`w-full text-slate-300 hover:text-white hover:bg-slate-800 active:bg-slate-700 ${
-              isCollapsed && !isMobile ? "justify-center px-2" : "justify-start"
-            }`}
-            title={isCollapsed && !isMobile ? "Sign Out" : undefined}
-          >
-            <LogOut className="h-4 w-4 flex-shrink-0" />
-            {(!isCollapsed || isMobile) && <span className="ml-2">Sign Out</span>}
-          </Button>
-        </Link>
+        <Button 
+          variant="ghost" 
+          className={`w-full text-slate-300 hover:text-white hover:bg-slate-800 active:bg-slate-700 ${
+            isCollapsed && !isMobile ? "justify-center px-2" : "justify-start"
+          }`}
+          title={isCollapsed && !isMobile ? "Sign Out" : undefined}
+          onClick={() => {
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminRefreshToken');
+            localStorage.removeItem('adminUser');
+            window.location.href = "/admin/login";
+          }}
+        >
+          <LogOut className="h-4 w-4 flex-shrink-0" />
+          {(!isCollapsed || isMobile) && <span className="ml-2">Sign Out</span>}
+        </Button>
       </div>
     </div>
   );
@@ -248,10 +276,12 @@ export default function AdminCRUDLayout({ children, currentRole = "super_admin" 
                 <Button variant="ghost" className="gap-1 sm:gap-2 px-1.5 sm:px-2 h-8 sm:h-9">
                   <Avatar className="h-7 w-7 sm:h-8 sm:w-8 border border-slate-200 dark:border-slate-700">
                     <AvatarImage src="" />
-                    <AvatarFallback className="bg-primary text-white text-[10px] sm:text-xs">SA</AvatarFallback>
+                    <AvatarFallback className="bg-primary text-white text-[10px] sm:text-xs">
+                      {(adminUser?.name || 'SA').substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
                   </Avatar>
                   <div className="text-left hidden lg:block">
-                    <p className="text-sm font-medium">Super Admin</p>
+                    <p className="text-sm font-medium">{adminUser?.name || 'Admin'}</p>
                   </div>
                   <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4 hidden sm:block" />
                 </Button>
@@ -259,15 +289,21 @@ export default function AdminCRUDLayout({ children, currentRole = "super_admin" 
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
                   <div className="flex flex-col">
-                    <span>Super Admin</span>
-                    <span className="text-xs text-muted-foreground font-normal">arapoint@arapoint.com.ng</span>
+                    <span>{adminUser?.name || 'Admin'}</span>
+                    <span className="text-xs text-muted-foreground font-normal">{adminUser?.email || ''}</span>
+                    <Badge className={`${role.color} text-white text-[10px] mt-1 w-fit`}>{role.name}</Badge>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="cursor-pointer">Profile Settings</DropdownMenuItem>
                 <DropdownMenuItem className="cursor-pointer">Activity Log</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-red-600 cursor-pointer" onClick={() => window.location.href = "/auth/login"}>
+                <DropdownMenuItem className="text-red-600 cursor-pointer" onClick={() => {
+                  localStorage.removeItem('adminToken');
+                  localStorage.removeItem('adminRefreshToken');
+                  localStorage.removeItem('adminUser');
+                  window.location.href = "/admin/login";
+                }}>
                   Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>
