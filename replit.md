@@ -30,7 +30,7 @@ Preferred communication style: Simple, everyday language.
 - **Database**: PostgreSQL (Neon serverless)
 - **ORM**: Drizzle ORM with schema defined in `Arapoint/shared/schema.ts` and `Arapoint/server/src/db/schema.ts`
 - **Migrations**: Drizzle Kit with migrations stored in `Arapoint/migrations/`
-- **Key Tables**: users, otp_verifications, rpa_jobs, transactions, identity_verifications, education_services, virtual_accounts
+- **Key Tables**: users, otp_verifications, rpa_jobs, transactions, identity_verifications, education_services, virtual_accounts, support_tickets, support_conversations, support_messages, support_internal_notes, support_presence
 
 ### RPA (Robotic Process Automation) Layer
 - **Purpose**: Automates queries to third-party Nigerian government and institutional portals that lack APIs
@@ -73,6 +73,18 @@ Preferred communication style: Simple, everyday language.
 ### Database
 - **Neon**: Serverless PostgreSQL hosting
 - **Drizzle ORM**: Database queries and migrations
+
+### Support Ticket System
+- **Architecture**: Production-quality support with ticket lifecycle management
+- **Ticket Lifecycle**: open -> escalated -> assigned -> in_progress -> resolved -> closed
+- **Reference IDs**: ARP-XXXXXX format for ticket tracking
+- **AI First Response**: OpenAI (gpt-4o-mini) handles initial user queries, escalates to human agents when needed
+- **Auto-close**: Tickets auto-close after 30 minutes of inactivity (checked on message poll)
+- **Presence/Typing**: Polling-based (4s messages, 10s heartbeat) for online status and typing indicators via `support_presence` table
+- **User Routes**: `Arapoint/server/src/api/routes/support.ts` - create ticket, active tickets, message polling, escalation, presence
+- **Admin Routes**: In `Arapoint/server/src/api/routes/admin.ts` - ticket list with filters, assign/reply/resolve/close, internal notes, agent management, stats
+- **User Component**: `Arapoint/client/src/components/SupportChat.tsx` - full chat UI with ticket creation, tracking, polling
+- **Admin Component**: `Arapoint/client/src/pages/admin/SupportDashboard.tsx` - agent dashboard with ticket list, detail panel, message thread, notes
 
 ### Frontend UI
 - **shadcn/ui**: Component library built on Radix UI primitives

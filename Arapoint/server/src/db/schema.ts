@@ -505,10 +505,18 @@ export const identityRequestActivity = pgTable('identity_request_activity', {
 // Support Tickets
 export const supportTickets = pgTable('support_tickets', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  referenceId: varchar('reference_id', { length: 20 }).unique().notNull(),
   userId: uuid('user_id').references(() => users.id).notNull(),
-  status: varchar('status', { length: 20 }).default('open').notNull(), // open, pending, resolved, closed
-  priority: varchar('priority', { length: 20 }).default('medium'), // low, medium, high, urgent
+  subject: varchar('subject', { length: 255 }).notNull().default('General Support'),
+  category: varchar('category', { length: 50 }).default('general'),
+  status: varchar('status', { length: 20 }).default('open').notNull(),
+  priority: varchar('priority', { length: 20 }).default('medium'),
   assignedAgentId: uuid('assigned_agent_id').references(() => adminUsers.id),
+  escalatedAt: timestamp('escalated_at'),
+  assignedAt: timestamp('assigned_at'),
+  resolvedAt: timestamp('resolved_at'),
+  closedAt: timestamp('closed_at'),
+  lastActivityAt: timestamp('last_activity_at').defaultNow(),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -517,6 +525,8 @@ export const supportTickets = pgTable('support_tickets', {
 export const supportConversations = pgTable('support_conversations', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   ticketId: uuid('ticket_id').references(() => supportTickets.id).notNull(),
+  isActive: boolean('is_active').default(true),
+  closedReason: varchar('closed_reason', { length: 50 }),
   lastMessageAt: timestamp('last_message_at').defaultNow(),
   summary: text('summary'),
   createdAt: timestamp('created_at').defaultNow(),
@@ -527,8 +537,9 @@ export const supportConversations = pgTable('support_conversations', {
 export const supportMessages = pgTable('support_messages', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   conversationId: uuid('conversation_id').references(() => supportConversations.id).notNull(),
-  senderType: varchar('sender_type', { length: 20 }).notNull(), // user, ai, agent, system
-  senderId: uuid('sender_id'), // userId for user, adminId for agent, null for ai/system
+  senderType: varchar('sender_type', { length: 20 }).notNull(),
+  senderId: uuid('sender_id'),
+  senderName: varchar('sender_name', { length: 100 }),
   content: text('content').notNull(),
   metadata: jsonb('metadata'),
   createdAt: timestamp('created_at').defaultNow(),
@@ -541,6 +552,19 @@ export const supportInternalNotes = pgTable('support_internal_notes', {
   agentId: uuid('agent_id').references(() => adminUsers.id).notNull(),
   note: text('note').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Support Presence (online/typing tracking)
+export const supportPresence = pgTable('support_presence', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  ticketId: uuid('ticket_id').references(() => supportTickets.id).notNull(),
+  participantId: uuid('participant_id').notNull(),
+  participantType: varchar('participant_type', { length: 10 }).notNull(),
+  participantName: varchar('participant_name', { length: 100 }),
+  isOnline: boolean('is_online').default(false),
+  isTyping: boolean('is_typing').default(false),
+  lastSeenAt: timestamp('last_seen_at').defaultNow(),
+  typingAt: timestamp('typing_at'),
 });
 
 // Education PIN Inventory

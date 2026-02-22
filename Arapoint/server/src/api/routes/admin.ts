@@ -39,7 +39,10 @@ import {
 import { 
   supportTickets as support_tickets, 
   supportConversations as support_conversations, 
-  supportMessages as support_messages, 
+  supportMessages as support_messages,
+  supportInternalNotes as support_internal_notes,
+  supportPresence as support_presence,
+  users as usersTable,
   adminUsers as admin_users, 
   adminRoles as admin_roles 
 } from '../../db/schema';
@@ -47,7 +50,7 @@ import { whatsappService } from '../../services/whatsappService';
 import { scrapeNbaisSchools, getSchoolsCount } from '../../rpa/workers/nbaisSchoolScraper';
 import { browserPool } from '../../rpa/browserPool';
 import bcrypt from 'bcryptjs';
-import { eq, desc, count, sql } from 'drizzle-orm';
+import { eq, desc, count, sql, and, or, gt, asc } from 'drizzle-orm';
 
 const router = Router();
 router.use(adminAuthMiddleware);
@@ -2638,49 +2641,440 @@ router.post('/whatsapp/notifications/process', async (req: Request, res: Respons
   }
 });
 
-// Support Ticket Management
+// ==================== SUPPORT TICKET MANAGEMENT ====================
+
 router.get('/support/tickets', async (req: Request, res: Response) => {
   try {
-    const tickets = await db.select()
+    const { status, priority, assignedTo } = req.query;
+
+    let conditions = [];
+    if (status && status !== 'all') {
+      conditions.push(eq(support_tickets.status, status as string));
+    }
+    if (priority && priority !== 'all') {
+      conditions.push(eq(support_tickets.priority, priority as string));
+    }
+    if (assignedTo === 'unassigned') {
+      conditions.push(sql`${support_tickets.assignedAgentId} IS NULL`);
+    } else if (assignedTo && assignedTo !== 'all') {
+      conditions.push(eq(support_tickets.assignedAgentId, assignedTo as string));
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const tickets = await db.select({
+      id: support_tickets.id,
+      referenceId: support_tickets.referenceId,
+      userId: support_tickets.userId,
+      subject: support_tickets.subject,
+      category: support_tickets.category,
+      status: support_tickets.status,
+      priority: support_tickets.priority,
+      assignedAgentId: support_tickets.assignedAgentId,
+      escalatedAt: support_tickets.escalatedAt,
+      assignedAt: support_tickets.assignedAt,
+      resolvedAt: support_tickets.resolvedAt,
+      closedAt: support_tickets.closedAt,
+      lastActivityAt: support_tickets.lastActivityAt,
+      createdAt: support_tickets.createdAt,
+    })
       .from(support_tickets)
+      .where(whereClause)
       .orderBy(desc(support_tickets.createdAt));
-    res.json(formatResponse('success', 200, 'Tickets retrieved', { tickets }));
+
+    const enriched = await Promise.all(tickets.map(async (t) => {
+      const [user] = await db.select({ name: usersTable.name, email: usersTable.email })
+        .from(usersTable).where(eq(usersTable.id, t.userId)).limit(1);
+      let agentName = null;
+      if (t.assignedAgentId) {
+        const [agent] = await db.select({ name: admin_users.name })
+          .from(admin_users).where(eq(admin_users.id, t.assignedAgentId)).limit(1);
+        agentName = agent?.name || null;
+      }
+      const lastMsg = await db.select({ content: support_messages.content, senderType: support_messages.senderType, createdAt: support_messages.createdAt })
+        .from(support_messages)
+        .innerJoin(support_conversations, eq(support_messages.conversationId, support_conversations.id))
+        .where(eq(support_conversations.ticketId, t.id))
+        .orderBy(desc(support_messages.createdAt))
+        .limit(1);
+      return {
+        ...t,
+        userName: user?.name || 'Unknown',
+        userEmail: user?.email || '',
+        agentName,
+        lastMessage: lastMsg[0] || null,
+      };
+    }));
+
+    res.json(formatResponse('success', 200, 'Tickets retrieved', { tickets: enriched }));
   } catch (error: any) {
     logger.error('Get tickets error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to get tickets'));
   }
 });
 
+router.get('/support/tickets/stats', async (req: Request, res: Response) => {
+  try {
+    const [stats] = await db.select({
+      total: count(),
+      open: sql<number>`COUNT(*) FILTER (WHERE ${support_tickets.status} = 'open')`,
+      escalated: sql<number>`COUNT(*) FILTER (WHERE ${support_tickets.status} = 'escalated')`,
+      assigned: sql<number>`COUNT(*) FILTER (WHERE ${support_tickets.status} = 'assigned')`,
+      inProgress: sql<number>`COUNT(*) FILTER (WHERE ${support_tickets.status} = 'in_progress')`,
+      resolved: sql<number>`COUNT(*) FILTER (WHERE ${support_tickets.status} = 'resolved')`,
+      closed: sql<number>`COUNT(*) FILTER (WHERE ${support_tickets.status} = 'closed')`,
+    }).from(support_tickets);
+
+    res.json(formatResponse('success', 200, 'Stats retrieved', { stats }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to get stats'));
+  }
+});
+
+router.get('/support/tickets/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const [ticket] = await db.select()
+      .from(support_tickets)
+      .where(eq(support_tickets.id, id))
+      .limit(1);
+
+    if (!ticket) return res.status(404).json(formatErrorResponse(404, 'Ticket not found'));
+
+    const [user] = await db.select({ name: usersTable.name, email: usersTable.email, phone: usersTable.phone })
+      .from(usersTable).where(eq(usersTable.id, ticket.userId)).limit(1);
+
+    let agentName = null;
+    if (ticket.assignedAgentId) {
+      const [agent] = await db.select({ name: admin_users.name })
+        .from(admin_users).where(eq(admin_users.id, ticket.assignedAgentId)).limit(1);
+      agentName = agent?.name || null;
+    }
+
+    const [conv] = await db.select()
+      .from(support_conversations)
+      .where(eq(support_conversations.ticketId, id))
+      .limit(1);
+
+    res.json(formatResponse('success', 200, 'Ticket detail', {
+      ticket: { ...ticket, agentName },
+      user: user || null,
+      conversationId: conv?.id || null,
+      isActive: conv?.isActive ?? true,
+    }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to get ticket'));
+  }
+});
+
 router.get('/support/tickets/:id/messages', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const since = req.query.since as string;
+
     const [conversation] = await db.select()
       .from(support_conversations)
       .where(eq(support_conversations.ticketId, id))
       .limit(1);
-    
-    if (!conversation) return res.json(formatResponse('success', 200, 'No messages', { messages: [] }));
 
-    const messages = await db.select()
-      .from(support_messages)
-      .where(eq(support_messages.conversationId, conversation.id))
-      .orderBy(support_messages.createdAt);
-    
-    res.json(formatResponse('success', 200, 'Messages retrieved', { messages }));
+    if (!conversation) return res.json(formatResponse('success', 200, 'No messages', { messages: [], presence: [] }));
+
+    let msgs;
+    if (since) {
+      msgs = await db.select()
+        .from(support_messages)
+        .where(and(
+          eq(support_messages.conversationId, conversation.id),
+          gt(support_messages.createdAt, new Date(since))
+        ))
+        .orderBy(support_messages.createdAt);
+    } else {
+      msgs = await db.select()
+        .from(support_messages)
+        .where(eq(support_messages.conversationId, conversation.id))
+        .orderBy(support_messages.createdAt);
+    }
+
+    const presence = await db.select()
+      .from(support_presence)
+      .where(eq(support_presence.ticketId, id));
+
+    const now = new Date();
+    const presenceData = presence.map(p => ({
+      participantId: p.participantId,
+      participantType: p.participantType,
+      participantName: p.participantName,
+      isOnline: p.lastSeenAt ? (now.getTime() - new Date(p.lastSeenAt).getTime() < 15000) : false,
+      isTyping: p.isTyping && p.typingAt ? (now.getTime() - new Date(p.typingAt).getTime() < 5000) : false,
+    }));
+
+    res.json(formatResponse('success', 200, 'Messages retrieved', {
+      messages: msgs,
+      presence: presenceData,
+      conversationId: conversation.id,
+      isActive: conversation.isActive,
+    }));
   } catch (error: any) {
-    logger.error('Get messages error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to get messages'));
+  }
+});
+
+router.post('/support/tickets/:id/assign', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const agentId = req.userId!;
+    const now = new Date();
+
+    const [agent] = await db.select({ name: admin_users.name })
+      .from(admin_users).where(eq(admin_users.id, agentId)).limit(1);
+
+    await db.update(support_tickets)
+      .set({
+        assignedAgentId: agentId,
+        assignedAt: now,
+        status: 'assigned',
+        lastActivityAt: now,
+        updatedAt: now,
+      })
+      .where(eq(support_tickets.id, id));
+
+    const [conv] = await db.select({ id: support_conversations.id })
+      .from(support_conversations)
+      .where(eq(support_conversations.ticketId, id))
+      .limit(1);
+
+    if (conv) {
+      await db.insert(support_messages).values({
+        conversationId: conv.id,
+        senderType: 'system',
+        senderName: 'System',
+        content: `Agent ${agent?.name || 'Support Agent'} has been assigned to your ticket and will assist you shortly.`,
+      });
+    }
+
+    await db.insert(support_presence).values({
+      ticketId: id,
+      participantId: agentId,
+      participantType: 'agent',
+      participantName: agent?.name || 'Agent',
+      isOnline: true,
+      lastSeenAt: now,
+    }).onConflictDoNothing();
+
+    logger.info('Ticket assigned', { ticketId: id, agentId });
+    res.json(formatResponse('success', 200, 'Ticket assigned'));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to assign ticket'));
+  }
+});
+
+router.post('/support/tickets/:id/reply', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { content } = req.body;
+    const agentId = req.userId!;
+
+    if (!content?.trim()) {
+      return res.status(400).json(formatErrorResponse(400, 'Reply content is required'));
+    }
+
+    const [agent] = await db.select({ name: admin_users.name })
+      .from(admin_users).where(eq(admin_users.id, agentId)).limit(1);
+
+    const [conv] = await db.select()
+      .from(support_conversations)
+      .where(eq(support_conversations.ticketId, id))
+      .limit(1);
+
+    if (!conv) return res.status(404).json(formatErrorResponse(404, 'Conversation not found'));
+
+    const [message] = await db.insert(support_messages).values({
+      conversationId: conv.id,
+      senderType: 'agent',
+      senderId: agentId,
+      senderName: agent?.name || 'Support Agent',
+      content: content.trim(),
+    }).returning();
+
+    const now = new Date();
+    await db.update(support_conversations)
+      .set({ lastMessageAt: now, updatedAt: now })
+      .where(eq(support_conversations.id, conv.id));
+
+    await db.update(support_tickets)
+      .set({ status: 'in_progress', lastActivityAt: now, updatedAt: now })
+      .where(eq(support_tickets.id, id));
+
+    await db.update(support_presence)
+      .set({ isTyping: false, lastSeenAt: now })
+      .where(and(
+        eq(support_presence.ticketId, id),
+        eq(support_presence.participantId, agentId)
+      ));
+
+    res.status(201).json(formatResponse('success', 201, 'Reply sent', { message }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to send reply'));
+  }
+});
+
+router.post('/support/tickets/:id/status', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const validStatuses = ['open', 'escalated', 'assigned', 'in_progress', 'resolved', 'closed'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json(formatErrorResponse(400, 'Invalid status'));
+    }
+
+    const now = new Date();
+    const updateData: any = { status, lastActivityAt: now, updatedAt: now };
+
+    if (status === 'resolved') updateData.resolvedAt = now;
+    if (status === 'closed') updateData.closedAt = now;
+    if (status === 'escalated') updateData.escalatedAt = now;
+
+    await db.update(support_tickets).set(updateData).where(eq(support_tickets.id, id));
+
+    if (status === 'resolved' || status === 'closed') {
+      await db.update(support_conversations)
+        .set({ isActive: false, closedReason: status === 'resolved' ? 'resolved' : 'closed_by_agent', updatedAt: now })
+        .where(eq(support_conversations.ticketId, id));
+
+      const [conv] = await db.select({ id: support_conversations.id })
+        .from(support_conversations)
+        .where(eq(support_conversations.ticketId, id))
+        .limit(1);
+
+      if (conv) {
+        await db.insert(support_messages).values({
+          conversationId: conv.id,
+          senderType: 'system',
+          senderName: 'System',
+          content: status === 'resolved'
+            ? 'This ticket has been marked as resolved by the support agent. Thank you for contacting Arapoint support.'
+            : 'This ticket has been closed by the support agent.',
+        });
+      }
+    }
+
+    res.json(formatResponse('success', 200, 'Status updated'));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to update status'));
+  }
+});
+
+router.post('/support/tickets/:id/notes', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { note } = req.body;
+    const agentId = req.userId!;
+
+    if (!note?.trim()) {
+      return res.status(400).json(formatErrorResponse(400, 'Note content is required'));
+    }
+
+    const [newNote] = await db.insert(support_internal_notes).values({
+      ticketId: id,
+      agentId,
+      note: note.trim(),
+    }).returning();
+
+    res.status(201).json(formatResponse('success', 201, 'Note added', { note: newNote }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to add note'));
+  }
+});
+
+router.get('/support/tickets/:id/notes', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const notes = await db.select()
+      .from(support_internal_notes)
+      .where(eq(support_internal_notes.ticketId, id))
+      .orderBy(desc(support_internal_notes.createdAt));
+
+    const enriched = await Promise.all(notes.map(async (n) => {
+      const [agent] = await db.select({ name: admin_users.name })
+        .from(admin_users).where(eq(admin_users.id, n.agentId)).limit(1);
+      return { ...n, agentName: agent?.name || 'Unknown' };
+    }));
+
+    res.json(formatResponse('success', 200, 'Notes retrieved', { notes: enriched }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to get notes'));
+  }
+});
+
+router.post('/support/presence/heartbeat', async (req: Request, res: Response) => {
+  try {
+    const agentId = req.userId!;
+    const { ticketId, isTyping } = req.body;
+    const now = new Date();
+
+    const [existing] = await db.select()
+      .from(support_presence)
+      .where(and(
+        eq(support_presence.ticketId, ticketId),
+        eq(support_presence.participantId, agentId)
+      ))
+      .limit(1);
+
+    if (existing) {
+      await db.update(support_presence)
+        .set({
+          isOnline: true,
+          isTyping: !!isTyping,
+          lastSeenAt: now,
+          typingAt: isTyping ? now : existing.typingAt,
+        })
+        .where(eq(support_presence.id, existing.id));
+    } else {
+      const [agent] = await db.select({ name: admin_users.name })
+        .from(admin_users).where(eq(admin_users.id, agentId)).limit(1);
+      await db.insert(support_presence).values({
+        ticketId,
+        participantId: agentId,
+        participantType: 'agent',
+        participantName: agent?.name || 'Agent',
+        isOnline: true,
+        isTyping: !!isTyping,
+        lastSeenAt: now,
+        typingAt: isTyping ? now : undefined,
+      });
+    }
+
+    res.json(formatResponse('success', 200, 'OK'));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed'));
   }
 });
 
 // Agent Management
 router.get('/support/agents', async (req: Request, res: Response) => {
   try {
-    const agents = await db.select()
+    const agents = await db.select({
+      id: admin_users.id,
+      name: admin_users.name,
+      email: admin_users.email,
+      isActive: admin_users.isActive,
+      createdAt: admin_users.createdAt,
+    })
       .from(admin_users)
       .innerJoin(admin_roles, eq(admin_users.roleId, admin_roles.id))
       .where(eq(admin_roles.name, 'support_agent'));
-    res.json(formatResponse('success', 200, 'Agents retrieved', { agents }));
+
+    const enriched = await Promise.all(agents.map(async (a) => {
+      const [assignedCount] = await db.select({ count: count() })
+        .from(support_tickets)
+        .where(and(
+          eq(support_tickets.assignedAgentId, a.id),
+          sql`${support_tickets.status} NOT IN ('closed', 'resolved')`
+        ));
+      return { ...a, activeTickets: assignedCount?.count || 0 };
+    }));
+
+    res.json(formatResponse('success', 200, 'Agents retrieved', { agents: enriched }));
   } catch (error: any) {
     res.status(500).json(formatErrorResponse(500, 'Failed to get agents'));
   }
@@ -2730,16 +3124,12 @@ router.post('/support/agents', async (req: Request, res: Response) => {
 
     logger.info('Support agent created', { agentId: newAgent.id, email, createdBy: req.userId });
 
-    res.status(201).json(formatResponse('success', 201, 'Support agent created successfully', {
-      agent: {
-        id: newAgent.id,
-        name: newAgent.name,
-        email: newAgent.email,
-      },
+    res.status(201).json(formatResponse('success', 201, 'Agent created', {
+      agent: { id: newAgent.id, name: newAgent.name, email: newAgent.email },
     }));
   } catch (error: any) {
     logger.error('Create support agent error', { error: error.message });
-    res.status(500).json(formatErrorResponse(500, 'Failed to create support agent'));
+    res.status(500).json(formatErrorResponse(500, 'Failed to create agent'));
   }
 });
 
