@@ -261,6 +261,11 @@ router.post('/modify', async (req: Request, res: Response) => {
       serviceType: 'modification',
       requestId,
       status: 'pending',
+      responseData: {
+        changeCategory: validation.data.changeCategory,
+        oldValue: validation.data.oldValue,
+        newValue: validation.data.newValue,
+      },
     });
 
     const availableAgents = await db.select()
@@ -275,7 +280,7 @@ router.post('/modify', async (req: Request, res: Response) => {
         requestType: 'bvn_modification',
         customerName: user?.name || 'Customer',
         amount: price,
-        description: 'BVN Modification - Agent Enrollment',
+        description: `BVN Modification - ${validation.data.changeCategory === 'name' ? 'Change of Name' : 'Change of Date of Birth'}: ${validation.data.oldValue} → ${validation.data.newValue}`,
         userId: req.userId,
       }).catch(err => logger.error('Failed to queue WhatsApp notification', { error: err.message }));
     }

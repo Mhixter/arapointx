@@ -161,10 +161,10 @@ export const paymentService = {
   async initializePalmpay(userId: string, amount: number, email?: string): Promise<PalmPayInitResponse> {
     const reference = generateReferenceId();
 
-    const palmpayApiKey = config.PALMPAY_API_KEY;
-    const palmpaySecretKey = config.PALMPAY_SECRET_KEY;
+    const palmpayPublicKey = config.PALMPAY_PUBLIC_KEY;
+    const palmpayAppId = config.PALMPAY_APP_ID;
 
-    if (!palmpayApiKey || !palmpaySecretKey) {
+    if (!palmpayPublicKey || !palmpayAppId) {
       logger.warn('PalmPay not configured', { userId });
       
       return {
@@ -189,9 +189,8 @@ export const paymentService = {
         },
         {
           headers: {
-            'Authorization': `Bearer ${palmpayApiKey}`,
-            'x-secret-key': palmpaySecretKey,
-            'x-app-id': config.PALMPAY_APP_ID,
+            'Authorization': `Bearer ${palmpayPublicKey}`,
+            'x-app-id': palmpayAppId,
             'Content-Type': 'application/json',
           },
         }
@@ -225,10 +224,10 @@ export const paymentService = {
   },
 
   async verifyPalmpay(reference: string) {
-    const palmpayApiKey = config.PALMPAY_API_KEY;
-    const palmpaySecretKey = config.PALMPAY_SECRET_KEY;
+    const palmpayPublicKey = config.PALMPAY_PUBLIC_KEY;
+    const palmpayAppId = config.PALMPAY_APP_ID;
 
-    if (!palmpayApiKey || !palmpaySecretKey) {
+    if (!palmpayPublicKey || !palmpayAppId) {
       logger.warn('PalmPay not configured for verification', { reference });
       
       return {
@@ -243,9 +242,8 @@ export const paymentService = {
         `${PALMPAY_API_BASE}/v1/payment/verify/${reference}`,
         {
           headers: {
-            'Authorization': `Bearer ${palmpayApiKey}`,
-            'x-secret-key': palmpaySecretKey,
-            'x-app-id': config.PALMPAY_APP_ID,
+            'Authorization': `Bearer ${palmpayPublicKey}`,
+            'x-app-id': palmpayAppId,
           },
         }
       );
@@ -281,7 +279,7 @@ export const paymentService = {
   },
 
   isPalmpayConfigured(): boolean {
-    return !!(config.PALMPAY_API_KEY && config.PALMPAY_SECRET_KEY);
+    return !!(config.PALMPAY_PUBLIC_KEY && config.PALMPAY_APP_ID);
   },
 
   getAvailableGateways(): string[] {

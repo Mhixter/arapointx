@@ -19,9 +19,10 @@ import * as path from 'path';
 const getConfiguredProviders = (): ('techhub' | 'prembly' | 'youverify')[] => {
   const providers: ('techhub' | 'prembly' | 'youverify')[] = [];
   if (premblyService.isConfigured()) providers.push('prembly');
+  if (providers.length > 0) return providers;
   if (techhubService.isConfigured()) providers.push('techhub');
   if (youverifyService.isConfigured()) providers.push('youverify');
-  if (providers.length === 0) throw new Error('No identity verification provider configured');
+  if (providers.length === 0) throw new Error('No identity verification provider configured. Please configure Prembly API credentials.');
   return providers;
 };
 

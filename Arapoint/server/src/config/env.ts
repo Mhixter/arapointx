@@ -21,8 +21,7 @@ export const config = {
   // Payment Gateways
   PAYSTACK_SECRET_KEY: process.env.PAYSTACK_SECRET_KEY || '',
   PAYSTACK_PUBLIC_KEY: process.env.PAYSTACK_PUBLIC_KEY || '',
-  PALMPAY_API_KEY: process.env.PALMPAY_API_KEY || '',
-  PALMPAY_SECRET_KEY: process.env.PALMPAY_SECRET_KEY || '',
+  PALMPAY_PUBLIC_KEY: process.env.PALMPAY_PUBLIC_KEY || '',
   PALMPAY_APP_ID: process.env.PALMPAY_APP_ID || '',
   
   // Service Credentials
