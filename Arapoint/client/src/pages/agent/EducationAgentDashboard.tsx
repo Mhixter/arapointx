@@ -439,7 +439,7 @@ export default function EducationAgentDashboard() {
                           {getServiceTypeLabel(request.serviceType)}
                         </p>
                         <p className="text-sm">
-                          <strong>Customer:</strong> {request.userName || 'N/A'} ({request.userEmail || 'N/A'})
+                          <strong>Customer:</strong> {request.userName || 'N/A'}
                         </p>
                         {request.candidateName && <p className="text-sm"><strong>Candidate:</strong> {request.candidateName}</p>}
                         {request.examYear && <p className="text-sm"><strong>Year:</strong> {request.examYear}</p>}
@@ -776,16 +776,30 @@ export default function EducationAgentDashboard() {
                 <div><strong>Service:</strong> {getServiceTypeLabel(selectedRequest.serviceType)}</div>
                 <div><strong>Status:</strong> {getStatusBadge(selectedRequest.status)}</div>
                 <div><strong>Customer:</strong> {selectedRequest.userName}</div>
-                <div><strong>Email:</strong> {selectedRequest.userEmail}</div>
-                <div><strong>Phone:</strong> {selectedRequest.userPhone || 'N/A'}</div>
-                <div><strong>Fee:</strong> {selectedRequest.fee}</div>
                 {selectedRequest.candidateName && <div><strong>Candidate Name:</strong> {selectedRequest.candidateName}</div>}
                 {selectedRequest.examYear && <div><strong>Exam Year:</strong> {selectedRequest.examYear}</div>}
                 {selectedRequest.registrationNumber && <div><strong>Reg Number:</strong> {selectedRequest.registrationNumber}</div>}
               </div>
-              {selectedRequest.customerNotes && (
-                <div><strong>Customer Notes:</strong> {selectedRequest.customerNotes}</div>
-              )}
+              {selectedRequest.customerNotes && (() => {
+                try {
+                  const parsed = JSON.parse(selectedRequest.customerNotes);
+                  return (
+                    <div>
+                      <strong>Submitted Details:</strong>
+                      <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-2 text-sm">
+                        {Object.entries(parsed).map(([key, value]) => (
+                          <div key={key} className="flex gap-2">
+                            <span className="font-medium capitalize">{key.replace(/([A-Z])/g, ' $1').replace(/-/g, ' ')}:</span>
+                            <span>{String(value)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                } catch {
+                  return <div><strong>Customer Notes:</strong> {selectedRequest.customerNotes}</div>;
+                }
+              })()}
               {selectedRequest.agentNotes && (
                 <div><strong>Agent Notes:</strong> {selectedRequest.agentNotes}</div>
               )}

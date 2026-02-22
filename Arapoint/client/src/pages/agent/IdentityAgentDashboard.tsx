@@ -189,6 +189,20 @@ export default function IdentityAgentDashboard() {
     return labels[type] || type;
   };
 
+  const getValidationTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      'no_record': 'No Record Found',
+      'photograph_error': 'Photograph Error',
+      'update_record': 'Update Record',
+      'date_of_birth_correction': 'Date of Birth Correction',
+      'name_correction': 'Name Correction',
+      'gender_correction': 'Gender Correction',
+      'duplicate_nin': 'Duplicate NIN',
+      'other': 'Other Issue',
+    };
+    return labels[type] || type;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b">
@@ -308,6 +322,11 @@ export default function IdentityAgentDashboard() {
                         </div>
                         <p className="text-sm text-muted-foreground">
                           {getServiceTypeLabel(request.serviceType)}
+                          {request.updateFields?.validationType && (
+                            <span className="ml-2 text-xs font-medium text-orange-600">
+                              ({getValidationTypeLabel(request.updateFields.validationType)})
+                            </span>
+                          )}
                         </p>
                         <p className="text-sm">
                           <strong>Customer:</strong> {request.userName || 'N/A'}
@@ -353,12 +372,18 @@ export default function IdentityAgentDashboard() {
                 <div><strong>Status:</strong> {getStatusBadge(selectedRequest.status)}</div>
                 <div><strong>Customer:</strong> {selectedRequest.userName}</div>
                 {selectedRequest.nin && <div><strong>NIN:</strong> {selectedRequest.nin}</div>}
-                {selectedRequest.newTrackingId && <div><strong>New Tracking ID:</strong> {selectedRequest.newTrackingId}</div>}
+                {selectedRequest.newTrackingId && <div><strong>Tracking ID:</strong> {selectedRequest.newTrackingId}</div>}
+                {selectedRequest.updateFields?.validationType && (
+                  <div className="col-span-2">
+                    <strong>Validation Type:</strong>{' '}
+                    <Badge className="bg-orange-100 text-orange-700">{getValidationTypeLabel(selectedRequest.updateFields.validationType)}</Badge>
+                  </div>
+                )}
               </div>
-              {selectedRequest.updateFields && (
+              {selectedRequest.updateFields?.fields && (
                 <div>
-                  <strong>Update Fields:</strong>
-                  <pre className="mt-2 p-2 bg-gray-100 rounded text-sm">{JSON.stringify(selectedRequest.updateFields, null, 2)}</pre>
+                  <strong>Fields to Update:</strong>
+                  <p className="mt-1 p-2 bg-gray-100 dark:bg-gray-800 rounded text-sm">{selectedRequest.updateFields.fields}</p>
                 </div>
               )}
               {selectedRequest.customerNotes && (

@@ -77,7 +77,7 @@ export default function Services() {
   });
 
   const vtuServices = [
-    { icon: Smartphone, title: "Airtime Top-up", description: "MTN, Airtel, Glo, 9mobile", href: "/dashboard/airtime", color: "text-blue-600", price: null },
+    { icon: Smartphone, title: "Buy Airtime", description: "MTN, Airtel, Glo, 9mobile", href: "/dashboard/airtime", color: "text-blue-600", price: null },
     { icon: Wifi, title: "Data Bundles", description: "Daily, Weekly, Monthly Plans", href: "/dashboard/data", color: "text-purple-600", price: null }
   ];
 

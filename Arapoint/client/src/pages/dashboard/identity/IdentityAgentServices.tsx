@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Loader2, FileCheck, UserCog, CheckCircle, Clock, AlertCircle, Eye, FileText, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -23,12 +24,23 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   completed: { label: 'Completed', color: 'bg-green-100 text-green-700' },
 };
 
+const VALIDATION_TYPES = [
+  { value: 'no_record', label: 'No Record Found' },
+  { value: 'photograph_error', label: 'Photograph Error' },
+  { value: 'update_record', label: 'Update Record' },
+  { value: 'date_of_birth_correction', label: 'Date of Birth Correction' },
+  { value: 'name_correction', label: 'Name Correction' },
+  { value: 'gender_correction', label: 'Gender Correction' },
+  { value: 'duplicate_nin', label: 'Duplicate NIN' },
+  { value: 'other', label: 'Other Issue' },
+];
+
 const getToken = () => localStorage.getItem('accessToken');
 
 export default function IdentityAgentServices() {
   const { toast } = useToast();
   const [selectedService, setSelectedService] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ nin: '', newTrackingId: '', updateFields: '', customerNotes: '' });
+  const [formData, setFormData] = useState({ nin: '', newTrackingId: '', updateFields: '', customerNotes: '', validationType: '' });
   const [loading, setLoading] = useState(false);
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [requests, setRequests] = useState<any[]>([]);
@@ -92,6 +104,11 @@ export default function IdentityAgentServices() {
       return;
     }
 
+    if (selectedService === 'nin_validation' && !formData.validationType) {
+      toast({ title: "Missing Information", description: "Please select the type of validation issue", variant: "destructive" });
+      return;
+    }
+
     if (selectedService === 'nin_personalization' && !formData.updateFields?.trim()) {
       toast({ title: "Missing Information", description: "Please specify which fields to update", variant: "destructive" });
       return;
@@ -108,7 +125,7 @@ export default function IdentityAgentServices() {
       const data = await response.json();
       if (data.status === 'success') {
         toast({ title: "Request Submitted", description: `Tracking ID: ${data.data.request.trackingId}` });
-        setFormData({ nin: '', newTrackingId: '', updateFields: '', customerNotes: '' });
+        setFormData({ nin: '', newTrackingId: '', updateFields: '', customerNotes: '', validationType: '' });
         setSelectedService(null);
         fetchMyRequests();
       } else {
@@ -208,6 +225,22 @@ export default function IdentityAgentServices() {
                       />
                     </div>
                   </div>
+
+                  {selectedService === 'nin_validation' && (
+                    <div>
+                      <Label>Validation Issue Type</Label>
+                      <Select value={formData.validationType} onValueChange={(v) => setFormData(prev => ({ ...prev, validationType: v }))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select the issue you're experiencing" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {VALIDATION_TYPES.map(vt => (
+                            <SelectItem key={vt.value} value={vt.value}>{vt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   {selectedService === 'nin_personalization' && (
                     <div>

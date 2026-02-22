@@ -4,7 +4,7 @@ import { Smartphone, Wifi } from "lucide-react";
 
 export default function VTUServices() {
   const services = [
-    { icon: Smartphone, title: "Airtime Top-up", description: "MTN, Airtel, Glo, 9mobile", href: "/dashboard/airtime", color: "text-blue-600" },
+    { icon: Smartphone, title: "Buy Airtime", description: "MTN, Airtel, Glo, 9mobile", href: "/dashboard/airtime", color: "text-blue-600" },
     { icon: Wifi, title: "Data Bundles", description: "Daily, Weekly, Monthly Plans", href: "/dashboard/data", color: "text-blue-600" }
   ];
 

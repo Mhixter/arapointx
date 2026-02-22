@@ -181,8 +181,6 @@ router.get('/requests', educationAgentAuthMiddleware, async (req: Request, res: 
       resultUrl: educationServiceRequests.resultUrl,
       createdAt: educationServiceRequests.createdAt,
       userName: users.name,
-      userEmail: users.email,
-      userPhone: users.phone,
     })
       .from(educationServiceRequests)
       .leftJoin(users, eq(educationServiceRequests.userId, users.id))

@@ -320,7 +320,7 @@ router.get('/my-requests', authMiddleware, async (req: Request, res: Response) =
 router.post('/request', authMiddleware, async (req: Request, res: Response) => {
   try {
     const userId = req.userId!;
-    const { serviceType, nin, newTrackingId, updateFields, customerNotes } = req.body;
+    const { serviceType, nin, newTrackingId, updateFields, customerNotes, validationType } = req.body;
 
     if (!serviceType || !MANUAL_SERVICE_TYPES.includes(serviceType)) {
       return res.status(400).json(formatErrorResponse(400, 'Invalid service type'));
@@ -330,10 +330,18 @@ router.post('/request', authMiddleware, async (req: Request, res: Response) => {
       return res.status(400).json(formatErrorResponse(400, 'Valid 11-digit NIN is required'));
     }
 
+    if (serviceType === 'nin_validation' && !validationType) {
+      return res.status(400).json(formatErrorResponse(400, 'Validation type is required for NIN Validation'));
+    }
+
     const price = await pricingService.getPrice(serviceType);
     await walletService.deductBalance(userId, price, `Identity Service: ${serviceType}`);
 
     const trackingId = `ISR-${Date.now().toString(36).toUpperCase()}`;
+
+    const updateFieldsData: any = {};
+    if (validationType) updateFieldsData.validationType = validationType;
+    if (updateFields) updateFieldsData.fields = updateFields;
 
     const [request] = await db.insert(identityServiceRequests).values({
       userId,
@@ -341,7 +349,7 @@ router.post('/request', authMiddleware, async (req: Request, res: Response) => {
       serviceType,
       nin,
       newTrackingId: newTrackingId || null,
-      updateFields: updateFields ? { fields: updateFields } : null,
+      updateFields: Object.keys(updateFieldsData).length > 0 ? updateFieldsData : null,
       fee: price.toFixed(2),
       isPaid: true,
       customerNotes: customerNotes || null,

@@ -59,6 +59,8 @@ export default function VerificationHistory() {
         return <Badge className="bg-blue-500 hover:bg-blue-600"><Clock className="h-3 w-3 mr-1" /> Processing</Badge>;
       case 'pending':
         return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" /> Pending</Badge>;
+      case 'pickup':
+        return <Badge className="bg-yellow-500 hover:bg-yellow-600"><Clock className="h-3 w-3 mr-1" /> In Progress</Badge>;
       default:
         return <Badge variant="outline">{status || 'Unknown'}</Badge>;
     }
@@ -67,12 +69,22 @@ export default function VerificationHistory() {
   const getServiceName = (serviceType: string) => {
     const names: Record<string, string> = {
       'jamb': 'JAMB Result',
+      'jamb_score': 'JAMB Result',
       'waec': 'WAEC Result',
+      'waec_result': 'WAEC Result',
       'neco': 'NECO Result',
+      'neco_result': 'NECO Result',
       'nabteb': 'NABTEB Result',
+      'nabteb_result': 'NABTEB Result',
       'nbais': 'NBAIS Result',
+      'nbais_result': 'NBAIS Result',
+      'olevel-upload': "O'Level Upload",
+      'admission-letter': 'Admission Letter',
+      'original-result': 'Original Result',
+      'pin-vending': 'PIN Vending',
+      'reprinting-caps': 'Reprinting & Caps',
     };
-    return names[serviceType?.toLowerCase()] || serviceType?.toUpperCase() || 'Unknown';
+    return names[serviceType?.toLowerCase()] || serviceType?.replace(/-/g, ' ').replace(/_/g, ' ').toUpperCase() || 'Unknown';
   };
 
   const formatDate = (dateString: string) => {
