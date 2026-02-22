@@ -2644,7 +2644,7 @@ router.get('/support/tickets', async (req: Request, res: Response) => {
     const tickets = await db.select()
       .from(support_tickets)
       .orderBy(desc(support_tickets.createdAt));
-    res.json(formatResponse('success', 200, 'Tickets retrieved', tickets));
+    res.json(formatResponse('success', 200, 'Tickets retrieved', { tickets }));
   } catch (error: any) {
     logger.error('Get tickets error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to get tickets'));
@@ -2659,14 +2659,14 @@ router.get('/support/tickets/:id/messages', async (req: Request, res: Response) 
       .where(eq(support_conversations.ticketId, id))
       .limit(1);
     
-    if (!conversation) return res.json(formatResponse('success', 200, 'No messages', []));
+    if (!conversation) return res.json(formatResponse('success', 200, 'No messages', { messages: [] }));
 
     const messages = await db.select()
       .from(support_messages)
       .where(eq(support_messages.conversationId, conversation.id))
       .orderBy(support_messages.createdAt);
     
-    res.json(formatResponse('success', 200, 'Messages retrieved', messages));
+    res.json(formatResponse('success', 200, 'Messages retrieved', { messages }));
   } catch (error: any) {
     logger.error('Get messages error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to get messages'));
@@ -2680,7 +2680,7 @@ router.get('/support/agents', async (req: Request, res: Response) => {
       .from(admin_users)
       .innerJoin(admin_roles, eq(admin_users.roleId, admin_roles.id))
       .where(eq(admin_roles.name, 'support_agent'));
-    res.json(formatResponse('success', 200, 'Agents retrieved', agents));
+    res.json(formatResponse('success', 200, 'Agents retrieved', { agents }));
   } catch (error: any) {
     res.status(500).json(formatErrorResponse(500, 'Failed to get agents'));
   }
