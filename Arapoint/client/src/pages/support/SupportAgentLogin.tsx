@@ -49,8 +49,8 @@ export default function SupportAgentLogin() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-50 p-4">
-      <Card className="w-full max-w-md border-2 border-emerald-200 shadow-xl">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/50 dark:to-teal-950/50 p-4">
+      <Card className="w-full max-w-md border-2 border-emerald-200 dark:border-emerald-800 shadow-xl">
         <CardHeader className="space-y-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-t-lg">
           <div className="flex items-center justify-between mb-4">
             <Link href="/">
@@ -75,8 +75,8 @@ export default function SupportAgentLogin() {
         </CardHeader>
         <CardContent className="pt-8">
           {error && (
-            <Alert className="mb-6 border-red-200 bg-red-50">
-              <AlertDescription className="text-sm text-red-800">
+            <Alert className="mb-6 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20">
+              <AlertDescription className="text-sm text-red-800 dark:text-red-400">
                 {error}
               </AlertDescription>
             </Alert>

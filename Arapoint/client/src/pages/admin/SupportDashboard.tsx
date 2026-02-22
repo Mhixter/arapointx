@@ -669,16 +669,16 @@ export default function SupportDashboard() {
                     </div>
                   </ScrollArea>
                   {suggestions.length > 0 && (
-                    <div className="px-3 py-2 border-t bg-violet-50/50">
+                    <div className="px-3 py-2 border-t bg-violet-50/50 dark:bg-violet-900/10">
                       <div className="flex items-center gap-1 mb-1.5">
                         <Sparkles className="h-3 w-3 text-violet-500" />
-                        <span className="text-[10px] font-medium text-violet-700">AI Suggestions</span>
+                        <span className="text-[10px] font-medium text-violet-700 dark:text-violet-400">AI Suggestions</span>
                       </div>
                       <div className="flex flex-col gap-1.5">
                         {suggestions.map((s, i) => (
                           <button
                             key={i}
-                            className="text-left text-xs px-3 py-2 bg-white border border-violet-200 rounded-lg hover:bg-violet-50 transition-colors text-gray-700 leading-relaxed"
+                            className="text-left text-xs px-3 py-2 bg-card border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors text-foreground leading-relaxed"
                             onClick={() => setReplyContent(s)}
                           >
                             {s}

@@ -39,13 +39,13 @@ import { useLocation } from "wouter";
 
 const statusColor = (s: string) => {
   switch (s) {
-    case "open": return "bg-blue-100 text-blue-800";
-    case "escalated": return "bg-orange-100 text-orange-800";
-    case "assigned": return "bg-purple-100 text-purple-800";
-    case "in_progress": return "bg-blue-100 text-blue-800";
-    case "resolved": return "bg-green-100 text-green-800";
-    case "closed": return "bg-gray-100 text-gray-800";
-    default: return "bg-gray-100 text-gray-600";
+    case "open": return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
+    case "escalated": return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400";
+    case "assigned": return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400";
+    case "in_progress": return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
+    case "resolved": return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+    case "closed": return "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-400";
+    default: return "bg-gray-100 text-gray-600 dark:bg-gray-800/50 dark:text-gray-400";
   }
 };
 
@@ -68,8 +68,8 @@ const senderStyle = (type: string) => {
   switch (type?.toLowerCase()) {
     case "user": return "bg-muted";
     case "agent": return "bg-primary text-primary-foreground";
-    case "ai": return "bg-violet-100 text-violet-900 border border-violet-200";
-    case "system": return "bg-amber-50 text-amber-900 border border-amber-200 italic";
+    case "ai": return "bg-violet-100 text-violet-900 dark:bg-violet-900/30 dark:text-violet-300 border border-violet-200 dark:border-violet-800";
+    case "system": return "bg-amber-50 text-amber-900 dark:bg-amber-900/20 dark:text-amber-300 border border-amber-200 dark:border-amber-800 italic";
     default: return "bg-muted";
   }
 };
@@ -324,8 +324,8 @@ export default function SupportAgentDashboard() {
   if (!agent) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b px-6 py-3 flex items-center justify-between">
+    <div className="min-h-screen bg-background">
+      <header className="bg-card border-b px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Headset className="h-6 w-6 text-emerald-600" />
           <div>
@@ -335,13 +335,13 @@ export default function SupportAgentDashboard() {
         </div>
         <div className="flex items-center gap-4">
           <div className="flex gap-3 text-xs">
-            <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded-full font-medium">
+            <span className="px-2 py-1 bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 rounded-full font-medium">
               Escalated: {stats.escalated || 0}
             </span>
-            <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full font-medium">
+            <span className="px-2 py-1 bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400 rounded-full font-medium">
               Assigned: {stats.assigned || 0}
             </span>
-            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full font-medium">
+            <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 rounded-full font-medium">
               In Progress: {stats.inProgress || 0}
             </span>
           </div>
@@ -500,7 +500,7 @@ export default function SupportAgentDashboard() {
                           if (msg.senderType === "system") {
                             return (
                               <div key={msg.id} className="flex justify-center">
-                                <div className="bg-amber-50 text-amber-800 text-xs px-3 py-1.5 rounded-full max-w-[85%] text-center border border-amber-200">
+                                <div className="bg-amber-50 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300 text-xs px-3 py-1.5 rounded-full max-w-[85%] text-center border border-amber-200 dark:border-amber-800">
                                   {msg.content}
                                 </div>
                               </div>
@@ -511,7 +511,7 @@ export default function SupportAgentDashboard() {
                             <div key={msg.id} className={`flex ${isAgent ? "justify-end" : "justify-start"}`}>
                               <div className={`flex gap-2 max-w-[80%] ${isAgent ? "flex-row-reverse" : ""}`}>
                                 <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${
-                                  isAgent ? "bg-primary text-primary-foreground" : msg.senderType === "ai" ? "bg-violet-100 text-violet-600" : "bg-muted"
+                                  isAgent ? "bg-primary text-primary-foreground" : msg.senderType === "ai" ? "bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400" : "bg-muted"
                                 }`}>
                                   {senderIcon(msg.senderType)}
                                 </div>
@@ -535,16 +535,16 @@ export default function SupportAgentDashboard() {
                     </ScrollArea>
 
                     {suggestions.length > 0 && (
-                      <div className="px-3 py-2 border-t bg-violet-50/50">
+                      <div className="px-3 py-2 border-t bg-violet-50/50 dark:bg-violet-900/10">
                         <div className="flex items-center gap-1 mb-1.5">
                           <Sparkles className="h-3 w-3 text-violet-500" />
-                          <span className="text-[10px] font-medium text-violet-700">AI Suggestions</span>
+                          <span className="text-[10px] font-medium text-violet-700 dark:text-violet-400">AI Suggestions</span>
                         </div>
                         <div className="flex flex-col gap-1.5">
                           {suggestions.map((s, i) => (
                             <button
                               key={i}
-                              className="text-left text-xs px-3 py-2 bg-white border border-violet-200 rounded-lg hover:bg-violet-50 transition-colors text-gray-700 leading-relaxed"
+                              className="text-left text-xs px-3 py-2 bg-card border border-violet-200 dark:border-violet-800 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors text-foreground leading-relaxed"
                               onClick={() => setReplyContent(s)}
                             >
                               {s}
@@ -597,8 +597,8 @@ export default function SupportAgentDashboard() {
                           <p className="text-sm text-muted-foreground text-center py-4">No internal notes yet</p>
                         ) : (
                           notes.map((n: any) => (
-                            <div key={n.id} className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                              <p className="text-sm">{n.note}</p>
+                            <div key={n.id} className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                              <p className="text-sm text-foreground">{n.note}</p>
                               <div className="flex justify-between mt-2 text-[10px] text-muted-foreground">
                                 <span>{n.agentName}</span>
                                 <span>{n.createdAt ? formatDistanceToNow(new Date(n.createdAt), { addSuffix: true }) : ""}</span>
