@@ -466,9 +466,9 @@ router.get('/analyzer/:type', async (req: Request, res: Response) => {
     let fieldConfigs = ${fieldConfigsJson};
 
     (function initGlobals() {
-      const gf = '${settings.global_font_family || "'Roboto', Arial, sans-serif"}';
-      const gw = '${settings.global_font_weight || "700"}';
-      const gc = '${settings.global_color || "#000000"}';
+      var gf = ${JSON.stringify(settings.global_font_family || "'Roboto', Arial, sans-serif")};
+      var gw = ${JSON.stringify(settings.global_font_weight || "700")};
+      var gc = ${JSON.stringify(settings.global_color || "#000000")};
       document.getElementById('global_font_family').value = gf;
       document.getElementById('global_font_weight').value = gw;
       document.getElementById('global_color').value = gc;
