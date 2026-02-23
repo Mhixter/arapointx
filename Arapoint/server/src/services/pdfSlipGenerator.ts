@@ -56,6 +56,25 @@ export interface SlipPositions {
   nationality_top?: string;
   nationality_left?: string;
   nationality_size?: string;
+  [key: string]: string | undefined;
+}
+
+export interface SlipFieldConfig {
+  font_family?: string;
+  font_weight?: string;
+  font_style?: string;
+  text_transform?: string;
+  letter_spacing?: string;
+  color?: string;
+}
+
+export interface SlipSettings {
+  positions: SlipPositions;
+  hidden_fields: string[];
+  field_configs: Record<string, SlipFieldConfig>;
+  global_font_family?: string;
+  global_font_weight?: string;
+  global_color?: string;
 }
 
 const defaultPositions: Record<"standard" | "premium" | "long" | "full_info", SlipPositions> =
@@ -188,6 +207,7 @@ const defaultPositions: Record<"standard" | "premium" | "long" | "full_info", Sl
   };
 
 let customPositions: Record<string, SlipPositions> = {};
+let customSettings: Record<string, Partial<SlipSettings>> = {};
 
 export const getSlipPositions = (
   slipType: "standard" | "premium" | "long" | "full_info",
@@ -202,6 +222,36 @@ export const setSlipPositions = (
   const current = getSlipPositions(slipType);
   customPositions[slipType] = { ...current, ...positions };
   return customPositions[slipType];
+};
+
+export const getSlipSettings = (
+  slipType: "standard" | "premium" | "long" | "full_info",
+): SlipSettings => {
+  const settings = customSettings[slipType] || {};
+  return {
+    positions: getSlipPositions(slipType),
+    hidden_fields: settings.hidden_fields || [],
+    field_configs: settings.field_configs || {},
+    global_font_family: settings.global_font_family || "'Roboto', Arial, sans-serif",
+    global_font_weight: settings.global_font_weight || "700",
+    global_color: settings.global_color || "#000",
+  };
+};
+
+export const setSlipSettings = (
+  slipType: "standard" | "premium" | "long" | "full_info",
+  settings: Partial<SlipSettings>,
+): SlipSettings => {
+  if (settings.positions) {
+    setSlipPositions(slipType, settings.positions);
+  }
+  const current = customSettings[slipType] || {};
+  customSettings[slipType] = {
+    ...current,
+    ...settings,
+    positions: undefined,
+  };
+  return getSlipSettings(slipType);
 };
 
 export const getDefaultPositions = () => defaultPositions;
@@ -370,7 +420,10 @@ export const generatePdfSlip = async (
 
   let template = loadTemplate(slipType);
   const templateImage = loadTemplateImage(slipType);
-  const positions = getSlipPositions(slipType);
+  const settings = getSlipSettings(slipType);
+  const positions = settings.positions;
+  const hiddenFields = settings.hidden_fields || [];
+  const fieldConfigs = settings.field_configs || {};
 
   const photoSrc = data.photo
     ? data.photo.startsWith("data:")
@@ -448,7 +501,55 @@ export const generatePdfSlip = async (
     nationality_size: positions.nationality_size || "",
     issue_left: positions.issue_left || "",
     template_image: templateImage,
+    global_font_family: settings.global_font_family || "'Roboto', Arial, sans-serif",
+    global_font_weight: settings.global_font_weight || "700",
+    global_color: settings.global_color || "#000",
   };
+
+  const fieldToSelector: Record<string, string> = {
+    photo: '.photo-overlay',
+    surname: '.surname-overlay',
+    names: '.given-names-overlay',
+    dob: '.dob-overlay',
+    nin: '.nin-overlay',
+    qr_code: '.qr-overlay',
+    sex: '.sex-overlay',
+    issue_date: '.issue-date-overlay',
+    tracking_id: '.tracking-overlay, .tracking-id-overlay',
+    address: '.address-overlay',
+    phone: '.phone-overlay',
+    state: '.state-overlay',
+    lga: '.lga-overlay',
+    birth_state: '.birth-state-overlay',
+    birth_lga: '.birth-lga-overlay',
+    nationality: '.nationality-overlay',
+  };
+
+  let hiddenFieldsCss = '';
+  for (const field of hiddenFields) {
+    const selector = fieldToSelector[field];
+    if (selector) {
+      hiddenFieldsCss += `${selector} { display: none !important; }\n`;
+    }
+  }
+
+  let fieldFontCss = '';
+  for (const [field, config] of Object.entries(fieldConfigs)) {
+    const selector = fieldToSelector[field];
+    if (selector && config) {
+      let styles = '';
+      if (config.font_family) styles += `font-family: ${config.font_family} !important; `;
+      if (config.font_weight) styles += `font-weight: ${config.font_weight} !important; `;
+      if (config.font_style) styles += `font-style: ${config.font_style} !important; `;
+      if (config.text_transform) styles += `text-transform: ${config.text_transform} !important; `;
+      if (config.letter_spacing) styles += `letter-spacing: ${config.letter_spacing} !important; `;
+      if (config.color) styles += `color: ${config.color} !important; `;
+      if (styles) fieldFontCss += `${selector} { ${styles}}\n`;
+    }
+  }
+
+  templateData['hidden_fields_css'] = hiddenFieldsCss;
+  templateData['field_font_css'] = fieldFontCss;
 
   const populatedHtml = injectDataIntoTemplate(template, templateData);
 
