@@ -533,7 +533,12 @@ export const generatePdfSlip = async (
     }
   }
 
-  let fieldFontCss = '';
+  const globalFamily = settings.global_font_family || "'Roboto', Arial, sans-serif";
+  const globalWeight = settings.global_font_weight || "700";
+  const globalColor = settings.global_color || "#000";
+
+  let fieldFontCss = `.data-overlay div, .data-overlay { font-family: ${globalFamily} !important; font-weight: ${globalWeight} !important; color: ${globalColor} !important; }\n`;
+
   for (const [field, config] of Object.entries(fieldConfigs)) {
     const selector = fieldToSelector[field];
     if (selector && config) {
