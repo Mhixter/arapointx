@@ -144,6 +144,25 @@ export const servicesApi = {
     },
   },
 
+  jamb: {
+    submitRequest: async (serviceId: string, formData: any): Promise<any> => {
+      const response = await apiClient.post<ApiResponse<any>>('/education/jamb-request', { serviceId, formData });
+      return response.data.data;
+    },
+    getRequests: async (): Promise<any[]> => {
+      const response = await apiClient.get<ApiResponse<{ requests: any[] }>>('/education/jamb-requests');
+      return response.data.data.requests;
+    },
+    uploadDocument: async (requestId: string, fileName: string, fileType: string): Promise<any> => {
+      const response = await apiClient.post<ApiResponse<any>>(`/education/jamb-request/${requestId}/upload`, { fileName, fileType });
+      return response.data.data;
+    },
+    getDocuments: async (requestId: string): Promise<any[]> => {
+      const response = await apiClient.get<ApiResponse<{ documents: any[] }>>(`/education/jamb-requests/${requestId}/documents`);
+      return response.data.data.documents;
+    },
+  },
+
   vtu: {
     buyAirtime: async (data: AirtimeRequest): Promise<ServiceResponse> => {
       const response = await apiClient.post<ApiResponse<ServiceResponse>>('/airtime/buy', data);

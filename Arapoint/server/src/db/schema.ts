@@ -783,6 +783,59 @@ export const cacFiles = pgTable('cac_files', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+// JAMB Agents - Dedicated agents for JAMB services
+export const jambAgents = pgTable('jamb_agents', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  adminUserId: uuid('admin_user_id').references(() => adminUsers.id).unique(),
+  employeeId: varchar('employee_id', { length: 50 }),
+  specializations: jsonb('specializations').default('["olevel-upload", "admission-letter", "original-result", "pin-vending", "reprinting-caps"]'),
+  maxActiveRequests: integer('max_active_requests').default(20),
+  currentActiveRequests: integer('current_active_requests').default(0),
+  totalCompletedRequests: integer('total_completed_requests').default(0),
+  isAvailable: boolean('is_available').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// JAMB Service Requests
+export const jambServiceRequests = pgTable('jamb_service_requests', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  trackingId: varchar('tracking_id', { length: 20 }).unique().notNull(),
+  serviceType: varchar('service_type', { length: 50 }).notNull(),
+  registrationNumber: varchar('registration_number', { length: 50 }),
+  candidateName: varchar('candidate_name', { length: 255 }),
+  examYear: varchar('exam_year', { length: 10 }),
+  requestData: jsonb('request_data'),
+  status: varchar('status', { length: 30 }).default('pending').notNull(),
+  assignedAgentId: uuid('assigned_agent_id').references(() => jambAgents.id),
+  assignedAt: timestamp('assigned_at'),
+  fee: decimal('fee', { precision: 10, scale: 2 }).notNull(),
+  isPaid: boolean('is_paid').default(false),
+  paymentReference: varchar('payment_reference', { length: 100 }),
+  resultData: jsonb('result_data'),
+  resultUrl: varchar('result_url', { length: 500 }),
+  customerNotes: text('customer_notes'),
+  agentNotes: text('agent_notes'),
+  completedAt: timestamp('completed_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// JAMB Request Documents - File sharing between users and JAMB agents
+export const jambRequestDocuments = pgTable('jamb_request_documents', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  requestId: uuid('request_id').references(() => jambServiceRequests.id).notNull(),
+  uploadedBy: uuid('uploaded_by').notNull(),
+  uploaderRole: varchar('uploader_role', { length: 20 }).notNull(),
+  fileType: varchar('file_type', { length: 50 }).notNull(),
+  fileName: varchar('file_name', { length: 255 }).notNull(),
+  fileKey: varchar('file_key', { length: 500 }).notNull(),
+  fileSize: integer('file_size'),
+  isResult: boolean('is_result').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 // BVN Verifications - Store BVN verification results with downloadable PDF
 export const bvnVerifications = pgTable('bvn_verifications', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),

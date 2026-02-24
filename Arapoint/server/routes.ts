@@ -25,6 +25,7 @@ import cacAgentRoutes from "./src/api/routes/cacAgent";
 import identityAgentRoutes from "./src/api/routes/identityAgent";
 import educationAgentRoutes from "./src/api/routes/educationAgent";
 import a2cAgentRoutes from "./src/api/routes/a2cAgent";
+import jambAgentRoutes from "./src/api/routes/jambAgent";
 import pricingRoutes from "./src/api/routes/pricing";
 import rpaRoutes from "./src/api/routes/rpa";
 import slipsRoutes from "./src/api/routes/slips";
@@ -260,6 +261,7 @@ export async function registerRoutes(
   app.use('/api/identity-agent', identityAgentRoutes);
   app.use('/api/education-agent', educationAgentRoutes);
   app.use('/api/a2c-agent', a2cAgentRoutes);
+  app.use('/api/jamb-agent', jambAgentRoutes);
   app.use('/api/rpa-techhub', authenticatedRateLimiter, rpaRoutes);
   app.use('/api/slips', slipsRoutes);
   app.use('/api/support', authenticatedRateLimiter, supportRoutes);

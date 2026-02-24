@@ -48,7 +48,7 @@ const getAuthToken = () => localStorage.getItem('accessToken');
 export default function AirtimeServices() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [view, setView] = useState<'menu' | 'purchase'>('menu');
+  const [view, setView] = useState<'menu' | 'purchase'>('purchase');
   const [loading, setLoading] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);

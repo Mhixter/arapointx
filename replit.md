@@ -48,6 +48,19 @@ Preferred communication style: Simple, everyday language.
   - `Arapoint/server/src/rpa/browserPool.ts` - Manages Puppeteer browser instances
 - **Job Queue**: Database-backed job queue in `rpa_jobs` table, processed by bot controller
 
+### JAMB Agent System
+- **Purpose**: Dedicated agent system for processing JAMB service requests (O'Level Upload, Admission Letter, Original Result, PIN Vending, Reprinting & Caps)
+- **Database Tables**: `jamb_agents`, `jamb_service_requests`, `jamb_request_documents`
+- **Agent Routes**: `Arapoint/server/src/api/routes/jambAgent.ts` - Login, profile, stats, request management, document upload/download
+- **User Endpoints**: In `Arapoint/server/src/api/routes/education.ts` - `/education/jamb-request` for submission, `/education/jamb-requests` for history, document upload
+- **Admin Routes**: In `Arapoint/server/src/api/routes/admin.ts` - CRUD for JAMB agents, request listing
+- **Agent Login**: `/jamb/agent/login` - `Arapoint/client/src/pages/agent/JAMBAgentLogin.tsx`
+- **Agent Dashboard**: `/jamb/agent/dashboard` - `Arapoint/client/src/pages/agent/JAMBAgentDashboard.tsx`
+- **Admin Page**: `/admin/jamb-agents` - `Arapoint/client/src/pages/admin/AdminJAMBAgents.tsx`
+- **Privacy**: Agent dashboard hides user phone/email, only shows name
+- **Document Sharing**: Users upload documents with requests, agents upload result documents; both use Object Storage
+- **Pricing**: O'Level Upload ₦2,000, Admission Letter ₦1,500, Original Result ₦1,800, Reprinting & Caps ₦3,000
+
 ### Service Layer
 - **Location**: `Arapoint/server/src/services/`
 - **Pattern**: Service modules encapsulate business logic for wallet operations, payments, OTP, email, and third-party API integrations

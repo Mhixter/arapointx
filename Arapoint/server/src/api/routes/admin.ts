@@ -35,6 +35,8 @@ import {
   whatsappTemplates,
   agentChannels,
   agentNotifications,
+  jambAgents,
+  jambServiceRequests,
 } from '../../db/schema';
 import { 
   supportTickets as support_tickets, 
@@ -1938,6 +1940,175 @@ router.delete('/education-agents/:id', async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error('Delete education agent error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to delete education agent'));
+  }
+});
+
+// ===== JAMB AGENT MANAGEMENT =====
+
+router.get('/jamb-agents', async (req: Request, res: Response) => {
+  try {
+    const agents = await db.select({
+      id: jambAgents.id,
+      adminUserId: jambAgents.adminUserId,
+      employeeId: jambAgents.employeeId,
+      specializations: jambAgents.specializations,
+      isAvailable: jambAgents.isAvailable,
+      currentActiveRequests: jambAgents.currentActiveRequests,
+      totalCompletedRequests: jambAgents.totalCompletedRequests,
+      createdAt: jambAgents.createdAt,
+      adminName: adminUsers.name,
+      adminEmail: adminUsers.email,
+    })
+      .from(jambAgents)
+      .leftJoin(adminUsers, eq(jambAgents.adminUserId, adminUsers.id))
+      .orderBy(desc(jambAgents.createdAt));
+
+    res.json(formatResponse('success', 200, 'JAMB agents retrieved', { agents }));
+  } catch (error: any) {
+    logger.error('Get JAMB agents error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get JAMB agents'));
+  }
+});
+
+router.post('/jamb-agents', async (req: Request, res: Response) => {
+  try {
+    const { name, email, password, employeeId, specializations } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json(formatErrorResponse(400, 'Name, email, and password are required'));
+    }
+
+    const [existingEmail] = await db.select()
+      .from(adminUsers)
+      .where(eq(adminUsers.email, email.toLowerCase()))
+      .limit(1);
+
+    if (existingEmail) {
+      return res.status(409).json(formatErrorResponse(409, 'Email already exists'));
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const [newAdminUser] = await db.insert(adminUsers).values({
+      name,
+      email: email.toLowerCase(),
+      passwordHash: hashedPassword,
+      isActive: true,
+    }).returning();
+
+    const [agent] = await db.insert(jambAgents).values({
+      adminUserId: newAdminUser.id,
+      employeeId: employeeId || null,
+      specializations: specializations || ['olevel-upload', 'admission-letter', 'original-result', 'pin-vending', 'reprinting-caps'],
+      isAvailable: true,
+    }).returning();
+
+    logger.info('JAMB agent created', { agentId: agent.id, adminUserId: newAdminUser.id, createdBy: req.userId });
+
+    res.status(201).json(formatResponse('success', 201, 'JAMB agent created', {
+      agent: {
+        id: agent.id,
+        adminUserId: newAdminUser.id,
+        adminName: newAdminUser.name,
+        adminEmail: newAdminUser.email,
+        isAvailable: agent.isAvailable,
+      },
+    }));
+  } catch (error: any) {
+    logger.error('Create JAMB agent error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to create JAMB agent'));
+  }
+});
+
+router.put('/jamb-agents/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { specializations, isAvailable, employeeId } = req.body;
+
+    const [agent] = await db.select()
+      .from(jambAgents)
+      .where(eq(jambAgents.id, id))
+      .limit(1);
+
+    if (!agent) {
+      return res.status(404).json(formatErrorResponse(404, 'JAMB agent not found'));
+    }
+
+    const updateData: any = { updatedAt: new Date() };
+    if (specializations !== undefined) updateData.specializations = specializations;
+    if (isAvailable !== undefined) updateData.isAvailable = isAvailable;
+    if (employeeId !== undefined) updateData.employeeId = employeeId;
+
+    await db.update(jambAgents)
+      .set(updateData)
+      .where(eq(jambAgents.id, id));
+
+    logger.info('JAMB agent updated', { agentId: id, updatedBy: req.userId });
+
+    res.json(formatResponse('success', 200, 'JAMB agent updated'));
+  } catch (error: any) {
+    logger.error('Update JAMB agent error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to update JAMB agent'));
+  }
+});
+
+router.delete('/jamb-agents/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const [agent] = await db.select()
+      .from(jambAgents)
+      .where(eq(jambAgents.id, id))
+      .limit(1);
+
+    if (!agent) {
+      return res.status(404).json(formatErrorResponse(404, 'JAMB agent not found'));
+    }
+
+    await db.delete(jambAgents).where(eq(jambAgents.id, id));
+
+    logger.info('JAMB agent deleted', { agentId: id, deletedBy: req.userId });
+
+    res.json(formatResponse('success', 200, 'JAMB agent deleted'));
+  } catch (error: any) {
+    logger.error('Delete JAMB agent error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to delete JAMB agent'));
+  }
+});
+
+router.get('/jamb-requests', async (req: Request, res: Response) => {
+  try {
+    const { limit: lim = '50', status } = req.query;
+
+    let query = db.select({
+      id: jambServiceRequests.id,
+      trackingId: jambServiceRequests.trackingId,
+      serviceType: jambServiceRequests.serviceType,
+      registrationNumber: jambServiceRequests.registrationNumber,
+      candidateName: jambServiceRequests.candidateName,
+      status: jambServiceRequests.status,
+      fee: jambServiceRequests.fee,
+      isPaid: jambServiceRequests.isPaid,
+      createdAt: jambServiceRequests.createdAt,
+      userName: users.name,
+      userEmail: users.email,
+    })
+      .from(jambServiceRequests)
+      .leftJoin(users, eq(jambServiceRequests.userId, users.id))
+      .orderBy(desc(jambServiceRequests.createdAt))
+      .limit(parseInt(lim as string) || 50);
+
+    let requests;
+    if (status && status !== 'all') {
+      requests = await query.where(eq(jambServiceRequests.status, status as string));
+    } else {
+      requests = await query;
+    }
+
+    res.json(formatResponse('success', 200, 'JAMB requests retrieved', { requests }));
+  } catch (error: any) {
+    logger.error('Admin get JAMB requests error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get JAMB requests'));
   }
 });
 

@@ -45,6 +45,8 @@ import EducationAgentLogin from "@/pages/agent/EducationAgentLogin";
 import EducationAgentDashboard from "@/pages/agent/EducationAgentDashboard";
 import A2CAgentLogin from "@/pages/agent/A2CAgentLogin";
 import A2CAgentDashboard from "@/pages/agent/A2CAgentDashboard";
+import JAMBAgentLogin from "@/pages/agent/JAMBAgentLogin";
+import JAMBAgentDashboard from "@/pages/agent/JAMBAgentDashboard";
 import BuyPINs from "@/pages/dashboard/BuyPINs";
 import Profile from "@/pages/dashboard/Profile";
 import Settings from "@/pages/dashboard/Settings";
@@ -70,6 +72,7 @@ import AdminCACServices from "@/pages/admin/AdminCACServices";
 import AdminIdentityAgents from "@/pages/admin/AdminIdentityAgents";
 import AdminEducationAgents from "@/pages/admin/AdminEducationAgents";
 import AdminA2CAgents from "@/pages/admin/AdminA2CAgents";
+import AdminJAMBAgents from "@/pages/admin/AdminJAMBAgents";
 import AdminEducationPins from "@/pages/admin/AdminEducationPins";
 import AdminWhatsApp from "@/pages/admin/AdminWhatsApp";
 import AdminTransactions from "@/pages/admin/AdminTransactions";
@@ -91,6 +94,8 @@ function Router() {
       <Route path="/agent/education/dashboard" component={EducationAgentDashboard} />
       <Route path="/agent/a2c/login" component={A2CAgentLogin} />
       <Route path="/agent/a2c/dashboard" component={A2CAgentDashboard} />
+      <Route path="/jamb/agent/login" component={JAMBAgentLogin} />
+      <Route path="/jamb/agent/dashboard" component={JAMBAgentDashboard} />
       
       {/* Admin Routes - outside MainLayout */}
       <Route path="/admin/login" component={AdminLogin} />
@@ -167,6 +172,11 @@ function Router() {
       <Route path="/admin/a2c-agents">
         <AdminCRUDLayout>
           <AdminA2CAgents />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/jamb-agents">
+        <AdminCRUDLayout>
+          <AdminJAMBAgents />
         </AdminCRUDLayout>
       </Route>
       <Route path="/admin/whatsapp">

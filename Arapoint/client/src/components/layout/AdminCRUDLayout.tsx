@@ -18,7 +18,8 @@ import {
   X,
   ChevronLeft,
   Building2,
-  IdCard
+  IdCard,
+  BookOpen
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -68,6 +69,7 @@ const ALL_NAV_ITEMS = [
   { href: "/admin/identity-agents", label: "Identity Agents", icon: IdCard, permission: "identity" },
   { href: "/admin/education-agents", label: "Education Agents", icon: GraduationCap, permission: "education" },
   { href: "/admin/a2c-agents", label: "A2C Agents", icon: DollarSign, permission: "vtu" },
+  { href: "/admin/jamb-agents", label: "JAMB Agents", icon: BookOpen, permission: "education" },
   { href: "/admin/pricing", label: "Pricing Management", icon: DollarSign, permission: "pricing" },
   { href: "/admin/support", label: "Support Chat", icon: Headset, permission: "support" },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3, permission: "analytics" },

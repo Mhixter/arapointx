@@ -7,7 +7,8 @@ import { jambSchema, waecSchema, necoSchema, nabtebSchema, nbaisSchema } from '.
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse, generateReferenceId } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { educationServices, servicePricing, educationPins, educationPinOrders, users, nbaisSchools, rpaJobs, educationServiceRequests } from '../../db/schema';
+import { educationServices, servicePricing, educationPins, educationPinOrders, users, nbaisSchools, rpaJobs, educationServiceRequests, jambServiceRequests, jambRequestDocuments } from '../../db/schema';
+import { ObjectStorageService } from '../../services/objectStorage';
 import { eq, desc, and, sql, count, or } from 'drizzle-orm';
 import { sendEmail } from '../../services/emailService';
 import { getSchoolsByState, getSchoolsCount } from '../../rpa/workers/nbaisSchoolScraper';
@@ -60,6 +61,152 @@ router.post('/request', async (req: Request, res: Response) => {
       return res.status(402).json(formatErrorResponse(402, error.message));
     }
     res.status(500).json(formatErrorResponse(500, 'Failed to process request'));
+  }
+});
+
+const jambObjectStorage = new ObjectStorageService();
+
+router.post('/jamb-request', async (req: Request, res: Response) => {
+  try {
+    const { serviceId, formData } = req.body;
+
+    if (!serviceId) {
+      return res.status(400).json(formatErrorResponse(400, 'Service ID is required'));
+    }
+
+    const JAMB_PRICES: Record<string, number> = {
+      'olevel-upload': 2000,
+      'admission-letter': 1500,
+      'original-result': 1800,
+      'pin-vending': 0,
+      'reprinting-caps': 3000,
+    };
+
+    const price = JAMB_PRICES[serviceId] || 2000;
+    const serviceName = serviceId.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+
+    if (price > 0) {
+      await walletService.deductBalance(req.userId!, price, `JAMB Service: ${serviceName}`);
+    }
+
+    const trackingId = `JMB${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 100)}`;
+
+    const [request] = await db.insert(jambServiceRequests).values({
+      userId: req.userId!,
+      trackingId,
+      serviceType: serviceId,
+      registrationNumber: formData.regNumber || formData['jamb-reg'] || 'N/A',
+      examYear: formData.examYear?.toString(),
+      candidateName: formData.fullName || 'N/A',
+      requestData: formData,
+      fee: price.toFixed(2),
+      status: 'pending',
+      customerNotes: JSON.stringify(formData),
+      isPaid: true,
+      paymentReference: generateReferenceId(),
+    }).returning();
+
+    logger.info('JAMB service request created', { userId: req.userId, trackingId, serviceId });
+
+    res.status(201).json(formatResponse('success', 201, 'Request submitted successfully', {
+      requestId: request.id,
+      trackingId,
+      price,
+      status: 'pending'
+    }));
+  } catch (error: any) {
+    logger.error('JAMB request error', { error: error.message, userId: req.userId });
+    if (error.message === 'Insufficient wallet balance') {
+      return res.status(402).json(formatErrorResponse(402, error.message));
+    }
+    res.status(500).json(formatErrorResponse(500, 'Failed to process request'));
+  }
+});
+
+router.post('/jamb-request/:id/upload', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { fileName, fileType } = req.body;
+
+    const [request] = await db.select()
+      .from(jambServiceRequests)
+      .where(and(
+        eq(jambServiceRequests.id, id),
+        eq(jambServiceRequests.userId, req.userId!)
+      ))
+      .limit(1);
+
+    if (!request) {
+      return res.status(404).json(formatErrorResponse(404, 'Request not found'));
+    }
+
+    const { uploadURL, objectPath } = await jambObjectStorage.getObjectEntityUploadURL('jamb-docs');
+
+    const [doc] = await db.insert(jambRequestDocuments).values({
+      requestId: id,
+      uploadedBy: req.userId!,
+      uploaderRole: 'user',
+      fileType: fileType || 'document',
+      fileName: fileName || 'document',
+      fileKey: objectPath,
+      isResult: false,
+    }).returning();
+
+    res.json(formatResponse('success', 200, 'Upload URL generated', { uploadURL, document: doc }));
+  } catch (error: any) {
+    logger.error('JAMB upload error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to generate upload URL'));
+  }
+});
+
+router.get('/jamb-requests', async (req: Request, res: Response) => {
+  try {
+    const requests = await db.select({
+      id: jambServiceRequests.id,
+      trackingId: jambServiceRequests.trackingId,
+      serviceType: jambServiceRequests.serviceType,
+      status: jambServiceRequests.status,
+      fee: jambServiceRequests.fee,
+      resultUrl: jambServiceRequests.resultUrl,
+      agentNotes: jambServiceRequests.agentNotes,
+      createdAt: jambServiceRequests.createdAt,
+    })
+      .from(jambServiceRequests)
+      .where(eq(jambServiceRequests.userId, req.userId!))
+      .orderBy(desc(jambServiceRequests.createdAt));
+
+    res.json(formatResponse('success', 200, 'JAMB requests retrieved', { requests }));
+  } catch (error: any) {
+    logger.error('Get JAMB requests error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get requests'));
+  }
+});
+
+router.get('/jamb-requests/:id/documents', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const [request] = await db.select()
+      .from(jambServiceRequests)
+      .where(and(
+        eq(jambServiceRequests.id, id),
+        eq(jambServiceRequests.userId, req.userId!)
+      ))
+      .limit(1);
+
+    if (!request) {
+      return res.status(404).json(formatErrorResponse(404, 'Request not found'));
+    }
+
+    const documents = await db.select()
+      .from(jambRequestDocuments)
+      .where(eq(jambRequestDocuments.requestId, id))
+      .orderBy(desc(jambRequestDocuments.createdAt));
+
+    res.json(formatResponse('success', 200, 'Documents retrieved', { documents }));
+  } catch (error: any) {
+    logger.error('Get JAMB documents error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get documents'));
   }
 });
 

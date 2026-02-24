@@ -77,134 +77,141 @@ export interface SlipSettings {
   global_color?: string;
 }
 
-const defaultPositions: Record<"standard" | "premium" | "long" | "full_info", SlipPositions> =
-  {
-    standard: {
-      photo_top: "33%",
-      photo_left: "31%",
-      photo_width: "10%",
-      surname_top: "35.3%",
-      surname_left: "41.5%",
-      surname_size: "12px",
-      names_top: "38%",
-      names_left: "41.5%",
-      names_size: "12px",
-      dob_top: "41%",
-      dob_left: "41.5%",
-      dob_size: "12px",
-      nin_top: "45%",
-      nin_left: "36%",
-      nin_size: "40px",
-      qr_top: "34.5%",
-      qr_right: "29.5%",
-      qr_width: "12%",
-    },
-    premium: {
-      photo_top: "48%",
-      photo_left: "29%",
-      photo_width: "10.5%",
-      surname_top: "49.3%",
-      surname_left: "40.1%",
-      surname_size: "15px",
-      names_top: "53%",
-      names_left: "40.1%",
-      names_size: "15px",
-      dob_top: "56.7%",
-      dob_left: "40.1%",
-      dob_size: "15px",
-      nin_top: "60.9%",
-      nin_left: "35.5%",
-      nin_size: "40px",
-      qr_top: "43.5%",
-      qr_right: "26.5%",
-      qr_width: "12.5%",
-      sex_top: "56.9%",
-      sex_left: "55%",
-      sex_size: "15px",
-      issue_top: "57%",
-      issue_right: "28%",
-      issue_size: "15px",
-    },
-    long: {
-      photo_top: "42%",
-      photo_left: "81.5%",
-      photo_width: "13.8%",
-      surname_top: "44%",
-      surname_left: "35.4%",
-      surname_size: "16px",
-      names_top: "47.5%",
-      names_left: "37.4%",
-      names_size: "16px",
-      dob_top: "",
-      dob_left: "",
-      dob_size: "",
-      nin_top: "47.3%",
-      nin_left: "10%",
-      nin_size: "16px",
-      qr_top: "",
-      qr_right: "",
-      qr_width: "",
-      sex_top: "54.1%",
-      sex_left: "35%",
-      sex_size: "16px",
-      tracking_top: "43.7%",
-      tracking_left: "13%",
-      tracking_size: "16px",
-      address_top: "58%",
-      address_left: "10%",
-      address_size: "14px",
-    },
-    full_info: {
-      photo_top: "18%",
-      photo_left: "10%",
-      photo_width: "18%",
-      surname_top: "19%",
-      surname_left: "32%",
-      surname_size: "14px",
-      names_top: "23%",
-      names_left: "32%",
-      names_size: "14px",
-      dob_top: "27%",
-      dob_left: "32%",
-      dob_size: "14px",
-      nin_top: "35%",
-      nin_left: "32%",
-      nin_size: "16px",
-      qr_top: "18%",
-      qr_right: "8%",
-      qr_width: "15%",
-      sex_top: "31%",
-      sex_left: "32%",
-      sex_size: "14px",
-      issue_top: "39%",
-      issue_left: "32%",
-      issue_size: "14px",
-      tracking_top: "43%",
-      tracking_left: "32%",
-      tracking_size: "14px",
-      address_top: "51%",
-      address_left: "32%",
-      address_size: "13px",
-      phone_top: "55%",
-      phone_left: "32%",
-      phone_size: "14px",
-      state_top: "59%",
-      state_left: "32%",
-      state_size: "14px",
-      lga_top: "63%",
-      lga_left: "32%",
-      lga_size: "14px",
-      birth_state_top: "67%",
-      birth_state_left: "32%",
-      birth_state_size: "14px",
-      birth_lga_top: "71%",
-      birth_lga_left: "32%",
-      birth_lga_size: "14px",
-      nationality_top: "75%",
-      nationality_left: "32%",
-      nationality_size: "14px",
-    },
-  };
+const defaultPositions: Record<
+  "standard" | "premium" | "long" | "full_info",
+  SlipPositions
+> = {
+  standard: {
+    photo_top: "33%",
+    photo_left: "31%",
+    photo_width: "10%",
+    surname_top: "35.3%",
+    surname_left: "41.5%",
+    surname_size: "12px",
+    names_top: "38%",
+    names_left: "41.5%",
+    names_size: "12px",
+    dob_top: "41%",
+    dob_left: "41.5%",
+    dob_size: "12px",
+    nin_top: "45%",
+    nin_left: "36%",
+    nin_size: "40px",
+    qr_top: "34.5%",
+    qr_right: "29.5%",
+    qr_width: "12%",
+  },
+  premium: {
+    photo_top: "48%",
+    photo_left: "29%",
+    photo_width: "10.5%",
+    surname_top: "49.3%",
+    surname_left: "40.1%",
+    surname_size: "15px",
+    names_top: "53%",
+    names_left: "40.1%",
+    names_size: "15px",
+    dob_top: "56.7%",
+    dob_left: "40.1%",
+    dob_size: "15px",
+    nin_top: "60.9%",
+    nin_left: "35.5%",
+    nin_size: "40px",
+    qr_top: "43.5%",
+    qr_right: "26.5%",
+    qr_width: "12.5%",
+    sex_top: "56.9%",
+    sex_left: "55%",
+    sex_size: "15px",
+    issue_top: "57%",
+    issue_right: "28%",
+    issue_size: "15px",
+  },
+  long: {
+    photo_top: "42%",
+    photo_left: "81.5%",
+    photo_width: "13.8%",
+    surname_top: "44%",
+    surname_left: "35.4%",
+    surname_size: "16px",
+    names_top: "47.5%",
+    names_left: "37.4%",
+    names_size: "16px",
+    dob_top: "",
+    dob_left: "",
+    dob_size: "",
+    nin_top: "47.3%",
+    nin_left: "10%",
+    nin_size: "16px",
+    qr_top: "",
+    qr_right: "",
+    qr_width: "",
+    sex_top: "54.1%",
+    sex_left: "35%",
+    sex_size: "16px",
+    tracking_top: "43.7%",
+    tracking_left: "13%",
+    tracking_size: "16px",
+    address_top: "58%",
+    address_left: "10%",
+    address_size: "14px",
+  },
+  full_info: {
+    photo_top: "12%",
+    photo_left: "31%",
+    photo_width: "18%",
+    surname_top: "20.4%",
+    surname_left: "14%",
+    surname_size: "16px",
+    names_top: "13.5%",
+    names_left: "14.2%",
+    names_size: "16px",
+    dob_top: "24.4%",
+    dob_left: "11%",
+    dob_size: "16px",
+    nin_top: "29.9%",
+    nin_left: "24%",
+    nin_size: "36px",
+    qr_top: "18%",
+    qr_right: "8%",
+    qr_width: "15%",
+    sex_top: "27.4%",
+    sex_left: "12%",
+    sex_size: "16px",
+    issue_top: "39%",
+    issue_left: "32%",
+    issue_size: "14px",
+    tracking_top: "34%",
+    tracking_left: "14%",
+    tracking_size: "16px",
+    address_top: "43.7%",
+    address_left: "12%",
+    address_size: "16px",
+    phone_top: "34%",
+    phone_left: "42%",
+    phone_size: "16px",
+    state_top: "38.7%",
+    state_left: "11%",
+    state_size: "16px",
+    lga_top: "40.7%",
+    lga_left: "38.5%",
+    lga_size: "16px",
+    birth_state_top: "40.7%",
+    birth_state_left: "14%",
+    birth_state_size: "16px",
+    birth_lga_top: "38.5%",
+    birth_lga_left: "39%",
+    birth_lga_size: "16px",
+    nationality_top: "75%",
+    nationality_left: "32%",
+    nationality_size: "14px",
+    hidden_fields: ["qr_code", "issue_date", "nationality"],
+    field_configs: {},
+    global_font_family: "'Roboto', Arial, sans-serif",
+    global_font_weight: "400",
+    global_color: "#000000",
+  },
+};
 
 let customPositions: Record<string, SlipPositions> = {};
 let customSettings: Record<string, Partial<SlipSettings>> = {};
@@ -232,7 +239,8 @@ export const getSlipSettings = (
     positions: getSlipPositions(slipType),
     hidden_fields: settings.hidden_fields || [],
     field_configs: settings.field_configs || {},
-    global_font_family: settings.global_font_family || "'Roboto', Arial, sans-serif",
+    global_font_family:
+      settings.global_font_family || "'Roboto', Arial, sans-serif",
     global_font_weight: settings.global_font_weight || "700",
     global_color: settings.global_color || "#000",
   };
@@ -327,7 +335,9 @@ const getBaseUrl = (): string => {
     : process.env.BASE_URL || "http://localhost:5000";
 };
 
-const loadTemplate = (slipType: "standard" | "premium" | "long" | "full_info"): string => {
+const loadTemplate = (
+  slipType: "standard" | "premium" | "long" | "full_info",
+): string => {
   const templatePath = path.join(
     process.cwd(),
     "server/src/templates",
@@ -501,31 +511,32 @@ export const generatePdfSlip = async (
     nationality_size: positions.nationality_size || "",
     issue_left: positions.issue_left || "",
     template_image: templateImage,
-    global_font_family: settings.global_font_family || "'Roboto', Arial, sans-serif",
+    global_font_family:
+      settings.global_font_family || "'Roboto', Arial, sans-serif",
     global_font_weight: settings.global_font_weight || "700",
     global_color: settings.global_color || "#000",
   };
 
   const fieldToSelector: Record<string, string> = {
-    photo: '.photo-overlay',
-    surname: '.surname-overlay',
-    names: '.given-names-overlay',
-    dob: '.dob-overlay',
-    nin: '.nin-overlay',
-    qr_code: '.qr-overlay',
-    sex: '.sex-overlay',
-    issue_date: '.issue-date-overlay',
-    tracking_id: '.tracking-overlay, .tracking-id-overlay',
-    address: '.address-overlay',
-    phone: '.phone-overlay',
-    state: '.state-overlay',
-    lga: '.lga-overlay',
-    birth_state: '.birth-state-overlay',
-    birth_lga: '.birth-lga-overlay',
-    nationality: '.nationality-overlay',
+    photo: ".photo-overlay",
+    surname: ".surname-overlay",
+    names: ".given-names-overlay",
+    dob: ".dob-overlay",
+    nin: ".nin-overlay",
+    qr_code: ".qr-overlay",
+    sex: ".sex-overlay",
+    issue_date: ".issue-date-overlay",
+    tracking_id: ".tracking-overlay, .tracking-id-overlay",
+    address: ".address-overlay",
+    phone: ".phone-overlay",
+    state: ".state-overlay",
+    lga: ".lga-overlay",
+    birth_state: ".birth-state-overlay",
+    birth_lga: ".birth-lga-overlay",
+    nationality: ".nationality-overlay",
   };
 
-  let hiddenFieldsCss = '';
+  let hiddenFieldsCss = "";
   for (const field of hiddenFields) {
     const selector = fieldToSelector[field];
     if (selector) {
@@ -533,7 +544,8 @@ export const generatePdfSlip = async (
     }
   }
 
-  const globalFamily = settings.global_font_family || "'Roboto', Arial, sans-serif";
+  const globalFamily =
+    settings.global_font_family || "'Roboto', Arial, sans-serif";
   const globalWeight = settings.global_font_weight || "700";
   const globalColor = settings.global_color || "#000";
 
@@ -542,19 +554,24 @@ export const generatePdfSlip = async (
   for (const [field, config] of Object.entries(fieldConfigs)) {
     const selector = fieldToSelector[field];
     if (selector && config) {
-      let styles = '';
-      if (config.font_family) styles += `font-family: ${config.font_family} !important; `;
-      if (config.font_weight) styles += `font-weight: ${config.font_weight} !important; `;
-      if (config.font_style) styles += `font-style: ${config.font_style} !important; `;
-      if (config.text_transform) styles += `text-transform: ${config.text_transform} !important; `;
-      if (config.letter_spacing) styles += `letter-spacing: ${config.letter_spacing} !important; `;
+      let styles = "";
+      if (config.font_family)
+        styles += `font-family: ${config.font_family} !important; `;
+      if (config.font_weight)
+        styles += `font-weight: ${config.font_weight} !important; `;
+      if (config.font_style)
+        styles += `font-style: ${config.font_style} !important; `;
+      if (config.text_transform)
+        styles += `text-transform: ${config.text_transform} !important; `;
+      if (config.letter_spacing)
+        styles += `letter-spacing: ${config.letter_spacing} !important; `;
       if (config.color) styles += `color: ${config.color} !important; `;
       if (styles) fieldFontCss += `${selector} { ${styles}}\n`;
     }
   }
 
-  templateData['hidden_fields_css'] = hiddenFieldsCss;
-  templateData['field_font_css'] = fieldFontCss;
+  templateData["hidden_fields_css"] = hiddenFieldsCss;
+  templateData["field_font_css"] = fieldFontCss;
 
   const populatedHtml = injectDataIntoTemplate(template, templateData);
 
@@ -580,9 +597,10 @@ export const generatePdfSlip = async (
 
     const page = await browser.newPage();
 
-    const dimensions = slipType === 'full_info' 
-      ? { width: 1162, height: 1758 }
-      : { width: 1267, height: 1652 };
+    const dimensions =
+      slipType === "full_info"
+        ? { width: 1162, height: 1758 }
+        : { width: 1267, height: 1652 };
 
     await page.setViewport(dimensions);
 

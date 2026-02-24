@@ -1,0 +1,354 @@
+import { Router, Request, Response } from 'express';
+import { logger } from '../../utils/logger';
+import { formatResponse, formatErrorResponse } from '../../utils/helpers';
+import { db } from '../../config/database';
+import { 
+  jambAgents,
+  jambServiceRequests,
+  jambRequestDocuments,
+  adminUsers,
+  users,
+} from '../../db/schema';
+import { eq, desc, count, sql, and } from 'drizzle-orm';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { ObjectStorageService } from '../../services/objectStorage';
+
+const router = Router();
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_here';
+const objectStorage = new ObjectStorageService();
+
+const jambAgentAuthMiddleware = async (req: Request, res: Response, next: Function) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json(formatErrorResponse(401, 'Authentication required'));
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+
+    if (decoded.role !== 'jamb_agent') {
+      return res.status(403).json(formatErrorResponse(403, 'Access denied. JAMB agent role required'));
+    }
+
+    const [agent] = await db.select()
+      .from(jambAgents)
+      .where(eq(jambAgents.id, decoded.agentId))
+      .limit(1);
+
+    if (!agent || !agent.isAvailable) {
+      return res.status(403).json(formatErrorResponse(403, 'Agent account is inactive'));
+    }
+
+    (req as any).agentId = agent.id;
+    (req as any).adminUserId = agent.adminUserId;
+    next();
+  } catch (error: any) {
+    logger.error('JAMB agent auth error', { error: error.message });
+    return res.status(401).json(formatErrorResponse(401, 'Invalid or expired token'));
+  }
+};
+
+router.post('/login', async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json(formatErrorResponse(400, 'Email and password are required'));
+    }
+
+    const [adminUser] = await db.select()
+      .from(adminUsers)
+      .where(eq(adminUsers.email, email.toLowerCase()))
+      .limit(1);
+
+    if (!adminUser || !adminUser.isActive) {
+      return res.status(401).json(formatErrorResponse(401, 'Invalid credentials'));
+    }
+
+    const passwordValid = await bcrypt.compare(password, adminUser.passwordHash);
+    if (!passwordValid) {
+      return res.status(401).json(formatErrorResponse(401, 'Invalid credentials'));
+    }
+
+    const [agent] = await db.select()
+      .from(jambAgents)
+      .where(eq(jambAgents.adminUserId, adminUser.id))
+      .limit(1);
+
+    if (!agent) {
+      return res.status(403).json(formatErrorResponse(403, 'Not authorized as JAMB agent'));
+    }
+
+    if (!agent.isAvailable) {
+      return res.status(403).json(formatErrorResponse(403, 'Agent account is currently inactive'));
+    }
+
+    const token = jwt.sign(
+      { 
+        agentId: agent.id, 
+        adminUserId: adminUser.id, 
+        email: adminUser.email,
+        role: 'jamb_agent' 
+      },
+      JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+
+    await db.update(adminUsers)
+      .set({ lastLogin: new Date() })
+      .where(eq(adminUsers.id, adminUser.id));
+
+    logger.info('JAMB agent login', { agentId: agent.id, email });
+
+    res.json(formatResponse('success', 200, 'Login successful', {
+      token,
+      agent: {
+        id: agent.id,
+        name: adminUser.name,
+        email: adminUser.email,
+        employeeId: agent.employeeId,
+        currentActiveRequests: agent.currentActiveRequests,
+        totalCompletedRequests: agent.totalCompletedRequests,
+      },
+    }));
+  } catch (error: any) {
+    logger.error('JAMB agent login error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Login failed'));
+  }
+});
+
+router.get('/me', jambAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const agentId = (req as any).agentId;
+
+    const [agent] = await db.select({
+      id: jambAgents.id,
+      employeeId: jambAgents.employeeId,
+      specializations: jambAgents.specializations,
+      maxActiveRequests: jambAgents.maxActiveRequests,
+      currentActiveRequests: jambAgents.currentActiveRequests,
+      totalCompletedRequests: jambAgents.totalCompletedRequests,
+      isAvailable: jambAgents.isAvailable,
+      name: adminUsers.name,
+      email: adminUsers.email,
+    })
+      .from(jambAgents)
+      .leftJoin(adminUsers, eq(jambAgents.adminUserId, adminUsers.id))
+      .where(eq(jambAgents.id, agentId))
+      .limit(1);
+
+    res.json(formatResponse('success', 200, 'Agent profile', { agent }));
+  } catch (error: any) {
+    logger.error('Get JAMB agent profile error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get profile'));
+  }
+});
+
+router.get('/stats', jambAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const [stats] = await db.select({
+      pending: sql<number>`COUNT(*) FILTER (WHERE status = 'pending')`,
+      pickup: sql<number>`COUNT(*) FILTER (WHERE status = 'pickup')`,
+      completed: sql<number>`COUNT(*) FILTER (WHERE status = 'completed')`,
+      total: count(),
+    }).from(jambServiceRequests);
+
+    res.json(formatResponse('success', 200, 'Stats retrieved', { stats }));
+  } catch (error: any) {
+    logger.error('Get JAMB stats error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get stats'));
+  }
+});
+
+router.get('/requests', jambAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { status } = req.query;
+
+    let query = db.select({
+      id: jambServiceRequests.id,
+      trackingId: jambServiceRequests.trackingId,
+      serviceType: jambServiceRequests.serviceType,
+      registrationNumber: jambServiceRequests.registrationNumber,
+      candidateName: jambServiceRequests.candidateName,
+      examYear: jambServiceRequests.examYear,
+      requestData: jambServiceRequests.requestData,
+      status: jambServiceRequests.status,
+      fee: jambServiceRequests.fee,
+      isPaid: jambServiceRequests.isPaid,
+      customerNotes: jambServiceRequests.customerNotes,
+      agentNotes: jambServiceRequests.agentNotes,
+      resultUrl: jambServiceRequests.resultUrl,
+      createdAt: jambServiceRequests.createdAt,
+      userName: users.name,
+    })
+      .from(jambServiceRequests)
+      .leftJoin(users, eq(jambServiceRequests.userId, users.id))
+      .orderBy(desc(jambServiceRequests.createdAt));
+
+    let requests;
+    if (status && status !== 'all') {
+      requests = await query.where(eq(jambServiceRequests.status, status as string));
+    } else {
+      requests = await query;
+    }
+
+    res.json(formatResponse('success', 200, 'Requests retrieved', { requests }));
+  } catch (error: any) {
+    logger.error('Get JAMB requests error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get requests'));
+  }
+});
+
+router.get('/requests/:id', jambAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const [request] = await db.select({
+      id: jambServiceRequests.id,
+      trackingId: jambServiceRequests.trackingId,
+      serviceType: jambServiceRequests.serviceType,
+      registrationNumber: jambServiceRequests.registrationNumber,
+      candidateName: jambServiceRequests.candidateName,
+      examYear: jambServiceRequests.examYear,
+      requestData: jambServiceRequests.requestData,
+      status: jambServiceRequests.status,
+      fee: jambServiceRequests.fee,
+      isPaid: jambServiceRequests.isPaid,
+      customerNotes: jambServiceRequests.customerNotes,
+      agentNotes: jambServiceRequests.agentNotes,
+      resultUrl: jambServiceRequests.resultUrl,
+      resultData: jambServiceRequests.resultData,
+      createdAt: jambServiceRequests.createdAt,
+      userName: users.name,
+    })
+      .from(jambServiceRequests)
+      .leftJoin(users, eq(jambServiceRequests.userId, users.id))
+      .where(eq(jambServiceRequests.id, id))
+      .limit(1);
+
+    if (!request) {
+      return res.status(404).json(formatErrorResponse(404, 'Request not found'));
+    }
+
+    const documents = await db.select()
+      .from(jambRequestDocuments)
+      .where(eq(jambRequestDocuments.requestId, id))
+      .orderBy(desc(jambRequestDocuments.createdAt));
+
+    res.json(formatResponse('success', 200, 'Request details', { request, documents }));
+  } catch (error: any) {
+    logger.error('Get JAMB request details error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get request details'));
+  }
+});
+
+router.put('/requests/:id/status', jambAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const agentId = (req as any).agentId;
+    const { id } = req.params;
+    const { status, agentNotes, resultUrl, resultData } = req.body;
+
+    if (!['pending', 'pickup', 'completed'].includes(status)) {
+      return res.status(400).json(formatErrorResponse(400, 'Invalid status'));
+    }
+
+    const [request] = await db.select()
+      .from(jambServiceRequests)
+      .where(eq(jambServiceRequests.id, id))
+      .limit(1);
+
+    if (!request) {
+      return res.status(404).json(formatErrorResponse(404, 'Request not found'));
+    }
+
+    const updateData: any = {
+      status,
+      updatedAt: new Date(),
+    };
+
+    if (status === 'pickup' && !request.assignedAgentId) {
+      updateData.assignedAgentId = agentId;
+      updateData.assignedAt = new Date();
+    }
+
+    if (status === 'completed') {
+      updateData.completedAt = new Date();
+      if (resultUrl) updateData.resultUrl = resultUrl;
+      if (resultData) updateData.resultData = resultData;
+    }
+
+    if (agentNotes) {
+      updateData.agentNotes = agentNotes;
+    }
+
+    await db.update(jambServiceRequests)
+      .set(updateData)
+      .where(eq(jambServiceRequests.id, id));
+
+    logger.info('JAMB request status updated', { requestId: id, status, agentId });
+
+    res.json(formatResponse('success', 200, 'Request updated'));
+  } catch (error: any) {
+    logger.error('Update JAMB request error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to update request'));
+  }
+});
+
+router.post('/requests/:id/upload', jambAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const agentId = (req as any).agentId;
+    const { id } = req.params;
+    const { fileName, fileType } = req.body;
+
+    const [request] = await db.select()
+      .from(jambServiceRequests)
+      .where(eq(jambServiceRequests.id, id))
+      .limit(1);
+
+    if (!request) {
+      return res.status(404).json(formatErrorResponse(404, 'Request not found'));
+    }
+
+    const { uploadURL, objectPath } = await objectStorage.getObjectEntityUploadURL('jamb-docs');
+
+    const [doc] = await db.insert(jambRequestDocuments).values({
+      requestId: id,
+      uploadedBy: agentId,
+      uploaderRole: 'agent',
+      fileType: fileType || 'result',
+      fileName: fileName || 'document',
+      fileKey: objectPath,
+      isResult: true,
+    }).returning();
+
+    res.json(formatResponse('success', 200, 'Upload URL generated', { uploadURL, document: doc }));
+  } catch (error: any) {
+    logger.error('Generate JAMB upload URL error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to generate upload URL'));
+  }
+});
+
+router.get('/documents/:docId/download', jambAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { docId } = req.params;
+
+    const [doc] = await db.select()
+      .from(jambRequestDocuments)
+      .where(eq(jambRequestDocuments.id, docId))
+      .limit(1);
+
+    if (!doc) {
+      return res.status(404).json(formatErrorResponse(404, 'Document not found'));
+    }
+
+    const file = await objectStorage.getObjectEntityFile(doc.fileKey);
+    await objectStorage.downloadObject(file, res);
+  } catch (error: any) {
+    logger.error('Download JAMB document error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to download document'));
+  }
+});
+
+export default router;
