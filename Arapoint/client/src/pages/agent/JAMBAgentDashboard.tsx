@@ -228,7 +228,7 @@ export default function JAMBAgentDashboard() {
       'olevel-upload': "O'Level Upload",
       'admission-letter': "Admission Letter",
       'original-result': "Original Result",
-      'pin-vending': "PIN Vending",
+
       'reprinting-caps': "Reprinting & Caps",
     };
     return labels[type] || type;

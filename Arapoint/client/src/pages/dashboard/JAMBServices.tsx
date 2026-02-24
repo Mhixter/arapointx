@@ -4,9 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, AlertCircle, CheckCircle2, FileUp, FileText, FileCheck, Gift, RotateCw, ArrowRight, ArrowLeft, Clock, Upload } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2, FileUp, FileText, FileCheck, RotateCw, ArrowRight, ArrowLeft, Clock, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { servicesApi } from "@/lib/api/services";
 
@@ -50,18 +50,6 @@ const JAMB_SERVICES = [
     hasFileUpload: false,
   },
   {
-    id: "pin-vending",
-    name: "PIN Vending",
-    description: "Purchase exam PINs instantly from inventory",
-    icon: Gift,
-    price: 0,
-    fields: [
-      { name: "examType", label: "Exam Body", type: "select", options: ["waec", "neco", "nabteb", "nbais"], required: true },
-      { name: "quantity", label: "Quantity of PINs", type: "number", required: true },
-    ],
-    hasFileUpload: false,
-  },
-  {
     id: "reprinting-caps",
     name: "Reprinting & Caps",
     description: "Request reprinting of JAMB documents and academic caps",
@@ -80,7 +68,7 @@ const SERVICE_LABELS: Record<string, string> = {
   'olevel-upload': "O'Level Upload",
   'admission-letter': "Admission Letter",
   'original-result': "Original Result",
-  'pin-vending': "PIN Vending",
+
   'reprinting-caps': "Reprinting & Caps",
 };
 
@@ -170,17 +158,10 @@ export default function JAMBServices() {
       setRequestComplete(true);
       setCompletedService(service);
 
-      if (selectedService === 'pin-vending' && result.pins && result.pins.length > 0) {
-        toast({
-          title: `${result.delivered} PIN(s) Delivered!`,
-          description: `Your ${(formData.examType || 'exam').toUpperCase()} PINs have been delivered. Check your email for details.`,
-        });
-      } else {
-        toast({
-          title: "Request Submitted",
-          description: `Your ${service.name} request has been submitted successfully (ID: ${result.trackingId}).`,
-        });
-      }
+      toast({
+        title: "Request Submitted",
+        description: `Your ${service.name} request has been submitted successfully (ID: ${result.trackingId}).`,
+      });
     } catch (error: any) {
       setIsLoading(false);
       toast({
@@ -316,28 +297,15 @@ export default function JAMBServices() {
                     {field.label}
                     {field.required && <span className="text-red-500">*</span>}
                   </Label>
-                  {field.type === 'select' && field.options ? (
-                    <Select onValueChange={(val) => handleInputChange(field.name, val)} value={formData[field.name] || ""}>
-                      <SelectTrigger>
-                        <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {field.options.map((opt: string) => (
-                          <SelectItem key={opt} value={opt}>{opt.toUpperCase()}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Input
-                      id={field.name}
-                      type={field.type}
-                      placeholder={field.placeholder || ""}
-                      required={field.required}
-                      className="h-10"
-                      value={formData[field.name] || ""}
-                      onChange={(e) => handleInputChange(field.name, e.target.value)}
-                    />
-                  )}
+                  <Input
+                    id={field.name}
+                    type={field.type}
+                    placeholder={field.placeholder || ""}
+                    required={field.required}
+                    className="h-10"
+                    value={formData[field.name] || ""}
+                    onChange={(e) => handleInputChange(field.name, e.target.value)}
+                  />
                 </div>
               ))}
 

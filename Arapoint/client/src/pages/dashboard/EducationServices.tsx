@@ -105,7 +105,7 @@ const JAMB_SUB_SERVICES = [
   { id: "olevel-upload", name: "O'Level Upload", icon: FileUp, desc: "Upload and verify O'Level results", price: 2000 },
   { id: "admission-letter", name: "Admission Letter", icon: FileText, desc: "Check and download admission status", price: 1500 },
   { id: "original-result", name: "Original Result", icon: FileCheck, desc: "Retrieve original JAMB results", price: 1800 },
-  { id: "pin-vending", name: "PIN Vending", icon: Gift, desc: "Purchase JAMB result checker PINs", price: 0 },
+
   { id: "reprinting-caps", name: "Reprinting & Caps", icon: RotateCw, desc: "Request reprinting of documents", price: 3000 },
 ];
 
@@ -446,21 +446,6 @@ export default function EducationServices() {
         formData['jamb-reg'] = (form.querySelector('#jamb-reg2') as HTMLInputElement)?.value;
         formData.pin = (form.querySelector('#pin') as HTMLInputElement)?.value;
         await servicesApi.jamb.submitRequest('original-result', formData);
-      } else if (selectedJAMBSub === 'pin-vending') {
-        formData.examType = (form.querySelector('#pinExamType') as HTMLInputElement)?.value || 'waec';
-        formData.quantity = (form.querySelector('#qty') as HTMLInputElement)?.value || '1';
-        const result = await servicesApi.jamb.submitRequest('pin-vending', formData);
-        
-        if (result.pins && result.pins.length > 0) {
-          const pinDetails = result.pins.map((p: any) => `PIN: ${p.pin}${p.serialNumber ? ` | Serial: ${p.serialNumber}` : ''}`).join('\n');
-          toast({
-            title: `${result.delivered} PIN(s) Delivered!`,
-            description: `Your ${formData.examType.toUpperCase()} PINs have been delivered. Check your email for details.`,
-          });
-          setLoading(false);
-          setSubmitted(true);
-          return;
-        }
       } else if (selectedJAMBSub === 'reprinting-caps') {
         formData['jamb-reg'] = (form.querySelector('#jamb-reg3') as HTMLInputElement)?.value;
         formData.itemType = (form.querySelector('#item') as HTMLInputElement)?.value;
@@ -1020,35 +1005,6 @@ export default function EducationServices() {
                 </>
               )}
 
-              {selectedJAMBSub === 'pin-vending' && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="pinExamType">Exam Body</Label>
-                    <Select onValueChange={(val) => {
-                      const hidden = document.getElementById('pinExamType') as HTMLInputElement;
-                      if (hidden) hidden.value = val;
-                    }}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select exam body" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="waec">WAEC</SelectItem>
-                        <SelectItem value="neco">NECO</SelectItem>
-                        <SelectItem value="nabteb">NABTEB</SelectItem>
-                        <SelectItem value="nbais">NBAIS</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <input type="hidden" id="pinExamType" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="qty">Quantity of PINs</Label>
-                    <Input id="qty" type="number" min="1" max="20" placeholder="1" defaultValue="1" required />
-                  </div>
-                  <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-                    <p className="text-sm text-blue-900 dark:text-blue-200">PINs are delivered instantly from inventory. Select exam body and quantity above.</p>
-                  </div>
-                </>
-              )}
 
               {selectedJAMBSub === 'reprinting-caps' && (
                 <>

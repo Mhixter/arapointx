@@ -81,7 +81,7 @@ export default function VerificationHistory() {
       'olevel-upload': "O'Level Upload",
       'admission-letter': 'Admission Letter',
       'original-result': 'Original Result',
-      'pin-vending': 'PIN Vending',
+
       'reprinting-caps': 'Reprinting & Caps',
     };
     return names[serviceType?.toLowerCase()] || serviceType?.replace(/-/g, ' ').replace(/_/g, ' ').toUpperCase() || 'Unknown';
