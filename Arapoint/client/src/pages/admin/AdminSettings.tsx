@@ -7,7 +7,8 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Bell, Shield, Database, Globe, Save, Mail, Loader2, Send } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Bell, Shield, Database, Globe, Save, Mail, Loader2, Send, CreditCard, CheckCircle2, XCircle, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/contexts/SettingsContext";
 
@@ -40,6 +41,11 @@ export default function AdminSettings() {
   });
   const [testEmail, setTestEmail] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
+  const [gateways, setGateways] = useState<Record<string, any>>({});
+  const [gatewayLoading, setGatewayLoading] = useState(false);
+  const [gatewayForms, setGatewayForms] = useState<Record<string, Record<string, string>>>({});
+  const [savingGateway, setSavingGateway] = useState<string | null>(null);
+  const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
 
   const settingsMap: Record<string, string> = {
     waecUrl: 'rpa_provider_url_waec',
@@ -85,6 +91,66 @@ export default function AdminSettings() {
     };
     fetchSettings();
   }, []);
+
+  const fetchGateways = async () => {
+    setGatewayLoading(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch('/api/admin/payment-gateways/status', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.data?.gateways) {
+          setGateways(data.data.gateways);
+          const forms: Record<string, Record<string, string>> = {};
+          Object.entries(data.data.gateways).forEach(([key, gw]: [string, any]) => {
+            forms[key] = {};
+            gw.fields.forEach((field: any) => {
+              forms[key][field.key] = field.value || '';
+            });
+          });
+          setGatewayForms(forms);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch gateways', err);
+    } finally {
+      setGatewayLoading(false);
+    }
+  };
+
+  const handleSaveGateway = async (gatewayKey: string) => {
+    setSavingGateway(gatewayKey);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const credentials = gatewayForms[gatewayKey] || {};
+      const response = await fetch('/api/admin/payment-gateways/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ gateway: gatewayKey, credentials })
+      });
+
+      if (!response.ok) throw new Error('Failed to save');
+
+      toast({
+        title: "Gateway Saved",
+        description: `${gateways[gatewayKey]?.name || gatewayKey} credentials saved and activated.`,
+      });
+      await fetchGateways();
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to save gateway credentials.",
+        variant: "destructive"
+      });
+    } finally {
+      setSavingGateway(null);
+    }
+  };
 
   const saveTabSettings = async (fields: Record<string, any>, tabName: string, shouldRefetch = false) => {
     try {
@@ -178,10 +244,14 @@ export default function AdminSettings() {
       </div>
 
       <Tabs defaultValue="general" className="space-y-4 sm:space-y-6">
-        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 h-auto p-1 gap-1">
+        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-7 h-auto p-1 gap-1">
           <TabsTrigger value="general" className="gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm">
             <Globe className="h-3 w-3 sm:h-4 sm:w-4" />
             <span className="hidden xs:inline sm:inline">General</span>
+          </TabsTrigger>
+          <TabsTrigger value="gateways" className="gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm" onClick={() => { if (Object.keys(gateways).length === 0) fetchGateways(); }}>
+            <CreditCard className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden xs:inline sm:inline">Gateways</span>
           </TabsTrigger>
           <TabsTrigger value="email" className="gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm">
             <Mail className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -302,6 +372,121 @@ export default function AdminSettings() {
               Save General Settings
             </Button>
           </div>
+        </TabsContent>
+
+        <TabsContent value="gateways" className="space-y-4 sm:space-y-6">
+          {gatewayLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : Object.keys(gateways).length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <CreditCard className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">Click the Gateways tab to load payment gateway configurations.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {Object.entries(gateways).map(([key, gw]: [string, any]) => (
+                <Card key={key}>
+                  <CardHeader className="p-4 sm:p-6 pb-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                          {gw.name}
+                          {gw.configured ? (
+                            <Badge className="bg-green-100 text-green-700 text-[10px]">
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                              Active
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-[10px]">
+                              <XCircle className="h-3 w-3 mr-1" />
+                              Not Configured
+                            </Badge>
+                          )}
+                        </CardTitle>
+                        <CardDescription className="text-xs sm:text-sm mt-1">{gw.description}</CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4 sm:p-6 pt-2 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {gw.fields.map((field: any) => (
+                        <div key={field.key} className={`space-y-1.5 ${field.type === 'toggle' ? 'flex items-center justify-between sm:col-span-2' : ''}`}>
+                          {field.type === 'toggle' ? (
+                            <>
+                              <div>
+                                <Label className="text-xs sm:text-sm">{field.label}</Label>
+                                <p className="text-[10px] text-muted-foreground">Enable for testing without real transactions</p>
+                              </div>
+                              <Switch
+                                checked={(gatewayForms[key]?.[field.key] || 'false') === 'true'}
+                                onCheckedChange={(checked) => {
+                                  setGatewayForms(prev => ({
+                                    ...prev,
+                                    [key]: { ...prev[key], [field.key]: checked ? 'true' : 'false' }
+                                  }));
+                                }}
+                              />
+                            </>
+                          ) : (
+                            <>
+                              <Label className="text-xs sm:text-sm">
+                                {field.label}
+                                {field.required && <span className="text-red-500 ml-0.5">*</span>}
+                              </Label>
+                              <div className="relative">
+                                <Input
+                                  type={field.type === 'password' && !showPasswords[field.key] ? 'password' : 'text'}
+                                  placeholder={field.hasValue ? '••••••• (already set, leave blank to keep)' : field.label}
+                                  value={gatewayForms[key]?.[field.key] || ''}
+                                  onChange={(e) => {
+                                    setGatewayForms(prev => ({
+                                      ...prev,
+                                      [key]: { ...prev[key], [field.key]: e.target.value }
+                                    }));
+                                  }}
+                                  className="h-8 sm:h-9 text-sm pr-10"
+                                />
+                                {field.type === 'password' && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                                    onClick={() => setShowPasswords(prev => ({ ...prev, [field.key]: !prev[field.key] }))}
+                                  >
+                                    {showPasswords[field.key] ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                                  </Button>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-end pt-2">
+                      <Button
+                        size="sm"
+                        className="h-8 sm:h-9 text-xs sm:text-sm px-4"
+                        disabled={savingGateway === key}
+                        onClick={() => handleSaveGateway(key)}
+                      >
+                        {savingGateway === key ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                        ) : (
+                          <Save className="h-3.5 w-3.5 mr-1.5" />
+                        )}
+                        Save {gw.name}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="email" className="space-y-4 sm:space-y-6">

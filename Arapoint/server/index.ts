@@ -4,6 +4,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { seedPricing } from "./src/db/seed-pricing";
 import { seedAdmin } from "./src/db/seed-admin";
+import { loadGatewayCredentials } from "./src/config/loadGatewayCredentials";
 
 const app = express();
 const httpServer = createServer(app);
@@ -65,6 +66,7 @@ app.use((req, res, next) => {
 (async () => {
   await seedPricing().catch(err => console.log('Pricing seed skipped:', err.message));
   await seedAdmin().catch(err => console.log('Admin seed skipped:', err.message));
+  await loadGatewayCredentials().catch(err => console.log('Gateway credentials load skipped:', err.message));
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

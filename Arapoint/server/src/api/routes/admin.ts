@@ -641,6 +641,140 @@ router.get('/settings', async (req: Request, res: Response) => {
   }
 });
 
+router.get('/payment-gateways/status', async (req: Request, res: Response) => {
+  try {
+    const settingsList = await db.select().from(adminSettings);
+    const savedSettings: Record<string, string> = {};
+    settingsList.forEach(s => {
+      savedSettings[s.settingKey] = s.settingValue || '';
+    });
+
+    const gateways = {
+      paystack: {
+        name: 'Paystack',
+        description: 'Card payments, bank transfers, USSD, mobile money',
+        configured: !!(process.env.PAYSTACK_SECRET_KEY || savedSettings['paystack_secret_key']),
+        fields: [
+          { key: 'paystack_secret_key', label: 'Secret Key', type: 'password', required: true, value: '', hasValue: !!savedSettings['paystack_secret_key'] },
+          { key: 'paystack_public_key', label: 'Public Key', type: 'text', required: true, value: savedSettings['paystack_public_key'] || '' },
+        ],
+      },
+      palmpay: {
+        name: 'PalmPay Business',
+        description: 'PalmPay virtual accounts and direct payments',
+        configured: !!(process.env.PALMPAY_APP_ID || savedSettings['palmpay_app_id']),
+        fields: [
+          { key: 'palmpay_app_id', label: 'App ID', type: 'text', required: true, value: savedSettings['palmpay_app_id'] || '' },
+          { key: 'palmpay_private_key', label: 'Private Key', type: 'password', required: true, value: '', hasValue: !!savedSettings['palmpay_private_key'] },
+          { key: 'palmpay_public_key', label: 'Public Key', type: 'text', required: false, value: savedSettings['palmpay_public_key'] || '' },
+        ],
+      },
+      payvessel: {
+        name: 'PayVessel',
+        description: 'Virtual account generation for bank transfers',
+        configured: !!(process.env.PAYVESSEL_API_KEY || savedSettings['payvessel_api_key']),
+        fields: [
+          { key: 'payvessel_api_key', label: 'API Key', type: 'text', required: true, value: savedSettings['payvessel_api_key'] || '' },
+          { key: 'payvessel_secret_key', label: 'Secret Key', type: 'password', required: true, value: '', hasValue: !!savedSettings['payvessel_secret_key'] },
+          { key: 'payvessel_business_id', label: 'Business ID', type: 'text', required: true, value: savedSettings['payvessel_business_id'] || '' },
+        ],
+      },
+      vtpass: {
+        name: 'VTPass',
+        description: 'Airtime, data, electricity, and cable TV services',
+        configured: !!(process.env.VTPASS_API_KEY || savedSettings['vtpass_api_key']),
+        fields: [
+          { key: 'vtpass_api_key', label: 'API Key', type: 'text', required: true, value: savedSettings['vtpass_api_key'] || '' },
+          { key: 'vtpass_secret_key', label: 'Secret Key', type: 'password', required: true, value: '', hasValue: !!savedSettings['vtpass_secret_key'] },
+          { key: 'vtpass_public_key', label: 'Public Key', type: 'text', required: false, value: savedSettings['vtpass_public_key'] || '' },
+          { key: 'vtpass_sandbox', label: 'Sandbox Mode', type: 'toggle', required: false, value: savedSettings['vtpass_sandbox'] || 'false' },
+        ],
+      },
+      youverify: {
+        name: 'YouVerify',
+        description: 'NIN and BVN identity verification',
+        configured: !!(process.env.YOUVERIFY_API_KEY || savedSettings['youverify_api_key']),
+        fields: [
+          { key: 'youverify_api_key', label: 'API Key', type: 'password', required: true, value: '', hasValue: !!savedSettings['youverify_api_key'] },
+          { key: 'youverify_sandbox', label: 'Sandbox Mode', type: 'toggle', required: false, value: savedSettings['youverify_sandbox'] || 'false' },
+        ],
+      },
+      prembly: {
+        name: 'Prembly (IdentityPass)',
+        description: 'Alternative identity verification provider',
+        configured: !!(process.env.PREMBLY_SECRET_KEY || savedSettings['prembly_secret_key']),
+        fields: [
+          { key: 'prembly_secret_key', label: 'Secret Key', type: 'password', required: true, value: '', hasValue: !!savedSettings['prembly_secret_key'] },
+          { key: 'prembly_public_key', label: 'Public Key', type: 'text', required: false, value: savedSettings['prembly_public_key'] || '' },
+        ],
+      },
+    };
+
+    res.json(formatResponse('success', 200, 'Gateway status retrieved', { gateways }));
+  } catch (error: any) {
+    logger.error('Get payment gateway status error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get gateway status'));
+  }
+});
+
+router.post('/payment-gateways/save', async (req: Request, res: Response) => {
+  try {
+    const { gateway, credentials } = req.body;
+
+    if (!gateway || !credentials || typeof credentials !== 'object') {
+      return res.status(400).json(formatErrorResponse(400, 'Gateway name and credentials are required'));
+    }
+
+    const envMapping: Record<string, string> = {
+      paystack_secret_key: 'PAYSTACK_SECRET_KEY',
+      paystack_public_key: 'PAYSTACK_PUBLIC_KEY',
+      palmpay_app_id: 'PALMPAY_APP_ID',
+      palmpay_private_key: 'PALMPAY_PRIVATE_KEY',
+      palmpay_public_key: 'PALMPAY_PUBLIC_KEY',
+      payvessel_api_key: 'PAYVESSEL_API_KEY',
+      payvessel_secret_key: 'PAYVESSEL_SECRET_KEY',
+      payvessel_business_id: 'PAYVESSEL_BUSINESS_ID',
+      vtpass_api_key: 'VTPASS_API_KEY',
+      vtpass_secret_key: 'VTPASS_SECRET_KEY',
+      vtpass_public_key: 'VTPASS_PUBLIC_KEY',
+      vtpass_sandbox: 'VTPASS_SANDBOX',
+      youverify_api_key: 'YOUVERIFY_API_KEY',
+      youverify_sandbox: 'YOUVERIFY_SANDBOX',
+      prembly_secret_key: 'PREMBLY_SECRET_KEY',
+      prembly_public_key: 'PREMBLY_PUBLIC_KEY',
+    };
+
+    for (const [key, value] of Object.entries(credentials)) {
+      if (typeof value === 'string' && value && value !== '••••••••') {
+        await db.insert(adminSettings)
+          .values({
+            settingKey: key,
+            settingValue: value,
+            updatedAt: new Date()
+          })
+          .onConflictDoUpdate({
+            target: adminSettings.settingKey,
+            set: {
+              settingValue: value,
+              updatedAt: new Date()
+            }
+          });
+
+        const envKey = envMapping[key];
+        if (envKey) {
+          process.env[envKey] = value;
+        }
+      }
+    }
+
+    logger.info('Payment gateway credentials saved', { gateway });
+    res.json(formatResponse('success', 200, `${gateway} credentials saved and activated successfully`));
+  } catch (error: any) {
+    logger.error('Save payment gateway error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to save gateway credentials'));
+  }
+});
+
 router.get('/users', async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
