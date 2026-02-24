@@ -22,6 +22,7 @@ import IdentityServiceRouter from "@/pages/dashboard/identity/IdentityServiceRou
 import IdentityAgentServices from "@/pages/dashboard/identity/IdentityAgentServices";
 import BVNRetrieval from "@/pages/dashboard/BVNRetrieval";
 import EducationServices from "@/pages/dashboard/EducationServices";
+import JAMBServices from "@/pages/dashboard/JAMBServices";
 import VerificationHistory from "@/pages/dashboard/VerificationHistory";
 import IdentityHistory from "@/pages/dashboard/IdentityHistory";
 import Services from "@/pages/dashboard/Services";
@@ -249,6 +250,11 @@ function Router() {
         <Route path="/dashboard/education">
           <DashboardLayout>
             <EducationServices />
+          </DashboardLayout>
+        </Route>
+        <Route path="/dashboard/jamb">
+          <DashboardLayout>
+            <JAMBServices />
           </DashboardLayout>
         </Route>
         <Route path="/dashboard/education/history">
