@@ -408,11 +408,54 @@ export default function EducationServices() {
     }
   };
 
-  const handleJAMBSubService = (e: React.FormEvent) => {
+  const handleJAMBSubService = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     
-    setTimeout(() => {
+    try {
+      const form = e.target as HTMLFormElement;
+      const formData: Record<string, any> = {};
+
+      if (selectedJAMBSub === 'olevel-upload') {
+        formData.fullName = (form.querySelector('#name') as HTMLInputElement)?.value;
+        formData.regNumber = (form.querySelector('#reg') as HTMLInputElement)?.value;
+        formData.examYear = (form.querySelector('#year') as HTMLInputElement)?.value;
+        formData.examBody = (form.querySelector('#examBody') as HTMLInputElement)?.value || '';
+        const fileInput = form.querySelector('#doc') as HTMLInputElement;
+        const file = fileInput?.files?.[0];
+        
+        const result = await servicesApi.jamb.submitRequest('olevel-upload', formData);
+        
+        if (file && result.requestId) {
+          try {
+            const { uploadURL } = await servicesApi.jamb.uploadDocument(result.requestId, file.name, file.type || 'document');
+            await fetch(uploadURL, {
+              method: 'PUT',
+              body: file,
+              headers: { 'Content-Type': file.type || 'application/octet-stream' },
+            });
+          } catch (uploadErr) {
+            console.error('Document upload failed:', uploadErr);
+          }
+        }
+      } else if (selectedJAMBSub === 'admission-letter') {
+        formData['jamb-reg'] = (form.querySelector('#jamb-reg') as HTMLInputElement)?.value;
+        formData.email = (form.querySelector('#email') as HTMLInputElement)?.value;
+        await servicesApi.jamb.submitRequest('admission-letter', formData);
+      } else if (selectedJAMBSub === 'original-result') {
+        formData['jamb-reg'] = (form.querySelector('#jamb-reg2') as HTMLInputElement)?.value;
+        formData.pin = (form.querySelector('#pin') as HTMLInputElement)?.value;
+        await servicesApi.jamb.submitRequest('original-result', formData);
+      } else if (selectedJAMBSub === 'pin-vending') {
+        formData.quantity = (form.querySelector('#qty') as HTMLInputElement)?.value;
+        await servicesApi.jamb.submitRequest('pin-vending', formData);
+      } else if (selectedJAMBSub === 'reprinting-caps') {
+        formData['jamb-reg'] = (form.querySelector('#jamb-reg3') as HTMLInputElement)?.value;
+        formData.itemType = (form.querySelector('#item') as HTMLInputElement)?.value;
+        formData.quantity = (form.querySelector('#qty2') as HTMLInputElement)?.value;
+        await servicesApi.jamb.submitRequest('reprinting-caps', formData);
+      }
+
       setLoading(false);
       setSubmitted(true);
       const service = JAMB_SUB_SERVICES.find(s => s.id === selectedJAMBSub);
@@ -420,7 +463,14 @@ export default function EducationServices() {
         title: "Request Submitted",
         description: `Your ${service?.name} request has been submitted successfully.`,
       });
-    }, 2000);
+    } catch (error: any) {
+      setLoading(false);
+      toast({
+        title: "Submission Failed",
+        description: error?.response?.data?.message || error.message || "Failed to submit request. Please check your balance.",
+        variant: "destructive"
+      });
+    }
   };
 
   const openPdfForPrint = async (jobId: string) => {
@@ -909,7 +959,10 @@ export default function EducationServices() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="body">Exam Body</Label>
-                      <Select>
+                      <Select onValueChange={(val) => {
+                        const hidden = document.getElementById('examBody') as HTMLInputElement;
+                        if (hidden) hidden.value = val;
+                      }}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select exam body" />
                         </SelectTrigger>
@@ -921,6 +974,7 @@ export default function EducationServices() {
                       </Select>
                     </div>
                   </div>
+                  <input type="hidden" id="examBody" />
                   <div className="space-y-2">
                     <Label htmlFor="doc">Upload O'Level Certificate</Label>
                     <Input id="doc" type="file" accept=".pdf,.jpg,.png" required />
