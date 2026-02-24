@@ -459,6 +459,19 @@ export const educationServiceRequests = pgTable('education_service_requests', {
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
+// Education Request Documents (shared between user and agent)
+export const educationRequestDocuments = pgTable('education_request_documents', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  requestId: uuid('request_id').references(() => educationServiceRequests.id).notNull(),
+  uploadedBy: uuid('uploaded_by').notNull(),
+  uploaderRole: varchar('uploader_role', { length: 20 }).notNull(),
+  fileType: varchar('file_type', { length: 100 }),
+  fileName: varchar('file_name', { length: 255 }),
+  fileKey: varchar('file_key', { length: 500 }).notNull(),
+  isResult: boolean('is_result').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 // Identity Service Requests (NIN Validation, IPE Clearance, NIN Personalization)
 export const identityServiceRequests = pgTable('identity_service_requests', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),

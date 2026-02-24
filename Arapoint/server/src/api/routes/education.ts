@@ -74,11 +74,112 @@ router.post('/jamb-request', async (req: Request, res: Response) => {
       return res.status(400).json(formatErrorResponse(400, 'Service ID is required'));
     }
 
+    // PIN Vending: auto-deliver from inventory instead of manual request
+    if (serviceId === 'pin-vending') {
+      const examType = (formData.examType || 'waec').toLowerCase();
+      const quantity = parseInt(formData.quantity) || 1;
+
+      if (!['waec', 'neco', 'nabteb', 'nbais'].includes(examType)) {
+        return res.status(400).json(formatErrorResponse(400, 'Invalid exam type for PIN'));
+      }
+
+      const price = await pricingService.getPrice(`${examType}_pin`).catch(() => 500);
+      const totalPrice = price * quantity;
+
+      // Check stock first
+      const [stockCount] = await db.select({ count: count() })
+        .from(educationPins)
+        .where(sql`${educationPins.examType} = ${examType} AND ${educationPins.status} = 'unused'`);
+
+      if (!stockCount?.count || stockCount.count < quantity) {
+        return res.status(400).json(formatErrorResponse(400, `Not enough ${examType.toUpperCase()} PINs in stock. Available: ${stockCount?.count || 0}`));
+      }
+
+      await walletService.deductBalance(req.userId!, totalPrice, `${examType.toUpperCase()} PIN Purchase x${quantity}`);
+
+      const deliveredPins: any[] = [];
+      for (let i = 0; i < quantity; i++) {
+        try {
+          const [selectedPin] = await db.select()
+            .from(educationPins)
+            .where(sql`${educationPins.examType} = ${examType} AND ${educationPins.status} = 'unused'`)
+            .limit(1)
+            .for('update');
+
+          if (!selectedPin) break;
+
+          const [order] = await db.insert(educationPinOrders).values({
+            userId: req.userId!,
+            examType,
+            amount: price.toFixed(2),
+            status: 'completed',
+            pinId: selectedPin.id,
+            deliveredPin: selectedPin.pinCode,
+            deliveredSerial: selectedPin.serialNumber,
+            completedAt: new Date(),
+          }).returning();
+
+          await db.update(educationPins)
+            .set({
+              status: 'used',
+              usedByOrderId: order.id,
+              usedByUserId: req.userId!,
+              usedAt: new Date(),
+            })
+            .where(eq(educationPins.id, selectedPin.id));
+
+          deliveredPins.push({
+            pin: selectedPin.pinCode,
+            serialNumber: selectedPin.serialNumber,
+            examType: examType.toUpperCase(),
+          });
+        } catch (e: any) {
+          logger.error('PIN delivery error in loop', { error: e.message });
+        }
+      }
+
+      if (deliveredPins.length === 0) {
+        await walletService.addBalance(req.userId!, totalPrice, `Refund: ${examType.toUpperCase()} PIN - Out of stock`);
+        return res.status(400).json(formatErrorResponse(400, 'PINs are out of stock. Your wallet has been refunded.'));
+      }
+
+      if (deliveredPins.length < quantity) {
+        const refundAmount = price * (quantity - deliveredPins.length);
+        await walletService.addBalance(req.userId!, refundAmount, `Partial refund: ${quantity - deliveredPins.length} ${examType.toUpperCase()} PINs unavailable`);
+      }
+
+      // Send email with PINs
+      const [user] = await db.select({ email: users.email, name: users.name })
+        .from(users).where(eq(users.id, req.userId!)).limit(1);
+
+      if (user?.email) {
+        const pinListHtml = deliveredPins.map(p => 
+          `<p><strong>PIN:</strong> ${p.pin}${p.serialNumber ? ` | <strong>Serial:</strong> ${p.serialNumber}` : ''}</p>`
+        ).join('');
+        sendEmail(
+          user.email,
+          `Your ${examType.toUpperCase()} PIN(s) - Arapoint`,
+          `<h2>Your ${examType.toUpperCase()} PIN(s)</h2><p>Dear ${user.name || 'Customer'},</p>
+          <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">${pinListHtml}</div>
+          <p><strong>Important:</strong> PINs cannot be refunded after delivery.</p>`
+        ).catch((err: any) => logger.error('Failed to send PIN email', { error: err.message }));
+      }
+
+      logger.info('JAMB PIN vending auto-delivered', { userId: req.userId, examType, delivered: deliveredPins.length });
+
+      return res.status(200).json(formatResponse('success', 200, `${deliveredPins.length} ${examType.toUpperCase()} PIN(s) delivered successfully`, {
+        pins: deliveredPins,
+        totalCharged: price * deliveredPins.length,
+        delivered: deliveredPins.length,
+        requested: quantity,
+      }));
+    }
+
+    // Regular JAMB service requests (non-PIN)
     const JAMB_PRICES: Record<string, number> = {
       'olevel-upload': 2000,
       'admission-letter': 1500,
       'original-result': 1800,
-      'pin-vending': 0,
       'reprinting-caps': 3000,
     };
 

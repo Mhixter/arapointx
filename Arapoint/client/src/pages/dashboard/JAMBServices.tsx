@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, AlertCircle, CheckCircle2, FileUp, FileText, FileCheck, Gift, RotateCw, ArrowRight, ArrowLeft, Clock, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -51,10 +52,11 @@ const JAMB_SERVICES = [
   {
     id: "pin-vending",
     name: "PIN Vending",
-    description: "Purchase JAMB result checker PINs in bulk",
+    description: "Purchase exam PINs instantly from inventory",
     icon: Gift,
     price: 0,
     fields: [
+      { name: "examType", label: "Exam Body", type: "select", options: ["waec", "neco", "nabteb", "nbais"], required: true },
       { name: "quantity", label: "Quantity of PINs", type: "number", required: true },
     ],
     hasFileUpload: false,
@@ -167,10 +169,18 @@ export default function JAMBServices() {
       setIsLoading(false);
       setRequestComplete(true);
       setCompletedService(service);
-      toast({
-        title: "Request Submitted",
-        description: `Your ${service.name} request has been submitted successfully (ID: ${result.trackingId}).`,
-      });
+
+      if (selectedService === 'pin-vending' && result.pins && result.pins.length > 0) {
+        toast({
+          title: `${result.delivered} PIN(s) Delivered!`,
+          description: `Your ${(formData.examType || 'exam').toUpperCase()} PINs have been delivered. Check your email for details.`,
+        });
+      } else {
+        toast({
+          title: "Request Submitted",
+          description: `Your ${service.name} request has been submitted successfully (ID: ${result.trackingId}).`,
+        });
+      }
     } catch (error: any) {
       setIsLoading(false);
       toast({
@@ -306,15 +316,28 @@ export default function JAMBServices() {
                     {field.label}
                     {field.required && <span className="text-red-500">*</span>}
                   </Label>
-                  <Input
-                    id={field.name}
-                    type={field.type}
-                    placeholder={field.placeholder || ""}
-                    required={field.required}
-                    className="h-10"
-                    value={formData[field.name] || ""}
-                    onChange={(e) => handleInputChange(field.name, e.target.value)}
-                  />
+                  {field.type === 'select' && field.options ? (
+                    <Select onValueChange={(val) => handleInputChange(field.name, val)} value={formData[field.name] || ""}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {field.options.map((opt: string) => (
+                          <SelectItem key={opt} value={opt}>{opt.toUpperCase()}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      id={field.name}
+                      type={field.type}
+                      placeholder={field.placeholder || ""}
+                      required={field.required}
+                      className="h-10"
+                      value={formData[field.name] || ""}
+                      onChange={(e) => handleInputChange(field.name, e.target.value)}
+                    />
+                  )}
                 </div>
               ))}
 

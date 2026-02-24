@@ -34,7 +34,9 @@ export default function EducationAgentDashboard() {
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showStatusUpdate, setShowStatusUpdate] = useState(false);
-  const [updateData, setUpdateData] = useState({ status: '', agentNotes: '', resultUrl: '' });
+  const [updateData, setUpdateData] = useState({ status: '', agentNotes: '' });
+  const [resultFile, setResultFile] = useState<File | null>(null);
+  const [uploadingResult, setUploadingResult] = useState(false);
   
   // PIN Management State
   const [activeTab, setActiveTab] = useState('requests');
@@ -294,6 +296,26 @@ export default function EducationAgentDashboard() {
     setLoading(true);
     try {
       const token = getAgentToken();
+
+      if (resultFile) {
+        setUploadingResult(true);
+        const uploadResponse = await fetch(`/api/education-agent/requests/${selectedRequest.id}/upload`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ fileName: resultFile.name, fileType: resultFile.type || 'document' })
+        });
+        const uploadData = await uploadResponse.json();
+        const uploadURL = uploadData.data?.uploadURL || uploadData.uploadURL;
+        if (uploadURL) {
+          await fetch(uploadURL, {
+            method: 'PUT',
+            body: resultFile,
+            headers: { 'Content-Type': resultFile.type || 'application/octet-stream' }
+          });
+        }
+        setUploadingResult(false);
+      }
+
       const response = await fetch(`/api/education-agent/requests/${selectedRequest.id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -306,7 +328,8 @@ export default function EducationAgentDashboard() {
         fetchStats();
         setShowStatusUpdate(false);
         setSelectedRequest(null);
-        setUpdateData({ status: '', agentNotes: '', resultUrl: '' });
+        setUpdateData({ status: '', agentNotes: '' });
+        setResultFile(null);
       } else {
         toast({ title: "Failed", description: data.message, variant: "destructive" });
       }
@@ -314,6 +337,7 @@ export default function EducationAgentDashboard() {
       toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
     } finally {
       setLoading(false);
+      setUploadingResult(false);
     }
   };
 
@@ -456,7 +480,8 @@ export default function EducationAgentDashboard() {
                         {request.status !== 'completed' && (
                           <Button size="sm" onClick={() => { 
                             setSelectedRequest(request); 
-                            setUpdateData({ status: request.status, agentNotes: request.agentNotes || '', resultUrl: request.resultUrl || '' });
+                            setUpdateData({ status: request.status, agentNotes: request.agentNotes || '' });
+                            setResultFile(null);
                             setShowStatusUpdate(true); 
                           }}>
                             Update
@@ -841,22 +866,23 @@ export default function EducationAgentDashboard() {
               />
             </div>
 
-            {updateData.status === 'completed' && (
-              <div className="space-y-2">
-                <Label>Result URL</Label>
-                <Input 
-                  value={updateData.resultUrl}
-                  onChange={(e) => setUpdateData(prev => ({ ...prev, resultUrl: e.target.value }))}
-                  placeholder="Enter URL to result document..."
-                />
-              </div>
-            )}
+            <div className="space-y-2">
+              <Label>Upload Result Document</Label>
+              <Input 
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                onChange={(e) => setResultFile(e.target.files?.[0] || null)}
+              />
+              {resultFile && (
+                <p className="text-xs text-green-600">Selected: {resultFile.name}</p>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowStatusUpdate(false)}>Cancel</Button>
-            <Button onClick={handleUpdateStatus} disabled={loading || !updateData.status}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Update Status
+            <Button onClick={handleUpdateStatus} disabled={loading || uploadingResult || !updateData.status}>
+              {(loading || uploadingResult) ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {uploadingResult ? 'Uploading...' : 'Update Status'}
             </Button>
           </DialogFooter>
         </DialogContent>

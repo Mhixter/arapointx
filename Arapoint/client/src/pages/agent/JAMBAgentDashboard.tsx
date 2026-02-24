@@ -32,7 +32,9 @@ export default function JAMBAgentDashboard() {
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showStatusUpdate, setShowStatusUpdate] = useState(false);
-  const [updateData, setUpdateData] = useState({ status: '', agentNotes: '', resultUrl: '' });
+  const [updateData, setUpdateData] = useState({ status: '', agentNotes: '' });
+  const [resultFile, setResultFile] = useState<File | null>(null);
+  const [uploadingResult, setUploadingResult] = useState(false);
   const [activeTab, setActiveTab] = useState('requests');
   const [detailLoading, setDetailLoading] = useState(false);
   const [requestDocuments, setRequestDocuments] = useState<any[]>([]);
@@ -136,6 +138,26 @@ export default function JAMBAgentDashboard() {
     setLoading(true);
     try {
       const token = getAgentToken();
+
+      if (resultFile) {
+        setUploadingResult(true);
+        const uploadResponse = await fetch(`/api/jamb-agent/requests/${selectedRequest.id}/upload`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ fileName: resultFile.name, fileType: resultFile.type || 'document' })
+        });
+        const uploadData = await uploadResponse.json();
+        const uploadURL = uploadData.data?.uploadURL || uploadData.uploadURL;
+        if (uploadURL) {
+          await fetch(uploadURL, {
+            method: 'PUT',
+            body: resultFile,
+            headers: { 'Content-Type': resultFile.type || 'application/octet-stream' }
+          });
+        }
+        setUploadingResult(false);
+      }
+
       const response = await fetch(`/api/jamb-agent/requests/${selectedRequest.id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -148,7 +170,8 @@ export default function JAMBAgentDashboard() {
         fetchStats();
         setShowStatusUpdate(false);
         setSelectedRequest(null);
-        setUpdateData({ status: '', agentNotes: '', resultUrl: '' });
+        setUpdateData({ status: '', agentNotes: '' });
+        setResultFile(null);
       } else {
         toast({ title: "Failed", description: data.message, variant: "destructive" });
       }
@@ -156,6 +179,7 @@ export default function JAMBAgentDashboard() {
       toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
     } finally {
       setLoading(false);
+      setUploadingResult(false);
     }
   };
 
@@ -358,7 +382,8 @@ export default function JAMBAgentDashboard() {
                               {request.status !== 'completed' && (
                                 <Button size="sm" onClick={() => {
                                   setSelectedRequest(request);
-                                  setUpdateData({ status: request.status, agentNotes: request.agentNotes || '', resultUrl: request.resultUrl || '' });
+                                  setUpdateData({ status: request.status, agentNotes: request.agentNotes || '' });
+                                  setResultFile(null);
                                   setShowStatusUpdate(true);
                                 }}>
                                   Update
@@ -435,13 +460,6 @@ export default function JAMBAgentDashboard() {
                 </div>
               )}
 
-              {selectedRequest.resultUrl && (
-                <div>
-                  <Label className="text-muted-foreground">Result URL</Label>
-                  <a href={selectedRequest.resultUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm block">{selectedRequest.resultUrl}</a>
-                </div>
-              )}
-
               {requestDocuments.length > 0 && (
                 <div>
                   <Label className="text-muted-foreground">Documents</Label>
@@ -449,13 +467,32 @@ export default function JAMBAgentDashboard() {
                     {requestDocuments.map((doc: any) => (
                       <div key={doc.id} className="flex items-center justify-between border rounded-lg p-3">
                         <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-blue-600" />
-                          <span className="text-sm">{doc.fileName || doc.name || 'Document'}</span>
+                          <FileText className={`h-4 w-4 ${doc.uploaderRole === 'user' ? 'text-blue-600' : 'text-green-600'}`} />
+                          <div>
+                            <span className="text-sm">{doc.fileName || doc.name || 'Document'}</span>
+                            <Badge variant="outline" className="ml-2 text-xs">
+                              {doc.uploaderRole === 'user' ? 'From Customer' : 'Agent Upload'}
+                            </Badge>
+                          </div>
                         </div>
-                        <Button variant="outline" size="sm" asChild>
-                          <a href={`/api/jamb-agent/documents/${doc.id}/download`} target="_blank" rel="noopener noreferrer">
-                            Download
-                          </a>
+                        <Button variant="outline" size="sm" onClick={async () => {
+                          const token = getAgentToken();
+                          const response = await fetch(`/api/jamb-agent/documents/${doc.id}/download`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                          });
+                          if (response.ok) {
+                            const blob = await response.blob();
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = doc.fileName || 'document';
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          } else {
+                            toast({ title: "Error", description: "Failed to download document", variant: "destructive" });
+                          }
+                        }}>
+                          Download
                         </Button>
                       </div>
                     ))}
@@ -516,19 +553,22 @@ export default function JAMBAgentDashboard() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Result URL</Label>
+              <Label>Upload Result Document</Label>
               <Input
-                value={updateData.resultUrl}
-                onChange={(e) => setUpdateData(prev => ({ ...prev, resultUrl: e.target.value }))}
-                placeholder="https://..."
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                onChange={(e) => setResultFile(e.target.files?.[0] || null)}
               />
+              {resultFile && (
+                <p className="text-xs text-green-600">Selected: {resultFile.name}</p>
+              )}
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowStatusUpdate(false)}>Cancel</Button>
-            <Button onClick={handleUpdateStatus} disabled={loading}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Update Status
+            <Button onClick={handleUpdateStatus} disabled={loading || uploadingResult}>
+              {(loading || uploadingResult) ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {uploadingResult ? 'Uploading...' : 'Update Status'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -5,6 +5,7 @@ import { db } from '../../config/database';
 import { 
   educationAgents,
   educationServiceRequests, 
+  educationRequestDocuments,
   adminUsers,
   users,
   educationPins,
@@ -14,6 +15,7 @@ import {
 import { eq, desc, count, sql, and } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { ObjectStorageService } from '../../services/objectStorage';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_here';
@@ -249,6 +251,65 @@ router.put('/requests/:id/status', educationAgentAuthMiddleware, async (req: Req
   } catch (error: any) {
     logger.error('Update education request error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to update request'));
+  }
+});
+
+const objectStorage = new ObjectStorageService();
+
+// Upload document for a request
+router.post('/requests/:id/upload', educationAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const agentId = (req as any).agentId;
+    const { id } = req.params;
+    const { fileName, fileType } = req.body;
+
+    const [request] = await db.select()
+      .from(educationServiceRequests)
+      .where(eq(educationServiceRequests.id, id))
+      .limit(1);
+
+    if (!request) {
+      return res.status(404).json(formatErrorResponse(404, 'Request not found'));
+    }
+
+    const { uploadURL, objectPath } = await objectStorage.getObjectEntityUploadURL('edu-docs');
+
+    const [doc] = await db.insert(educationRequestDocuments).values({
+      requestId: id,
+      uploadedBy: agentId,
+      uploaderRole: 'agent',
+      fileType: fileType || 'result',
+      fileName: fileName || 'document',
+      fileKey: objectPath,
+      isResult: true,
+    }).returning();
+
+    res.json(formatResponse('success', 200, 'Upload URL generated', { uploadURL, document: doc }));
+  } catch (error: any) {
+    logger.error('Generate education upload URL error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to generate upload URL'));
+  }
+});
+
+// Download document
+router.get('/documents/:docId/download', educationAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { docId } = req.params;
+
+    const [doc] = await db.select()
+      .from(educationRequestDocuments)
+      .where(eq(educationRequestDocuments.id, docId))
+      .limit(1);
+
+    if (!doc) {
+      return res.status(404).json(formatErrorResponse(404, 'Document not found'));
+    }
+
+    const file = await objectStorage.getObjectEntityFile(doc.fileKey);
+    await objectStorage.downloadObject(file, res);
+  } catch (error: any) {
+    logger.error('Download education document error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to download document'));
   }
 });
 
