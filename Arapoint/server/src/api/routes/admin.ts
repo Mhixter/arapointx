@@ -1133,7 +1133,6 @@ router.get('/transactions', async (req: Request, res: Response) => {
       paymentMethod: transactions.paymentMethod,
       referenceId: transactions.referenceId,
       status: transactions.status,
-      description: transactions.description,
       createdAt: transactions.createdAt,
       userName: users.name,
       userEmail: users.email,

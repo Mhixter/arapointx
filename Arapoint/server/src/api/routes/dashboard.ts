@@ -141,30 +141,40 @@ router.get('/stats', authMiddleware, async (req: Request, res: Response) => {
 router.get('/transactions', authMiddleware, async (req: Request, res: Response) => {
   try {
     const userId = req.userId;
-    const limit = parseInt(req.query.limit as string) || 10;
-    
+    const limit = parseInt(req.query.limit as string) || 20;
+    const page = parseInt(req.query.page as string) || 1;
+    const offset = (page - 1) * limit;
+
     if (!userId) {
-      return res.status(401).json({
-        status: 'error',
-        code: 401,
-        message: 'Unauthorized',
-      });
+      return res.status(401).json({ status: 'error', code: 401, message: 'Unauthorized' });
     }
+
+    const CREDIT_TYPES = ['credit', 'fund', 'wallet_funding', 'admin_fund'];
+    const isCredit = (type: string) => CREDIT_TYPES.some(k => type?.toLowerCase().includes(k));
 
     const recentTransactions = await db
       .select()
       .from(transactions)
       .where(eq(transactions.userId, userId))
       .orderBy(desc(transactions.createdAt))
-      .limit(limit);
+      .limit(limit)
+      .offset(offset);
+
+    const [{ count: totalCount }] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(transactions)
+      .where(eq(transactions.userId, userId));
 
     res.json({
       status: 'success',
       code: 200,
       data: {
+        total: Number(totalCount || 0),
+        page,
+        limit,
         transactions: recentTransactions.map((tx) => ({
           id: tx.id,
-          type: tx.transactionType?.includes('credit') || tx.transactionType?.includes('fund') ? 'credit' : 'debit',
+          type: isCredit(tx.transactionType || '') ? 'credit' : 'debit',
           description: tx.transactionType?.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || 'Transaction',
           amount: parseFloat(tx.amount as string || '0'),
           status: tx.status,
@@ -175,11 +185,7 @@ router.get('/transactions', authMiddleware, async (req: Request, res: Response) 
     });
   } catch (error) {
     console.error('Dashboard transactions error:', error);
-    res.status(500).json({
-      status: 'error',
-      code: 500,
-      message: 'Failed to fetch transactions',
-    });
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to fetch transactions' });
   }
 });
 

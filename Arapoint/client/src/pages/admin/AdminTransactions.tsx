@@ -282,7 +282,9 @@ export default function AdminTransactions({ filterUserId, filterUserName, embedd
                             </Badge>
                           </td>
                           <td className="px-4 py-3.5 max-w-[180px]">
-                            <p className="text-sm text-muted-foreground truncate">{tx.description || '—'}</p>
+                            <p className="text-sm text-muted-foreground truncate">
+                              {tx.transactionType?.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) || '—'}
+                            </p>
                           </td>
                           <td className="px-4 py-3.5 text-right whitespace-nowrap">
                             <div className={`flex items-center justify-end gap-1 font-semibold ${positive ? 'text-green-600' : 'text-red-600'}`}>
@@ -336,7 +338,7 @@ export default function AdminTransactions({ filterUserId, filterUserName, embedd
                           </p>
                         </div>
                         <div className="flex items-center justify-between gap-2 mt-0.5">
-                          <p className="text-xs text-muted-foreground truncate">{tx.description || tx.userEmail || '—'}</p>
+                          <p className="text-xs text-muted-foreground truncate">{tx.userEmail || tx.transactionType?.replace(/_/g, ' ') || '—'}</p>
                           <Badge variant="outline" className={`text-[10px] flex-shrink-0 ${getStatusColor(tx.status)}`}>
                             {tx.status}
                           </Badge>
@@ -419,12 +421,10 @@ export default function AdminTransactions({ filterUserId, filterUserName, embedd
                       <p className="text-xs text-muted-foreground">{selectedTx.userEmail}</p>
                     </div>
                   )}
-                  {selectedTx.description && (
-                    <div className="bg-muted/40 rounded-lg p-3 col-span-2">
-                      <p className="text-xs text-muted-foreground mb-1">Description</p>
-                      <p className="text-sm">{selectedTx.description}</p>
-                    </div>
-                  )}
+                  <div className="bg-muted/40 rounded-lg p-3 col-span-2">
+                    <p className="text-xs text-muted-foreground mb-1">Service</p>
+                    <p className="text-sm">{getTypeLabel(selectedTx.transactionType)}</p>
+                  </div>
                   {selectedTx.referenceId && (
                     <div className="bg-muted/40 rounded-lg p-3 col-span-2">
                       <p className="text-xs text-muted-foreground mb-1">Reference ID</p>
