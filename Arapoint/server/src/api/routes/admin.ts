@@ -1123,14 +1123,33 @@ router.get('/transactions', async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
     const offset = (page - 1) * limit;
+    const filterUserId = req.query.userId as string | undefined;
 
-    const transactionList = await db.select()
+    const baseWhere = filterUserId ? eq(transactions.userId, filterUserId) : undefined;
+
+    const transactionList = await db.select({
+      id: transactions.id,
+      userId: transactions.userId,
+      transactionType: transactions.transactionType,
+      amount: transactions.amount,
+      paymentMethod: transactions.paymentMethod,
+      referenceId: transactions.referenceId,
+      status: transactions.status,
+      description: transactions.description,
+      createdAt: transactions.createdAt,
+      userName: users.name,
+      userEmail: users.email,
+    })
       .from(transactions)
+      .leftJoin(users, eq(transactions.userId, users.id))
+      .where(baseWhere)
       .orderBy(desc(transactions.createdAt))
       .limit(limit)
       .offset(offset);
 
-    const [totalCount] = await db.select({ count: count() }).from(transactions);
+    const [totalCount] = baseWhere
+      ? await db.select({ count: count() }).from(transactions).where(baseWhere)
+      : await db.select({ count: count() }).from(transactions);
 
     res.json(formatResponse('success', 200, 'Transactions retrieved', {
       transactions: transactionList,

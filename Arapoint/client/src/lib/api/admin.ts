@@ -134,9 +134,9 @@ export const adminApi = {
     return response.data.data;
   },
 
-  getTransactions: async (page = 1, limit = 20): Promise<{ transactions: AdminTransaction[]; pagination: any }> => {
+  getTransactions: async (page = 1, limit = 20, userId?: string): Promise<{ transactions: AdminTransaction[]; pagination: any }> => {
     const response = await adminApiClient.get<ApiResponse<{ transactions: AdminTransaction[]; pagination: any }>>('/admin/transactions', {
-      params: { page, limit },
+      params: { page, limit, ...(userId ? { userId } : {}) },
     });
     return response.data.data;
   },

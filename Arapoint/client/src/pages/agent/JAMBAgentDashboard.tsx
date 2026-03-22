@@ -519,22 +519,29 @@ export default function JAMBAgentDashboard() {
                 </div>
               )}
 
-              {requestDocuments.length > 0 && (
-                <div>
-                  <Label className="text-muted-foreground">Documents</Label>
+              <div>
+                <Label className="text-muted-foreground">
+                  Documents ({requestDocuments.length})
+                </Label>
+                {requestDocuments.length === 0 ? (
+                  <p className="text-sm text-muted-foreground mt-2 italic">No documents attached to this request yet.</p>
+                ) : (
                   <div className="space-y-2 mt-2">
                     {requestDocuments.map((doc: any) => (
                       <div key={doc.id} className="flex items-center justify-between border rounded-lg p-3">
-                        <div className="flex items-center gap-2">
-                          <FileText className={`h-4 w-4 ${doc.uploaderRole === 'user' ? 'text-blue-600' : 'text-green-600'}`} />
-                          <div>
-                            <span className="text-sm">{doc.fileName || doc.name || 'Document'}</span>
-                            <Badge variant="outline" className="ml-2 text-xs">
-                              {doc.uploaderRole === 'user' ? 'From Customer' : 'Agent Upload'}
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileText className={`h-4 w-4 flex-shrink-0 ${doc.uploaderRole === 'user' ? 'text-blue-600' : 'text-green-600'}`} />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">{doc.fileName || 'Document'}</p>
+                            <Badge
+                              variant="outline"
+                              className={`text-xs mt-0.5 ${doc.uploaderRole === 'user' ? 'border-blue-300 text-blue-700' : 'border-green-300 text-green-700'}`}
+                            >
+                              {doc.uploaderRole === 'user' ? 'Customer Upload' : 'Your Upload'}
                             </Badge>
                           </div>
                         </div>
-                        <Button variant="outline" size="sm" onClick={async () => {
+                        <Button variant="outline" size="sm" className="flex-shrink-0 ml-2" onClick={async () => {
                           const token = getAgentToken();
                           const response = await fetch(`/api/jamb-agent/documents/${doc.id}/download`, {
                             headers: { 'Authorization': `Bearer ${token}` }
@@ -551,13 +558,14 @@ export default function JAMBAgentDashboard() {
                             toast({ title: "Error", description: "Failed to download document", variant: "destructive" });
                           }
                         }}>
+                          <Download className="h-4 w-4 mr-1" />
                           Download
                         </Button>
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
               <div className="border-t pt-4">
                 <Label className="text-muted-foreground">Upload Result Document</Label>

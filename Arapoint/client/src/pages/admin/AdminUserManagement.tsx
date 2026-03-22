@@ -5,11 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowLeft, Edit2, Eye, Users, Wallet, Calendar, Loader2, Plus, DollarSign, MinusCircle } from "lucide-react";
+import { ArrowLeft, Edit2, Eye, Users, Wallet, Calendar, Loader2, Plus, DollarSign, MinusCircle, BarChart2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminApi, AdminUser } from "@/lib/api";
+import AdminTransactions from "./AdminTransactions";
 
 const getStatusColor = (status: string) => {
   switch(status) {
@@ -37,6 +38,8 @@ export default function AdminUserManagement() {
   const [showDebitModal, setShowDebitModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showAgentModal, setShowAgentModal] = useState(false);
+  const [showTransactionsModal, setShowTransactionsModal] = useState(false);
+  const [transactionUser, setTransactionUser] = useState<AdminUser | null>(null);
   
   const [createForm, setCreateForm] = useState({ name: '', email: '', phone: '', password: '' });
   const [editForm, setEditForm] = useState({ name: '', email: '', phone: '' });
@@ -609,6 +612,21 @@ export default function AdminUserManagement() {
             </div>
           )}
           <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setShowViewModal(false);
+                if (selectedUser) {
+                  setTransactionUser(selectedUser);
+                  setShowTransactionsModal(true);
+                }
+              }}
+              className="text-blue-600"
+            >
+              <BarChart2 className="h-4 w-4 mr-2" />
+              View Transactions
+            </Button>
             <Button 
               variant="outline" 
               size="sm"
@@ -634,6 +652,22 @@ export default function AdminUserManagement() {
               Update Status
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showTransactionsModal} onOpenChange={setShowTransactionsModal}>
+        <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Transaction History — {transactionUser?.name}</DialogTitle>
+            <DialogDescription>{transactionUser?.email}</DialogDescription>
+          </DialogHeader>
+          {transactionUser && (
+            <AdminTransactions
+              filterUserId={transactionUser.id}
+              filterUserName={transactionUser.name}
+              embedded={true}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>
