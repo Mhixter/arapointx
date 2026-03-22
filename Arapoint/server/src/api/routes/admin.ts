@@ -1125,9 +1125,7 @@ router.get('/transactions', async (req: Request, res: Response) => {
     const offset = (page - 1) * limit;
     const filterUserId = req.query.userId as string | undefined;
 
-    const baseWhere = filterUserId ? eq(transactions.userId, filterUserId) : undefined;
-
-    const transactionList = await db.select({
+    const baseQuery = db.select({
       id: transactions.id,
       userId: transactions.userId,
       transactionType: transactions.transactionType,
@@ -1141,15 +1139,16 @@ router.get('/transactions', async (req: Request, res: Response) => {
       userEmail: users.email,
     })
       .from(transactions)
-      .leftJoin(users, eq(transactions.userId, users.id))
-      .where(baseWhere)
-      .orderBy(desc(transactions.createdAt))
-      .limit(limit)
-      .offset(offset);
+      .leftJoin(users, eq(transactions.userId, users.id));
 
-    const [totalCount] = baseWhere
-      ? await db.select({ count: count() }).from(transactions).where(baseWhere)
-      : await db.select({ count: count() }).from(transactions);
+    const transactionList = filterUserId
+      ? await baseQuery.where(eq(transactions.userId, filterUserId)).orderBy(desc(transactions.createdAt)).limit(limit).offset(offset)
+      : await baseQuery.orderBy(desc(transactions.createdAt)).limit(limit).offset(offset);
+
+    const countQuery = db.select({ count: count() }).from(transactions);
+    const [totalCount] = filterUserId
+      ? await countQuery.where(eq(transactions.userId, filterUserId))
+      : await countQuery;
 
     res.json(formatResponse('success', 200, 'Transactions retrieved', {
       transactions: transactionList,
