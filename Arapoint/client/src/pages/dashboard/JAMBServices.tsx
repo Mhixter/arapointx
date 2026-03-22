@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -124,6 +124,23 @@ export default function JAMBServices() {
   const [historyDetailLoading, setHistoryDetailLoading] = useState(false);
   const [showHistoryDetail, setShowHistoryDetail] = useState(false);
   const [downloadingDocId, setDownloadingDocId] = useState<string | null>(null);
+  const [livePrices, setLivePrices] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const res = await fetch('/api/education/jamb-service-prices');
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.data?.prices) setLivePrices(data.data.prices);
+        }
+      } catch {}
+    };
+    fetchPrices();
+  }, []);
+
+  const getServicePrice = (svc: typeof JAMB_SERVICES[number]) =>
+    livePrices[svc.id] !== undefined ? livePrices[svc.id] : svc.price;
 
   const service = selectedService ? JAMB_SERVICES.find(s => s.id === selectedService) : null;
 
@@ -573,8 +590,8 @@ export default function JAMBServices() {
           </Button>
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-heading font-bold tracking-tight">{service.name}</h2>
           <p className="text-sm sm:text-base text-muted-foreground mt-2">{service.description}</p>
-          {service.price > 0 && (
-            <Badge className="mt-2 bg-blue-100 text-blue-700">Fee: ₦{service.price.toLocaleString()}</Badge>
+          {getServicePrice(service) > 0 && (
+            <Badge className="mt-2 bg-blue-100 text-blue-700">Fee: ₦{getServicePrice(service).toLocaleString()}</Badge>
           )}
         </div>
 
@@ -662,7 +679,7 @@ export default function JAMBServices() {
                 ) : (
                   <>
                     <service.icon className="mr-2 h-4 w-4" />
-                    Submit Request {service.price > 0 && `(₦${service.price.toLocaleString()})`}
+                    Submit Request {getServicePrice(service) > 0 && `(₦${getServicePrice(service).toLocaleString()})`}
                   </>
                 )}
               </Button>
@@ -700,8 +717,8 @@ export default function JAMBServices() {
                     </CardTitle>
                     <CardDescription>{svc.description}</CardDescription>
                   </div>
-                  {svc.price > 0 && (
-                    <Badge variant="secondary">₦{svc.price.toLocaleString()}</Badge>
+                  {getServicePrice(svc) > 0 && (
+                    <Badge variant="secondary">₦{getServicePrice(svc).toLocaleString()}</Badge>
                   )}
                 </div>
               </CardHeader>

@@ -29,6 +29,23 @@ const diskStorage = multer.diskStorage({
 const upload = multer({ storage: diskStorage, limits: { fileSize: 20 * 1024 * 1024 } });
 
 const router = Router();
+
+// Public pricing endpoint — no auth required
+router.get('/jamb-service-prices', async (_req: Request, res: Response) => {
+  try {
+    const serviceIds = ['olevel-upload', 'admission-letter', 'original-result', 'reprinting-caps'];
+    const prices: Record<string, number> = {};
+    await Promise.all(
+      serviceIds.map(async (id) => {
+        prices[id] = await pricingService.getPrice(id).catch(() => 0);
+      })
+    );
+    res.json(formatResponse('success', 200, 'JAMB service prices', { prices }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to fetch prices'));
+  }
+});
+
 router.use(authMiddleware);
 
 // Manual Service Request (O'Level Upload, Admission Letter, etc.)
