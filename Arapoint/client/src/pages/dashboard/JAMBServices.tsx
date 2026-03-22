@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
 import { Loader2, CheckCircle2, FileUp, FileText, FileCheck, RotateCw, ArrowRight, ArrowLeft, Clock, Upload, Download, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { servicesApi } from "@/lib/api/services";
@@ -259,18 +259,79 @@ export default function JAMBServices() {
   }
 
   if (view === 'history') {
+    const getStatusLabel = (status: string) => {
+      if (status === 'pickup') return 'Processing';
+      return status?.charAt(0).toUpperCase() + status?.slice(1) || 'Unknown';
+    };
+
+    const getStatusStyle = (status: string) => {
+      switch (status) {
+        case 'completed': return 'bg-green-100 text-green-700 border-green-200';
+        case 'pickup': return 'bg-blue-100 text-blue-700 border-blue-200';
+        case 'pending': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+        case 'failed': return 'bg-red-100 text-red-700 border-red-200';
+        default: return 'bg-gray-100 text-gray-700 border-gray-200';
+      }
+    };
+
+    const parseFormData = (req: any): Record<string, string> => {
+      try {
+        if (req.customerNotes) return JSON.parse(req.customerNotes);
+      } catch {}
+      if (req.requestData && typeof req.requestData === 'object') return req.requestData;
+      return {};
+    };
+
+    const getServiceIcon = (serviceType: string) => {
+      switch (serviceType) {
+        case 'olevel-upload': return FileUp;
+        case 'admission-letter': return FileText;
+        case 'original-result': return FileCheck;
+        case 'reprinting-caps': return RotateCw;
+        default: return FileText;
+      }
+    };
+
+    const getServiceSpecificFields = (req: any): Array<{ label: string; value: string }> => {
+      const form = parseFormData(req);
+      const fields: Array<{ label: string; value: string }> = [];
+
+      switch (req.serviceType) {
+        case 'olevel-upload':
+          if (form.fullName || req.candidateName) fields.push({ label: 'Full Name', value: form.fullName || req.candidateName });
+          if (form.regNumber || req.registrationNumber) fields.push({ label: "Reg. Number", value: form.regNumber || req.registrationNumber });
+          if (form.examYear || req.examYear) fields.push({ label: 'Exam Year', value: String(form.examYear || req.examYear) });
+          if (form.examBody) fields.push({ label: 'Exam Body', value: form.examBody });
+          break;
+        case 'admission-letter':
+          if (form['jamb-reg'] || req.registrationNumber) fields.push({ label: 'JAMB Reg. No.', value: form['jamb-reg'] || req.registrationNumber });
+          if (form.email) fields.push({ label: 'Email', value: form.email });
+          break;
+        case 'original-result':
+          if (form['jamb-reg'] || req.registrationNumber) fields.push({ label: 'JAMB Reg. No.', value: form['jamb-reg'] || req.registrationNumber });
+          if (form.pin) fields.push({ label: 'Result PIN', value: '****' + form.pin?.slice(-4) });
+          break;
+        case 'reprinting-caps':
+          if (form['jamb-reg'] || req.registrationNumber) fields.push({ label: 'JAMB Reg. No.', value: form['jamb-reg'] || req.registrationNumber });
+          if (form.itemType) fields.push({ label: 'Item Type', value: form.itemType });
+          if (form.quantity) fields.push({ label: 'Quantity', value: String(form.quantity) });
+          break;
+      }
+      return fields;
+    };
+
     return (
       <>
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
+      <div className="space-y-5">
+        <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => setView('services')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Services
           </Button>
         </div>
         <div>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-heading font-bold tracking-tight">My JAMB Requests</h2>
-          <p className="text-sm sm:text-base text-muted-foreground mt-2">Track your JAMB service requests.</p>
+          <h2 className="text-2xl sm:text-3xl font-heading font-bold tracking-tight">My JAMB Requests</h2>
+          <p className="text-sm text-muted-foreground mt-1">Track all your JAMB service requests and their status.</p>
         </div>
 
         {historyLoading ? (
@@ -278,146 +339,196 @@ export default function JAMBServices() {
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : history.length === 0 ? (
-          <Card>
+          <Card className="border-dashed">
             <CardContent className="py-12 text-center">
-              <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No requests yet. Submit your first JAMB service request.</p>
+              <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4 opacity-30" />
+              <p className="font-medium text-muted-foreground">No requests yet</p>
+              <p className="text-sm text-muted-foreground mt-1">Submit your first JAMB service request to get started.</p>
+              <Button className="mt-4" size="sm" onClick={() => setView('services')}>Browse Services</Button>
             </CardContent>
           </Card>
         ) : (
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Tracking ID</TableHead>
-                    <TableHead>Service</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Fee</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {history.map((req: any) => (
-                    <TableRow key={req.id}>
-                      <TableCell className="font-mono text-sm">{req.trackingId}</TableCell>
-                      <TableCell>{SERVICE_LABELS[req.serviceType] || req.serviceType}</TableCell>
-                      <TableCell>
-                        <Badge className={STATUS_COLORS[req.status] || 'bg-gray-100 text-gray-700'}>
-                          {req.status === 'pickup' ? 'Processing' : req.status?.charAt(0).toUpperCase() + req.status?.slice(1)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>₦{parseFloat(req.fee || '0').toLocaleString()}</TableCell>
-                      <TableCell>{new Date(req.createdAt).toLocaleDateString()}</TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="outline" size="sm" onClick={() => openHistoryDetail(req)}>
-                          <Eye className="h-4 w-4 mr-1" />
-                          Details
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <div className="space-y-3">
+            {history.map((req: any) => {
+              const ServiceIcon = getServiceIcon(req.serviceType);
+              const specificFields = getServiceSpecificFields(req);
+              const hasDocuments = true;
+
+              return (
+                <Card key={req.id} className="overflow-hidden hover:shadow-md transition-shadow border-0 ring-1 ring-border/60">
+                  <CardContent className="p-0">
+                    <div className="flex items-start gap-0">
+                      <div className={`w-1 self-stretch rounded-l-lg flex-shrink-0 ${
+                        req.status === 'completed' ? 'bg-green-500' :
+                        req.status === 'pickup' ? 'bg-blue-500' :
+                        req.status === 'pending' ? 'bg-yellow-500' :
+                        req.status === 'failed' ? 'bg-red-500' : 'bg-gray-300'
+                      }`} />
+                      <div className="flex-1 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                              <ServiceIcon className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-semibold text-sm leading-tight">{SERVICE_LABELS[req.serviceType] || req.serviceType}</p>
+                              <p className="text-xs text-muted-foreground font-mono mt-0.5">{req.trackingId}</p>
+                            </div>
+                          </div>
+                          <Badge variant="outline" className={`text-xs flex-shrink-0 ${getStatusStyle(req.status)}`}>
+                            {getStatusLabel(req.status)}
+                          </Badge>
+                        </div>
+
+                        {specificFields.length > 0 && (
+                          <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 pl-12">
+                            {specificFields.map(f => (
+                              <div key={f.label}>
+                                <span className="text-xs text-muted-foreground">{f.label}: </span>
+                                <span className="text-xs font-medium">{f.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between mt-3 pl-12">
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <span>{new Date(req.createdAt).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                            <span className="text-muted-foreground/40">·</span>
+                            <span className="font-medium text-foreground">₦{parseFloat(req.fee || '0').toLocaleString()}</span>
+                          </div>
+                          <Button variant="outline" size="sm" className="h-7 text-xs px-3" onClick={() => openHistoryDetail(req)}>
+                            <Eye className="h-3.5 w-3.5 mr-1" />
+                            View Details
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         )}
       </div>
 
       <Dialog open={showHistoryDetail} onOpenChange={setShowHistoryDetail}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Request Details</DialogTitle>
-            <DialogDescription>{selectedHistoryRequest?.trackingId}</DialogDescription>
+            <DialogTitle className="flex items-center gap-2">
+              {selectedHistoryRequest && (() => {
+                const Icon = getServiceIcon(selectedHistoryRequest.serviceType);
+                return <Icon className="h-5 w-5 text-muted-foreground" />;
+              })()}
+              {selectedHistoryRequest ? SERVICE_LABELS[selectedHistoryRequest.serviceType] || selectedHistoryRequest.serviceType : 'Request Details'}
+            </DialogTitle>
+            <DialogDescription className="font-mono">{selectedHistoryRequest?.trackingId}</DialogDescription>
           </DialogHeader>
-          {selectedHistoryRequest && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-muted-foreground text-xs">Service</Label>
-                  <p className="font-medium text-sm">{SERVICE_LABELS[selectedHistoryRequest.serviceType] || selectedHistoryRequest.serviceType}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-xs">Status</Label>
-                  <div className="mt-1">
-                    <Badge className={STATUS_COLORS[selectedHistoryRequest.status] || 'bg-gray-100 text-gray-700'}>
-                      {selectedHistoryRequest.status === 'pickup' ? 'Processing' : selectedHistoryRequest.status?.charAt(0).toUpperCase() + selectedHistoryRequest.status?.slice(1)}
-                    </Badge>
-                  </div>
-                </div>
-                {selectedHistoryRequest.candidateName && selectedHistoryRequest.candidateName !== 'N/A' && (
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Full Name</Label>
-                    <p className="font-medium text-sm">{selectedHistoryRequest.candidateName}</p>
-                  </div>
-                )}
-                {selectedHistoryRequest.registrationNumber && selectedHistoryRequest.registrationNumber !== 'N/A' && (
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Registration Number</Label>
-                    <p className="font-medium text-sm">{selectedHistoryRequest.registrationNumber}</p>
-                  </div>
-                )}
-                {selectedHistoryRequest.examYear && (
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Exam Year</Label>
-                    <p className="font-medium text-sm">{selectedHistoryRequest.examYear}</p>
-                  </div>
-                )}
-                <div>
-                  <Label className="text-muted-foreground text-xs">Date Submitted</Label>
-                  <p className="font-medium text-sm">{new Date(selectedHistoryRequest.createdAt).toLocaleString()}</p>
-                </div>
-              </div>
 
-              {selectedHistoryRequest.agentNotes && (
-                <div>
-                  <Label className="text-muted-foreground text-xs">Agent Notes</Label>
-                  <p className="text-sm bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 p-3 rounded-lg mt-1">
-                    {selectedHistoryRequest.agentNotes}
-                  </p>
-                </div>
-              )}
-
-              <div>
-                <Label className="text-muted-foreground text-xs">Documents</Label>
-                {historyDetailLoading ? (
-                  <div className="flex justify-center py-4">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          {selectedHistoryRequest && (() => {
+            const specificFields = getServiceSpecificFields(selectedHistoryRequest);
+            return (
+              <div className="space-y-4 pt-1">
+                <div className={`flex items-center justify-between p-3 rounded-lg ${
+                  selectedHistoryRequest.status === 'completed' ? 'bg-green-50 dark:bg-green-950/30' :
+                  selectedHistoryRequest.status === 'pickup' ? 'bg-blue-50 dark:bg-blue-950/30' :
+                  selectedHistoryRequest.status === 'pending' ? 'bg-yellow-50 dark:bg-yellow-950/30' :
+                  'bg-muted/40'
+                }`}>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Status</p>
+                    <p className="font-semibold">{getStatusLabel(selectedHistoryRequest.status)}</p>
                   </div>
-                ) : historyDocuments.length === 0 ? (
-                  <p className="text-sm text-muted-foreground mt-2">No documents attached to this request.</p>
-                ) : (
-                  <div className="space-y-2 mt-2">
-                    {historyDocuments.map((doc: any) => (
-                      <div key={doc.id} className="flex items-center justify-between border rounded-lg p-3">
-                        <div className="flex items-center gap-2">
-                          <FileText className={`h-4 w-4 flex-shrink-0 ${doc.uploaderRole === 'agent' ? 'text-green-600' : 'text-blue-600'}`} />
-                          <div>
-                            <p className="text-sm font-medium">{doc.fileName || 'Document'}</p>
-                            <Badge variant="outline" className="text-xs mt-0.5">
-                              {doc.uploaderRole === 'agent' ? 'Result from Agent' : 'Your Upload'}
-                            </Badge>
-                          </div>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={downloadingDocId === doc.id}
-                          onClick={() => downloadDocument(selectedHistoryRequest.id, doc.id, doc.fileName)}
-                        >
-                          {downloadingDocId === doc.id
-                            ? <Loader2 className="h-4 w-4 animate-spin" />
-                            : <><Download className="h-4 w-4 mr-1" />Download</>
-                          }
-                        </Button>
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground">Service Fee</p>
+                    <p className="font-semibold">₦{parseFloat(selectedHistoryRequest.fee || '0').toLocaleString()}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Request Details</p>
+                  <div className="space-y-0 divide-y divide-border/50 rounded-lg border overflow-hidden">
+                    <div className="flex justify-between items-center px-3 py-2.5 bg-background">
+                      <span className="text-xs text-muted-foreground">Service</span>
+                      <span className="text-sm font-medium">{SERVICE_LABELS[selectedHistoryRequest.serviceType] || selectedHistoryRequest.serviceType}</span>
+                    </div>
+                    {specificFields.map(f => (
+                      <div key={f.label} className="flex justify-between items-center px-3 py-2.5 bg-background">
+                        <span className="text-xs text-muted-foreground">{f.label}</span>
+                        <span className="text-sm font-medium font-mono">{f.value}</span>
                       </div>
                     ))}
+                    <div className="flex justify-between items-center px-3 py-2.5 bg-background">
+                      <span className="text-xs text-muted-foreground">Submitted</span>
+                      <span className="text-sm">{new Date(selectedHistoryRequest.createdAt).toLocaleString('en-NG', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    {selectedHistoryRequest.completedAt && (
+                      <div className="flex justify-between items-center px-3 py-2.5 bg-background">
+                        <span className="text-xs text-muted-foreground">Completed</span>
+                        <span className="text-sm">{new Date(selectedHistoryRequest.completedAt).toLocaleString('en-NG', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center px-3 py-2.5 bg-background">
+                      <span className="text-xs text-muted-foreground">Tracking ID</span>
+                      <span className="text-sm font-mono">{selectedHistoryRequest.trackingId}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {selectedHistoryRequest.agentNotes && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Agent Notes</p>
+                    <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                      <p className="text-sm text-blue-800 dark:text-blue-300">{selectedHistoryRequest.agentNotes}</p>
+                    </div>
                   </div>
                 )}
+
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                    Documents ({historyDetailLoading ? '…' : historyDocuments.length})
+                  </p>
+                  {historyDetailLoading ? (
+                    <div className="flex justify-center py-4">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : historyDocuments.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic">No documents attached to this request yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {historyDocuments.map((doc: any) => (
+                        <div key={doc.id} className="flex items-center justify-between border rounded-lg p-3">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <FileText className={`h-4 w-4 flex-shrink-0 ${doc.uploaderRole === 'agent' ? 'text-green-600' : 'text-blue-600'}`} />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate">{doc.fileName || 'Document'}</p>
+                              <Badge variant="outline" className={`text-xs mt-0.5 ${doc.uploaderRole === 'agent' ? 'border-green-200 text-green-700' : 'border-blue-200 text-blue-700'}`}>
+                                {doc.uploaderRole === 'agent' ? 'Result from Agent' : 'Your Upload'}
+                              </Badge>
+                            </div>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-shrink-0 ml-2"
+                            disabled={downloadingDocId === doc.id}
+                            onClick={() => downloadDocument(selectedHistoryRequest.id, doc.id, doc.fileName)}
+                          >
+                            {downloadingDocId === doc.id
+                              ? <Loader2 className="h-4 w-4 animate-spin" />
+                              : <><Download className="h-4 w-4 mr-1" />Download</>
+                            }
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <Button variant="outline" className="w-full" onClick={() => setShowHistoryDetail(false)}>Close</Button>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
       </>

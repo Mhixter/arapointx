@@ -273,6 +273,9 @@ router.get('/jamb-requests', async (req: Request, res: Response) => {
       fee: jambServiceRequests.fee,
       resultUrl: jambServiceRequests.resultUrl,
       agentNotes: jambServiceRequests.agentNotes,
+      customerNotes: jambServiceRequests.customerNotes,
+      requestData: jambServiceRequests.requestData,
+      completedAt: jambServiceRequests.completedAt,
       createdAt: jambServiceRequests.createdAt,
     })
       .from(jambServiceRequests)
