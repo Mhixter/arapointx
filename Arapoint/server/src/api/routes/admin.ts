@@ -5,6 +5,7 @@ import { pricingService } from '../../services/pricingService';
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { db } from '../../config/database';
+import { loadGatewayCredentials } from '../../config/loadGatewayCredentials';
 import { 
   users, 
   transactions, 
@@ -616,6 +617,11 @@ router.post('/settings', async (req: Request, res: Response) => {
           }
         });
     }
+
+    // Reload gateway credentials into process.env immediately
+    await loadGatewayCredentials().catch(err =>
+      logger.warn('Failed to reload gateway credentials after settings update', { error: err.message })
+    );
 
     res.json(formatResponse('success', 200, 'Settings updated successfully'));
   } catch (error: any) {

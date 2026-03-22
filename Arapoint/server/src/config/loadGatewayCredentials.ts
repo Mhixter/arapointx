@@ -26,7 +26,7 @@ export async function loadGatewayCredentials(): Promise<void> {
 
   for (const setting of settingsList) {
     const envKey = ENV_MAPPING[setting.settingKey];
-    if (envKey && setting.settingValue && !process.env[envKey]) {
+    if (envKey && setting.settingValue) {
       process.env[envKey] = setting.settingValue;
       loaded++;
     }

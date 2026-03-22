@@ -279,7 +279,7 @@ export const paymentService = {
   },
 
   isPalmpayConfigured(): boolean {
-    return !!(config.PALMPAY_PUBLIC_KEY && config.PALMPAY_APP_ID);
+    return !!(process.env.PALMPAY_PUBLIC_KEY && process.env.PALMPAY_APP_ID);
   },
 
   getAvailableGateways(): string[] {
