@@ -164,12 +164,16 @@ export default function JAMBServices() {
   const handleFileUpload = async (requestId: string, file: File) => {
     setUploading(true);
     try {
-      const { uploadURL } = await servicesApi.jamb.uploadDocument(requestId, file.name, file.type || 'document');
-      await fetch(uploadURL, {
-        method: 'PUT',
-        body: file,
-        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      const token = sessionStorage.getItem('accessToken') || '';
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await fetch(`/api/education/jamb-request/${requestId}/upload`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
       });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Upload failed');
       toast({
         title: "Document Uploaded",
         description: "Your document has been uploaded successfully.",

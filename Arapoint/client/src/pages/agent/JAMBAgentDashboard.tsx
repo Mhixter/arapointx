@@ -142,19 +142,16 @@ export default function JAMBAgentDashboard() {
 
       if (resultFile) {
         setUploadingResult(true);
+        const formData = new FormData();
+        formData.append('file', resultFile);
         const uploadResponse = await fetch(`/api/jamb-agent/requests/${selectedRequest.id}/upload`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ fileName: resultFile.name, fileType: resultFile.type || 'document' })
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData,
         });
-        const uploadData = await uploadResponse.json();
-        const uploadURL = uploadData.data?.uploadURL || uploadData.uploadURL;
-        if (uploadURL) {
-          await fetch(uploadURL, {
-            method: 'PUT',
-            body: resultFile,
-            headers: { 'Content-Type': resultFile.type || 'application/octet-stream' }
-          });
+        if (!uploadResponse.ok) {
+          const uploadData = await uploadResponse.json();
+          throw new Error(uploadData.message || 'File upload failed');
         }
         setUploadingResult(false);
       }
@@ -190,22 +187,16 @@ export default function JAMBAgentDashboard() {
     setUploading(true);
     try {
       const token = getAgentToken();
+      const formData = new FormData();
+      formData.append('file', uploadFile);
       const uploadResponse = await fetch(`/api/jamb-agent/requests/${selectedRequest.id}/upload`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ fileName: uploadFile.name, fileType: uploadFile.type })
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
       });
       const uploadData = await uploadResponse.json();
 
-      if (uploadData.status === 'success' || uploadData.uploadURL) {
-        const uploadURL = uploadData.uploadURL || uploadData.data?.uploadURL;
-        if (uploadURL) {
-          await fetch(uploadURL, {
-            method: 'PUT',
-            body: uploadFile,
-            headers: { 'Content-Type': uploadFile.type }
-          });
-        }
+      if (uploadResponse.ok && uploadData.status === 'success') {
         toast({ title: "Uploaded!", description: "Document uploaded successfully." });
         setUploadFile(null);
         fetchRequestDetails(selectedRequest.id);

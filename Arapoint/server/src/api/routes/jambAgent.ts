@@ -12,11 +12,25 @@ import {
 import { eq, desc, count, sql, and } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { ObjectStorageService } from '../../services/objectStorage';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { randomUUID } from 'crypto';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_here';
-const objectStorage = new ObjectStorageService();
+
+const AGENT_UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'jamb-docs');
+fs.mkdirSync(AGENT_UPLOAD_DIR, { recursive: true });
+
+const agentDiskStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, AGENT_UPLOAD_DIR),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname) || '';
+    cb(null, `${randomUUID()}${ext}`);
+  },
+});
+const agentUpload = multer({ storage: agentDiskStorage, limits: { fileSize: 20 * 1024 * 1024 } });
 
 const jambAgentAuthMiddleware = async (req: Request, res: Response, next: Function) => {
   try {
@@ -296,11 +310,10 @@ router.put('/requests/:id/status', jambAgentAuthMiddleware, async (req: Request,
   }
 });
 
-router.post('/requests/:id/upload', jambAgentAuthMiddleware, async (req: Request, res: Response) => {
+router.post('/requests/:id/upload', jambAgentAuthMiddleware, agentUpload.single('file'), async (req: Request, res: Response) => {
   try {
     const agentId = (req as any).agentId;
     const { id } = req.params;
-    const { fileName, fileType } = req.body;
 
     const [request] = await db.select()
       .from(jambServiceRequests)
@@ -308,25 +321,32 @@ router.post('/requests/:id/upload', jambAgentAuthMiddleware, async (req: Request
       .limit(1);
 
     if (!request) {
+      if (req.file) fs.unlinkSync(req.file.path);
       return res.status(404).json(formatErrorResponse(404, 'Request not found'));
     }
 
-    const { uploadURL, objectPath } = await objectStorage.getObjectEntityUploadURL('jamb-docs');
+    if (!req.file) {
+      return res.status(400).json(formatErrorResponse(400, 'No file uploaded'));
+    }
+
+    const fileKey = `/uploads/jamb-docs/${req.file.filename}`;
 
     const [doc] = await db.insert(jambRequestDocuments).values({
       requestId: id,
       uploadedBy: agentId,
       uploaderRole: 'agent',
-      fileType: fileType || 'result',
-      fileName: fileName || 'document',
-      fileKey: objectPath,
+      fileType: req.file.mimetype || 'application/octet-stream',
+      fileName: req.file.originalname || req.file.filename,
+      fileKey,
+      fileSize: req.file.size,
       isResult: true,
     }).returning();
 
-    res.json(formatResponse('success', 200, 'Upload URL generated', { uploadURL, document: doc }));
+    logger.info('JAMB agent document uploaded', { agentId, requestId: id, fileName: req.file.originalname });
+    res.json(formatResponse('success', 200, 'Document uploaded successfully', { document: doc }));
   } catch (error: any) {
-    logger.error('Generate JAMB upload URL error', { error: error.message });
-    res.status(500).json(formatErrorResponse(500, 'Failed to generate upload URL'));
+    logger.error('JAMB agent upload error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to upload document'));
   }
 });
 
@@ -343,11 +363,17 @@ router.get('/documents/:docId/download', jambAgentAuthMiddleware, async (req: Re
       return res.status(404).json(formatErrorResponse(404, 'Document not found'));
     }
 
-    const file = await objectStorage.getObjectEntityFile(doc.fileKey);
-    await objectStorage.downloadObject(file, res);
+    const localPath = path.join(process.cwd(), doc.fileKey);
+    if (!fs.existsSync(localPath)) {
+      return res.status(404).json(formatErrorResponse(404, 'File not found on server'));
+    }
+    res.setHeader('Content-Disposition', `attachment; filename="${doc.fileName || 'document'}"`);
+    res.sendFile(localPath);
   } catch (error: any) {
     logger.error('Download JAMB document error', { error: error.message });
-    res.status(500).json(formatErrorResponse(500, 'Failed to download document'));
+    if (!res.headersSent) {
+      res.status(500).json(formatErrorResponse(500, 'Failed to download document'));
+    }
   }
 });
 

@@ -8,10 +8,25 @@ import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse, generateReferenceId } from '../../utils/helpers';
 import { db } from '../../config/database';
 import { educationServices, servicePricing, educationPins, educationPinOrders, users, nbaisSchools, rpaJobs, educationServiceRequests, jambServiceRequests, jambRequestDocuments } from '../../db/schema';
-import { ObjectStorageService } from '../../services/objectStorage';
 import { eq, desc, and, sql, count, or } from 'drizzle-orm';
 import { sendEmail } from '../../services/emailService';
 import { getSchoolsByState, getSchoolsCount } from '../../rpa/workers/nbaisSchoolScraper';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { randomUUID } from 'crypto';
+
+const UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'jamb-docs');
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
+const diskStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname) || '';
+    cb(null, `${randomUUID()}${ext}`);
+  },
+});
+const upload = multer({ storage: diskStorage, limits: { fileSize: 20 * 1024 * 1024 } });
 
 const router = Router();
 router.use(authMiddleware);
@@ -64,7 +79,6 @@ router.post('/request', async (req: Request, res: Response) => {
   }
 });
 
-const jambObjectStorage = new ObjectStorageService();
 
 router.post('/jamb-request', async (req: Request, res: Response) => {
   try {
@@ -239,10 +253,9 @@ router.post('/jamb-request', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/jamb-request/:id/upload', async (req: Request, res: Response) => {
+router.post('/jamb-request/:id/upload', upload.single('file'), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { fileName, fileType } = req.body;
 
     const [request] = await db.select()
       .from(jambServiceRequests)
@@ -253,25 +266,32 @@ router.post('/jamb-request/:id/upload', async (req: Request, res: Response) => {
       .limit(1);
 
     if (!request) {
+      if (req.file) fs.unlinkSync(req.file.path);
       return res.status(404).json(formatErrorResponse(404, 'Request not found'));
     }
 
-    const { uploadURL, objectPath } = await jambObjectStorage.getObjectEntityUploadURL('jamb-docs');
+    if (!req.file) {
+      return res.status(400).json(formatErrorResponse(400, 'No file uploaded'));
+    }
+
+    const fileKey = `/uploads/jamb-docs/${req.file.filename}`;
 
     const [doc] = await db.insert(jambRequestDocuments).values({
       requestId: id,
       uploadedBy: req.userId!,
       uploaderRole: 'user',
-      fileType: fileType || 'document',
-      fileName: fileName || 'document',
-      fileKey: objectPath,
+      fileType: req.file.mimetype || 'application/octet-stream',
+      fileName: req.file.originalname || req.file.filename,
+      fileKey,
+      fileSize: req.file.size,
       isResult: false,
     }).returning();
 
-    res.json(formatResponse('success', 200, 'Upload URL generated', { uploadURL, document: doc }));
+    logger.info('JAMB document uploaded', { userId: req.userId!, requestId: id, fileName: req.file.originalname });
+    res.json(formatResponse('success', 200, 'Document uploaded successfully', { document: doc }));
   } catch (error: any) {
     logger.error('JAMB upload error', { error: error.message });
-    res.status(500).json(formatErrorResponse(500, 'Failed to generate upload URL'));
+    res.status(500).json(formatErrorResponse(500, 'Failed to upload document'));
   }
 });
 
@@ -360,9 +380,12 @@ router.get('/jamb-requests/:id/documents/:docId/download', async (req: Request, 
       return res.status(404).json(formatErrorResponse(404, 'Document not found'));
     }
 
-    const file = await jambObjectStorage.getObjectEntityFile(doc.fileKey);
+    const localPath = path.join(process.cwd(), doc.fileKey);
+    if (!fs.existsSync(localPath)) {
+      return res.status(404).json(formatErrorResponse(404, 'File not found on server'));
+    }
     res.setHeader('Content-Disposition', `attachment; filename="${doc.fileName || 'document'}"`);
-    await jambObjectStorage.downloadObject(file, res);
+    res.sendFile(localPath);
   } catch (error: any) {
     logger.error('Download JAMB document error', { error: error.message });
     if (!res.headersSent) {
