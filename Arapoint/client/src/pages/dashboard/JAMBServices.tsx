@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { Loader2, CheckCircle2, FileUp, FileText, FileCheck, RotateCw, ArrowRight, ArrowLeft, Clock, Upload, Download, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -59,7 +60,31 @@ const JAMB_SERVICES = [
     price: 3000,
     fields: [
       { name: "jamb-reg", label: "JAMB Registration Number", type: "text", required: true },
-      { name: "itemType", label: "Item Type", type: "text", placeholder: "e.g., Certificate, Transcript, Cap", required: true },
+      {
+        name: "itemType",
+        label: "Item Type",
+        type: "select",
+        required: true,
+        options: [
+          "CHANGE OF COURSE SLIP",
+          "REGISTRATION SLIP",
+          "REPRINT PIN VENDED",
+          "ORIGINAL RESULTS REPRINTS ONLY",
+          "CHANGE OF COURSE REFRESH",
+          "D.E REGISTRATION SLIP",
+          "ADMISSION STATUS ONLY",
+          "RETRIEVE PROFILE CODE",
+          "OLEVEL RESULT CHECKING ON CAPS",
+          "JAMB RESULT SCORE ON CAPS",
+          "ACCEPT TRANSFER OFFER",
+          "RETRIEVE REGISTRATION NUMBER",
+          "TRANSFER APPROVAL CONFIRMATION",
+          "ADMISSION STATUS WITH PICTURE",
+          "ACCEPT TRANSFER APPROVAL",
+          "REFRESH UPLOAD ON CAPS",
+          "ACCEPT UNDISCLOSED ADMISSION",
+        ],
+      },
       { name: "quantity", label: "Quantity", type: "number", required: true },
     ],
     hasFileUpload: false,
@@ -560,21 +585,38 @@ export default function JAMBServices() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {service.fields.map((field) => (
+              {service.fields.map((field: any) => (
                 <div key={field.name} className="space-y-2">
                   <Label htmlFor={field.name}>
                     {field.label}
-                    {field.required && <span className="text-red-500">*</span>}
+                    {field.required && <span className="text-red-500 ml-0.5">*</span>}
                   </Label>
-                  <Input
-                    id={field.name}
-                    type={field.type}
-                    placeholder={field.placeholder || ""}
-                    required={field.required}
-                    className="h-10"
-                    value={formData[field.name] || ""}
-                    onChange={(e) => handleInputChange(field.name, e.target.value)}
-                  />
+                  {field.type === "select" ? (
+                    <Select
+                      value={formData[field.name] || ""}
+                      onValueChange={(val) => handleInputChange(field.name, val)}
+                      required={field.required}
+                    >
+                      <SelectTrigger id={field.name} className="h-10">
+                        <SelectValue placeholder={`Select ${field.label}`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(field.options || []).map((opt: string) => (
+                          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      id={field.name}
+                      type={field.type}
+                      placeholder={field.placeholder || ""}
+                      required={field.required}
+                      className="h-10"
+                      value={formData[field.name] || ""}
+                      onChange={(e) => handleInputChange(field.name, e.target.value)}
+                    />
+                  )}
                 </div>
               ))}
 

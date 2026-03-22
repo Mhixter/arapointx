@@ -1,0 +1,19 @@
+ <!--[if BLOCK]><![endif]-->                                        <!--[if BLOCK]><![endif]-->                                            <option value="CHANGE OF COURSE SLIP">CHANGE OF COURSE SLIP (₦300)</option>
+                                                                                    <option value="REGISTRATION SLIP">REGISTRATION SLIP (₦300)</option>
+                                                                                    <option value="REPRINT PIN VENDED">REPRINT PIN VENDED (₦300)</option>
+                                                                                    <option value="ORIGINAL RESULTS REPRINTS ONLY ">ORIGINAL RESULTS REPRINTS ONLY  (₦300)</option>
+                                                                                    <option value="Change of Course Refresh">Change of Course Refresh (₦200)</option>
+                                                                                    <option value="D.E REGISTRATION SLIP">D.E REGISTRATION SLIP (₦300)</option>
+                                                                                    <option value="ADMISSION STATUS ONLY">ADMISSION STATUS ONLY (₦300)</option>
+                                                                                    <option value="RETRIEVE PROFILE CODE">RETRIEVE PROFILE CODE (₦300)</option>
+                                                                                    <option value="OLEVEL RESULT CHECKING ON CAPS">OLEVEL RESULT CHECKING ON CAPS (₦300)</option>
+                                                                                    <option value="JAMB RESULT SCORE ON CAPS">JAMB RESULT SCORE ON CAPS (₦300)</option>
+                                                                                    <option value="ACCEPT TRANSFER OFFER">ACCEPT TRANSFER OFFER (₦300)</option>
+                                                                                    <option value="RETRIEVE REGISTRATION NUMBER">RETRIEVE REGISTRATION NUMBER (₦300)</option>
+                                                                                    <option value="TRANSFER APPROVAL CONFIRMATION">TRANSFER APPROVAL CONFIRMATION (₦300)</option>
+                                                                                    <option value="ADMISSION STATUS WITH PICTURE">ADMISSION STATUS WITH PICTURE (₦300)</option>
+                                                                                    <option value="ACCEPT TRANSFER APPROVAL">ACCEPT TRANSFER APPROVAL (₦300)</option>
+                                                                                    <option value="REFRESH UPLOAD ON CAPS">REFRESH UPLOAD ON CAPS (₦300)</option>
+                                                                                    <option value="ACCEPT UNDISCLOSED ADMISSION">ACCEPT UNDISCLOSED ADMISSION (₦300)</option>
+                                        <!--[if ENDBLOCK]><![endif]-->
+                                    <!--[if ENDBLOCK]><![endif]-->

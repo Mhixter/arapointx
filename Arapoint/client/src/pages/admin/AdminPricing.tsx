@@ -43,16 +43,22 @@ const SERVICE_DEFINITIONS: Record<string, { category: string; name: string; desc
   wallet_virtual_account: { category: 'Wallet', name: 'Virtual Account Creation', description: 'PayVessel virtual account generation' },
   wallet_transfer: { category: 'Wallet', name: 'Wallet Transfer', description: 'Transfer between wallets' },
   wallet_withdrawal: { category: 'Wallet', name: 'Bank Withdrawal', description: 'Withdraw to bank account' },
-  // Education Services
-  jamb_result: { category: 'Education', name: 'JAMB Result', description: 'Check JAMB examination results' },
-  jamb_admission: { category: 'Education', name: 'JAMB Admission Status', description: 'Check JAMB admission status' },
-  jamb_caps: { category: 'Education', name: 'JAMB CAPS', description: 'JAMB CAPS acceptance/rejection' },
-  waec_result: { category: 'Education', name: 'WAEC Result', description: 'Check WAEC examination results' },
-  waec_scratch_card: { category: 'Education', name: 'WAEC Scratch Card', description: 'WAEC result checker scratch card' },
-  neco_result: { category: 'Education', name: 'NECO Result', description: 'Check NECO examination results' },
-  neco_scratch_card: { category: 'Education', name: 'NECO Scratch Card', description: 'NECO result checker scratch card' },
-  nabteb_result: { category: 'Education', name: 'NABTEB Result', description: 'Check NABTEB examination results' },
-  nbais_result: { category: 'Education', name: 'NBAIS Result', description: 'Check NBAIS examination results' },
+  // Education Services - RPA Lookups
+  jamb: { category: 'Education', name: 'JAMB Score Lookup', description: 'Check JAMB examination results via portal' },
+  waec: { category: 'Education', name: 'WAEC Result Lookup', description: 'Check WAEC examination results via portal' },
+  neco: { category: 'Education', name: 'NECO Result Lookup', description: 'Check NECO examination results via portal' },
+  nabteb: { category: 'Education', name: 'NABTEB Result Lookup', description: 'Check NABTEB examination results via portal' },
+  nbais: { category: 'Education', name: 'NBAIS Result Lookup', description: 'Check NBAIS examination results via portal' },
+  // Education Services - JAMB Agent Services
+  'olevel-upload': { category: 'JAMB Services', name: "JAMB O'Level Upload", description: "Upload O'Level results to JAMB portal" },
+  'admission-letter': { category: 'JAMB Services', name: 'JAMB Admission Letter', description: 'Retrieve JAMB admission letter' },
+  'original-result': { category: 'JAMB Services', name: 'JAMB Original Result', description: 'Retrieve original JAMB result slip' },
+  'reprinting-caps': { category: 'JAMB Services', name: 'JAMB Reprinting & Caps', description: 'JAMB CAPS reprinting services' },
+  // Education Services - Exam PINs
+  waec_pin: { category: 'Education PINs', name: 'WAEC Scratch Card', description: 'WAEC result checker PIN purchase' },
+  neco_pin: { category: 'Education PINs', name: 'NECO Scratch Card', description: 'NECO result checker PIN purchase' },
+  nabteb_pin: { category: 'Education PINs', name: 'NABTEB Scratch Card', description: 'NABTEB result checker PIN purchase' },
+  nbais_pin: { category: 'Education PINs', name: 'NBAIS Scratch Card', description: 'NBAIS result checker PIN purchase' },
   // CAC Services
   cac_business_name: { category: 'CAC', name: 'CAC Business Name', description: 'Register business name with CAC' },
   cac_limited_company: { category: 'CAC', name: 'CAC Limited Company', description: 'Register limited liability company' },
@@ -91,7 +97,7 @@ const SERVICE_CATEGORIES: Record<string, string> = Object.fromEntries(
   Object.entries(SERVICE_DEFINITIONS).map(([key, val]) => [key, val.category])
 );
 
-const CATEGORY_LIST = ['Identity', 'Identity Agent', 'Wallet', 'Education', 'CAC', 'VTU Airtime', 'VTU Data', 'VTU Electricity', 'VTU Cable'];
+const CATEGORY_LIST = ['Identity', 'Identity Agent', 'Wallet', 'Education', 'JAMB Services', 'Education PINs', 'CAC', 'VTU Airtime', 'VTU Data', 'VTU Electricity', 'VTU Cable'];
 
 const getAuthToken = () => tokenStorage.getItem('adminToken');
 

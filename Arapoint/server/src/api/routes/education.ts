@@ -190,13 +190,6 @@ router.post('/jamb-request', async (req: Request, res: Response) => {
     }
 
     // Regular JAMB service requests (non-PIN)
-    const JAMB_PRICES: Record<string, number> = {
-      'olevel-upload': 2000,
-      'admission-letter': 1500,
-      'original-result': 1800,
-      'reprinting-caps': 3000,
-    };
-
     const JAMB_LABELS: Record<string, string> = {
       'olevel-upload': "JAMB O'Level Upload",
       'admission-letter': 'JAMB Admission Letter',
@@ -211,7 +204,14 @@ router.post('/jamb-request', async (req: Request, res: Response) => {
       'reprinting-caps': 'jamb_reprinting_caps',
     };
 
-    const price = JAMB_PRICES[serviceId] || 2000;
+    const JAMB_DEFAULTS: Record<string, number> = {
+      'olevel-upload': 2000,
+      'admission-letter': 1500,
+      'original-result': 1800,
+      'reprinting-caps': 3000,
+    };
+
+    const price = await pricingService.getPrice(serviceId).catch(() => JAMB_DEFAULTS[serviceId] || 2000);
     const serviceLabel = JAMB_LABELS[serviceId] || serviceId.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
     const serviceType = JAMB_TYPES[serviceId] || 'jamb_service';
 
