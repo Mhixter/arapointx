@@ -5,7 +5,7 @@ import { authMiddleware } from '../middleware/auth';
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { adminUsers, adminRoles, users } from '../../db/schema';
+import { adminUsers, adminRoles, users, jambAgents, identityAgents, educationAgents, a2cAgents, cacAgents } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import { otpService } from '../../services/otpService';
@@ -82,6 +82,20 @@ router.post('/admin/login', async (req: Request, res: Response) => {
     if (!isValidPassword) {
       logger.warn('Admin login failed: invalid password', { email });
       return res.status(401).json(formatErrorResponse(401, 'Invalid admin credentials'));
+    }
+
+    // Block agent accounts from logging in through the admin portal
+    const isAgentAccount = (await Promise.all([
+      db.select({ id: jambAgents.id }).from(jambAgents).where(eq(jambAgents.adminUserId, admin.id)).limit(1),
+      db.select({ id: identityAgents.id }).from(identityAgents).where(eq(identityAgents.adminUserId, admin.id)).limit(1),
+      db.select({ id: educationAgents.id }).from(educationAgents).where(eq(educationAgents.adminUserId, admin.id)).limit(1),
+      db.select({ id: a2cAgents.id }).from(a2cAgents).where(eq(a2cAgents.adminUserId, admin.id)).limit(1),
+      db.select({ id: cacAgents.id }).from(cacAgents).where(eq(cacAgents.adminUserId, admin.id)).limit(1),
+    ])).some((rows) => rows.length > 0);
+
+    if (isAgentAccount) {
+      logger.warn('Admin login blocked: account belongs to an agent', { email, adminId: admin.id });
+      return res.status(403).json(formatErrorResponse(403, 'Invalid admin credentials'));
     }
 
     await db.update(adminUsers)
