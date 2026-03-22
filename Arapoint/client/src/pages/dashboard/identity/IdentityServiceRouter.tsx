@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { useRoute, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -120,7 +121,7 @@ function ServiceContent({ service }: { service: any }) {
   }, [pricingData]);
 
   const getAuthToken = () => {
-    return localStorage.getItem('accessToken');
+    return tokenStorage.getItem('accessToken');
   };
 
   const getSlipPrice = () => {
@@ -1033,7 +1034,7 @@ function TransactionsHistory() {
   useEffect(() => {
     const fetchRequests = async () => {
       try {
-        const token = localStorage.getItem('accessToken');
+        const token = tokenStorage.getItem('accessToken');
         const response = await fetch('/api/identity/service-requests', {
           headers: { 'Authorization': `Bearer ${token}` },
         });
@@ -1128,7 +1129,7 @@ function VerificationsHistory() {
   useEffect(() => {
     const fetchVerifications = async () => {
       try {
-        const token = localStorage.getItem('accessToken');
+        const token = tokenStorage.getItem('accessToken');
         const response = await fetch('/api/identity/history', {
           headers: { 'Authorization': `Bearer ${token}` },
         });
@@ -1182,7 +1183,7 @@ function VerificationsHistory() {
 
   const handleDownload = async (downloadUrl: string, slipReference: string) => {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = tokenStorage.getItem('accessToken');
       const response = await fetch(downloadUrl, {
         headers: { 'Authorization': `Bearer ${token}` }
       });

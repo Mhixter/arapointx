@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -163,7 +164,7 @@ export default function EducationServices() {
       
       setLoadingSchools(true);
       try {
-        const token = localStorage.getItem('accessToken');
+        const token = tokenStorage.getItem('accessToken');
         const response = await fetch(`/api/education/nbais/schools/${encodeURIComponent(nbaisState)}`, {
           headers: { 'Authorization': `Bearer ${token}` },
         });
@@ -187,7 +188,7 @@ export default function EducationServices() {
   // Fetch PIN stock on component mount
   const fetchPinStock = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = tokenStorage.getItem('accessToken');
       const response = await fetch('/api/education/pins/stock', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -205,7 +206,7 @@ export default function EducationServices() {
     try {
       setPinLoading(true);
       setError(null);
-      const token = localStorage.getItem('accessToken');
+      const token = tokenStorage.getItem('accessToken');
       const response = await fetch('/api/education/pins/purchase', {
         method: 'POST',
         headers: {
@@ -472,7 +473,7 @@ export default function EducationServices() {
 
   const openPdfForPrint = async (jobId: string) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = tokenStorage.getItem('token');
       const previewUrl = `/api/education/job/${jobId}/preview`;
       
       const newWindow = window.open('about:blank', '_blank');
@@ -577,7 +578,7 @@ export default function EducationServices() {
 
       const response = await fetch(`/api/education/job/${currentJobId}/download`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${tokenStorage.getItem('token')}`,
         },
       });
 

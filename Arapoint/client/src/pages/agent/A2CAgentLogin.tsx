@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,9 +31,9 @@ export default function A2CAgentLogin() {
       const data = await response.json();
 
       if (data.status === 'success') {
-        localStorage.setItem('a2cAgentToken', data.data.accessToken);
-        localStorage.setItem('a2cAgentRefreshToken', data.data.refreshToken);
-        localStorage.setItem('a2cAgentInfo', JSON.stringify(data.data.agent));
+        tokenStorage.setItem('a2cAgentToken', data.data.accessToken);
+        tokenStorage.setItem('a2cAgentRefreshToken', data.data.refreshToken);
+        tokenStorage.setItem('a2cAgentInfo', JSON.stringify(data.data.agent));
         
         toast({
           title: 'Login Successful',

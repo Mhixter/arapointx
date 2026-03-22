@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const getAdminUserId = () => {
   try {
-    return JSON.parse(localStorage.getItem("adminUser") || "{}").id;
+    return JSON.parse(tokenStorage.getItem("adminUser") || "{}").id;
   } catch {
     return null;
   }

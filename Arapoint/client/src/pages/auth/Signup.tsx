@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -128,9 +129,9 @@ export default function Signup() {
       });
       
       const data = response.data.data;
-      localStorage.setItem('accessToken', data.accessToken);
-      localStorage.setItem('refreshToken', data.refreshToken);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      tokenStorage.setItem('accessToken', data.accessToken);
+      tokenStorage.setItem('refreshToken', data.refreshToken);
+      tokenStorage.setItem('user', JSON.stringify(data.user));
       
       toast({
         title: "Account Created",

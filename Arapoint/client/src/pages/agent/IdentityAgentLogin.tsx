@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import {
   Card,
   CardContent,
@@ -34,8 +35,8 @@ export default function IdentityAgentLogin() {
       const data = await response.json();
 
       if (data.status === "success") {
-        localStorage.setItem("identityAgentToken", data.data.token);
-        localStorage.setItem(
+        tokenStorage.setItem("identityAgentToken", data.data.token);
+        tokenStorage.setItem(
           "identityAgentInfo",
           JSON.stringify(data.data.agent),
         );

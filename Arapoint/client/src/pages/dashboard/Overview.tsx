@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle2, CreditCard, ArrowUpRight, ArrowDownRight, ShieldCheck, GraduationCap, Loader2, Copy, Building2, AlertTriangle, Smartphone, Zap, Tv, Banknote, FileText, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -59,7 +60,7 @@ export default function Overview() {
   const [ninInput, setNinInput] = useState("");
   const [verifyingNin, setVerifyingNin] = useState(false);
 
-  const getAuthToken = () => localStorage.getItem('accessToken');
+  const getAuthToken = () => tokenStorage.getItem('accessToken');
 
   const fetchDashboardStats = async (): Promise<DashboardStats | null> => {
     const token = getAuthToken();

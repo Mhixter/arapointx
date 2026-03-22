@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +11,7 @@ import { Building2, Loader2, UserPlus, Edit, Trash2, Users, FileText, Settings }
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
-const getAdminToken = () => localStorage.getItem('adminToken');
+const getAdminToken = () => tokenStorage.getItem('adminToken');
 
 export default function AdminCACServices() {
   const { toast } = useToast();

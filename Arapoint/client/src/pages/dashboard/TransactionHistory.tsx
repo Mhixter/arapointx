@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +23,7 @@ export default function TransactionHistory() {
   const [page, setPage] = useState(1);
   const limit = 20;
 
-  const getAuthToken = () => localStorage.getItem('accessToken');
+  const getAuthToken = () => tokenStorage.getItem('accessToken');
 
   const fetchTransactions = async (): Promise<{ transactions: Transaction[], total: number }> => {
     const token = getAuthToken();

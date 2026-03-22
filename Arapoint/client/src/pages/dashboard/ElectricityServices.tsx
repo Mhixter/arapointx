@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,7 @@ const DISCO_OPTIONS = [
   { id: 'yola-electric', name: 'Yola Electric (YEDC)' },
 ];
 
-const getAuthToken = () => localStorage.getItem('accessToken');
+const getAuthToken = () => tokenStorage.getItem('accessToken');
 
 export default function ElectricityServices() {
   const { toast } = useToast();

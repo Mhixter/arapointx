@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -92,7 +93,7 @@ const SERVICE_CATEGORIES: Record<string, string> = Object.fromEntries(
 
 const CATEGORY_LIST = ['Identity', 'Identity Agent', 'Wallet', 'Education', 'CAC', 'VTU Airtime', 'VTU Data', 'VTU Electricity', 'VTU Cable'];
 
-const getAuthToken = () => localStorage.getItem('adminToken');
+const getAuthToken = () => tokenStorage.getItem('adminToken');
 
 export default function AdminPricing() {
   const { toast } = useToast();
@@ -386,7 +387,7 @@ export default function AdminPricing() {
                       const res = await fetch('/api/admin/vtu/scrape-data', {
                         method: 'POST',
                         headers: { 
-                          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+                          'Authorization': `Bearer ${tokenStorage.getItem('adminToken')}`,
                           'Content-Type': 'application/json'
                         }
                       });

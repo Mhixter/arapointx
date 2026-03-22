@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +11,7 @@ import { Banknote, Loader2, UserPlus, Trash2, Users, FileText, RefreshCw, CheckC
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
-const getAdminToken = () => localStorage.getItem('adminToken');
+const getAdminToken = () => tokenStorage.getItem('adminToken');
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   pending: { label: 'Pending', color: 'bg-gray-100 text-gray-700' },

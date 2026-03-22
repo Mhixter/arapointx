@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
@@ -12,7 +13,7 @@ export const apiClient: AxiosInstance = axios.create({
 
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('accessToken');
+    const token = tokenStorage.getItem('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -29,7 +30,7 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       
-      const refreshToken = localStorage.getItem('refreshToken');
+      const refreshToken = tokenStorage.getItem('refreshToken');
       if (refreshToken) {
         try {
           const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {
@@ -37,14 +38,14 @@ apiClient.interceptors.response.use(
           });
           
           const { accessToken, refreshToken: newRefreshToken } = response.data.data;
-          localStorage.setItem('accessToken', accessToken);
-          localStorage.setItem('refreshToken', newRefreshToken);
+          tokenStorage.setItem('accessToken', accessToken);
+          tokenStorage.setItem('refreshToken', newRefreshToken);
           
           originalRequest.headers.Authorization = `Bearer ${accessToken}`;
           return apiClient(originalRequest);
         } catch (refreshError) {
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
+          tokenStorage.removeItem('accessToken');
+          tokenStorage.removeItem('refreshToken');
           window.location.href = '/login';
           return Promise.reject(refreshError);
         }
@@ -92,7 +93,7 @@ export const adminApiClient: AxiosInstance = axios.create({
 
 adminApiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('adminToken');
+    const token = tokenStorage.getItem('adminToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -105,9 +106,9 @@ adminApiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     if (error.response?.status === 401 || error.response?.status === 403) {
-      localStorage.removeItem('adminToken');
-      localStorage.removeItem('adminRefreshToken');
-      localStorage.removeItem('adminUser');
+      tokenStorage.removeItem('adminToken');
+      tokenStorage.removeItem('adminRefreshToken');
+      tokenStorage.removeItem('adminUser');
       window.location.href = '/admin/login';
     }
     return Promise.reject(error);

@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { Link, useLocation } from "wouter";
 import { 
   LayoutDashboard, 
@@ -47,9 +48,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useIdleTimeout({
     timeoutMs: 300000,
     onTimeout: () => {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
+      tokenStorage.removeItem('accessToken');
+      tokenStorage.removeItem('refreshToken');
+      tokenStorage.removeItem('user');
       toast({
         title: "Session Expired",
         description: "You were logged out due to inactivity.",
@@ -59,7 +60,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     },
   });
 
-  const accessToken = localStorage.getItem('accessToken');
+  const accessToken = tokenStorage.getItem('accessToken');
   
   const { data: user, isLoading } = useQuery({
     queryKey: ['user-profile'],
@@ -78,8 +79,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       await authApi.logout();
       setLocation('/auth/login');
     } catch (error) {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+      tokenStorage.removeItem('accessToken');
+      tokenStorage.removeItem('refreshToken');
       setLocation('/auth/login');
     }
   };

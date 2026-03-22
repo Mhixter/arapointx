@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { apiClient, ApiResponse } from './client';
 
 export interface LoginRequest {
@@ -78,8 +79,8 @@ export const authApi = {
 
   logout: async (): Promise<void> => {
     await apiClient.post('/auth/logout');
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    tokenStorage.removeItem('accessToken');
+    tokenStorage.removeItem('refreshToken');
   },
 
   changePassword: async (data: { currentPassword: string; newPassword: string }): Promise<{ message: string }> => {

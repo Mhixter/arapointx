@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -110,7 +111,7 @@ export default function VerificationHistory() {
     try {
       const response = await fetch(`/api/education/job/${jobId}/download?format=${format}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+          'Authorization': `Bearer ${tokenStorage.getItem('accessToken')}`,
         },
       });
 

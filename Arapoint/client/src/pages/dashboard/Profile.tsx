@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,7 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { authApi } from "@/lib/api/auth";
 
 export default function Profile() {
-  const accessToken = localStorage.getItem('accessToken');
+  const accessToken = tokenStorage.getItem('accessToken');
   
   const { data: user, isLoading } = useQuery({
     queryKey: ['user-profile'],

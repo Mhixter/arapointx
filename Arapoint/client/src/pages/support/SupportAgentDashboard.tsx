@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -103,7 +104,7 @@ export default function SupportAgentDashboard() {
 
   useEffect(() => {
     try {
-      const stored = JSON.parse(localStorage.getItem("adminUser") || "{}");
+      const stored = JSON.parse(tokenStorage.getItem("adminUser") || "{}");
       if (!stored.id || stored.role !== "support_agent") {
         setLocation("/support/agent/login");
         return;
@@ -306,9 +307,9 @@ export default function SupportAgentDashboard() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("adminRefreshToken");
-    localStorage.removeItem("adminUser");
+    tokenStorage.removeItem("adminToken");
+    tokenStorage.removeItem("adminRefreshToken");
+    tokenStorage.removeItem("adminUser");
     setLocation("/support/agent/login");
   };
 

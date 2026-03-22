@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { Link, useLocation } from "wouter";
 import { 
   LayoutDashboard, 
@@ -27,7 +28,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
 
   const adminUser = useMemo(() => {
     try {
-      const stored = localStorage.getItem('adminUser');
+      const stored = tokenStorage.getItem('adminUser');
       return stored ? JSON.parse(stored) : null;
     } catch {
       return null;
@@ -40,9 +41,9 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
   useIdleTimeout({
     timeoutMs: 300000,
     onTimeout: () => {
-      localStorage.removeItem('adminToken');
-      localStorage.removeItem('adminRefreshToken');
-      localStorage.removeItem('adminUser');
+      tokenStorage.removeItem('adminToken');
+      tokenStorage.removeItem('adminRefreshToken');
+      tokenStorage.removeItem('adminUser');
       toast({
         title: "Session Expired",
         description: "You were logged out due to inactivity.",
@@ -53,9 +54,9 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
   });
 
   const handleSignOut = () => {
-    localStorage.removeItem('adminToken');
-    localStorage.removeItem('adminRefreshToken');
-    localStorage.removeItem('adminUser');
+    tokenStorage.removeItem('adminToken');
+    tokenStorage.removeItem('adminRefreshToken');
+    tokenStorage.removeItem('adminUser');
     setLocation('/admin/login');
   };
 

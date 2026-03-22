@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -57,7 +58,7 @@ export default function IdentityHistory() {
     queryFn: async () => {
       const response = await fetch('/api/identity/history', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+          'Authorization': `Bearer ${tokenStorage.getItem('accessToken')}`,
         },
       });
       if (!response.ok) throw new Error('Failed to fetch history');
@@ -121,7 +122,7 @@ export default function IdentityHistory() {
     try {
       const response = await fetch(`/api/identity/slip/${record.id}/download?slipType=${slipType}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+          'Authorization': `Bearer ${tokenStorage.getItem('accessToken')}`,
         },
       });
 
@@ -163,7 +164,7 @@ export default function IdentityHistory() {
   const getSlipHtml = async (recordId: string, slipType: string): Promise<string> => {
     const response = await fetch(`/api/identity/slip/${recordId}?slipType=${slipType}`, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+        'Authorization': `Bearer ${tokenStorage.getItem('accessToken')}`,
       },
     });
     if (!response.ok) throw new Error('Failed to fetch slip');
@@ -347,7 +348,7 @@ function SlipPreview({ recordId, slipType }: { recordId: string; slipType: strin
     queryFn: async () => {
       const response = await fetch(`/api/identity/slip/${recordId}?slipType=${slipType}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+          'Authorization': `Bearer ${tokenStorage.getItem('accessToken')}`,
         },
       });
       if (!response.ok) throw new Error('Failed to fetch slip');

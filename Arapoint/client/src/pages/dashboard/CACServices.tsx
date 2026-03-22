@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -162,7 +163,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; icon: any }> = {
   rejected: { bg: 'bg-red-100', text: 'text-red-700', icon: XCircle },
 };
 
-const getAuthToken = () => localStorage.getItem('accessToken');
+const getAuthToken = () => tokenStorage.getItem('accessToken');
 
 export default function CACServices() {
   const { toast } = useToast();

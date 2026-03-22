@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +12,7 @@ import { GraduationCap, Loader2, UserPlus, Trash2, Users, FileText, RefreshCw, C
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
-const getAdminToken = () => localStorage.getItem('adminToken');
+const getAdminToken = () => tokenStorage.getItem('adminToken');
 
 const SERVICE_LABELS: Record<string, string> = {
   'jamb': 'JAMB Result',

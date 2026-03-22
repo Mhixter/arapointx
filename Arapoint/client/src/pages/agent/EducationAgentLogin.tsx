@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,8 +29,8 @@ export default function EducationAgentLogin() {
       const data = await response.json();
 
       if (data.status === 'success') {
-        localStorage.setItem('educationAgentToken', data.data.token);
-        localStorage.setItem('educationAgentInfo', JSON.stringify(data.data.agent));
+        tokenStorage.setItem('educationAgentToken', data.data.token);
+        tokenStorage.setItem('educationAgentInfo', JSON.stringify(data.data.agent));
         toast({ title: "Welcome!", description: `Logged in as ${data.data.agent.name}` });
         setLocation('/agent/education/dashboard');
       } else {

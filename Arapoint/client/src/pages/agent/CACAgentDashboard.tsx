@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +24,7 @@ const STATUS_OPTIONS = [
   { value: 'rejected', label: 'Rejected', color: 'bg-red-100 text-red-700' },
 ];
 
-const getAgentToken = () => localStorage.getItem('cacAgentToken');
+const getAgentToken = () => tokenStorage.getItem('cacAgentToken');
 
 export default function CACAgentDashboard() {
   const { toast } = useToast();
@@ -310,8 +311,8 @@ export default function CACAgentDashboard() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('cacAgentToken');
-    localStorage.removeItem('cacAgentInfo');
+    tokenStorage.removeItem('cacAgentToken');
+    tokenStorage.removeItem('cacAgentInfo');
     setLocation('/agent/login');
   };
 

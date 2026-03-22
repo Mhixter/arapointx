@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +23,7 @@ const ProviderLogo = ({ name, image }: { name: string, image?: string }) => {
   return <div className="h-16 w-16 rounded-full flex items-center justify-center text-[10px] font-bold text-white bg-primary">{name.substring(0, 3).toUpperCase()}</div>;
 };
 
-const getAuthToken = () => localStorage.getItem('accessToken');
+const getAuthToken = () => tokenStorage.getItem('accessToken');
 
 export default function CableServices() {
   const { toast } = useToast();

@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,7 +60,7 @@ export default function AdminSettings() {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const token = localStorage.getItem('adminToken');
+        const token = tokenStorage.getItem('adminToken');
         const response = await fetch('/api/admin/settings', {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -95,7 +96,7 @@ export default function AdminSettings() {
   const fetchGateways = async () => {
     setGatewayLoading(true);
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = tokenStorage.getItem('adminToken');
       const response = await fetch('/api/admin/payment-gateways/status', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -123,7 +124,7 @@ export default function AdminSettings() {
   const handleSaveGateway = async (gatewayKey: string) => {
     setSavingGateway(gatewayKey);
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = tokenStorage.getItem('adminToken');
       const credentials = gatewayForms[gatewayKey] || {};
       const response = await fetch('/api/admin/payment-gateways/save', {
         method: 'POST',
@@ -154,7 +155,7 @@ export default function AdminSettings() {
 
   const saveTabSettings = async (fields: Record<string, any>, tabName: string, shouldRefetch = false) => {
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = tokenStorage.getItem('adminToken');
       const response = await fetch('/api/admin/settings', {
         method: 'POST',
         headers: {
@@ -597,7 +598,7 @@ export default function AdminSettings() {
                   onClick={async () => {
                     setSendingTest(true);
                     try {
-                      const token = localStorage.getItem('adminToken');
+                      const token = tokenStorage.getItem('adminToken');
                       const response = await fetch('/api/admin/test-email', {
                         method: 'POST',
                         headers: {

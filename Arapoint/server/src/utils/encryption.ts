@@ -25,7 +25,8 @@ export const decrypt = (encryptedText: string): string => {
   const decipher = crypto.createDecipheriv(
     'aes-256-gcm',
     Buffer.from(ENCRYPTION_KEY.padEnd(32, '0').slice(0, 32)),
-    iv
+    iv,
+    { authTagLength: 16 }
   );
   
   decipher.setAuthTag(authTag);

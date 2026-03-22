@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +25,7 @@ interface IdentityService {
   createdAt: string;
 }
 
-const getAuthToken = () => localStorage.getItem('adminToken');
+const getAuthToken = () => tokenStorage.getItem('adminToken');
 
 export default function AdminIdentityServices() {
   const { toast } = useToast();

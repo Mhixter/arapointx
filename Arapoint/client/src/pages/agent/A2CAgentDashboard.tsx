@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,7 +19,7 @@ import {
   CheckCircle, ArrowDownCircle, Wallet, AlertCircle, Package, Edit, XCircle
 } from 'lucide-react';
 
-const getToken = () => localStorage.getItem('a2cAgentToken');
+const getToken = () => tokenStorage.getItem('a2cAgentToken');
 
 const STATUS_LABELS: Record<string, { label: string; color: string; icon: any }> = {
   pending: { label: 'Pending Confirmation', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
@@ -248,9 +249,9 @@ export default function A2CAgentDashboard() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('a2cAgentToken');
-    localStorage.removeItem('a2cAgentRefreshToken');
-    localStorage.removeItem('a2cAgentInfo');
+    tokenStorage.removeItem('a2cAgentToken');
+    tokenStorage.removeItem('a2cAgentRefreshToken');
+    tokenStorage.removeItem('a2cAgentInfo');
     setLocation('/agent/a2c/login');
   };
 

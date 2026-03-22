@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,7 @@ const VALIDATION_TYPES = [
   { value: 'other', label: 'Other Issue' },
 ];
 
-const getToken = () => localStorage.getItem('accessToken');
+const getToken = () => tokenStorage.getItem('accessToken');
 
 export default function IdentityAgentServices() {
   const { toast } = useToast();

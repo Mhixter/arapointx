@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ import { MessageSquare, Settings, Users, Bell, Loader2, Plus, Trash2, RefreshCw,
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 
-const getAdminToken = () => localStorage.getItem('adminToken');
+const getAdminToken = () => tokenStorage.getItem('adminToken');
 
 interface WhatsAppTemplate {
   id: string;

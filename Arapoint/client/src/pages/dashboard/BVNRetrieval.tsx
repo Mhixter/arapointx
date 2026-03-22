@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,7 +57,7 @@ export default function BVNRetrieval() {
   const [loadingHistory, setLoadingHistory] = useState(false);
 
   const getAuthToken = () => {
-    return localStorage.getItem('accessToken');
+    return tokenStorage.getItem('accessToken');
   };
 
   const handleQuery = async (e: React.FormEvent) => {

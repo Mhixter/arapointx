@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { Link, useLocation } from "wouter";
 import { 
   LayoutDashboard, 
@@ -84,7 +85,7 @@ interface AdminCRUDLayoutProps {
 
 function getAdminUser() {
   try {
-    const stored = localStorage.getItem('adminUser');
+    const stored = tokenStorage.getItem('adminUser');
     if (stored) return JSON.parse(stored);
   } catch {}
   return null;
@@ -206,9 +207,9 @@ export default function AdminCRUDLayout({ children, currentRole }: AdminCRUDLayo
           }`}
           title={isCollapsed && !isMobile ? "Sign Out" : undefined}
           onClick={() => {
-            localStorage.removeItem('adminToken');
-            localStorage.removeItem('adminRefreshToken');
-            localStorage.removeItem('adminUser');
+            tokenStorage.removeItem('adminToken');
+            tokenStorage.removeItem('adminRefreshToken');
+            tokenStorage.removeItem('adminUser');
             window.location.href = "/admin/login";
           }}
         >
@@ -301,9 +302,9 @@ export default function AdminCRUDLayout({ children, currentRole }: AdminCRUDLayo
                 <DropdownMenuItem className="cursor-pointer">Activity Log</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-red-600 cursor-pointer" onClick={() => {
-                  localStorage.removeItem('adminToken');
-                  localStorage.removeItem('adminRefreshToken');
-                  localStorage.removeItem('adminUser');
+                  tokenStorage.removeItem('adminToken');
+                  tokenStorage.removeItem('adminRefreshToken');
+                  tokenStorage.removeItem('adminUser');
                   window.location.href = "/admin/login";
                 }}>
                   Log out

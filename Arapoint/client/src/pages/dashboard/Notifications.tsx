@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Bell, AlertCircle, CheckCircle, Info, XCircle, Loader2 } from "lucide-react";
@@ -13,7 +14,7 @@ interface Notification {
   category: string;
 }
 
-const getAuthToken = () => localStorage.getItem('accessToken');
+const getAuthToken = () => tokenStorage.getItem('accessToken');
 
 const fetchNotifications = async (): Promise<Notification[]> => {
   const token = getAuthToken();

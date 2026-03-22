@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +28,7 @@ interface VTUService {
   createdAt: string;
 }
 
-const getAuthToken = () => localStorage.getItem('adminToken');
+const getAuthToken = () => tokenStorage.getItem('adminToken');
 
 export default function AdminVTUServices() {
   const { toast } = useToast();

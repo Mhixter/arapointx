@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +20,7 @@ const STATUS_OPTIONS = [
   { value: 'completed', label: 'Completed', color: 'bg-green-100 text-green-700' },
 ];
 
-const getAgentToken = () => localStorage.getItem('educationAgentToken');
+const getAgentToken = () => tokenStorage.getItem('educationAgentToken');
 
 const EXAM_TYPES = ['waec', 'neco', 'nabteb', 'nbais'];
 
@@ -284,8 +285,8 @@ export default function EducationAgentDashboard() {
   }, [filter]);
 
   const handleLogout = () => {
-    localStorage.removeItem('educationAgentToken');
-    localStorage.removeItem('educationAgentInfo');
+    tokenStorage.removeItem('educationAgentToken');
+    tokenStorage.removeItem('educationAgentInfo');
     toast({ title: "Logged out", description: "You have been logged out" });
     setLocation('/agent/education');
   };

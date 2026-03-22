@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -131,7 +132,7 @@ export default function AirtimeToCash() {
 
   const fetchRates = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = tokenStorage.getItem('accessToken');
       const response = await fetch('/api/airtime/to-cash/rates', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -151,7 +152,7 @@ export default function AirtimeToCash() {
   const fetchHistory = async () => {
     setIsLoadingHistory(true);
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = tokenStorage.getItem('accessToken');
       const response = await fetch('/api/airtime/to-cash/requests', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -217,7 +218,7 @@ export default function AirtimeToCash() {
     setIsLoading(true);
     
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = tokenStorage.getItem('accessToken');
       if (!token) {
         throw new Error("Please login to continue");
       }
@@ -267,7 +268,7 @@ export default function AirtimeToCash() {
 
     setIsConfirming(true);
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = tokenStorage.getItem('accessToken');
       const requestId = currentRequest?.id || currentRequest?.requestId || requests.find(r => r.trackingId === currentRequest.trackingId)?.id;
       
       if (!requestId) {

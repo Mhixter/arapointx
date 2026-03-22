@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import QRCode from "react-qr-code";
 import html2canvas from "html2canvas";
 
-const getAuthToken = () => localStorage.getItem('accessToken');
+const getAuthToken = () => tokenStorage.getItem('accessToken');
 
 interface PINStock {
   available: boolean;

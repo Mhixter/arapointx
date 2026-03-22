@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +20,7 @@ const STATUS_OPTIONS = [
   { value: 'completed', label: 'Completed', color: 'bg-green-100 text-green-700' },
 ];
 
-const getAgentToken = () => localStorage.getItem('jambAgentToken');
+const getAgentToken = () => tokenStorage.getItem('jambAgentToken');
 
 export default function JAMBAgentDashboard() {
   const { toast } = useToast();
@@ -126,8 +127,8 @@ export default function JAMBAgentDashboard() {
   }, [filter]);
 
   const handleLogout = () => {
-    localStorage.removeItem('jambAgentToken');
-    localStorage.removeItem('jambAgentInfo');
+    tokenStorage.removeItem('jambAgentToken');
+    tokenStorage.removeItem('jambAgentInfo');
     toast({ title: "Logged out", description: "You have been logged out" });
     setLocation('/jamb/agent/login');
   };

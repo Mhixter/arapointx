@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,9 +33,9 @@ export default function SupportAgentLogin() {
         return;
       }
 
-      localStorage.setItem('adminToken', accessToken);
-      localStorage.setItem('adminRefreshToken', refreshToken);
-      localStorage.setItem('adminUser', JSON.stringify(admin));
+      tokenStorage.setItem('adminToken', accessToken);
+      tokenStorage.setItem('adminRefreshToken', refreshToken);
+      tokenStorage.setItem('adminUser', JSON.stringify(admin));
 
       toast({
         title: "Welcome!",

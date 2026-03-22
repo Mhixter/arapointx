@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,7 +17,7 @@ export default function FundWallet() {
   const [amount, setAmount] = useState<string>("");
   const [selectedGateway, setSelectedGateway] = useState<string>("paystack");
   const { toast } = useToast();
-  const accessToken = localStorage.getItem('accessToken');
+  const accessToken = tokenStorage.getItem('accessToken');
 
   const { data: profile, isLoading: profileLoading, isError: profileError } = useQuery({
     queryKey: ['profile'],

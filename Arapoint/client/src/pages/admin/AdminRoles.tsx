@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,7 +34,7 @@ const ALL_PERMISSIONS = [
   { key: "roles", label: "Role Management", description: "Manage admin roles and permissions" },
 ];
 
-const getAuthToken = () => localStorage.getItem('adminToken');
+const getAuthToken = () => tokenStorage.getItem('adminToken');
 
 export default function AdminRoles() {
   const { toast } = useToast();

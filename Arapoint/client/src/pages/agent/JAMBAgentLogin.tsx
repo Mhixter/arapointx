@@ -1,3 +1,4 @@
+import { tokenStorage } from '@/lib/tokenStorage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,8 +29,8 @@ export default function JAMBAgentLogin() {
       const data = await response.json();
 
       if (data.status === 'success') {
-        localStorage.setItem('jambAgentToken', data.data.token);
-        localStorage.setItem('jambAgentInfo', JSON.stringify(data.data.agent));
+        tokenStorage.setItem('jambAgentToken', data.data.token);
+        tokenStorage.setItem('jambAgentInfo', JSON.stringify(data.data.agent));
         toast({ title: "Welcome!", description: `Logged in as ${data.data.agent.name}` });
         setLocation('/jamb/agent/dashboard');
       } else {
