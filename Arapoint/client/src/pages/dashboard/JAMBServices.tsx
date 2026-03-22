@@ -260,6 +260,7 @@ export default function JAMBServices() {
 
   if (view === 'history') {
     return (
+      <>
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" onClick={() => setView('services')}>
@@ -419,6 +420,7 @@ export default function JAMBServices() {
           )}
         </DialogContent>
       </Dialog>
+      </>
     );
   }
 
