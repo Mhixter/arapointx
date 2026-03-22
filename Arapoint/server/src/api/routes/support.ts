@@ -16,10 +16,17 @@ import { logger } from '../../utils/logger';
 import OpenAI from 'openai';
 
 const router = Router();
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+let _openai: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  if (!_openai) {
+    _openai = new OpenAI({
+      apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || 'placeholder',
+      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+    });
+  }
+  return _openai;
+}
+const openai = { chat: { completions: { create: (...args: any[]) => getOpenAI().chat.completions.create(...args) } } } as unknown as OpenAI;
 
 router.use(authMiddleware);
 
