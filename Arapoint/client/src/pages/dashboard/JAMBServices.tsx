@@ -4,12 +4,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, AlertCircle, CheckCircle2, FileUp, FileText, FileCheck, RotateCw, ArrowRight, ArrowLeft, Clock, Upload } from "lucide-react";
+import { Loader2, CheckCircle2, FileUp, FileText, FileCheck, RotateCw, ArrowRight, ArrowLeft, Clock, Upload, Download, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { servicesApi } from "@/lib/api/services";
 import { handleApiError } from "@/lib/api/client";
+import { tokenStorage } from "@/lib/tokenStorage";
 
 const JAMB_SERVICES = [
   {
@@ -93,6 +94,11 @@ export default function JAMBServices() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedHistoryRequest, setSelectedHistoryRequest] = useState<any>(null);
+  const [historyDocuments, setHistoryDocuments] = useState<any[]>([]);
+  const [historyDetailLoading, setHistoryDetailLoading] = useState(false);
+  const [showHistoryDetail, setShowHistoryDetail] = useState(false);
+  const [downloadingDocId, setDownloadingDocId] = useState<string | null>(null);
 
   const service = selectedService ? JAMB_SERVICES.find(s => s.id === selectedService) : null;
 
@@ -113,6 +119,45 @@ export default function JAMBServices() {
       });
     } finally {
       setHistoryLoading(false);
+    }
+  };
+
+  const openHistoryDetail = async (req: any) => {
+    setSelectedHistoryRequest(req);
+    setHistoryDocuments([]);
+    setShowHistoryDetail(true);
+    setHistoryDetailLoading(true);
+    try {
+      const docs = await servicesApi.jamb.getDocuments(req.id);
+      setHistoryDocuments(docs);
+    } catch {
+      setHistoryDocuments([]);
+    } finally {
+      setHistoryDetailLoading(false);
+    }
+  };
+
+  const downloadDocument = async (requestId: string, docId: string, fileName: string) => {
+    setDownloadingDocId(docId);
+    try {
+      const token = tokenStorage.getItem('accessToken');
+      const response = await fetch(`/api/education/jamb-requests/${requestId}/documents/${docId}/download`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName || 'document';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: "Download Failed", description: "Could not download the document.", variant: "destructive" });
+    } finally {
+      setDownloadingDocId(null);
     }
   };
 
@@ -249,6 +294,7 @@ export default function JAMBServices() {
                     <TableHead>Status</TableHead>
                     <TableHead>Fee</TableHead>
                     <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -263,6 +309,12 @@ export default function JAMBServices() {
                       </TableCell>
                       <TableCell>₦{parseFloat(req.fee || '0').toLocaleString()}</TableCell>
                       <TableCell>{new Date(req.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="outline" size="sm" onClick={() => openHistoryDetail(req)}>
+                          <Eye className="h-4 w-4 mr-1" />
+                          Details
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -271,6 +323,102 @@ export default function JAMBServices() {
           </Card>
         )}
       </div>
+
+      <Dialog open={showHistoryDetail} onOpenChange={setShowHistoryDetail}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Request Details</DialogTitle>
+            <DialogDescription>{selectedHistoryRequest?.trackingId}</DialogDescription>
+          </DialogHeader>
+          {selectedHistoryRequest && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-muted-foreground text-xs">Service</Label>
+                  <p className="font-medium text-sm">{SERVICE_LABELS[selectedHistoryRequest.serviceType] || selectedHistoryRequest.serviceType}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Status</Label>
+                  <div className="mt-1">
+                    <Badge className={STATUS_COLORS[selectedHistoryRequest.status] || 'bg-gray-100 text-gray-700'}>
+                      {selectedHistoryRequest.status === 'pickup' ? 'Processing' : selectedHistoryRequest.status?.charAt(0).toUpperCase() + selectedHistoryRequest.status?.slice(1)}
+                    </Badge>
+                  </div>
+                </div>
+                {selectedHistoryRequest.candidateName && selectedHistoryRequest.candidateName !== 'N/A' && (
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Full Name</Label>
+                    <p className="font-medium text-sm">{selectedHistoryRequest.candidateName}</p>
+                  </div>
+                )}
+                {selectedHistoryRequest.registrationNumber && selectedHistoryRequest.registrationNumber !== 'N/A' && (
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Registration Number</Label>
+                    <p className="font-medium text-sm">{selectedHistoryRequest.registrationNumber}</p>
+                  </div>
+                )}
+                {selectedHistoryRequest.examYear && (
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Exam Year</Label>
+                    <p className="font-medium text-sm">{selectedHistoryRequest.examYear}</p>
+                  </div>
+                )}
+                <div>
+                  <Label className="text-muted-foreground text-xs">Date Submitted</Label>
+                  <p className="font-medium text-sm">{new Date(selectedHistoryRequest.createdAt).toLocaleString()}</p>
+                </div>
+              </div>
+
+              {selectedHistoryRequest.agentNotes && (
+                <div>
+                  <Label className="text-muted-foreground text-xs">Agent Notes</Label>
+                  <p className="text-sm bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 p-3 rounded-lg mt-1">
+                    {selectedHistoryRequest.agentNotes}
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <Label className="text-muted-foreground text-xs">Documents</Label>
+                {historyDetailLoading ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : historyDocuments.length === 0 ? (
+                  <p className="text-sm text-muted-foreground mt-2">No documents attached to this request.</p>
+                ) : (
+                  <div className="space-y-2 mt-2">
+                    {historyDocuments.map((doc: any) => (
+                      <div key={doc.id} className="flex items-center justify-between border rounded-lg p-3">
+                        <div className="flex items-center gap-2">
+                          <FileText className={`h-4 w-4 flex-shrink-0 ${doc.uploaderRole === 'agent' ? 'text-green-600' : 'text-blue-600'}`} />
+                          <div>
+                            <p className="text-sm font-medium">{doc.fileName || 'Document'}</p>
+                            <Badge variant="outline" className="text-xs mt-0.5">
+                              {doc.uploaderRole === 'agent' ? 'Result from Agent' : 'Your Upload'}
+                            </Badge>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={downloadingDocId === doc.id}
+                          onClick={() => downloadDocument(selectedHistoryRequest.id, doc.id, doc.fileName)}
+                        >
+                          {downloadingDocId === doc.id
+                            ? <Loader2 className="h-4 w-4 animate-spin" />
+                            : <><Download className="h-4 w-4 mr-1" />Download</>
+                          }
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     );
   }
 

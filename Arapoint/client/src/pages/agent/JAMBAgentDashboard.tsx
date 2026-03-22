@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, Loader2, Clock, CheckCircle2, User, LogOut, FileText, RefreshCw, Eye, Upload } from "lucide-react";
+import { BookOpen, Loader2, Clock, CheckCircle2, User, LogOut, FileText, RefreshCw, Eye, Upload, Download } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -229,10 +229,28 @@ export default function JAMBAgentDashboard() {
       'olevel-upload': "O'Level Upload",
       'admission-letter': "Admission Letter",
       'original-result': "Original Result",
-
       'reprinting-caps': "Reprinting & Caps",
     };
     return labels[type] || type;
+  };
+
+  const FIELD_LABELS: Record<string, string> = {
+    examBody: 'Exam Body',
+    email: 'Email Address',
+    pin: 'JAMB Result PIN',
+    itemType: 'Item Type',
+    quantity: 'Quantity',
+    phoneNumber: 'Phone Number',
+    address: 'Address',
+    stateOfOrigin: 'State of Origin',
+    lgaOfOrigin: 'LGA of Origin',
+  };
+
+  const ALREADY_SHOWN_KEYS = new Set(['fullName', 'regNumber', 'examYear', 'jamb-reg']);
+
+  const getExtraRequestFields = (requestData: any) => {
+    if (!requestData || typeof requestData !== 'object') return [];
+    return Object.entries(requestData).filter(([key]) => !ALREADY_SHOWN_KEYS.has(key));
   };
 
   return (
@@ -453,6 +471,46 @@ export default function JAMBAgentDashboard() {
                   </div>
                 )}
               </div>
+
+              {getExtraRequestFields(selectedRequest.requestData).length > 0 && (
+                <div>
+                  <Label className="text-muted-foreground">Additional Customer Information</Label>
+                  <div className="grid grid-cols-2 gap-3 mt-2 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                    {getExtraRequestFields(selectedRequest.requestData).map(([key, value]) => (
+                      <div key={key}>
+                        <p className="text-xs text-muted-foreground">
+                          {FIELD_LABELS[key] || key.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </p>
+                        <p className="text-sm font-medium">{String(value)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedRequest.customerNotes && (() => {
+                try {
+                  const notes = typeof selectedRequest.customerNotes === 'string'
+                    ? JSON.parse(selectedRequest.customerNotes) : selectedRequest.customerNotes;
+                  const extra = Object.entries(notes).filter(([key]) => !ALREADY_SHOWN_KEYS.has(key) && !selectedRequest.requestData?.[key]);
+                  if (extra.length === 0) return null;
+                  return (
+                    <div>
+                      <Label className="text-muted-foreground">Additional Notes</Label>
+                      <div className="grid grid-cols-2 gap-3 mt-2 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                        {extra.map(([key, val]) => (
+                          <div key={key}>
+                            <p className="text-xs text-muted-foreground">
+                              {FIELD_LABELS[key] || key.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </p>
+                            <p className="text-sm font-medium">{String(val)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                } catch { return null; }
+              })()}
 
               {selectedRequest.agentNotes && (
                 <div>

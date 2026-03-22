@@ -266,6 +266,9 @@ router.get('/jamb-requests', async (req: Request, res: Response) => {
       id: jambServiceRequests.id,
       trackingId: jambServiceRequests.trackingId,
       serviceType: jambServiceRequests.serviceType,
+      candidateName: jambServiceRequests.candidateName,
+      registrationNumber: jambServiceRequests.registrationNumber,
+      examYear: jambServiceRequests.examYear,
       status: jambServiceRequests.status,
       fee: jambServiceRequests.fee,
       resultUrl: jambServiceRequests.resultUrl,
@@ -308,6 +311,45 @@ router.get('/jamb-requests/:id/documents', async (req: Request, res: Response) =
   } catch (error: any) {
     logger.error('Get JAMB documents error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to get documents'));
+  }
+});
+
+router.get('/jamb-requests/:id/documents/:docId/download', async (req: Request, res: Response) => {
+  try {
+    const { id, docId } = req.params;
+
+    const [request] = await db.select()
+      .from(jambServiceRequests)
+      .where(and(
+        eq(jambServiceRequests.id, id),
+        eq(jambServiceRequests.userId, req.userId!)
+      ))
+      .limit(1);
+
+    if (!request) {
+      return res.status(404).json(formatErrorResponse(404, 'Request not found'));
+    }
+
+    const [doc] = await db.select()
+      .from(jambRequestDocuments)
+      .where(and(
+        eq(jambRequestDocuments.id, docId),
+        eq(jambRequestDocuments.requestId, id)
+      ))
+      .limit(1);
+
+    if (!doc) {
+      return res.status(404).json(formatErrorResponse(404, 'Document not found'));
+    }
+
+    const file = await jambObjectStorage.getObjectEntityFile(doc.fileKey);
+    res.setHeader('Content-Disposition', `attachment; filename="${doc.fileName || 'document'}"`);
+    await jambObjectStorage.downloadObject(file, res);
+  } catch (error: any) {
+    logger.error('Download JAMB document error', { error: error.message });
+    if (!res.headersSent) {
+      res.status(500).json(formatErrorResponse(500, 'Failed to download document'));
+    }
   }
 });
 
