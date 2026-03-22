@@ -5,9 +5,10 @@ import { authMiddleware } from '../middleware/auth';
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { adminUsers, adminRoles } from '../../db/schema';
+import { adminUsers, adminRoles, users } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
+import { otpService } from '../../services/otpService';
 import jwt from 'jsonwebtoken';
 import { config } from '../../config/env';
 
@@ -162,9 +163,15 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
       return res.status(400).json(formatErrorResponse(400, 'Email is required'));
     }
 
-    logger.info('Password reset requested', { email });
-    
-    res.json(formatResponse('success', 200, 'If the email exists, a reset link has been sent'));
+    const [user] = await db.select({ id: users.id }).from(users).where(eq(users.email, email.toLowerCase())).limit(1);
+    if (user) {
+      await otpService.sendOTP(email.toLowerCase(), 'password_reset');
+      logger.info('Password reset OTP sent', { email });
+    } else {
+      logger.info('Password reset requested for non-existent email', { email });
+    }
+
+    res.json(formatResponse('success', 200, 'If an account with that email exists, a reset code has been sent'));
   } catch (error: any) {
     logger.error('Forgot password error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to process request'));
@@ -173,18 +180,30 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
 
 router.post('/reset-password', async (req: Request, res: Response) => {
   try {
-    const { token, password } = req.body;
+    const { email, otp, newPassword } = req.body;
     
-    if (!token || !password) {
-      return res.status(400).json(formatErrorResponse(400, 'Token and password are required'));
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json(formatErrorResponse(400, 'Email, OTP code, and new password are required'));
     }
 
-    if (password.length < 8) {
+    if (newPassword.length < 8) {
       return res.status(400).json(formatErrorResponse(400, 'Password must be at least 8 characters'));
     }
 
-    logger.info('Password reset completed');
-    
+    const isValid = await otpService.verifyOTP(email.toLowerCase(), otp, 'password_reset');
+    if (!isValid) {
+      return res.status(400).json(formatErrorResponse(400, 'Invalid or expired OTP code'));
+    }
+
+    const [user] = await db.select({ id: users.id }).from(users).where(eq(users.email, email.toLowerCase())).limit(1);
+    if (!user) {
+      return res.status(400).json(formatErrorResponse(400, 'Account not found'));
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, user.id));
+
+    logger.info('Password reset completed', { userId: user.id });
     res.json(formatResponse('success', 200, 'Password reset successfully'));
   } catch (error: any) {
     logger.error('Reset password error', { error: error.message });
