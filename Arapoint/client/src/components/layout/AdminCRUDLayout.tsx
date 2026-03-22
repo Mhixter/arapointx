@@ -20,7 +20,9 @@ import {
   ChevronLeft,
   Building2,
   IdCard,
-  BookOpen
+  BookOpen,
+  MessageSquare,
+  Receipt
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -34,12 +36,12 @@ import arapointLogo from "@assets/generated_images/arapoint_solution_logo.png";
 const ADMIN_ROLES: Record<string, { name: string; permissions: string[]; color: string }> = {
   super_admin: {
     name: "Super Admin",
-    permissions: ["users", "identity", "bvn", "education", "vtu", "cac", "pricing", "analytics", "settings", "roles", "support"],
+    permissions: ["users", "identity", "bvn", "education", "vtu", "cac", "pricing", "analytics", "settings", "roles", "support", "transactions", "whatsapp"],
     color: "bg-red-500"
   },
   admin: {
     name: "Admin",
-    permissions: ["users", "identity", "bvn", "education", "vtu", "cac", "analytics", "support"],
+    permissions: ["users", "identity", "bvn", "education", "vtu", "cac", "analytics", "settings", "support", "transactions"],
     color: "bg-blue-500"
   },
   operator: {
@@ -74,6 +76,8 @@ const ALL_NAV_ITEMS = [
   { href: "/admin/pricing", label: "Pricing Management", icon: DollarSign, permission: "pricing" },
   { href: "/admin/support", label: "Support Chat", icon: Headset, permission: "support" },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3, permission: "analytics" },
+  { href: "/admin/transactions", label: "Transactions", icon: Receipt, permission: "transactions" },
+  { href: "/admin/whatsapp", label: "WhatsApp", icon: MessageSquare, permission: "whatsapp" },
   { href: "/admin/roles", label: "Role Management", icon: Shield, permission: "roles" },
   { href: "/admin/settings", label: "Settings", icon: Settings, permission: "settings" },
 ];

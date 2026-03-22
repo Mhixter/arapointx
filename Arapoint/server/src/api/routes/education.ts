@@ -857,7 +857,6 @@ router.post('/pins/purchase', async (req: Request, res: Response) => {
         examType: normalizedExamType, 
         userId: req.userId, 
         orderId: order.id,
-        pinId: selectedPin.id 
       });
 
       res.json(formatResponse('success', 200, `${examType.toUpperCase()} PIN delivered successfully`, {

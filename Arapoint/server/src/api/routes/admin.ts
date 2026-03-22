@@ -2502,7 +2502,7 @@ router.delete('/education-pins/:id', async (req: Request, res: Response) => {
 
     await db.delete(educationPins).where(eq(educationPins.id, id));
 
-    logger.info('PIN deleted', { pinId: id, adminId: req.userId });
+    logger.info('PIN deleted', { adminId: req.userId });
     res.json(formatResponse('success', 200, 'PIN deleted successfully'));
   } catch (error: any) {
     logger.error('Delete PIN error', { error: error.message });
