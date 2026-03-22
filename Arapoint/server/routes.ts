@@ -34,7 +34,6 @@ import supportRoutes from "./src/api/routes/support";
 import { publicRateLimiter, authenticatedRateLimiter } from "./src/api/middleware/rateLimit";
 import { errorHandler } from "./src/api/middleware/errorHandler";
 import { authMiddleware } from "./src/api/middleware/auth";
-import { rpaBot } from "./src/rpa/bot";
 import { logger } from "./src/utils/logger";
 
 import { registerObjectStorageRoutes } from "./src/replit_integrations/object_storage";
@@ -279,18 +278,6 @@ export async function registerRoutes(
       code: 404,
       message: 'API endpoint not found',
     });
-  });
-
-  // RPA Bot status endpoint
-  app.get('/api/rpa/status', (req, res) => {
-    res.json(rpaBot.getStatus());
-  });
-
-  // Start RPA Bot for processing jobs
-  rpaBot.start().then(() => {
-    logger.info('RPA Bot successfully started');
-  }).catch((err: any) => {
-    logger.error('Failed to start RPA Bot', { error: err.message });
   });
 
   return httpServer;
