@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, AlertCircle, CheckCircle2, FileUp, FileText, FileCheck, RotateCw, ArrowRight, ArrowLeft, Clock, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { servicesApi } from "@/lib/api/services";
+import { handleApiError } from "@/lib/api/client";
 
 const JAMB_SERVICES = [
   {
@@ -164,9 +165,12 @@ export default function JAMBServices() {
       });
     } catch (error: any) {
       setIsLoading(false);
+      const message = error.response?.data?.message || handleApiError(error);
       toast({
-        title: "Submission Failed",
-        description: error.message || "Failed to submit request. Please check your balance.",
+        title: message === 'Insufficient wallet balance' ? "Insufficient Balance" : "Submission Failed",
+        description: message === 'Insufficient wallet balance'
+          ? "You do not have enough wallet balance to complete this request. Please fund your wallet and try again."
+          : message,
         variant: "destructive"
       });
     }
