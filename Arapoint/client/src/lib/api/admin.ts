@@ -134,9 +134,9 @@ export const adminApi = {
     return response.data.data;
   },
 
-  getTransactions: async (page = 1, limit = 20, userId?: string): Promise<{ transactions: AdminTransaction[]; pagination: any }> => {
-    const response = await adminApiClient.get<ApiResponse<{ transactions: AdminTransaction[]; pagination: any }>>('/admin/transactions', {
-      params: { page, limit, ...(userId ? { userId } : {}) },
+  getTransactions: async (page = 1, limit = 20, userId?: string, filters?: { type?: string; startDate?: string; endDate?: string }): Promise<{ transactions: AdminTransaction[]; pagination: any; totals?: { credits: number; debits: number } }> => {
+    const response = await adminApiClient.get<ApiResponse<{ transactions: AdminTransaction[]; pagination: any; totals?: { credits: number; debits: number } }>>('/admin/transactions', {
+      params: { page, limit, ...(userId ? { userId } : {}), ...(filters?.type && filters.type !== 'all' ? { type: filters.type } : {}), ...(filters?.startDate ? { startDate: filters.startDate } : {}), ...(filters?.endDate ? { endDate: filters.endDate } : {}) },
     });
     return response.data.data;
   },

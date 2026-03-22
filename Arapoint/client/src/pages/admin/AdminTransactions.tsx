@@ -2,18 +2,24 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Loader2, RefreshCw, Eye, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Wallet, Receipt } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ArrowLeft, Loader2, RefreshCw, Eye, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Wallet, Receipt, CalendarDays, Filter, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { adminApi } from "@/lib/api/admin";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { tokenStorage } from "@/lib/tokenStorage";
 
 interface Props {
   filterUserId?: string;
   filterUserName?: string;
   embedded?: boolean;
 }
+
+type Period = 'all' | 'today' | 'week' | 'month' | 'custom';
 
 const TYPE_LABELS: Record<string, string> = {
   fund_wallet: 'Wallet Funding',
@@ -54,23 +60,24 @@ const TYPE_LABELS: Record<string, string> = {
 
 const TYPE_COLORS: Record<string, string> = {
   wallet_funding: 'bg-green-100 text-green-800 border-green-200',
+  fund_wallet: 'bg-green-100 text-green-800 border-green-200',
   admin_fund: 'bg-emerald-100 text-emerald-800 border-emerald-200',
   admin_debit: 'bg-red-100 text-red-800 border-red-200',
   airtime_purchase: 'bg-blue-100 text-blue-800 border-blue-200',
   data_purchase: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-  electricity_payment: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  cable_payment: 'bg-purple-100 text-purple-800 border-purple-200',
+  electricity_purchase: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  cable_purchase: 'bg-purple-100 text-purple-800 border-purple-200',
   jamb_service: 'bg-orange-100 text-orange-800 border-orange-200',
 };
+
+const ALL_TX_TYPES = Object.keys(TYPE_LABELS);
 
 function getTypeLabel(type: string) {
   return TYPE_LABELS[type] || type?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown';
 }
-
 function getTypeColor(type: string) {
   return TYPE_COLORS[type] || 'bg-gray-100 text-gray-800 border-gray-200';
 }
-
 function getStatusColor(status: string) {
   switch (status?.toLowerCase()) {
     case 'successful':
@@ -80,49 +87,101 @@ function getStatusColor(status: string) {
     default: return 'bg-gray-100 text-gray-800 border-gray-200';
   }
 }
-
 function formatAmount(amount: string) {
   const num = parseFloat(amount);
   return { value: Math.abs(num), positive: num >= 0 };
 }
-
 function formatDate(dateString: string, short = false) {
-  if (short) {
-    return new Date(dateString).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' });
+  if (short) return new Date(dateString).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' });
+  return new Date(dateString).toLocaleString('en-NG', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+function toDateInputValue(d: Date) {
+  return d.toISOString().split('T')[0];
+}
+
+function getPeriodDates(period: Period, customStart: string, customEnd: string): { startDate?: string; endDate?: string } {
+  const now = new Date();
+  if (period === 'today') {
+    return { startDate: toDateInputValue(now), endDate: toDateInputValue(now) };
   }
-  return new Date(dateString).toLocaleString('en-NG', {
-    year: 'numeric', month: 'long', day: 'numeric',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-  });
+  if (period === 'week') {
+    const start = new Date(now);
+    start.setDate(now.getDate() - 6);
+    return { startDate: toDateInputValue(start), endDate: toDateInputValue(now) };
+  }
+  if (period === 'month') {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { startDate: toDateInputValue(start), endDate: toDateInputValue(now) };
+  }
+  if (period === 'custom') {
+    return { startDate: customStart || undefined, endDate: customEnd || undefined };
+  }
+  return {};
+}
+
+function periodLabel(period: Period) {
+  if (period === 'today') return 'Today';
+  if (period === 'week') return 'Last 7 Days';
+  if (period === 'month') return 'This Month';
+  if (period === 'custom') return 'Custom Range';
+  return 'All Time';
 }
 
 export default function AdminTransactions({ filterUserId, filterUserName, embedded }: Props = {}) {
   const [, navigate] = useLocation();
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState('all');
+  const [period, setPeriod] = useState<Period>('all');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+  const [showCustom, setShowCustom] = useState(false);
   const [selectedTx, setSelectedTx] = useState<any>(null);
+  const [appliedCustomStart, setAppliedCustomStart] = useState('');
+  const [appliedCustomEnd, setAppliedCustomEnd] = useState('');
 
-  useEffect(() => {
-    setPage(1);
-  }, [filterUserId]);
+  useEffect(() => { setPage(1); }, [filterUserId]);
+  useEffect(() => { setPage(1); }, [typeFilter, period, appliedCustomStart, appliedCustomEnd]);
+
+  const { startDate, endDate } = getPeriodDates(
+    period,
+    period === 'custom' ? appliedCustomStart : '',
+    period === 'custom' ? appliedCustomEnd : '',
+  );
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ['admin-transactions', page, filterUserId],
-    queryFn: () => adminApi.getTransactions(page, 20, filterUserId),
+    queryKey: ['admin-transactions', page, filterUserId, typeFilter, startDate, endDate],
+    queryFn: () => adminApi.getTransactions(page, 20, filterUserId, {
+      type: typeFilter !== 'all' ? typeFilter : undefined,
+      startDate,
+      endDate,
+    }),
     refetchInterval: 30000,
   });
 
   const allTransactions: any[] = data?.transactions || [];
   const pagination = data?.pagination;
+  const totals = data?.totals;
 
-  const transactions = typeFilter === 'all'
-    ? allTransactions
-    : allTransactions.filter(tx => tx.transactionType === typeFilter);
+  const activeFilterCount = [
+    typeFilter !== 'all' ? 1 : 0,
+    period !== 'all' ? 1 : 0,
+  ].reduce((a, b) => a + b, 0);
 
-  const uniqueTypes = Array.from(new Set(allTransactions.map(tx => tx.transactionType))).filter(Boolean);
+  function clearFilters() {
+    setTypeFilter('all');
+    setPeriod('all');
+    setCustomStart('');
+    setCustomEnd('');
+    setAppliedCustomStart('');
+    setAppliedCustomEnd('');
+    setPage(1);
+  }
 
-  const totalCredits = allTransactions.filter(tx => parseFloat(tx.amount) >= 0).reduce((s, tx) => s + parseFloat(tx.amount), 0);
-  const totalDebits = allTransactions.filter(tx => parseFloat(tx.amount) < 0).reduce((s, tx) => s + Math.abs(parseFloat(tx.amount)), 0);
+  function applyCustomRange() {
+    setAppliedCustomStart(customStart);
+    setAppliedCustomEnd(customEnd);
+    setShowCustom(false);
+  }
 
   if (!embedded && isLoading) {
     return (
@@ -163,6 +222,7 @@ export default function AdminTransactions({ filterUserId, filterUserName, embedd
             </div>
           </div>
 
+          {/* Summary Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card className="border-0 shadow-sm bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30">
               <CardContent className="pt-5 pb-4">
@@ -171,8 +231,12 @@ export default function AdminTransactions({ filterUserId, filterUserName, embedd
                     <TrendingUp className="h-5 w-5 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Credits (page)</p>
-                    <p className="text-lg font-bold text-green-700">₦{totalCredits.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Credits {period !== 'all' ? `(${periodLabel(period)})` : '(All Time)'}
+                    </p>
+                    <p className="text-lg font-bold text-green-700">
+                      ₦{(totals?.credits || 0).toLocaleString()}
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -184,8 +248,12 @@ export default function AdminTransactions({ filterUserId, filterUserName, embedd
                     <TrendingDown className="h-5 w-5 text-red-600" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Debits (page)</p>
-                    <p className="text-lg font-bold text-red-700">₦{totalDebits.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Debits {period !== 'all' ? `(${periodLabel(period)})` : '(All Time)'}
+                    </p>
+                    <p className="text-lg font-bold text-red-700">
+                      ₦{(totals?.debits || 0).toLocaleString()}
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -197,7 +265,7 @@ export default function AdminTransactions({ filterUserId, filterUserName, embedd
                     <Receipt className="h-5 w-5 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Total Records</p>
+                    <p className="text-xs text-muted-foreground">Matching Records</p>
                     <p className="text-lg font-bold text-blue-700">{pagination?.total || 0}</p>
                   </div>
                 </div>
@@ -210,8 +278,10 @@ export default function AdminTransactions({ filterUserId, filterUserName, embedd
                     <Wallet className="h-5 w-5 text-purple-600" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">This Page</p>
-                    <p className="text-lg font-bold text-purple-700">{allTransactions.length}</p>
+                    <p className="text-xs text-muted-foreground">Net Flow</p>
+                    <p className={`text-lg font-bold ${(totals?.credits || 0) - (totals?.debits || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                      {(totals?.credits || 0) - (totals?.debits || 0) >= 0 ? '+' : ''}₦{Math.abs((totals?.credits || 0) - (totals?.debits || 0)).toLocaleString()}
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -222,30 +292,109 @@ export default function AdminTransactions({ filterUserId, filterUserName, embedd
 
       <Card className="shadow-sm border-0 ring-1 ring-border/60">
         <CardHeader className="px-5 py-4 border-b bg-muted/30">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <CardTitle className="text-base font-semibold">
-              {filterUserName ? `${filterUserName}'s Transactions` : 'All Transactions'}
-              <span className="ml-2 text-sm font-normal text-muted-foreground">({pagination?.total || 0})</span>
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              {embedded && (
-                <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching} className="h-8">
-                  <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isFetching ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
-              )}
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="h-8 w-44 text-xs">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <CardTitle className="text-base font-semibold">
+                {filterUserName ? `${filterUserName}'s Transactions` : 'All Transactions'}
+                <span className="ml-2 text-sm font-normal text-muted-foreground">({pagination?.total || 0})</span>
+              </CardTitle>
+              <div className="flex items-center gap-2 flex-wrap">
+                {embedded && (
+                  <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching} className="h-8">
+                    <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isFetching ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                )}
+                {activeFilterCount > 0 && (
+                  <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground" onClick={clearFilters}>
+                    <X className="h-3.5 w-3.5 mr-1" />
+                    Clear filters
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="flex flex-wrap gap-2 items-end">
+              {/* Period presets */}
+              <div className="flex gap-1 flex-wrap">
+                {(['all', 'today', 'week', 'month'] as Period[]).map(p => (
+                  <Button
+                    key={p}
+                    variant={period === p ? 'default' : 'outline'}
+                    size="sm"
+                    className="h-8 text-xs px-3"
+                    onClick={() => setPeriod(p)}
+                  >
+                    {p === 'all' ? 'All Time' : p === 'today' ? 'Today' : p === 'week' ? 'Last 7 Days' : 'This Month'}
+                  </Button>
+                ))}
+                {/* Custom date range */}
+                <Popover open={showCustom} onOpenChange={setShowCustom}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={period === 'custom' ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-8 text-xs px-3"
+                      onClick={() => { setPeriod('custom'); setShowCustom(true); }}
+                    >
+                      <CalendarDays className="h-3.5 w-3.5 mr-1.5" />
+                      {period === 'custom' && appliedCustomStart ? `${appliedCustomStart} → ${appliedCustomEnd || '...'}` : 'Custom'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-4" align="start">
+                    <p className="text-sm font-semibold mb-3">Custom Date Range</p>
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">From</Label>
+                        <Input type="date" className="h-8 text-xs" value={customStart} onChange={e => setCustomStart(e.target.value)} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">To</Label>
+                        <Input type="date" className="h-8 text-xs" value={customEnd} onChange={e => setCustomEnd(e.target.value)} min={customStart} />
+                      </div>
+                      <Button size="sm" className="w-full h-8 text-xs" onClick={applyCustomRange} disabled={!customStart}>
+                        Apply Range
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Type filter */}
+              <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(1); }}>
+                <SelectTrigger className="h-8 w-48 text-xs">
+                  <Filter className="h-3 w-3 mr-1.5 text-muted-foreground" />
                   <SelectValue placeholder="Filter by type" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
-                  {uniqueTypes.map(t => (
+                  {ALL_TX_TYPES.map(t => (
                     <SelectItem key={t} value={t}>{getTypeLabel(t)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Active filter summary */}
+            {(period !== 'all' || typeFilter !== 'all') && (
+              <div className="flex flex-wrap gap-1.5 items-center">
+                <span className="text-xs text-muted-foreground">Filtered by:</span>
+                {period !== 'all' && (
+                  <Badge variant="secondary" className="text-xs gap-1">
+                    <CalendarDays className="h-3 w-3" />
+                    {periodLabel(period)}
+                    {period === 'custom' && appliedCustomStart && `: ${appliedCustomStart}${appliedCustomEnd ? ` → ${appliedCustomEnd}` : ''}`}
+                  </Badge>
+                )}
+                {typeFilter !== 'all' && (
+                  <Badge variant="secondary" className="text-xs gap-1">
+                    <Filter className="h-3 w-3" />
+                    {getTypeLabel(typeFilter)}
+                  </Badge>
+                )}
+              </div>
+            )}
           </div>
         </CardHeader>
 
@@ -260,10 +409,13 @@ export default function AdminTransactions({ filterUserId, filterUserName, embedd
               <p className="text-sm text-destructive">Failed to load transactions</p>
               <Button variant="outline" size="sm" onClick={() => refetch()}>Try Again</Button>
             </div>
-          ) : transactions.length === 0 ? (
+          ) : allTransactions.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-12 text-muted-foreground">
               <Receipt className="h-10 w-10 opacity-30" />
-              <p className="text-sm">No transactions found</p>
+              <p className="text-sm">No transactions found for the selected filters</p>
+              {activeFilterCount > 0 && (
+                <Button variant="ghost" size="sm" className="text-xs mt-1" onClick={clearFilters}>Clear filters</Button>
+              )}
             </div>
           ) : (
             <>
@@ -281,7 +433,7 @@ export default function AdminTransactions({ filterUserId, filterUserName, embedd
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/50">
-                    {transactions.map((tx: any) => {
+                    {allTransactions.map((tx: any) => {
                       const { value, positive } = formatAmount(tx.amount);
                       return (
                         <tr key={tx.id} className="hover:bg-muted/30 transition-colors group">
@@ -302,16 +454,14 @@ export default function AdminTransactions({ filterUserId, filterUserName, embedd
                               {getTypeLabel(tx.transactionType)}
                             </Badge>
                           </td>
-                          <td className="px-4 py-3.5 max-w-[180px]">
+                          <td className="px-4 py-3.5 max-w-[200px]">
                             <p className="text-sm text-muted-foreground truncate">
-                              {tx.transactionType?.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) || '—'}
+                              {tx.description || getTypeLabel(tx.transactionType)}
                             </p>
                           </td>
                           <td className="px-4 py-3.5 text-right whitespace-nowrap">
                             <div className={`flex items-center justify-end gap-1 font-semibold ${positive ? 'text-green-600' : 'text-red-600'}`}>
-                              {positive
-                                ? <ArrowUpRight className="h-3.5 w-3.5" />
-                                : <ArrowDownRight className="h-3.5 w-3.5" />}
+                              {positive ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
                               ₦{value.toLocaleString()}
                             </div>
                           </td>
@@ -338,7 +488,7 @@ export default function AdminTransactions({ filterUserId, filterUserName, embedd
               </div>
 
               <div className="md:hidden divide-y divide-border/50">
-                {transactions.map((tx: any) => {
+                {allTransactions.map((tx: any) => {
                   const { value, positive } = formatAmount(tx.amount);
                   return (
                     <div
@@ -347,9 +497,7 @@ export default function AdminTransactions({ filterUserId, filterUserName, embedd
                       onClick={() => setSelectedTx(tx)}
                     >
                       <div className={`h-9 w-9 rounded-full flex items-center justify-center flex-shrink-0 ${positive ? 'bg-green-100' : 'bg-red-100'}`}>
-                        {positive
-                          ? <ArrowUpRight className="h-4 w-4 text-green-600" />
-                          : <ArrowDownRight className="h-4 w-4 text-red-600" />}
+                        {positive ? <ArrowUpRight className="h-4 w-4 text-green-600" /> : <ArrowDownRight className="h-4 w-4 text-red-600" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
@@ -359,10 +507,8 @@ export default function AdminTransactions({ filterUserId, filterUserName, embedd
                           </p>
                         </div>
                         <div className="flex items-center justify-between gap-2 mt-0.5">
-                          <p className="text-xs text-muted-foreground truncate">{tx.userEmail || tx.transactionType?.replace(/_/g, ' ') || '—'}</p>
-                          <Badge variant="outline" className={`text-[10px] flex-shrink-0 ${getStatusColor(tx.status)}`}>
-                            {tx.status}
-                          </Badge>
+                          <p className="text-xs text-muted-foreground truncate">{tx.description || tx.userEmail || '—'}</p>
+                          <Badge variant="outline" className={`text-[10px] flex-shrink-0 ${getStatusColor(tx.status)}`}>{tx.status}</Badge>
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-0.5">{formatDate(tx.createdAt, true)}</p>
                       </div>
@@ -402,9 +548,7 @@ export default function AdminTransactions({ filterUserId, filterUserName, embedd
               </div>
               Transaction Detail
             </DialogTitle>
-            <DialogDescription>
-              {selectedTx?.referenceId || 'No reference'}
-            </DialogDescription>
+            <DialogDescription>{selectedTx?.referenceId || 'No reference'}</DialogDescription>
           </DialogHeader>
 
           {selectedTx && (() => {
@@ -417,24 +561,25 @@ export default function AdminTransactions({ filterUserId, filterUserName, embedd
                     {positive ? '+' : '-'}₦{value.toLocaleString()}
                   </p>
                 </div>
-
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-muted/40 rounded-lg p-3">
                     <p className="text-xs text-muted-foreground mb-1">Status</p>
-                    <Badge variant="outline" className={`text-xs ${getStatusColor(selectedTx.status)}`}>
-                      {selectedTx.status || 'unknown'}
-                    </Badge>
+                    <Badge variant="outline" className={`text-xs ${getStatusColor(selectedTx.status)}`}>{selectedTx.status || 'unknown'}</Badge>
                   </div>
                   <div className="bg-muted/40 rounded-lg p-3">
                     <p className="text-xs text-muted-foreground mb-1">Type</p>
-                    <Badge variant="outline" className={`text-xs ${getTypeColor(selectedTx.transactionType)}`}>
-                      {getTypeLabel(selectedTx.transactionType)}
-                    </Badge>
+                    <Badge variant="outline" className={`text-xs ${getTypeColor(selectedTx.transactionType)}`}>{getTypeLabel(selectedTx.transactionType)}</Badge>
                   </div>
                   <div className="bg-muted/40 rounded-lg p-3 col-span-2">
                     <p className="text-xs text-muted-foreground mb-1">Date & Time</p>
                     <p className="text-sm font-medium">{formatDate(selectedTx.createdAt)}</p>
                   </div>
+                  {selectedTx.description && (
+                    <div className="bg-muted/40 rounded-lg p-3 col-span-2">
+                      <p className="text-xs text-muted-foreground mb-1">Description</p>
+                      <p className="text-sm">{selectedTx.description}</p>
+                    </div>
+                  )}
                   {!embedded && selectedTx.userName && (
                     <div className="bg-muted/40 rounded-lg p-3 col-span-2">
                       <p className="text-xs text-muted-foreground mb-1">User</p>
@@ -442,10 +587,6 @@ export default function AdminTransactions({ filterUserId, filterUserName, embedd
                       <p className="text-xs text-muted-foreground">{selectedTx.userEmail}</p>
                     </div>
                   )}
-                  <div className="bg-muted/40 rounded-lg p-3 col-span-2">
-                    <p className="text-xs text-muted-foreground mb-1">Service</p>
-                    <p className="text-sm">{getTypeLabel(selectedTx.transactionType)}</p>
-                  </div>
                   {selectedTx.referenceId && (
                     <div className="bg-muted/40 rounded-lg p-3 col-span-2">
                       <p className="text-xs text-muted-foreground mb-1">Reference ID</p>
@@ -459,10 +600,7 @@ export default function AdminTransactions({ filterUserId, filterUserName, embedd
                     </div>
                   )}
                 </div>
-
-                <Button variant="outline" className="w-full" onClick={() => setSelectedTx(null)}>
-                  Close
-                </Button>
+                <Button variant="outline" className="w-full" onClick={() => setSelectedTx(null)}>Close</Button>
               </div>
             );
           })()}

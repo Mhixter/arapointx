@@ -52,7 +52,7 @@ import { whatsappService } from '../../services/whatsappService';
 import { scrapeNbaisSchools, getSchoolsCount } from '../../rpa/workers/nbaisSchoolScraper';
 import { browserPool } from '../../rpa/browserPool';
 import bcrypt from 'bcryptjs';
-import { eq, desc, count, sql, and, or, gt, asc } from 'drizzle-orm';
+import { eq, desc, count, sql, and, or, gt, asc, gte, lte } from 'drizzle-orm';
 import OpenAI from 'openai';
 
 let _openai: OpenAI | null = null;
@@ -1124,30 +1124,55 @@ router.get('/transactions', async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 20;
     const offset = (page - 1) * limit;
     const filterUserId = req.query.userId as string | undefined;
+    const filterType = req.query.type as string | undefined;
+    const startDate = req.query.startDate as string | undefined;
+    const endDate = req.query.endDate as string | undefined;
 
-    const baseQuery = db.select({
+    // Build WHERE conditions
+    const conditions: any[] = [];
+    if (filterUserId) conditions.push(eq(transactions.userId, filterUserId));
+    if (filterType && filterType !== 'all') conditions.push(eq(transactions.transactionType, filterType));
+    if (startDate) conditions.push(gte(transactions.createdAt, new Date(startDate)));
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      conditions.push(lte(transactions.createdAt, end));
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const baseSelect = db.select({
       id: transactions.id,
       userId: transactions.userId,
       transactionType: transactions.transactionType,
       amount: transactions.amount,
+      description: transactions.description,
       paymentMethod: transactions.paymentMethod,
       referenceId: transactions.referenceId,
       status: transactions.status,
       createdAt: transactions.createdAt,
       userName: users.name,
       userEmail: users.email,
-    })
-      .from(transactions)
-      .leftJoin(users, eq(transactions.userId, users.id));
+    }).from(transactions).leftJoin(users, eq(transactions.userId, users.id));
 
-    const transactionList = filterUserId
-      ? await baseQuery.where(eq(transactions.userId, filterUserId)).orderBy(desc(transactions.createdAt)).limit(limit).offset(offset)
-      : await baseQuery.orderBy(desc(transactions.createdAt)).limit(limit).offset(offset);
+    const transactionList = whereClause
+      ? await baseSelect.where(whereClause).orderBy(desc(transactions.createdAt)).limit(limit).offset(offset)
+      : await baseSelect.orderBy(desc(transactions.createdAt)).limit(limit).offset(offset);
 
-    const countQuery = db.select({ count: count() }).from(transactions);
-    const [totalCount] = filterUserId
-      ? await countQuery.where(eq(transactions.userId, filterUserId))
-      : await countQuery;
+    // Total count for pagination
+    const countQ = db.select({ count: count() }).from(transactions);
+    const [totalCount] = whereClause
+      ? await countQ.where(whereClause)
+      : await countQ;
+
+    // Total credits and debits for the entire filtered period (not just this page)
+    const totalsQ = db.select({
+      totalCredits: sql<number>`COALESCE(SUM(CASE WHEN amount >= 0 THEN amount::numeric ELSE 0 END), 0)`,
+      totalDebits: sql<number>`COALESCE(SUM(CASE WHEN amount < 0 THEN ABS(amount::numeric) ELSE 0 END), 0)`,
+    }).from(transactions);
+    const [totals] = whereClause
+      ? await totalsQ.where(whereClause)
+      : await totalsQ;
 
     res.json(formatResponse('success', 200, 'Transactions retrieved', {
       transactions: transactionList,
@@ -1156,6 +1181,10 @@ router.get('/transactions', async (req: Request, res: Response) => {
         limit,
         total: totalCount?.count || 0,
         totalPages: Math.ceil((totalCount?.count || 0) / limit),
+      },
+      totals: {
+        credits: Number(totals?.totalCredits || 0),
+        debits: Number(totals?.totalDebits || 0),
       },
     }));
   } catch (error: any) {
