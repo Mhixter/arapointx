@@ -165,6 +165,42 @@ router.get('/transactions', authMiddleware, async (req: Request, res: Response) 
       .from(transactions)
       .where(eq(transactions.userId, userId));
 
+    const TX_LABELS: Record<string, string> = {
+      fund_wallet: 'Wallet Funding',
+      wallet_funding: 'Wallet Funding',
+      admin_fund: 'Admin Funding',
+      admin_debit: 'Admin Debit',
+      refund: 'Refund',
+      nin_verification: 'NIN Verification',
+      vnin_verification: 'Virtual NIN Verification',
+      nin_phone_verification: 'NIN Phone Verification',
+      nin_validation: 'NIN Validation',
+      nin_tracking: 'NIN With Tracking ID',
+      ipe_clearance: 'IPE Clearance',
+      birth_attestation: 'Birth Attestation',
+      bvn_verification: 'BVN Verification',
+      bvn_digital_card: 'BVN Digital Card',
+      bvn_modification: 'BVN Modification',
+      airtime_purchase: 'Airtime Purchase',
+      data_purchase: 'Data Purchase',
+      electricity_purchase: 'Electricity Payment',
+      cable_purchase: 'Cable TV Subscription',
+      cac_registration: 'CAC Registration',
+      education_service: 'Education Service',
+      jamb_service: 'JAMB Service',
+      jamb_olevel_upload: "JAMB O'Level Upload",
+      jamb_admission_letter: 'JAMB Admission Letter',
+      jamb_original_result: 'JAMB Original Result',
+      jamb_reprinting_caps: 'JAMB Reprinting & Caps',
+      jamb_score_lookup: 'JAMB Score Lookup',
+      waec_result_lookup: 'WAEC Result Lookup',
+      neco_result_lookup: 'NECO Result Lookup',
+      nabteb_result_lookup: 'NABTEB Result Lookup',
+      nbais_result_lookup: 'NBAIS Result Lookup',
+      pin_purchase: 'Exam PIN Purchase',
+      service_purchase: 'Service Purchase',
+    };
+
     res.json({
       status: 'success',
       code: 200,
@@ -175,11 +211,12 @@ router.get('/transactions', authMiddleware, async (req: Request, res: Response) 
         transactions: recentTransactions.map((tx) => ({
           id: tx.id,
           type: isCredit(tx.transactionType || '') ? 'credit' : 'debit',
-          description: tx.transactionType?.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || 'Transaction',
+          description: (tx as any).description || TX_LABELS[tx.transactionType || ''] || tx.transactionType?.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || 'Transaction',
           amount: parseFloat(tx.amount as string || '0'),
           status: tx.status,
           date: tx.createdAt,
           reference: tx.referenceId,
+          transactionType: tx.transactionType,
         })),
       },
     });

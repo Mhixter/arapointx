@@ -30,7 +30,7 @@ router.post('/request', async (req: Request, res: Response) => {
     const serviceInfo = await pricingService.getPricing(serviceId).catch(() => ({ serviceName: serviceId.replace(/-/g, ' ').toUpperCase() }));
 
     // Deduct balance
-    await walletService.deductBalance(req.userId!, price, `Education Service: ${serviceInfo.serviceName}`);
+    await walletService.deductBalance(req.userId!, price, `Education Service: ${serviceInfo.serviceName}`, 'education_service');
 
     const trackingId = `EDU${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 100)}`;
 
@@ -95,7 +95,7 @@ router.post('/jamb-request', async (req: Request, res: Response) => {
         return res.status(400).json(formatErrorResponse(400, `Not enough ${examType.toUpperCase()} PINs in stock. Available: ${stockCount?.count || 0}`));
       }
 
-      await walletService.deductBalance(req.userId!, totalPrice, `${examType.toUpperCase()} PIN Purchase x${quantity}`);
+      await walletService.deductBalance(req.userId!, totalPrice, `${examType.toUpperCase()} PIN Purchase x${quantity}`, 'pin_purchase');
 
       const deliveredPins: any[] = [];
       for (let i = 0; i < quantity; i++) {
@@ -183,11 +183,26 @@ router.post('/jamb-request', async (req: Request, res: Response) => {
       'reprinting-caps': 3000,
     };
 
+    const JAMB_LABELS: Record<string, string> = {
+      'olevel-upload': "JAMB O'Level Upload",
+      'admission-letter': 'JAMB Admission Letter',
+      'original-result': 'JAMB Original Result',
+      'reprinting-caps': 'JAMB Reprinting & Caps',
+    };
+
+    const JAMB_TYPES: Record<string, string> = {
+      'olevel-upload': 'jamb_olevel_upload',
+      'admission-letter': 'jamb_admission_letter',
+      'original-result': 'jamb_original_result',
+      'reprinting-caps': 'jamb_reprinting_caps',
+    };
+
     const price = JAMB_PRICES[serviceId] || 2000;
-    const serviceName = serviceId.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+    const serviceLabel = JAMB_LABELS[serviceId] || serviceId.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+    const serviceType = JAMB_TYPES[serviceId] || 'jamb_service';
 
     if (price > 0) {
-      await walletService.deductBalance(req.userId!, price, `JAMB Service: ${serviceName}`);
+      await walletService.deductBalance(req.userId!, price, serviceLabel, serviceType);
     }
 
     const trackingId = `JMB${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 100)}`;
@@ -366,7 +381,7 @@ router.post('/jamb', async (req: Request, res: Response) => {
     }
 
     const price = await pricingService.getPrice('jamb');
-    await walletService.deductBalance(req.userId!, price, 'JAMB Score Lookup');
+    await walletService.deductBalance(req.userId!, price, 'JAMB Score Lookup', 'jamb_score_lookup');
 
     const job = await jobService.createEducationJob(req.userId!, {
       serviceType: 'jamb',
@@ -401,7 +416,7 @@ router.post('/waec', async (req: Request, res: Response) => {
     }
 
     const price = await pricingService.getPrice('waec');
-    await walletService.deductBalance(req.userId!, price, 'WAEC Result Lookup');
+    await walletService.deductBalance(req.userId!, price, 'WAEC Result Lookup', 'waec_result_lookup');
 
     const job = await jobService.createEducationJob(req.userId!, {
       serviceType: 'waec',
@@ -439,7 +454,7 @@ router.post('/neco', async (req: Request, res: Response) => {
     }
 
     const price = await pricingService.getPrice('neco');
-    await walletService.deductBalance(req.userId!, price, 'NECO Result Lookup');
+    await walletService.deductBalance(req.userId!, price, 'NECO Result Lookup', 'neco_result_lookup');
 
     const job = await jobService.createEducationJob(req.userId!, {
       serviceType: 'neco',
@@ -476,7 +491,7 @@ router.post('/nabteb', async (req: Request, res: Response) => {
     }
 
     const price = await pricingService.getPrice('nabteb');
-    await walletService.deductBalance(req.userId!, price, 'NABTEB Result Lookup');
+    await walletService.deductBalance(req.userId!, price, 'NABTEB Result Lookup', 'nabteb_result_lookup');
 
     const job = await jobService.createEducationJob(req.userId!, {
       serviceType: 'nabteb',
@@ -513,7 +528,7 @@ router.post('/nbais', async (req: Request, res: Response) => {
     }
 
     const price = await pricingService.getPrice('nbais');
-    await walletService.deductBalance(req.userId!, price, 'NBAIS Result Lookup');
+    await walletService.deductBalance(req.userId!, price, 'NBAIS Result Lookup', 'nbais_result_lookup');
 
     const job = await jobService.createEducationJob(req.userId!, {
       serviceType: 'nbais',

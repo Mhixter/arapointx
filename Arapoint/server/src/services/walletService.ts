@@ -35,11 +35,12 @@ export const walletService = {
 
       await tx.insert(transactions).values({
         userId,
-        transactionType: 'fund_wallet',
+        transactionType: 'wallet_funding',
         amount: amount.toFixed(2),
         paymentMethod,
         referenceId: reference,
         status: 'successful',
+        description: 'Wallet Funding',
       });
     });
 
@@ -77,6 +78,7 @@ export const walletService = {
         paymentMethod: 'wallet',
         referenceId: reference,
         status: 'successful',
+        description,
       });
     });
 

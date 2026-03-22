@@ -192,6 +192,7 @@ export const transactions = pgTable('transactions', {
   paymentMethod: varchar('payment_method', { length: 50 }),
   referenceId: varchar('reference_id', { length: 100 }),
   status: varchar('status', { length: 50 }),
+  description: text('description'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
