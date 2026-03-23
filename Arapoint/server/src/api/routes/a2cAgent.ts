@@ -517,6 +517,18 @@ router.patch('/inventory/:id', a2cAgentAuthMiddleware, async (req: Request, res:
       return res.status(404).json(formatErrorResponse(404, 'Inventory item not found'));
     }
 
+    if (isActive === false && existing.isActive) {
+      const activeCount = await db.select({ count: count() })
+        .from(a2cPhoneInventory)
+        .where(and(
+          eq(a2cPhoneInventory.agentId, req.agentId!),
+          eq(a2cPhoneInventory.isActive, true)
+        ));
+      if ((activeCount[0]?.count || 0) <= 3) {
+        return res.status(400).json(formatErrorResponse(400, 'You must keep at least 3 active phone numbers. Add another number before deactivating this one.'));
+      }
+    }
+
     const updateData: any = { updatedAt: new Date() };
     if (typeof isActive === 'boolean') updateData.isActive = isActive;
     if (dailyLimit) updateData.dailyLimit = dailyLimit.toString();
@@ -550,6 +562,18 @@ router.delete('/inventory/:id', a2cAgentAuthMiddleware, async (req: Request, res
 
     if (!existing) {
       return res.status(404).json(formatErrorResponse(404, 'Inventory item not found'));
+    }
+
+    if (existing.isActive) {
+      const activeCount = await db.select({ count: count() })
+        .from(a2cPhoneInventory)
+        .where(and(
+          eq(a2cPhoneInventory.agentId, req.agentId!),
+          eq(a2cPhoneInventory.isActive, true)
+        ));
+      if ((activeCount[0]?.count || 0) <= 3) {
+        return res.status(400).json(formatErrorResponse(400, 'You must keep at least 3 active phone numbers. Deactivate this number or add another before removing it.'));
+      }
     }
 
     await db.delete(a2cPhoneInventory).where(eq(a2cPhoneInventory.id, id));

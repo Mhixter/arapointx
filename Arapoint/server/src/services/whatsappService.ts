@@ -253,6 +253,14 @@ class WhatsAppService {
       amount?: number;
       description?: string;
       userId?: string;
+      // A2C-specific
+      receivingNumber?: string;
+      customerPhone?: string;
+      network?: string;
+      cashAmount?: number;
+      bankName?: string;
+      accountNumber?: string;
+      accountName?: string;
     }
   ): Promise<string> {
     const templateMap: Record<string, string> = {
@@ -265,6 +273,24 @@ class WhatsAppService {
 
     const templateName = templateMap[requestDetails.requestType] || 'new_request';
 
+    const variables: Record<string, string> = {
+      request_id: requestDetails.requestId,
+      customer_name: requestDetails.customerName || 'Customer',
+      amount: requestDetails.amount?.toLocaleString() || '0',
+      description: requestDetails.description || requestDetails.requestType,
+      request_type: requestDetails.requestType.replace(/_/g, ' ').toUpperCase(),
+    };
+
+    if (requestDetails.requestType === 'a2c_request') {
+      variables.receiving_number = requestDetails.receivingNumber || 'N/A';
+      variables.customer_phone = requestDetails.customerPhone || 'N/A';
+      variables.network = requestDetails.network || 'N/A';
+      variables.cash_amount = requestDetails.cashAmount?.toLocaleString() || '0';
+      variables.bank_name = requestDetails.bankName || 'N/A';
+      variables.account_number = requestDetails.accountNumber || 'N/A';
+      variables.account_name = requestDetails.accountName || 'N/A';
+    }
+
     return this.queueNotification({
       agentType,
       agentId,
@@ -272,13 +298,7 @@ class WhatsAppService {
       requestType: requestDetails.requestType,
       requestId: requestDetails.requestId,
       templateName,
-      variables: {
-        request_id: requestDetails.requestId,
-        customer_name: requestDetails.customerName || 'Customer',
-        amount: requestDetails.amount?.toLocaleString() || '0',
-        description: requestDetails.description || requestDetails.requestType,
-        request_type: requestDetails.requestType.replace(/_/g, ' ').toUpperCase(),
-      },
+      variables,
     });
   }
 
@@ -313,9 +333,9 @@ class WhatsAppService {
       {
         templateName: 'new_a2c_request',
         displayName: 'New Airtime to Cash Request',
-        description: 'Sent when a user submits an airtime to cash request',
-        templateContent: 'New airtime to cash request!\n\nRequest ID: {{request_id}}\nAmount: ₦{{amount}}\nCustomer: {{customer_name}}\n\nUser has confirmed sending airtime. Please verify and process.',
-        variables: ['request_id', 'amount', 'customer_name'],
+        description: 'Sent when a user confirms airtime sent for an A2C request',
+        templateContent: '🔔 *NEW AIRTIME TO CASH REQUEST*\n\nRequest ID: {{request_id}}\nNetwork: {{network}}\nAirtime Amount: ₦{{amount}}\nCash to Pay: ₦{{cash_amount}}\n\n📱 *Customer Details*\nName: {{customer_name}}\nPhone: {{customer_phone}}\n\n📞 *Receiving Number (Airtime sent to)*\n{{receiving_number}}\n\n🏦 *Payout Bank Details*\nBank: {{bank_name}}\nAccount No: {{account_number}}\nAccount Name: {{account_name}}\n\nPlease verify airtime receipt and process payment promptly.',
+        variables: ['request_id', 'network', 'amount', 'cash_amount', 'customer_name', 'customer_phone', 'receiving_number', 'bank_name', 'account_number', 'account_name'],
         category: 'transactional',
       },
       {
@@ -345,15 +365,17 @@ class WhatsAppService {
     ];
 
     for (const template of defaultTemplates) {
-      const existing = await db
-        .select()
-        .from(whatsappTemplates)
-        .where(eq(whatsappTemplates.templateName, template.templateName))
-        .limit(1);
-
-      if (existing.length === 0) {
-        await db.insert(whatsappTemplates).values(template);
-      }
+      await db.insert(whatsappTemplates)
+        .values(template)
+        .onConflictDoUpdate({
+          target: whatsappTemplates.templateName,
+          set: {
+            displayName: template.displayName,
+            description: template.description,
+            templateContent: template.templateContent,
+            variables: template.variables,
+          },
+        });
     }
   }
 }

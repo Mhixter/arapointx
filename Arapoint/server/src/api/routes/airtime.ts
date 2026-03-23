@@ -9,7 +9,7 @@ import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { db } from '../../config/database';
 import { airtimeServices, a2cRequests, a2cPhoneInventory, a2cAgents, a2cStatusHistory, users } from '../../db/schema';
 import { whatsappService } from '../../services/whatsappService';
-import { eq, desc, and, sql, asc, gte } from 'drizzle-orm';
+import { eq, desc, and, sql, asc, gte, notInArray } from 'drizzle-orm';
 
 const router = Router();
 router.use(authMiddleware);
@@ -170,11 +170,58 @@ router.post('/to-cash', async (req: Request, res: Response) => {
       return res.status(400).json(formatErrorResponse(400, 'Maximum amount is ₦50,000'));
     }
 
+    // Block new request if user already has an active one
+    const [activeRequest] = await db.select({
+      id: a2cRequests.id,
+      trackingId: a2cRequests.trackingId,
+      status: a2cRequests.status,
+      receivingNumber: a2cRequests.receivingNumber,
+      airtimeAmount: a2cRequests.airtimeAmount,
+      cashAmount: a2cRequests.cashAmount,
+      bankName: a2cRequests.bankName,
+      accountNumber: a2cRequests.accountNumber,
+      accountName: a2cRequests.accountName,
+      network: a2cRequests.network,
+    })
+      .from(a2cRequests)
+      .where(and(
+        eq(a2cRequests.userId, req.userId!),
+        sql`${a2cRequests.status} IN ('pending', 'airtime_sent', 'processing')`
+      ))
+      .limit(1);
+
+    if (activeRequest) {
+      return res.status(409).json({
+        status: 'error',
+        code: 409,
+        message: 'You already have an active request. Please complete or cancel it before submitting a new one.',
+        data: { existingRequest: activeRequest },
+      });
+    }
+
     const rate = await pricingService.getA2CRate(network.toLowerCase()) || DEFAULT_A2C_RATES[network.toLowerCase()] || 70;
     const calculatedCashValue = amount * rate / 100;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
+    // Find inventory numbers that are busy with a pending/active order today
+    const busyInventoryRows = await db.select({ inventoryId: a2cRequests.inventoryId })
+      .from(a2cRequests)
+      .where(and(
+        sql`${a2cRequests.status} IN ('pending', 'airtime_sent', 'processing')`,
+        gte(a2cRequests.createdAt, today)
+      ));
+    const busyIds = busyInventoryRows.map(r => r.inventoryId).filter(Boolean) as string[];
+
+    const inventoryConditions: any[] = [
+      eq(a2cPhoneInventory.network, network.toLowerCase()),
+      eq(a2cPhoneInventory.isActive, true),
+      sql`(${a2cPhoneInventory.dailyLimit} - ${a2cPhoneInventory.usedToday}) >= ${amount}`,
+    ];
+    if (busyIds.length > 0) {
+      inventoryConditions.push(notInArray(a2cPhoneInventory.id, busyIds));
+    }
 
     const availableInventory = await db.select({
       id: a2cPhoneInventory.id,
@@ -185,16 +232,12 @@ router.post('/to-cash', async (req: Request, res: Response) => {
       usedToday: a2cPhoneInventory.usedToday,
     })
       .from(a2cPhoneInventory)
-      .where(and(
-        eq(a2cPhoneInventory.network, network.toLowerCase()),
-        eq(a2cPhoneInventory.isActive, true),
-        sql`(${a2cPhoneInventory.dailyLimit} - ${a2cPhoneInventory.usedToday}) >= ${amount}`
-      ))
+      .where(and(...inventoryConditions))
       .orderBy(asc(a2cPhoneInventory.priority), asc(a2cPhoneInventory.usedToday))
       .limit(1);
 
     if (availableInventory.length === 0) {
-      return res.status(503).json(formatErrorResponse(503, 'No receiving numbers available for this network. Please try again later.'));
+      return res.status(503).json(formatErrorResponse(503, 'No receiving numbers available for this network right now. Please try again later.'));
     }
 
     const inventoryNumber = availableInventory[0];
@@ -302,7 +345,7 @@ router.post('/to-cash/:id/confirm-sent', async (req: Request, res: Response) => 
     });
 
     if (request.assignedAgentId) {
-      const [user] = await db.select({ name: users.name }).from(users).where(eq(users.id, req.userId!)).limit(1);
+      const [user] = await db.select({ name: users.name, phone: users.phone }).from(users).where(eq(users.id, req.userId!)).limit(1);
       whatsappService.notifyAgentOfNewRequest('a2c', request.assignedAgentId, {
         requestId: request.trackingId,
         requestType: 'a2c_request',
@@ -310,6 +353,13 @@ router.post('/to-cash/:id/confirm-sent', async (req: Request, res: Response) => 
         amount: parseFloat(request.airtimeAmount),
         description: `Airtime to Cash - ${request.network.toUpperCase()}`,
         userId: req.userId,
+        receivingNumber: request.receivingNumber,
+        customerPhone: user?.phone || request.phoneNumber,
+        network: request.network.toUpperCase(),
+        cashAmount: parseFloat(request.cashAmount),
+        bankName: request.bankName,
+        accountNumber: request.accountNumber,
+        accountName: request.accountName,
       }).catch(err => logger.error('Failed to queue WhatsApp notification', { error: err.message }));
     }
 
@@ -323,6 +373,86 @@ router.post('/to-cash/:id/confirm-sent', async (req: Request, res: Response) => 
   } catch (error: any) {
     logger.error('Confirm A2C sent error', { error: error.message, userId: req.userId });
     res.status(500).json(formatErrorResponse(500, 'Failed to confirm'));
+  }
+});
+
+router.get('/to-cash/active', async (req: Request, res: Response) => {
+  try {
+    const [activeRequest] = await db.select({
+      id: a2cRequests.id,
+      trackingId: a2cRequests.trackingId,
+      network: a2cRequests.network,
+      phoneNumber: a2cRequests.phoneNumber,
+      airtimeAmount: a2cRequests.airtimeAmount,
+      cashAmount: a2cRequests.cashAmount,
+      receivingNumber: a2cRequests.receivingNumber,
+      bankName: a2cRequests.bankName,
+      accountNumber: a2cRequests.accountNumber,
+      accountName: a2cRequests.accountName,
+      status: a2cRequests.status,
+      createdAt: a2cRequests.createdAt,
+    })
+      .from(a2cRequests)
+      .where(and(
+        eq(a2cRequests.userId, req.userId!),
+        sql`${a2cRequests.status} IN ('pending', 'airtime_sent', 'processing')`
+      ))
+      .orderBy(desc(a2cRequests.createdAt))
+      .limit(1);
+
+    res.json(formatResponse('success', 200, 'Active request', { request: activeRequest || null }));
+  } catch (error: any) {
+    logger.error('Get active A2C request error', { error: error.message, userId: req.userId });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get active request'));
+  }
+});
+
+router.post('/to-cash/:id/cancel', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const [request] = await db.select()
+      .from(a2cRequests)
+      .where(and(
+        eq(a2cRequests.id, id),
+        eq(a2cRequests.userId, req.userId!)
+      ))
+      .limit(1);
+
+    if (!request) {
+      return res.status(404).json(formatErrorResponse(404, 'Request not found'));
+    }
+
+    if (request.status !== 'pending') {
+      return res.status(400).json(formatErrorResponse(400,
+        request.status === 'airtime_sent'
+          ? 'Cannot cancel — airtime may already be in transit. Please contact support if there is an issue.'
+          : 'This request cannot be cancelled.'
+      ));
+    }
+
+    await db.update(a2cRequests)
+      .set({ status: 'cancelled', updatedAt: new Date() })
+      .where(eq(a2cRequests.id, id));
+
+    await db.insert(a2cStatusHistory).values({
+      requestId: id,
+      actorType: 'user',
+      actorId: req.userId,
+      previousStatus: 'pending',
+      newStatus: 'cancelled',
+      note: 'Cancelled by user before sending airtime',
+    });
+
+    logger.info('A2C request cancelled by user', { requestId: id, userId: req.userId, trackingId: request.trackingId });
+
+    res.json(formatResponse('success', 200, 'Request cancelled successfully', {
+      trackingId: request.trackingId,
+      status: 'cancelled',
+    }));
+  } catch (error: any) {
+    logger.error('Cancel A2C request error', { error: error.message, userId: req.userId });
+    res.status(500).json(formatErrorResponse(500, 'Failed to cancel request'));
   }
 });
 

@@ -108,6 +108,9 @@ export default function AirtimeToCash() {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [currentRequest, setCurrentRequest] = useState<any>(null);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [waitingRequest, setWaitingRequest] = useState<A2CRequest | null>(null);
+  const [activeCheckLoading, setActiveCheckLoading] = useState(true);
   const [requests, setRequests] = useState<A2CRequest[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [activeTab, setActiveTab] = useState("convert");
@@ -122,6 +125,7 @@ export default function AirtimeToCash() {
 
   useEffect(() => {
     fetchRates();
+    checkActiveRequest();
   }, []);
 
   useEffect(() => {
@@ -129,6 +133,65 @@ export default function AirtimeToCash() {
       fetchHistory();
     }
   }, [activeTab]);
+
+  const checkActiveRequest = async () => {
+    setActiveCheckLoading(true);
+    try {
+      const token = tokenStorage.getItem('accessToken');
+      const response = await fetch('/api/airtime/to-cash/active', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (response.ok && data.data?.request) {
+        const req = data.data.request;
+        if (req.status === 'pending') {
+          setCurrentRequest({
+            id: req.id,
+            requestId: req.id,
+            trackingId: req.trackingId,
+            receivingNumber: req.receivingNumber,
+            amount: parseFloat(req.airtimeAmount),
+            cashValue: parseFloat(req.cashAmount),
+            network: req.network,
+            bankDetails: {
+              bankName: req.bankName,
+              accountNumber: req.accountNumber,
+              accountName: req.accountName,
+            },
+          });
+          setShowConfirmDialog(true);
+        } else {
+          setWaitingRequest(req);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to check active request', err);
+    } finally {
+      setActiveCheckLoading(false);
+    }
+  };
+
+  const handleCancelRequest = async () => {
+    const requestId = currentRequest?.id || currentRequest?.requestId;
+    if (!requestId) return;
+    setIsCancelling(true);
+    try {
+      const token = tokenStorage.getItem('accessToken');
+      const response = await fetch(`/api/airtime/to-cash/${requestId}/cancel`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Failed to cancel');
+      setShowConfirmDialog(false);
+      setCurrentRequest(null);
+      toast({ title: "Request Cancelled", description: "Your request has been cancelled. You can now submit a new one." });
+    } catch (err: any) {
+      toast({ title: "Cannot Cancel", description: err.message, variant: "destructive" });
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   const fetchRates = async () => {
     try {
@@ -241,6 +304,26 @@ export default function AirtimeToCash() {
 
       const data = await response.json();
 
+      if (response.status === 409 && data.data?.existingRequest) {
+        const existing = data.data.existingRequest;
+        setCurrentRequest({
+          id: existing.id,
+          requestId: existing.id,
+          trackingId: existing.trackingId,
+          receivingNumber: existing.receivingNumber,
+          amount: parseFloat(existing.airtimeAmount),
+          cashValue: parseFloat(existing.cashAmount),
+          network: existing.network,
+          bankDetails: {
+            bankName: existing.bankName,
+            accountNumber: existing.accountNumber,
+            accountName: existing.accountName,
+          },
+        });
+        setShowConfirmDialog(true);
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(data.message || 'Request failed');
       }
@@ -337,6 +420,40 @@ export default function AirtimeToCash() {
         </TabsList>
 
         <TabsContent value="convert" className="space-y-4 mt-4">
+          {activeCheckLoading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : waitingRequest ? (
+            <Card className="border-orange-200 bg-orange-50 dark:bg-orange-900/20">
+              <CardContent className="pt-5 pb-5">
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-full bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center shrink-0">
+                    <Clock className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-orange-800 dark:text-orange-300">Request In Progress</p>
+                    <p className="text-sm text-orange-700 dark:text-orange-400 mt-1">
+                      We have received your airtime. Your cash payment is being processed and will be sent to your bank shortly.
+                    </p>
+                    <div className="mt-3 space-y-1 text-sm">
+                      <p className="text-muted-foreground">Tracking ID: <span className="font-mono font-medium">{waitingRequest.trackingId}</span></p>
+                      <p className="text-muted-foreground">Airtime: <span className="font-semibold">₦{parseFloat(waitingRequest.airtimeAmount).toLocaleString()}</span></p>
+                      <p className="text-muted-foreground">Cash to receive: <span className="font-semibold text-green-700">₦{parseFloat(waitingRequest.cashAmount).toLocaleString()}</span></p>
+                      <p className="text-muted-foreground">Bank: <span className="font-medium">{waitingRequest.bankName} — {waitingRequest.accountNumber}</span></p>
+                      <div className="mt-2">
+                        <Badge variant="outline" className="text-orange-700 border-orange-300">
+                          {STATUS_BADGES[waitingRequest.status]?.label || waitingRequest.status}
+                        </Badge>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-3">You cannot submit a new request while this one is being processed. Check the History tab for updates.</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+          <>
           <Alert className="border-blue-200 bg-blue-50">
             <Info className="h-4 w-4 text-blue-600" />
             <AlertDescription className="text-blue-800 text-sm">
@@ -480,6 +597,8 @@ export default function AirtimeToCash() {
               </form>
             </CardContent>
           </Card>
+          </>
+          )}
         </TabsContent>
 
         <TabsContent value="history" className="mt-4">
@@ -596,15 +715,17 @@ export default function AirtimeToCash() {
 
           <DialogFooter className="flex-col gap-2 sm:flex-row">
             <Button 
-              variant="outline" 
-              onClick={() => setShowConfirmDialog(false)} 
-              className="w-full sm:w-auto"
+              variant="outline"
+              onClick={handleCancelRequest}
+              disabled={isCancelling || isConfirming}
+              className="w-full sm:w-auto border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
             >
-              Cancel
+              {isCancelling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />}
+              Cancel Request
             </Button>
             <Button 
               onClick={handleConfirmSent} 
-              disabled={isConfirming}
+              disabled={isConfirming || isCancelling}
               className="w-full sm:w-auto bg-green-600 hover:bg-green-700"
             >
               {isConfirming ? (
