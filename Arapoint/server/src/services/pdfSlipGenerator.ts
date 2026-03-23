@@ -579,23 +579,34 @@ export const generatePdfSlip = async (
   const pdfFilename = `${slipReference}.pdf`;
   const pdfPath = path.join(outputDir, pdfFilename);
 
+  const chromiumPath =
+    process.env.PUPPETEER_EXECUTABLE_PATH ||
+    process.env.CHROMIUM_PATH ||
+    "/nix/store/qa9cnw4v5xkxyip6mb9kxqfq1z4x2dx1-chromium-138.0.7204.100/bin/chromium";
+
   let browser = null;
   try {
     browser = await puppeteer.launch({
       headless: true,
+      executablePath: chromiumPath,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
-        "--disable-accelerated-2d-canvas",
         "--disable-gpu",
+        "--disable-software-rasterizer",
         "--no-first-run",
         "--no-zygote",
-        "--single-process",
+        "--disable-background-networking",
+        "--disable-default-apps",
+        "--disable-extensions",
+        "--disable-sync",
+        "--mute-audio",
       ],
     });
 
     const page = await browser.newPage();
+    await page.setDefaultTimeout(60000);
 
     const dimensions =
       slipType === "full_info"
@@ -604,7 +615,7 @@ export const generatePdfSlip = async (
 
     await page.setViewport(dimensions);
 
-    await page.setContent(populatedHtml, { waitUntil: "networkidle0" });
+    await page.setContent(populatedHtml, { waitUntil: "networkidle0", timeout: 60000 });
 
     await page.pdf({
       path: pdfPath,

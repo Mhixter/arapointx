@@ -693,7 +693,11 @@ router.post('/nin', async (req: Request, res: Response) => {
 
       logger.info('PDF slip generated', { slipReference: pdfSlipResult.slipReference, userId: req.userId });
     } catch (pdfError: any) {
-      logger.error('Failed to generate PDF slip', { error: pdfError.message, userId: req.userId });
+      logger.error('Failed to generate PDF slip', { 
+        error: pdfError.message, 
+        stack: pdfError.stack?.split('\n').slice(0, 5).join(' | '),
+        userId: req.userId 
+      });
     }
 
     await db.insert(identityVerifications).values({
