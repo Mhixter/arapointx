@@ -127,7 +127,7 @@ export default function SupportAgentDashboard() {
   const userScrolledUpRef = useRef(false);
 
   const [agent, setAgent] = useState<any>(null);
-  const [mainTab, setMainTab] = useState<"tickets" | "lookup" | "fraud">("tickets");
+  const [mainTab, setMainTab] = useState<"tickets" | "lookup" | "fraud" | "teach">("tickets");
 
   // Tickets state
   const [tickets, setTickets] = useState<any[]>([]);
@@ -173,6 +173,21 @@ export default function SupportAgentDashboard() {
   const [resolveModal, setResolveModal] = useState<{ id: string; mode: "resolve" | "dismiss" } | null>(null);
   const [resolveNote, setResolveNote] = useState("");
   const [resolvingAlert, setResolvingAlert] = useState(false);
+
+  // AI Teach state
+  const [unresolvedQueries, setUnresolvedQueries] = useState<any[]>([]);
+  const [kbEntries, setKbEntries] = useState<any[]>([]);
+  const [aiStats, setAiStats] = useState<any>(null);
+  const [teachLoading, setTeachLoading] = useState(false);
+  const [resolveQueryId, setResolveQueryId] = useState<string | null>(null);
+  const [resolveQueryAnswer, setResolveQueryAnswer] = useState("");
+  const [resolveQueryCategory, setResolveQueryCategory] = useState("general");
+  const [resolveAddToKb, setResolveAddToKb] = useState(true);
+  const [submittingResolve, setSubmittingResolve] = useState(false);
+  const [newKbEntry, setNewKbEntry] = useState({ question: "", answer: "", category: "general", variations: "", tags: "" });
+  const [addingKbEntry, setAddingKbEntry] = useState(false);
+  const [showAddKb, setShowAddKb] = useState(false);
+  const [kbActiveSection, setKbActiveSection] = useState<"unresolved" | "knowledge">("unresolved");
 
   useEffect(() => {
     try {
@@ -296,7 +311,60 @@ export default function SupportAgentDashboard() {
 
   useEffect(() => {
     if (mainTab === "fraud") fetchFraudAlerts();
+    if (mainTab === "teach") fetchAiData();
   }, [mainTab, fetchFraudAlerts]);
+
+  const fetchAiData = async () => {
+    setTeachLoading(true);
+    try {
+      const [unresolvedRes, kbRes] = await Promise.all([
+        adminApiClient.get("/admin/ai/unresolved?limit=100"),
+        adminApiClient.get("/admin/ai/knowledge"),
+      ]);
+      setUnresolvedQueries(unresolvedRes.data.data.queries || []);
+      setKbEntries(kbRes.data.data.entries || []);
+      setAiStats(kbRes.data.data.stats || null);
+    } catch {} finally { setTeachLoading(false); }
+  };
+
+  const submitQueryResolve = async () => {
+    if (!resolveQueryId || !resolveQueryAnswer.trim()) return;
+    setSubmittingResolve(true);
+    try {
+      await adminApiClient.post(`/admin/ai/unresolved/${resolveQueryId}/resolve`, {
+        answer: resolveQueryAnswer,
+        addToKb: resolveAddToKb,
+        category: resolveQueryCategory,
+      });
+      setResolveQueryId(null);
+      setResolveQueryAnswer("");
+      fetchAiData();
+    } catch {} finally { setSubmittingResolve(false); }
+  };
+
+  const submitNewKbEntry = async () => {
+    if (!newKbEntry.question.trim() || !newKbEntry.answer.trim()) return;
+    setAddingKbEntry(true);
+    try {
+      await adminApiClient.post("/admin/ai/knowledge", {
+        question: newKbEntry.question,
+        answer: newKbEntry.answer,
+        category: newKbEntry.category,
+        variations: newKbEntry.variations ? newKbEntry.variations.split('\n').map(s => s.trim()).filter(Boolean) : [],
+        tags: newKbEntry.tags ? newKbEntry.tags.split(',').map(s => s.trim()).filter(Boolean) : [],
+      });
+      setNewKbEntry({ question: "", answer: "", category: "general", variations: "", tags: "" });
+      setShowAddKb(false);
+      fetchAiData();
+    } catch {} finally { setAddingKbEntry(false); }
+  };
+
+  const deleteKbEntry = async (id: string) => {
+    try {
+      await adminApiClient.delete(`/admin/ai/knowledge/${id}`);
+      fetchAiData();
+    } catch {}
+  };
 
   const handleScrollChange = useCallback(() => {
     const el = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
@@ -551,7 +619,8 @@ export default function SupportAgentDashboard() {
             { id: "tickets", label: "My Tickets", icon: <Inbox className="h-4 w-4" /> },
             { id: "lookup", label: "Transaction Lookup", icon: <Search className="h-4 w-4" /> },
             { id: "fraud", label: "Fraud Alerts", icon: <ShieldAlert className="h-4 w-4" /> },
-          ].map((tab) => (
+            { id: "teach", label: "Teach AI", icon: <Bot className="h-4 w-4" />, badge: unresolvedQueries.length > 0 ? unresolvedQueries.length : null },
+          ].map((tab: any) => (
             <button
               key={tab.id}
               onClick={() => setMainTab(tab.id as any)}
@@ -563,6 +632,7 @@ export default function SupportAgentDashboard() {
             >
               {tab.icon}
               {tab.label}
+              {tab.badge && <span className="ml-1 bg-orange-500 text-white text-[10px] rounded-full px-1.5 py-0.5 leading-none">{tab.badge}</span>}
             </button>
           ))}
         </div>
@@ -1117,6 +1187,174 @@ export default function SupportAgentDashboard() {
                     </div>
                   </Card>
                 ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ====== TEACH AI TAB ====== */}
+      {mainTab === "teach" && (
+        <div className="flex-1 p-6 overflow-auto">
+          <div className="max-w-5xl mx-auto space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold flex items-center gap-2"><Bot className="h-6 w-6 text-violet-600" />Teach Ara AI</h2>
+                <p className="text-sm text-muted-foreground mt-1">Review queries the AI couldn't answer and teach it new knowledge. The AI learns immediately.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                {aiStats && (
+                  <div className="text-xs text-muted-foreground text-right">
+                    <div><span className="font-medium">{aiStats.totalEntries}</span> total entries in index</div>
+                    <div><span className="font-medium">{aiStats.staticEntries}</span> built-in • <span className="font-medium">{aiStats.dbEntries}</span> learned</div>
+                  </div>
+                )}
+                <Button size="sm" variant="outline" onClick={fetchAiData} disabled={teachLoading}>{teachLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Refresh"}</Button>
+              </div>
+            </div>
+
+            {/* Section switcher */}
+            <div className="flex gap-2 border-b">
+              <button onClick={() => setKbActiveSection("unresolved")} className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${kbActiveSection === "unresolved" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}>
+                Unanswered Queries {unresolvedQueries.length > 0 && <span className="ml-1 bg-orange-500 text-white text-[10px] rounded-full px-1.5">{unresolvedQueries.length}</span>}
+              </button>
+              <button onClick={() => setKbActiveSection("knowledge")} className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${kbActiveSection === "knowledge" ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}>
+                Knowledge Base ({kbEntries.length})
+              </button>
+            </div>
+
+            {/* Unanswered Queries Section */}
+            {kbActiveSection === "unresolved" && (
+              <div className="space-y-4">
+                {teachLoading ? (
+                  <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-violet-400" /></div>
+                ) : unresolvedQueries.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Bot className="h-12 w-12 mx-auto mb-3 text-green-400" />
+                    <p className="font-medium text-green-600">Great! No unanswered queries at the moment.</p>
+                    <p className="text-sm">The AI is handling all questions well. New unresolved queries will appear here.</p>
+                  </div>
+                ) : (
+                  unresolvedQueries.map(q => (
+                    <Card key={q.id} className="border border-orange-200 bg-orange-50/50">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="font-medium text-sm">User asked:</p>
+                            <p className="text-gray-800 mt-1 italic">"{q.query}"</p>
+                            <p className="text-xs text-muted-foreground mt-1">{new Date(q.createdAt).toLocaleString()}</p>
+                          </div>
+                          {resolveQueryId !== q.id && (
+                            <Button size="sm" onClick={() => { setResolveQueryId(q.id); setResolveQueryAnswer(""); setResolveAddToKb(true); setResolveQueryCategory("general"); }} className="bg-violet-600 hover:bg-violet-700 text-white shrink-0">Teach AI</Button>
+                          )}
+                        </div>
+                      </CardHeader>
+                      {resolveQueryId === q.id && (
+                        <CardContent className="border-t pt-4 space-y-3">
+                          <div>
+                            <label className="text-sm font-medium">Answer to teach the AI:</label>
+                            <Textarea className="mt-1" rows={4} placeholder="Type the correct answer for this query..." value={resolveQueryAnswer} onChange={e => setResolveQueryAnswer(e.target.value)} />
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="flex-1">
+                              <label className="text-sm font-medium">Category:</label>
+                              <select value={resolveQueryCategory} onChange={e => setResolveQueryCategory(e.target.value)} className="mt-1 w-full border rounded px-2 py-1.5 text-sm bg-white">
+                                {["general","account","nin","bvn","jamb","waec","neco","nabteb","nbais","vtu","a2c","wallet","cac","payment","transaction","security","support","pricing","technical","identity","education"].map(c => <option key={c} value={c}>{c}</option>)}
+                              </select>
+                            </div>
+                            <div className="flex items-center gap-2 mt-5">
+                              <input type="checkbox" id={`addkb-${q.id}`} checked={resolveAddToKb} onChange={e => setResolveAddToKb(e.target.checked)} className="rounded" />
+                              <label htmlFor={`addkb-${q.id}`} className="text-sm">Add to Knowledge Base</label>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button size="sm" disabled={submittingResolve || !resolveQueryAnswer.trim()} onClick={submitQueryResolve} className="bg-green-600 hover:bg-green-700 text-white">
+                              {submittingResolve ? <Loader2 className="h-4 w-4 animate-spin" /> : "Teach & Save"}
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => setResolveQueryId(null)}>Cancel</Button>
+                          </div>
+                        </CardContent>
+                      )}
+                    </Card>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Knowledge Base Section */}
+            {kbActiveSection === "knowledge" && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <p className="text-sm text-muted-foreground">These are custom Q&A entries added by support agents. The AI uses these along with {aiStats?.staticEntries || 0} built-in entries.</p>
+                  <Button size="sm" onClick={() => setShowAddKb(!showAddKb)} className="bg-violet-600 hover:bg-violet-700 text-white">+ Add New Entry</Button>
+                </div>
+
+                {showAddKb && (
+                  <Card className="border-violet-300 bg-violet-50/50">
+                    <CardHeader><CardTitle className="text-base">Add New Knowledge Entry</CardTitle></CardHeader>
+                    <CardContent className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium">Question *</label>
+                        <Input placeholder="Main question (e.g. 'How do I verify my NIN?')" value={newKbEntry.question} onChange={e => setNewKbEntry(p => ({ ...p, question: e.target.value }))} className="mt-1" />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Answer *</label>
+                        <Textarea rows={4} placeholder="Detailed answer..." value={newKbEntry.answer} onChange={e => setNewKbEntry(p => ({ ...p, answer: e.target.value }))} className="mt-1" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-sm font-medium">Category</label>
+                          <select value={newKbEntry.category} onChange={e => setNewKbEntry(p => ({ ...p, category: e.target.value }))} className="mt-1 w-full border rounded px-2 py-1.5 text-sm bg-white">
+                            {["general","account","nin","bvn","jamb","waec","neco","nabteb","nbais","vtu","a2c","wallet","cac","payment","transaction","security","support","pricing","technical","identity","education"].map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">Tags (comma-separated)</label>
+                          <Input placeholder="nin, lookup, identity" value={newKbEntry.tags} onChange={e => setNewKbEntry(p => ({ ...p, tags: e.target.value }))} className="mt-1" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Alternative Phrasings (one per line)</label>
+                        <Textarea rows={2} placeholder={"how do I check NIN\nverify my NIN number"} value={newKbEntry.variations} onChange={e => setNewKbEntry(p => ({ ...p, variations: e.target.value }))} className="mt-1" />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" disabled={addingKbEntry || !newKbEntry.question.trim() || !newKbEntry.answer.trim()} onClick={submitNewKbEntry} className="bg-green-600 hover:bg-green-700 text-white">
+                          {addingKbEntry ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save to Knowledge Base"}
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setShowAddKb(false)}>Cancel</Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {teachLoading ? (
+                  <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-violet-400" /></div>
+                ) : kbEntries.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <p>No custom knowledge entries yet. Add entries above to teach the AI.</p>
+                    <p className="text-sm mt-1">The AI already has {aiStats?.staticEntries || 0} built-in entries covering all Arapoint services.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {kbEntries.map(entry => (
+                      <Card key={entry.id} className="border">
+                        <CardContent className="pt-4 pb-3">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded">{entry.category}</span>
+                                {entry.useCount > 0 && <span className="text-xs text-muted-foreground">Used {entry.useCount}x</span>}
+                              </div>
+                              <p className="font-medium text-sm">{entry.question}</p>
+                              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{entry.answer}</p>
+                            </div>
+                            <Button size="sm" variant="outline" onClick={() => deleteKbEntry(entry.id)} className="text-red-600 hover:bg-red-50 shrink-0">Remove</Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

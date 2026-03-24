@@ -54,6 +54,7 @@ import {
 import { fraudService } from '../../services/fraudService';
 import { whatsappService } from '../../services/whatsappService';
 import { walletService } from '../../services/walletService';
+import { localAi } from '../../services/localAiService';
 import { scrapeNbaisSchools, getSchoolsCount } from '../../rpa/workers/nbaisSchoolScraper';
 import { browserPool } from '../../rpa/browserPool';
 import bcrypt from 'bcryptjs';
@@ -3828,6 +3829,96 @@ router.post('/support/fraud-alerts/:id/dismiss', async (req: Request, res: Respo
     res.json(formatResponse('success', 200, 'Alert dismissed'));
   } catch (error: any) {
     res.status(500).json(formatErrorResponse(500, 'Failed to dismiss alert'));
+  }
+});
+
+// === AI Knowledge Base Management ===
+
+router.get('/ai/knowledge', async (req: Request, res: Response) => {
+  try {
+    const entries = await localAi.getAllKnowledgeEntries();
+    const stats = localAi.getIndexStats();
+    res.json(formatResponse('success', 200, 'Knowledge base entries', { entries, stats }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to fetch knowledge base'));
+  }
+});
+
+router.post('/ai/knowledge', async (req: Request, res: Response) => {
+  try {
+    const { question, variations, answer, category, tags } = req.body;
+    if (!question || !answer) {
+      return res.status(400).json(formatErrorResponse(400, 'Question and answer are required'));
+    }
+    const id = await localAi.addKnowledgeEntry({
+      question, variations: variations || [], answer, category: category || 'general',
+      tags: tags || [], addedBy: req.adminId!,
+    });
+    res.status(201).json(formatResponse('success', 201, 'Knowledge entry added', { id }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to add knowledge entry'));
+  }
+});
+
+router.put('/ai/knowledge/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { question, variations, answer, category, tags, isActive } = req.body;
+    await localAi.updateKnowledgeEntry(id, { question, variations, answer, category, tags, isActive });
+    res.json(formatResponse('success', 200, 'Knowledge entry updated'));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to update knowledge entry'));
+  }
+});
+
+router.delete('/ai/knowledge/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await localAi.deleteKnowledgeEntry(id);
+    res.json(formatResponse('success', 200, 'Knowledge entry removed'));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to remove knowledge entry'));
+  }
+});
+
+router.get('/ai/unresolved', async (req: Request, res: Response) => {
+  try {
+    const limit = parseInt(req.query.limit as string || '50', 10);
+    const queries = await localAi.getUnresolvedQueries(limit);
+    res.json(formatResponse('success', 200, 'Unresolved queries', { queries }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to fetch unresolved queries'));
+  }
+});
+
+router.post('/ai/unresolved/:id/resolve', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { answer, addToKb, category } = req.body;
+    if (!answer) return res.status(400).json(formatErrorResponse(400, 'Answer is required'));
+    await localAi.resolveQuery(id, answer, !!addToKb, category || 'general', req.adminId!);
+    res.json(formatResponse('success', 200, 'Query resolved and AI updated'));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to resolve query'));
+  }
+});
+
+router.post('/ai/rebuild-index', async (req: Request, res: Response) => {
+  try {
+    await localAi.rebuildIndex(true);
+    const stats = localAi.getIndexStats();
+    res.json(formatResponse('success', 200, 'AI index rebuilt', { stats }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to rebuild AI index'));
+  }
+});
+
+router.get('/ai/stats', async (req: Request, res: Response) => {
+  try {
+    const stats = localAi.getIndexStats();
+    res.json(formatResponse('success', 200, 'AI stats', { stats }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to get AI stats'));
   }
 });
 

@@ -892,7 +892,36 @@ export const bvnVerifications = pgTable('bvn_verifications', {
   bvn: varchar('bvn', { length: 11 }).notNull(),
   reference: varchar('reference', { length: 100 }).unique().notNull(),
   verificationData: jsonb('verification_data'),
-  pdfKey: varchar('pdf_key', { length: 500 }), // Object storage key for PDF
+  pdfKey: varchar('pdf_key', { length: 500 }),
   status: varchar('status', { length: 50 }).default('completed'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// AI Knowledge Base - Custom Q&A entries learned from human agents
+export const aiKnowledgeBase = pgTable('ai_knowledge_base', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  question: text('question').notNull(),
+  variations: jsonb('variations').default('[]'),
+  answer: text('answer').notNull(),
+  category: varchar('category', { length: 100 }).notNull().default('general'),
+  tags: jsonb('tags').default('[]'),
+  isActive: boolean('is_active').default(true),
+  useCount: integer('use_count').default(0),
+  addedBy: uuid('added_by').references(() => adminUsers.id),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// AI Unresolved Queries - Queries the AI couldn't answer; agents review and teach the AI
+export const aiUnresolvedQueries = pgTable('ai_unresolved_queries', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  query: text('query').notNull(),
+  conversationId: uuid('conversation_id'),
+  ticketId: uuid('ticket_id'),
+  isResolved: boolean('is_resolved').default(false),
+  resolvedAnswer: text('resolved_answer'),
+  resolvedKbId: uuid('resolved_kb_id'),
+  resolvedAt: timestamp('resolved_at'),
+  resolvedBy: uuid('resolved_by').references(() => adminUsers.id),
   createdAt: timestamp('created_at').defaultNow(),
 });

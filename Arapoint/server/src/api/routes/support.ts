@@ -21,20 +21,9 @@ import { eq, and, desc, gt, or, sql, count, asc, ilike } from 'drizzle-orm';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { logger } from '../../utils/logger';
 import { fraudService } from '../../services/fraudService';
-import OpenAI from 'openai';
+import { localAi } from '../../services/localAiService';
 
 const router = Router();
-let _openai: OpenAI | null = null;
-function getOpenAI(): OpenAI {
-  if (!_openai) {
-    _openai = new OpenAI({
-      apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || 'placeholder',
-      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-    });
-  }
-  return _openai;
-}
-const openai = { chat: { completions: { create: (...args: any[]) => getOpenAI().chat.completions.create(...args) } } } as unknown as OpenAI;
 
 router.use(authMiddleware);
 
@@ -184,59 +173,30 @@ router.post('/tickets', async (req: Request, res: Response) => {
       lastSeenAt: new Date(),
     });
 
-    const history = [{ role: 'user' as const, content: message }];
-    let aiResponse = '';
-    try {
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `You are Arapoint's AI Support Assistant. Arapoint is Nigeria's trusted identity and utility verification platform. You assist users with:
-
-SERVICES:
-- Identity Verification: NIN lookup, BVN retrieval, vNIN generation, NIN slip download (PDF/A4)
-- Education Verification: JAMB result checker, JAMB admission status, WAEC/NECO/NABTEB/NBAIS result checker
-- Education Services: JAMB change of course/institution, direct entry, admission letter, mutation, regularization
-- VTU Services: Airtime purchase (MTN, Airtel, Glo, 9mobile), data bundle purchase, electricity bill payment, cable TV subscription (DSTV, GOTV, StarTimes)
-- Airtime to Cash (A2C): Convert airtime to cash - user sends airtime to an agent's number, receives 70-80% cash value to their bank account
-- Wallet: Fund wallet via Payvessel (bank transfer), check balance, view transaction history
-- CAC Services: Business name registration, company registration
-
-COMMON ISSUES & RESOLUTIONS:
-- NIN/BVN not found: Ask user to verify the number is correct; NIN must be 11 digits, BVN must be 11 digits
-- JAMB result not showing: Ensure registration number format is correct (e.g., 12345678AB)
-- A2C request pending: Normal processing time is 15-30 minutes; instruct user to wait and not send another request yet
-- Wallet not credited: Bank transfers via Payvessel typically reflect within 5-15 minutes; if over 30 minutes, escalate
-- Transaction failed but wallet debited: This is a refund case - always escalate to human agent
-- Password/login issues: Direct user to "Forgot Password" on the login page
-
-ESCALATION TRIGGERS - End response with [ESCALATE] for:
-- Failed transaction but wallet was debited
-- Refund requests
-- Account locked or suspicious activity
-- Verification failure after multiple attempts
-- Technical errors not resolved by standard steps
-- Payment disputes
-- Urgent/high-priority issues the user explicitly states
-- Any issue you genuinely cannot resolve
-
-Keep responses concise (max 3-4 sentences). Never invent account data. Always be professional and empathetic.`
-          },
-          ...history,
-        ],
-      });
-      aiResponse = response.choices[0].message.content || 'I apologize, I am having trouble responding. Please try again.';
-    } catch {
-      aiResponse = 'Welcome to Arapoint Support! I am currently unable to connect to AI assistance. You can type "agent" to speak with a human support agent.';
-    }
+    const aiResult = await localAi.processQuery(message, conversation.id, ticket.id);
+    const aiResponse = aiResult.answer;
 
     await db.insert(supportMessages).values({
       conversationId: conversation.id,
       senderType: 'ai',
-      senderName: 'AI Assistant',
+      senderName: 'Ara (AI Assistant)',
       content: aiResponse,
     });
+
+    if (aiResult.shouldEscalate) {
+      await db.update(supportTickets)
+        .set({ status: 'escalated', escalatedAt: new Date(), priority: 'high', lastActivityAt: new Date(), updatedAt: new Date() })
+        .where(eq(supportTickets.id, ticket.id));
+
+      await db.insert(supportMessages).values({
+        conversationId: conversation.id,
+        senderType: 'system',
+        senderName: 'System',
+        content: 'Your ticket has been escalated. Finding an available support agent...',
+      });
+
+      await autoAssignTicket(ticket.id, conversation.id);
+    }
 
     logger.info('Support ticket created', { ticketId: ticket.id, referenceId, userId });
 
@@ -522,68 +482,17 @@ router.post('/conversations/:id/messages', async (req: Request, res: Response) =
       }));
     }
 
-    const history = await db.select()
-      .from(supportMessages)
-      .where(eq(supportMessages.conversationId, id))
-      .orderBy(desc(supportMessages.createdAt))
-      .limit(10);
-
-    const messagesForAI = history.reverse().filter(m => m.senderType === 'user' || m.senderType === 'ai').map(m => ({
-      role: (m.senderType === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-      content: m.content,
-    }));
-
     let aiContent = '';
     let shouldEscalate = false;
 
-    const escalationKeywords = ['refund', 'deducted', 'debited', 'charged', 'not credited', 'still pending', 'failed', 'error', 'locked', 'blocked', 'fraud', 'scam', 'unauthorized', 'dispute', 'urgent', 'asap', 'immediately', 'frustrated', 'angry', 'complaint'];
-    const userWantsAgent = content.toLowerCase().match(/\b(agent|human|person|speak to|talk to|escalate|representative|manager|supervisor)\b/);
-    const hasEscalationKeyword = escalationKeywords.some(kw => content.toLowerCase().includes(kw));
-
-    if (userWantsAgent) {
-      shouldEscalate = true;
-      aiContent = "I understand you'd like to speak with a human agent. I'm connecting you now — please hold on.";
-    } else {
-      try {
-        const response = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: `You are Arapoint's AI Support Assistant. Arapoint is Nigeria's trusted identity and utility verification platform.
-
-SERVICES: NIN/BVN lookup, vNIN, NIN slip PDF, JAMB results/admission/change of course/direct entry, WAEC/NECO/NABTEB/NBAIS results, airtime/data VTU, electricity bills, cable TV (DSTV/GOTV), Airtime-to-Cash (A2C), wallet funding via Payvessel, CAC registration.
-
-COMMON RESOLUTIONS:
-- NIN/BVN not found: verify number (NIN=11 digits, BVN=11 digits)
-- JAMB result: verify registration number format
-- A2C pending: normal wait 15-30 mins, do not send duplicate
-- Wallet not credited: Payvessel transfers take 5-15 mins; if >30 mins, escalate
-- Login issues: use Forgot Password link
-
-ESCALATION - End response with [ESCALATE] for: failed transactions with deduction, refund requests, account locked, multiple verification failures, payment disputes, technical errors unresolved, any urgent account issue.
-
-Be concise (2-3 sentences max). Never make up account data.`
-            },
-            ...messagesForAI,
-          ],
-        });
-        aiContent = response.choices[0].message.content || 'I apologize, I am having trouble responding.';
-
-        if (aiContent.includes('[ESCALATE]') || hasEscalationKeyword) {
-          shouldEscalate = true;
-          aiContent = aiContent.replace(/\[ESCALATE\]/g, '').trim();
-        }
-      } catch {
-        aiContent = 'I am currently unable to process your request. Let me connect you with a human support agent.';
-        shouldEscalate = true;
-      }
-    }
+    const aiResult = await localAi.processQuery(content, id, conv.ticketId);
+    aiContent = aiResult.answer;
+    shouldEscalate = aiResult.shouldEscalate;
 
     await db.insert(supportMessages).values({
       conversationId: id,
       senderType: 'ai',
-      senderName: 'AI Assistant',
+      senderName: 'Ara (AI Assistant)',
       content: aiContent,
     });
 
