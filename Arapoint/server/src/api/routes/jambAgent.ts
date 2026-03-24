@@ -8,8 +8,9 @@ import {
   jambRequestDocuments,
   adminUsers,
   users,
+  agentInternalMessages,
 } from '../../db/schema';
-import { eq, desc, count, sql, and } from 'drizzle-orm';
+import { eq, desc, count, sql, and, isNull } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import multer from 'multer';
@@ -368,12 +369,76 @@ router.get('/documents/:docId/download', jambAgentAuthMiddleware, async (req: Re
       return res.status(404).json(formatErrorResponse(404, 'File not found on server'));
     }
     res.setHeader('Content-Disposition', `attachment; filename="${doc.fileName || 'document'}"`);
-    res.sendFile(localPath);
+    res.sendFile(localPath, (sendErr) => {
+      if (sendErr && !res.headersSent) {
+        logger.error('Send JAMB file error', { error: sendErr.message, localPath });
+        res.status(500).json(formatErrorResponse(500, 'Failed to send file'));
+      }
+    });
   } catch (error: any) {
     logger.error('Download JAMB document error', { error: error.message });
     if (!res.headersSent) {
       res.status(500).json(formatErrorResponse(500, 'Failed to download document'));
     }
+  }
+});
+
+// =====================================================
+// SUPPORT INTERNAL MESSAGES
+// =====================================================
+
+router.get('/support-messages', jambAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const messages = await db.select().from(agentInternalMessages)
+      .where(eq(agentInternalMessages.toDepartment, 'jamb'))
+      .orderBy(desc(agentInternalMessages.createdAt))
+      .limit(100);
+    res.json(formatResponse('success', 200, 'Support messages', { messages }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to get support messages'));
+  }
+});
+
+router.post('/support-messages/:messageId/reply', jambAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { messageId } = req.params;
+    const { message } = req.body;
+    const agentId = (req as any).agentId;
+    if (!message?.trim()) return res.status(400).json(formatErrorResponse(400, 'Message is required'));
+
+    const [original] = await db.select().from(agentInternalMessages)
+      .where(eq(agentInternalMessages.id, messageId)).limit(1);
+    if (!original) return res.status(404).json(formatErrorResponse(404, 'Message not found'));
+
+    const [agentRecord] = await db.select({ name: adminUsers.name })
+      .from(jambAgents).leftJoin(adminUsers, eq(jambAgents.adminUserId, adminUsers.id))
+      .where(eq(jambAgents.id, agentId)).limit(1);
+
+    const [reply] = await db.insert(agentInternalMessages).values({
+      ticketId: original.ticketId,
+      fromType: 'jamb_agent',
+      fromId: agentId,
+      fromName: agentRecord?.name || 'JAMB Agent',
+      toDepartment: 'support',
+      message: message.trim(),
+      linkedOrderId: original.linkedOrderId || null,
+    }).returning();
+
+    res.status(201).json(formatResponse('success', 201, 'Reply sent', { message: reply }));
+  } catch (error: any) {
+    logger.error('JAMB agent reply error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to send reply'));
+  }
+});
+
+router.put('/support-messages/mark-read', jambAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    await db.update(agentInternalMessages)
+      .set({ readAt: new Date() })
+      .where(and(eq(agentInternalMessages.toDepartment, 'jamb'), isNull(agentInternalMessages.readAt)));
+    res.json(formatResponse('success', 200, 'Messages marked as read'));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to mark messages as read'));
   }
 });
 

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { Building2, Loader2, Clock, CheckCircle2, XCircle, User, LogOut, FileText, RefreshCw, Eye, MessageCircle, Send, Upload, DollarSign, Settings, Save, Plus, Trash2, Download } from "lucide-react";
+import { Building2, Loader2, Clock, CheckCircle2, XCircle, User, LogOut, FileText, RefreshCw, Eye, MessageCircle, MessageSquare, Send, Upload, DollarSign, Settings, Save, Plus, Trash2, Download } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -52,6 +52,41 @@ export default function CACAgentDashboard() {
   const [newService, setNewService] = useState({ code: '', name: '', description: '', price: '', processingDays: 7 });
   const [creatingService, setCreatingService] = useState(false);
   const [deletingServiceId, setDeletingServiceId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('requests');
+  const [supportMessages, setSupportMessages] = useState<any[]>([]);
+  const [supportReplyText, setSupportReplyText] = useState<Record<string, string>>({});
+  const [supportReplyingTo, setSupportReplyingTo] = useState<string | null>(null);
+  const [supportMsgLoading, setSupportMsgLoading] = useState(false);
+
+  const fetchSupportMessages = async () => {
+    setSupportMsgLoading(true);
+    try {
+      const res = await fetch('/api/cac-agent/support-messages', { headers: { Authorization: `Bearer ${getAgentToken()}` } });
+      const data = await res.json();
+      if (data.status === 'success') setSupportMessages(data.data.messages || []);
+    } catch {} finally { setSupportMsgLoading(false); }
+  };
+
+  const sendSupportReply = async (messageId: string) => {
+    const text = supportReplyText[messageId]?.trim();
+    if (!text) return;
+    try {
+      const res = await fetch(`/api/cac-agent/support-messages/${messageId}/reply`, {
+        method: 'POST', headers: { Authorization: `Bearer ${getAgentToken()}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text }),
+      });
+      const data = await res.json();
+      if (data.status === 'success') { setSupportReplyText(prev => ({ ...prev, [messageId]: '' })); setSupportReplyingTo(null); fetchSupportMessages(); }
+    } catch {}
+  };
+
+  const markSupportRead = async () => {
+    try { await fetch('/api/cac-agent/support-messages/mark-read', { method: 'PUT', headers: { Authorization: `Bearer ${getAgentToken()}` } }); } catch {}
+  };
+
+  useEffect(() => {
+    if (activeTab === 'support') { fetchSupportMessages(); markSupportRead(); }
+  }, [activeTab]);
 
   useEffect(() => {
     const token = getAgentToken();
@@ -427,8 +462,8 @@ export default function CACAgentDashboard() {
           </Card>
         </div>
 
-        <Tabs defaultValue="requests">
-          <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-3 max-w-lg">
             <TabsTrigger value="requests" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               Requests
@@ -436,6 +471,13 @@ export default function CACAgentDashboard() {
             <TabsTrigger value="pricing" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               Price Management
+            </TabsTrigger>
+            <TabsTrigger value="support" className="flex items-center gap-2 relative">
+              <MessageSquare className="h-4 w-4" />
+              Support Inbox
+              {supportMessages.filter(m => !m.readAt && m.toDepartment === 'cac').length > 0 && (
+                <span className="ml-1 bg-red-500 text-white text-[10px] rounded-full px-1">{supportMessages.filter(m => !m.readAt && m.toDepartment === 'cac').length}</span>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -678,6 +720,58 @@ export default function CACAgentDashboard() {
                               </div>
                             </div>
                           </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="support">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5" />Support Inbox</CardTitle>
+                  <Button variant="outline" size="sm" onClick={() => { fetchSupportMessages(); markSupportRead(); }}><RefreshCw className="h-4 w-4 mr-1" />Refresh</Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {supportMsgLoading ? (
+                  <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-gray-400" /></div>
+                ) : supportMessages.length === 0 ? (
+                  <p className="text-center text-gray-500 py-8">No messages from support team.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {supportMessages.map(msg => (
+                      <div key={msg.id} className={`border rounded-lg p-4 ${!msg.readAt ? 'border-blue-300 bg-blue-50' : 'border-gray-200'}`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-sm">{msg.fromName || 'Support Agent'}</span>
+                            {!msg.readAt && <span className="bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full">New</span>}
+                          </div>
+                          <span className="text-xs text-gray-400">{new Date(msg.createdAt).toLocaleString()}</span>
+                        </div>
+                        <p className="text-sm text-gray-700 mb-2">{msg.message}</p>
+                        {msg.replies && msg.replies.length > 0 && (
+                          <div className="ml-4 border-l-2 border-gray-200 pl-3 space-y-2 mb-2">
+                            {msg.replies.map((r: any, i: number) => (
+                              <div key={i} className="text-sm">
+                                <span className="font-medium text-gray-600">{r.fromName}:</span> <span className="text-gray-700">{r.message}</span>
+                                <div className="text-[11px] text-gray-400">{new Date(r.createdAt).toLocaleString()}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {supportReplyingTo === msg.id ? (
+                          <div className="flex gap-2 mt-2">
+                            <Input placeholder="Type your reply..." value={supportReplyText[msg.id] || ''} onChange={e => setSupportReplyText(prev => ({ ...prev, [msg.id]: e.target.value }))} className="flex-1" onKeyDown={e => { if (e.key === 'Enter') sendSupportReply(msg.id); }} />
+                            <Button size="sm" onClick={() => sendSupportReply(msg.id)}><Send className="h-4 w-4" /></Button>
+                            <Button variant="outline" size="sm" onClick={() => setSupportReplyingTo(null)}>Cancel</Button>
+                          </div>
+                        ) : (
+                          <Button variant="outline" size="sm" onClick={() => setSupportReplyingTo(msg.id)} className="mt-1">Reply</Button>
                         )}
                       </div>
                     ))}

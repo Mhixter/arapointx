@@ -16,7 +16,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Banknote, Loader2, RefreshCw, LogOut, Clock, Plus, Trash2, Phone,
-  CheckCircle, ArrowDownCircle, Wallet, AlertCircle, Package, Edit, XCircle
+  CheckCircle, ArrowDownCircle, Wallet, AlertCircle, Package, Edit, XCircle, MessageSquare, Send
 } from 'lucide-react';
 
 const getToken = () => tokenStorage.getItem('a2cAgentToken');
@@ -63,6 +63,42 @@ export default function A2CAgentDashboard() {
   const [statusForm, setStatusForm] = useState({ status: '', agentNotes: '', rejectionReason: '' });
   const [inventoryForm, setInventoryForm] = useState({ phoneNumber: '', network: 'mtn', dailyLimit: '500000', label: '' });
   const [statusFilter, setStatusFilter] = useState('all');
+  const [supportMessages, setSupportMessages] = useState<any[]>([]);
+  const [replyText, setReplyText] = useState<Record<string, string>>({});
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [supportMsgLoading, setSupportMsgLoading] = useState(false);
+
+  const fetchSupportMessages = async () => {
+    setSupportMsgLoading(true);
+    try {
+      const res = await fetch('/api/a2c-agent/support-messages', { headers: { Authorization: `Bearer ${getToken()}` } });
+      const data = await res.json();
+      if (data.status === 'success') setSupportMessages(data.data.messages || []);
+    } catch {} finally { setSupportMsgLoading(false); }
+  };
+
+  const sendReply = async (messageId: string) => {
+    const text = replyText[messageId]?.trim();
+    if (!text) return;
+    try {
+      const res = await fetch(`/api/a2c-agent/support-messages/${messageId}/reply`, {
+        method: 'POST', headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text }),
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setReplyText(prev => ({ ...prev, [messageId]: '' }));
+        setReplyingTo(null);
+        fetchSupportMessages();
+      }
+    } catch {}
+  };
+
+  const markSupportRead = async () => {
+    try {
+      await fetch('/api/a2c-agent/support-messages/mark-read', { method: 'PUT', headers: { Authorization: `Bearer ${getToken()}` } });
+    } catch {}
+  };
 
   useEffect(() => {
     const token = getToken();
@@ -79,6 +115,9 @@ export default function A2CAgentDashboard() {
       fetchMyRequests();
     } else if (activeTab === 'inventory') {
       fetchInventory();
+    } else if (activeTab === 'support') {
+      fetchSupportMessages();
+      markSupportRead();
     }
   }, [activeTab]);
 
@@ -343,10 +382,16 @@ export default function A2CAgentDashboard() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="requests" className="text-xs sm:text-sm">Requests</TabsTrigger>
             <TabsTrigger value="inventory" className="text-xs sm:text-sm">Inventory</TabsTrigger>
             <TabsTrigger value="profile" className="text-xs sm:text-sm">Profile</TabsTrigger>
+            <TabsTrigger value="support" className="text-xs sm:text-sm relative">
+              Support Inbox
+              {supportMessages.filter(m => !m.readAt && m.toDepartment === 'a2c').length > 0 && (
+                <span className="ml-1 bg-red-500 text-white text-[10px] rounded-full px-1">{supportMessages.filter(m => !m.readAt && m.toDepartment === 'a2c').length}</span>
+              )}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="requests" className="space-y-4">
@@ -574,6 +619,72 @@ export default function A2CAgentDashboard() {
                       <Label className="text-muted-foreground text-xs">Total Processed</Label>
                       <p className="font-medium">₦{parseFloat(profile.totalProcessedAmount || 0).toLocaleString()}</p>
                     </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="support" className="space-y-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <div>
+                  <CardTitle className="text-base">Support Inbox</CardTitle>
+                  <CardDescription className="text-xs">Messages from the support team regarding customer issues</CardDescription>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => { fetchSupportMessages(); markSupportRead(); }}>
+                  <RefreshCw className="h-3.5 w-3.5 mr-1" /> Refresh
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {supportMsgLoading ? (
+                  <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+                ) : supportMessages.length === 0 ? (
+                  <div className="text-center py-10 text-muted-foreground">
+                    <MessageSquare className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">No messages from support yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {supportMessages.map((msg: any) => (
+                      <div key={msg.id} className={`rounded-lg border p-4 ${!msg.readAt && msg.toDepartment === 'a2c' ? 'border-blue-300 bg-blue-50 dark:bg-blue-950/20' : 'border-border'}`}>
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div>
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${msg.fromType === 'support_agent' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}`}>
+                              {msg.fromType === 'support_agent' ? 'Support' : 'A2C Agent'}
+                            </span>
+                            <span className="text-xs text-muted-foreground ml-2">{msg.fromName}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">{msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ''}</span>
+                        </div>
+                        {msg.linkedOrderId && (
+                          <p className="text-xs text-muted-foreground mb-1">Linked Order: <span className="font-mono font-medium">{msg.linkedOrderId}</span></p>
+                        )}
+                        <p className="text-sm">{msg.message}</p>
+                        {msg.fromType === 'support_agent' && (
+                          <div className="mt-3">
+                            {replyingTo === msg.id ? (
+                              <div className="space-y-2">
+                                <Textarea
+                                  placeholder="Type your reply..."
+                                  value={replyText[msg.id] || ''}
+                                  onChange={e => setReplyText(prev => ({ ...prev, [msg.id]: e.target.value }))}
+                                  className="text-sm min-h-[80px]"
+                                />
+                                <div className="flex gap-2">
+                                  <Button size="sm" onClick={() => sendReply(msg.id)} className="gap-1">
+                                    <Send className="h-3.5 w-3.5" /> Send Reply
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => setReplyingTo(null)}>Cancel</Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <Button size="sm" variant="outline" onClick={() => setReplyingTo(msg.id)}>Reply</Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
               </CardContent>

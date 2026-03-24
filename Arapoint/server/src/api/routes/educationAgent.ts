@@ -10,9 +10,10 @@ import {
   users,
   educationPins,
   educationPinOrders,
-  servicePricing
+  servicePricing,
+  agentInternalMessages,
 } from '../../db/schema';
-import { eq, desc, count, sql, and } from 'drizzle-orm';
+import { eq, desc, count, sql, and, isNull } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { ObjectStorageService } from '../../services/objectStorage';
@@ -612,6 +613,65 @@ router.put('/pins/pricing', educationAgentAuthMiddleware, async (req: Request, r
   } catch (error: any) {
     logger.error('Update PIN pricing error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to update pricing'));
+  }
+});
+
+// =====================================================
+// SUPPORT INTERNAL MESSAGES
+// =====================================================
+
+router.get('/support-messages', educationAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const messages = await db.select().from(agentInternalMessages)
+      .where(eq(agentInternalMessages.toDepartment, 'education'))
+      .orderBy(desc(agentInternalMessages.createdAt))
+      .limit(100);
+    res.json(formatResponse('success', 200, 'Support messages', { messages }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to get support messages'));
+  }
+});
+
+router.post('/support-messages/:messageId/reply', educationAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { messageId } = req.params;
+    const { message } = req.body;
+    const agentId = (req as any).agentId;
+    if (!message?.trim()) return res.status(400).json(formatErrorResponse(400, 'Message is required'));
+
+    const [original] = await db.select().from(agentInternalMessages)
+      .where(eq(agentInternalMessages.id, messageId)).limit(1);
+    if (!original) return res.status(404).json(formatErrorResponse(404, 'Message not found'));
+
+    const [agentRecord] = await db.select({ name: adminUsers.name })
+      .from(educationAgents).leftJoin(adminUsers, eq(educationAgents.adminUserId, adminUsers.id))
+      .where(eq(educationAgents.id, agentId)).limit(1);
+
+    const [reply] = await db.insert(agentInternalMessages).values({
+      ticketId: original.ticketId,
+      fromType: 'education_agent',
+      fromId: agentId,
+      fromName: agentRecord?.name || 'Education Agent',
+      toDepartment: 'support',
+      message: message.trim(),
+      linkedOrderId: original.linkedOrderId || null,
+    }).returning();
+
+    res.status(201).json(formatResponse('success', 201, 'Reply sent', { message: reply }));
+  } catch (error: any) {
+    logger.error('Education agent reply error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to send reply'));
+  }
+});
+
+router.put('/support-messages/mark-read', educationAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    await db.update(agentInternalMessages)
+      .set({ readAt: new Date() })
+      .where(and(eq(agentInternalMessages.toDepartment, 'education'), isNull(agentInternalMessages.readAt)));
+    res.json(formatResponse('success', 200, 'Messages marked as read'));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to mark messages as read'));
   }
 });
 

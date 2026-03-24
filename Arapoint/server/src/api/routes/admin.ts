@@ -3681,132 +3681,32 @@ router.get('/support/lookup', async (req: Request, res: Response) => {
   try {
     const { q } = req.query as { q?: string };
     if (!q || q.trim().length < 3) {
-      return res.status(400).json(formatErrorResponse(400, 'Search query too short (min 3 chars)'));
+      return res.status(400).json(formatErrorResponse(400, 'Transaction ID must be at least 3 characters'));
     }
     const query = q.trim();
-    const results: any[] = [];
 
-    // A2C Requests
-    try {
-      const rows = await db.select({
-        id: a2cRequests.id,
-        trackingId: a2cRequests.trackingId,
-        phoneNumber: a2cRequests.phoneNumber,
-        airtimeAmount: a2cRequests.airtimeAmount,
-        cashAmount: a2cRequests.cashAmount,
-        status: a2cRequests.status,
-        network: a2cRequests.network,
-        createdAt: a2cRequests.createdAt,
-        userId: a2cRequests.userId,
-        userName: users.name,
-        userEmail: users.email,
-      }).from(a2cRequests).innerJoin(users, eq(a2cRequests.userId, users.id))
-        .where(or(ilike(a2cRequests.trackingId, `%${query}%`), ilike(a2cRequests.phoneNumber, `%${query}%`), ilike(users.email, `%${query}%`), ilike(users.phone, `%${query}%`))).limit(5);
-      rows.forEach(r => results.push({ type: 'a2c', label: 'Airtime to Cash', ...r }));
-    } catch {}
+    // Search transactions by reference only
+    const rows = await db.select({
+      id: transactions.id,
+      reference: transactions.reference,
+      type: transactions.type,
+      amount: transactions.amount,
+      status: transactions.status,
+      description: transactions.description,
+      createdAt: transactions.createdAt,
+      userId: transactions.userId,
+      userName: users.name,
+      userEmail: users.email,
+      userPhone: users.phone,
+    }).from(transactions)
+      .innerJoin(users, eq(transactions.userId, users.id))
+      .where(ilike(transactions.reference, `%${query}%`))
+      .orderBy(desc(transactions.createdAt))
+      .limit(20);
 
-    // Identity Service Requests
-    try {
-      const rows = await db.select({
-        id: identityServiceRequests.id,
-        referenceId: identityServiceRequests.trackingId,
-        serviceType: identityServiceRequests.serviceType,
-        status: identityServiceRequests.status,
-        createdAt: identityServiceRequests.createdAt,
-        userId: identityServiceRequests.userId,
-        userName: users.name,
-        userEmail: users.email,
-      }).from(identityServiceRequests).innerJoin(users, eq(identityServiceRequests.userId, users.id))
-        .where(or(ilike(identityServiceRequests.trackingId, `%${query}%`), ilike(users.email, `%${query}%`), ilike(users.phone, `%${query}%`))).limit(5);
-      rows.forEach(r => results.push({ type: 'identity', label: 'Identity Verification', ...r }));
-    } catch {}
+    const results = rows.map(r => ({ type: 'transaction', label: 'Transaction', ...r }));
 
-    // Education Service Requests
-    try {
-      const rows = await db.select({
-        id: educationServiceRequests.id,
-        referenceId: educationServiceRequests.trackingId,
-        serviceType: educationServiceRequests.serviceType,
-        status: educationServiceRequests.status,
-        createdAt: educationServiceRequests.createdAt,
-        userId: educationServiceRequests.userId,
-        userName: users.name,
-        userEmail: users.email,
-      }).from(educationServiceRequests).innerJoin(users, eq(educationServiceRequests.userId, users.id))
-        .where(or(ilike(educationServiceRequests.trackingId, `%${query}%`), ilike(users.email, `%${query}%`), ilike(users.phone, `%${query}%`))).limit(5);
-      rows.forEach(r => results.push({ type: 'education', label: 'Education Service', ...r }));
-    } catch {}
-
-    // CAC Requests
-    try {
-      const rows = await db.select({
-        id: cacRegistrationRequests.id,
-        businessName: cacRegistrationRequests.businessName,
-        serviceType: cacRegistrationRequests.serviceType,
-        status: cacRegistrationRequests.status,
-        paymentReference: cacRegistrationRequests.paymentReference,
-        createdAt: cacRegistrationRequests.createdAt,
-        userId: cacRegistrationRequests.userId,
-        userName: users.name,
-        userEmail: users.email,
-      }).from(cacRegistrationRequests).innerJoin(users, eq(cacRegistrationRequests.userId, users.id))
-        .where(or(ilike(cacRegistrationRequests.businessName, `%${query}%`), ilike(cacRegistrationRequests.paymentReference, `%${query}%`), ilike(users.email, `%${query}%`), ilike(users.phone, `%${query}%`))).limit(5);
-      rows.forEach(r => results.push({ type: 'cac', label: 'CAC Registration', ...r }));
-    } catch {}
-
-    // Transactions
-    try {
-      const rows = await db.select({
-        id: transactions.id,
-        reference: transactions.reference,
-        type: transactions.type,
-        amount: transactions.amount,
-        status: transactions.status,
-        description: transactions.description,
-        createdAt: transactions.createdAt,
-        userId: transactions.userId,
-        userName: users.name,
-        userEmail: users.email,
-      }).from(transactions).innerJoin(users, eq(transactions.userId, users.id))
-        .where(or(ilike(transactions.reference, `%${query}%`), ilike(users.email, `%${query}%`), ilike(users.phone, `%${query}%`))).orderBy(desc(transactions.createdAt)).limit(5);
-      rows.forEach(r => results.push({ type: 'transaction', label: 'Transaction', ...r }));
-    } catch {}
-
-    // Support Tickets
-    try {
-      const rows = await db.select({
-        id: support_tickets.id,
-        referenceId: support_tickets.referenceId,
-        subject: support_tickets.subject,
-        status: support_tickets.status,
-        category: support_tickets.category,
-        departmentTag: support_tickets.departmentTag,
-        linkedOrderId: support_tickets.linkedOrderId,
-        createdAt: support_tickets.createdAt,
-        userId: support_tickets.userId,
-        userName: users.name,
-        userEmail: users.email,
-      }).from(support_tickets).innerJoin(users, eq(support_tickets.userId, users.id))
-        .where(or(ilike(support_tickets.referenceId, `%${query}%`), ilike(support_tickets.subject, `%${query}%`), ilike(support_tickets.linkedOrderId, `%${query}%`), ilike(users.email, `%${query}%`), ilike(users.phone, `%${query}%`))).orderBy(desc(support_tickets.createdAt)).limit(5);
-      rows.forEach(r => results.push({ type: 'ticket', label: 'Support Ticket', ...r }));
-    } catch {}
-
-    // Users
-    try {
-      const rows = await db.select({
-        id: users.id,
-        name: users.name,
-        email: users.email,
-        phone: users.phone,
-        role: users.role,
-        isVerified: users.isVerified,
-        isSuspended: users.isSuspended,
-        createdAt: users.createdAt,
-      }).from(users).where(or(ilike(users.email, `%${query}%`), ilike(users.name, `%${query}%`), ilike(users.phone, `%${query}%`))).limit(5);
-      rows.forEach(r => results.push({ type: 'user', label: 'User Account', ...r }));
-    } catch {}
-
-    res.json(formatResponse('success', 200, `Found ${results.length} results`, { results, query }));
+    res.json(formatResponse('success', 200, `Found ${results.length} transaction(s)`, { results, query }));
   } catch (error: any) {
     logger.error('Lookup error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Lookup failed'));

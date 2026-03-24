@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { db } from '../../config/database';
-import { adminUsers, a2cAgents, a2cRequests, a2cPhoneInventory, a2cStatusHistory, users, servicePricing } from '../../db/schema';
+import { adminUsers, a2cAgents, a2cRequests, a2cPhoneInventory, a2cStatusHistory, users, servicePricing, agentInternalMessages } from '../../db/schema';
 import { eq, and, desc, count, sql, isNull, or, gte } from 'drizzle-orm';
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
@@ -682,6 +682,65 @@ router.patch('/requests/:id/update-status', a2cAgentAuthMiddleware, async (req: 
   } catch (error: any) {
     logger.error('Update A2C request status error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to update request'));
+  }
+});
+
+// =====================================================
+// SUPPORT INTERNAL MESSAGES
+// =====================================================
+
+router.get('/support-messages', a2cAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const messages = await db.select().from(agentInternalMessages)
+      .where(eq(agentInternalMessages.toDepartment, 'a2c'))
+      .orderBy(desc(agentInternalMessages.createdAt))
+      .limit(100);
+    res.json(formatResponse('success', 200, 'Support messages', { messages }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to get support messages'));
+  }
+});
+
+router.post('/support-messages/:messageId/reply', a2cAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { messageId } = req.params;
+    const { message } = req.body;
+    const agentId = (req as any).agentId;
+    if (!message?.trim()) return res.status(400).json(formatErrorResponse(400, 'Message is required'));
+
+    const [original] = await db.select().from(agentInternalMessages)
+      .where(eq(agentInternalMessages.id, messageId)).limit(1);
+    if (!original) return res.status(404).json(formatErrorResponse(404, 'Message not found'));
+
+    const [agentRecord] = await db.select({ name: adminUsers.name })
+      .from(a2cAgents).leftJoin(adminUsers, eq(a2cAgents.adminUserId, adminUsers.id))
+      .where(eq(a2cAgents.id, agentId)).limit(1);
+
+    const [reply] = await db.insert(agentInternalMessages).values({
+      ticketId: original.ticketId,
+      fromType: 'a2c_agent',
+      fromId: agentId,
+      fromName: agentRecord?.name || 'A2C Agent',
+      toDepartment: 'support',
+      message: message.trim(),
+      linkedOrderId: original.linkedOrderId || null,
+    }).returning();
+
+    res.status(201).json(formatResponse('success', 201, 'Reply sent', { message: reply }));
+  } catch (error: any) {
+    logger.error('A2C agent reply error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to send reply'));
+  }
+});
+
+router.put('/support-messages/mark-read', a2cAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    await db.update(agentInternalMessages)
+      .set({ readAt: new Date() })
+      .where(and(eq(agentInternalMessages.toDepartment, 'a2c'), isNull(agentInternalMessages.readAt)));
+    res.json(formatResponse('success', 200, 'Messages marked as read'));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to mark messages as read'));
   }
 });
 

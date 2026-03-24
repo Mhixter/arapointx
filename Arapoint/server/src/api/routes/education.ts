@@ -402,7 +402,12 @@ router.get('/jamb-requests/:id/documents/:docId/download', async (req: Request, 
       return res.status(404).json(formatErrorResponse(404, 'File not found on server'));
     }
     res.setHeader('Content-Disposition', `attachment; filename="${doc.fileName || 'document'}"`);
-    res.sendFile(localPath);
+    res.sendFile(localPath, (sendErr) => {
+      if (sendErr && !res.headersSent) {
+        logger.error('Send JAMB file error', { error: sendErr.message, localPath });
+        res.status(500).json(formatErrorResponse(500, 'Failed to send file'));
+      }
+    });
   } catch (error: any) {
     logger.error('Download JAMB document error', { error: error.message });
     if (!res.headersSent) {

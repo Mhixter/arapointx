@@ -549,7 +549,7 @@ export default function SupportAgentDashboard() {
         <div className="flex px-6">
           {[
             { id: "tickets", label: "My Tickets", icon: <Inbox className="h-4 w-4" /> },
-            { id: "lookup", label: "Cross-Dept Lookup", icon: <Search className="h-4 w-4" /> },
+            { id: "lookup", label: "Transaction Lookup", icon: <Search className="h-4 w-4" /> },
             { id: "fraud", label: "Fraud Alerts", icon: <ShieldAlert className="h-4 w-4" /> },
           ].map((tab) => (
             <button
@@ -966,17 +966,17 @@ export default function SupportAgentDashboard() {
       {/* ====== CROSS-DEPT LOOKUP TAB ====== */}
       {mainTab === "lookup" && (
         <div className="flex-1 p-6 overflow-auto">
-          <div className="max-w-4xl mx-auto space-y-6">
+          <div className="max-w-3xl mx-auto space-y-6">
             <div>
-              <h2 className="text-xl font-bold mb-1">Cross-Department Lookup</h2>
-              <p className="text-sm text-muted-foreground">Search across all departments — A2C, Identity, Education, CAC, Transactions, Tickets, Users</p>
+              <h2 className="text-xl font-bold mb-1">Transaction Lookup</h2>
+              <p className="text-sm text-muted-foreground">Search for a transaction by its reference ID to view full details and the customer behind it.</p>
             </div>
             <div className="flex gap-3">
               <Input
-                placeholder="Search by tracking ID, phone, email, reference, business name..."
+                placeholder="Enter transaction reference ID..."
                 value={lookupQuery}
                 onChange={e => setLookupQuery(e.target.value)}
-                className="flex-1 text-sm"
+                className="flex-1 text-sm font-mono"
                 onKeyDown={e => { if (e.key === "Enter") handleLookup(); }}
               />
               <Button onClick={handleLookup} disabled={lookupLoading || lookupQuery.trim().length < 3} className="gap-2">
@@ -988,89 +988,36 @@ export default function SupportAgentDashboard() {
             {lookupLoading && (
               <div className="text-center py-12 text-muted-foreground">
                 <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
-                <p className="text-sm">Searching all departments...</p>
+                <p className="text-sm">Looking up transaction...</p>
               </div>
             )}
 
             {lookupDone && !lookupLoading && lookupResults.length === 0 && (
               <div className="text-center py-12 text-muted-foreground">
                 <Search className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">No results found for "{lookupQuery}"</p>
+                <p className="text-sm">No transaction found for "{lookupQuery}"</p>
               </div>
             )}
 
             {lookupResults.length > 0 && (
               <div className="space-y-3">
-                <p className="text-xs text-muted-foreground">{lookupResults.length} result{lookupResults.length !== 1 ? "s" : ""} found</p>
+                <p className="text-xs text-muted-foreground">{lookupResults.length} transaction{lookupResults.length !== 1 ? "s" : ""} found</p>
                 {lookupResults.map((r: any, i) => (
-                  <Card key={i} className="p-4">
-                    <div className="flex items-start gap-3">
-                      <span className={`text-xs px-2 py-1 rounded-full font-semibold shrink-0 ${resultTypeColor(r.type)}`}>
-                        {r.label}
-                      </span>
-                      <div className="flex-1 grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
-                        {r.type === "a2c" && (
-                          <>
-                            <div><span className="text-muted-foreground text-xs">Tracking ID:</span> <span className="font-mono font-medium">{r.trackingId}</span></div>
-                            <div><span className="text-muted-foreground text-xs">Network:</span> <span className="font-medium">{r.network}</span></div>
-                            <div><span className="text-muted-foreground text-xs">Phone:</span> <span className="font-medium">{r.phoneNumber}</span></div>
-                            <div><span className="text-muted-foreground text-xs">Airtime:</span> <span className="font-medium">₦{Number(r.airtimeAmount || 0).toLocaleString()}</span></div>
-                            <div><span className="text-muted-foreground text-xs">Cash Out:</span> <span className="font-medium">₦{Number(r.cashAmount || 0).toLocaleString()}</span></div>
-                            <div><span className="text-muted-foreground text-xs">Status:</span> <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusColor(r.status)}`}>{r.status}</span></div>
-                          </>
-                        )}
-                        {r.type === "identity" && (
-                          <>
-                            <div><span className="text-muted-foreground text-xs">Ref:</span> <span className="font-mono font-medium">{r.referenceId}</span></div>
-                            <div><span className="text-muted-foreground text-xs">Service:</span> <span className="font-medium">{r.serviceType}</span></div>
-                            <div><span className="text-muted-foreground text-xs">Status:</span> <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusColor(r.status)}`}>{r.status}</span></div>
-                          </>
-                        )}
-                        {r.type === "education" && (
-                          <>
-                            <div><span className="text-muted-foreground text-xs">Ref:</span> <span className="font-mono font-medium">{r.referenceId}</span></div>
-                            <div><span className="text-muted-foreground text-xs">Service:</span> <span className="font-medium">{r.serviceType}</span></div>
-                            <div><span className="text-muted-foreground text-xs">Status:</span> <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusColor(r.status)}`}>{r.status}</span></div>
-                          </>
-                        )}
-                        {r.type === "cac" && (
-                          <>
-                            <div><span className="text-muted-foreground text-xs">Business Name:</span> <span className="font-medium">{r.businessName}</span></div>
-                            <div><span className="text-muted-foreground text-xs">Service:</span> <span className="font-medium">{r.serviceType}</span></div>
-                            <div><span className="text-muted-foreground text-xs">Status:</span> <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusColor(r.status)}`}>{r.status}</span></div>
-                            {r.paymentReference && <div><span className="text-muted-foreground text-xs">Payment Ref:</span> <span className="font-mono">{r.paymentReference}</span></div>}
-                          </>
-                        )}
-                        {r.type === "transaction" && (
-                          <>
-                            <div><span className="text-muted-foreground text-xs">Ref:</span> <span className="font-mono font-medium">{r.reference}</span></div>
-                            <div><span className="text-muted-foreground text-xs">Type:</span> <span className="font-medium">{r.type}</span></div>
-                            <div><span className="text-muted-foreground text-xs">Amount:</span> <span className="font-medium">₦{Number(r.amount || 0).toLocaleString()}</span></div>
-                            <div><span className="text-muted-foreground text-xs">Status:</span> <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusColor(r.status)}`}>{r.status}</span></div>
-                            {r.description && <div className="col-span-2"><span className="text-muted-foreground text-xs">Desc:</span> <span>{r.description}</span></div>}
-                          </>
-                        )}
-                        {r.type === "ticket" && (
-                          <>
-                            <div><span className="text-muted-foreground text-xs">Ref:</span> <span className="font-mono font-medium">{r.referenceId}</span></div>
-                            <div><span className="text-muted-foreground text-xs">Status:</span> <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusColor(r.status)}`}>{r.status}</span></div>
-                            <div className="col-span-2"><span className="text-muted-foreground text-xs">Subject:</span> <span>{r.subject}</span></div>
-                            {r.departmentTag && <div><span className="text-muted-foreground text-xs">Dept:</span> <span>{r.departmentTag}</span></div>}
-                            {r.linkedOrderId && <div><span className="text-muted-foreground text-xs">Linked Order:</span> <span className="font-mono">{r.linkedOrderId}</span></div>}
-                          </>
-                        )}
-                        {r.type === "user" && (
-                          <>
-                            <div><span className="text-muted-foreground text-xs">Name:</span> <span className="font-medium">{r.name}</span></div>
-                            <div><span className="text-muted-foreground text-xs">Email:</span> <span className="font-medium">{r.email}</span></div>
-                            <div><span className="text-muted-foreground text-xs">Phone:</span> <span className="font-medium">{r.phone || "—"}</span></div>
-                            <div><span className="text-muted-foreground text-xs">Role:</span> <span className="font-medium">{r.role}</span></div>
-                            {r.isSuspended && <div className="col-span-2"><span className="text-xs text-red-600 font-semibold">⚠ Account Suspended</span></div>}
-                          </>
-                        )}
-                        <div className="col-span-2 text-xs text-muted-foreground">
-                          <span className="text-muted-foreground">User:</span> {r.userName || r.name} ({r.userEmail || r.email}) &middot; {r.createdAt ? formatDistanceToNow(new Date(r.createdAt), { addSuffix: true }) : ""}
-                        </div>
+                  <Card key={i} className="p-4 border border-blue-100">
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                      <div><span className="text-muted-foreground text-xs">Reference:</span> <span className="font-mono font-semibold text-blue-700">{r.reference}</span></div>
+                      <div><span className="text-muted-foreground text-xs">Type:</span> <span className="font-medium capitalize">{r.type?.replace(/_/g, " ")}</span></div>
+                      <div><span className="text-muted-foreground text-xs">Amount:</span> <span className="font-semibold">₦{Number(r.amount || 0).toLocaleString()}</span></div>
+                      <div><span className="text-muted-foreground text-xs">Status:</span> <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor(r.status)}`}>{r.status}</span></div>
+                      {r.description && <div className="col-span-2"><span className="text-muted-foreground text-xs">Description:</span> <span>{r.description}</span></div>}
+                      <div className="col-span-2 pt-1 border-t mt-1">
+                        <span className="text-muted-foreground text-xs">Customer:</span>{" "}
+                        <span className="font-medium">{r.userName}</span>{" "}
+                        <span className="text-muted-foreground">({r.userEmail})</span>{" "}
+                        {r.userPhone && <span className="text-muted-foreground">&middot; {r.userPhone}</span>}
+                      </div>
+                      <div className="col-span-2 text-xs text-muted-foreground">
+                        {r.createdAt ? formatDistanceToNow(new Date(r.createdAt), { addSuffix: true }) : ""}
                       </div>
                     </div>
                   </Card>
