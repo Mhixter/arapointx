@@ -1,0 +1,1232 @@
+{
+  "version": "1.0",
+  "description": "Arapoint AI Support Knowledge Base - Covers all Arapoint services, FAQs, common issues, and resolutions.",
+  "entries": [
+    {
+      "id": "gen-001",
+      "category": "general",
+      "question": "What is Arapoint?",
+      "variations": [
+        "tell me about arapoint",
+        "what does arapoint do",
+        "what services does arapoint offer",
+        "about arapoint platform",
+        "arapoint overview",
+        "what can arapoint help me with"
+      ],
+      "answer": "Arapoint is Nigeria's trusted identity and utility verification platform. We offer NIN/BVN lookup, JAMB/WAEC/NECO/NABTEB/NBAIS result checking, education services, VTU (airtime, data, bills), Airtime-to-Cash conversion, wallet funding, and CAC business registration services. We are designed to make verification and utility services fast, reliable, and affordable.",
+      "tags": ["general", "overview", "arapoint", "services"]
+    },
+    {
+      "id": "gen-002",
+      "category": "general",
+      "question": "How do I contact Arapoint support?",
+      "variations": [
+        "how do I reach support",
+        "support contact",
+        "customer care number",
+        "email address",
+        "phone number arapoint",
+        "how to speak to someone",
+        "contact us"
+      ],
+      "answer": "You can reach Arapoint support directly through this chat by clicking 'Talk to Agent' or typing 'agent'. You can also submit a support ticket, and our team will respond within 24 hours. We are available Monday to Saturday, 8am to 8pm WAT.",
+      "tags": ["contact", "support", "customer care", "help"]
+    },
+    {
+      "id": "gen-003",
+      "category": "general",
+      "question": "What are Arapoint's working hours?",
+      "variations": [
+        "when is arapoint open",
+        "business hours",
+        "when can I get support",
+        "arapoint operating hours",
+        "are you open on weekends"
+      ],
+      "answer": "Arapoint operates Monday to Saturday from 8:00 AM to 8:00 PM (WAT). Our AI assistant is available 24/7. For urgent issues outside business hours, please submit a ticket and an agent will respond first thing in the morning.",
+      "tags": ["hours", "working hours", "support", "availability"]
+    },
+    {
+      "id": "gen-004",
+      "category": "account",
+      "question": "How do I create an account on Arapoint?",
+      "variations": [
+        "how to sign up",
+        "register on arapoint",
+        "how to create account",
+        "new account registration",
+        "sign up steps"
+      ],
+      "answer": "To create an Arapoint account: 1) Visit our website and click 'Sign Up', 2) Enter your full name, email address, and phone number, 3) Create a strong password, 4) Verify your email address using the OTP sent to you, 5) You're ready to use all Arapoint services.",
+      "tags": ["account", "registration", "sign up", "create account"]
+    },
+    {
+      "id": "gen-005",
+      "category": "account",
+      "question": "How do I reset my password?",
+      "variations": [
+        "forgot password",
+        "I can't login",
+        "lost my password",
+        "password reset",
+        "change my password",
+        "reset password steps",
+        "cannot access my account"
+      ],
+      "answer": "To reset your password: 1) Click 'Forgot Password' on the login page, 2) Enter your registered email address, 3) Check your email for the password reset link (check spam if not found), 4) Click the link and create a new password. If you still cannot access your account after this, please contact support.",
+      "tags": ["password", "login", "forgot password", "reset", "account access"]
+    },
+    {
+      "id": "gen-006",
+      "category": "account",
+      "question": "My account is locked, what do I do?",
+      "variations": [
+        "account blocked",
+        "account suspended",
+        "locked out of account",
+        "account disabled",
+        "cannot log in account locked"
+      ],
+      "answer": "Account locks usually happen after multiple failed login attempts as a security measure. Please wait 30 minutes and try again. If your account is still locked or has been suspended, please contact our support team — an agent will investigate and restore access for you.",
+      "tags": ["account", "locked", "blocked", "suspended", "security"]
+    },
+    {
+      "id": "gen-007",
+      "category": "account",
+      "question": "How do I update my profile information?",
+      "variations": [
+        "change my phone number",
+        "update email address",
+        "edit my profile",
+        "change account details",
+        "update my information"
+      ],
+      "answer": "You can update your profile by going to 'My Account' or 'Settings' after logging in. You can update your name, phone number, and other details. Note that changing your registered email address may require verification via OTP.",
+      "tags": ["account", "profile", "update", "settings", "phone number"]
+    },
+    {
+      "id": "nin-001",
+      "category": "nin",
+      "question": "What is NIN?",
+      "variations": [
+        "nin meaning",
+        "national identification number",
+        "what does nin stand for",
+        "nin definition",
+        "what is national identity number"
+      ],
+      "answer": "NIN stands for National Identification Number. It is an 11-digit unique number assigned to every Nigerian citizen and legal resident by the National Identity Management Commission (NIMC). It is used to verify your identity for financial, legal, and government services.",
+      "tags": ["nin", "identity", "national id", "nimc"]
+    },
+    {
+      "id": "nin-002",
+      "category": "nin",
+      "question": "How do I look up a NIN on Arapoint?",
+      "variations": [
+        "how to check NIN",
+        "nin verification steps",
+        "how to verify nin",
+        "nin lookup process",
+        "how does nin search work",
+        "verify someone's nin"
+      ],
+      "answer": "To look up a NIN on Arapoint: 1) Fund your wallet or use pay-as-you-go, 2) Go to 'Identity Verification' > 'NIN Lookup', 3) Enter the 11-digit NIN number, 4) Click 'Verify'. Results are returned instantly and include the holder's name, date of birth, gender, and photo.",
+      "tags": ["nin", "lookup", "verify", "check", "identity"]
+    },
+    {
+      "id": "nin-003",
+      "category": "nin",
+      "question": "My NIN lookup returned 'not found', what should I do?",
+      "variations": [
+        "nin not found",
+        "nin number not showing",
+        "nin verification failed",
+        "nin not recognized",
+        "nin lookup error",
+        "wrong nin result"
+      ],
+      "answer": "If your NIN lookup shows 'not found': 1) Double-check that you entered exactly 11 digits, 2) Ensure there are no spaces or extra characters, 3) Confirm the NIN is valid (you can check via the NIMC app or *346#), 4) If the NIN is correct but still not found, the record may not be in our database yet — please contact support with the NIN for manual investigation.",
+      "tags": ["nin", "not found", "error", "failed", "verification"]
+    },
+    {
+      "id": "nin-004",
+      "category": "nin",
+      "question": "How do I get my NIN slip PDF?",
+      "variations": [
+        "download nin slip",
+        "nin slip pdf",
+        "print nin slip",
+        "nin a4 slip",
+        "how to get nin document",
+        "nin slip download"
+      ],
+      "answer": "To get your NIN slip PDF: 1) Go to 'Identity Verification' > 'NIN Slip', 2) Enter your NIN, 3) Pay the processing fee, 4) Your PDF slip will be generated and available for download immediately. The slip is an A4-sized document you can print.",
+      "tags": ["nin", "slip", "pdf", "download", "print", "document"]
+    },
+    {
+      "id": "nin-005",
+      "category": "nin",
+      "question": "What is vNIN and how do I get it?",
+      "variations": [
+        "virtual nin",
+        "vnin generation",
+        "how to generate vnin",
+        "what is virtual nin",
+        "vnin meaning",
+        "vnin for sim card"
+      ],
+      "answer": "A vNIN (Virtual NIN) is a temporary, tokenized version of your NIN used to link your phone number to your NIN without exposing your actual NIN. To get a vNIN on Arapoint: 1) Go to 'Identity Verification' > 'vNIN Generation', 2) Enter your NIN, 3) Pay the fee, 4) Your vNIN will be generated instantly. Each vNIN is valid for 72 hours.",
+      "tags": ["vnin", "virtual nin", "nin", "sim card", "phone linking"]
+    },
+    {
+      "id": "nin-006",
+      "category": "nin",
+      "question": "How much does NIN lookup cost?",
+      "variations": [
+        "nin verification price",
+        "nin lookup fee",
+        "how much to check nin",
+        "nin cost",
+        "nin lookup charge"
+      ],
+      "answer": "NIN lookup pricing is shown on the service page before you confirm. The fee varies by service type (basic lookup, full verification, NIN slip, vNIN). Please check the current prices on the Identity Verification page. All fees are clearly displayed before payment.",
+      "tags": ["nin", "price", "fee", "cost", "charge"]
+    },
+    {
+      "id": "bvn-001",
+      "category": "bvn",
+      "question": "What is BVN?",
+      "variations": [
+        "bvn meaning",
+        "bank verification number",
+        "what does bvn stand for",
+        "bvn definition",
+        "explain bvn"
+      ],
+      "answer": "BVN stands for Bank Verification Number. It is an 11-digit unique number issued by the Central Bank of Nigeria (CBN) to every bank customer. It links all your bank accounts and is used to verify your identity for banking and financial services.",
+      "tags": ["bvn", "bank", "identity", "cbn", "verification"]
+    },
+    {
+      "id": "bvn-002",
+      "category": "bvn",
+      "question": "How do I look up a BVN on Arapoint?",
+      "variations": [
+        "bvn verification steps",
+        "how to check bvn",
+        "bvn lookup process",
+        "how to verify bvn",
+        "check someone bvn"
+      ],
+      "answer": "To look up a BVN on Arapoint: 1) Go to 'Identity Verification' > 'BVN Lookup', 2) Enter the 11-digit BVN number, 3) Click 'Verify'. Results include the holder's name, date of birth, phone number (masked), and bank accounts linked.",
+      "tags": ["bvn", "lookup", "verify", "check"]
+    },
+    {
+      "id": "bvn-003",
+      "category": "bvn",
+      "question": "BVN lookup returned not found, what do I do?",
+      "variations": [
+        "bvn not found",
+        "bvn not recognized",
+        "bvn verification failed",
+        "bvn error",
+        "invalid bvn",
+        "bvn lookup error"
+      ],
+      "answer": "If your BVN is not found: 1) Confirm the BVN is exactly 11 digits, 2) Check by dialing *565*0# on your registered bank phone number to see your BVN, 3) Ensure you're entering the correct number without spaces. If it's still not found, contact support — the BVN may not be in our current database or may require manual verification.",
+      "tags": ["bvn", "not found", "error", "failed", "verification"]
+    },
+    {
+      "id": "bvn-004",
+      "category": "bvn",
+      "question": "How do I download my BVN report PDF?",
+      "variations": [
+        "bvn pdf download",
+        "bvn report",
+        "bvn slip download",
+        "bvn document",
+        "print bvn report"
+      ],
+      "answer": "After a successful BVN lookup, you will see a 'Download PDF' button on the results page. Click it to download your BVN verification report as a PDF. This report includes all verified details from the BVN record.",
+      "tags": ["bvn", "pdf", "download", "report", "document"]
+    },
+    {
+      "id": "jamb-001",
+      "category": "jamb",
+      "question": "How do I check my JAMB result on Arapoint?",
+      "variations": [
+        "check jamb score",
+        "jamb result checker",
+        "how to verify jamb result",
+        "jamb utme result",
+        "check my jamb score",
+        "jamb result lookup"
+      ],
+      "answer": "To check your JAMB result: 1) Go to 'Education Services' > 'JAMB Result Checker', 2) Enter your JAMB registration number (format: 12345678AB), 3) Select the exam year, 4) Pay the fee and click 'Check'. Your result showing all subject scores and total will be displayed.",
+      "tags": ["jamb", "result", "score", "utme", "check"]
+    },
+    {
+      "id": "jamb-002",
+      "category": "jamb",
+      "question": "JAMB result not showing or not found",
+      "variations": [
+        "jamb result not found",
+        "cannot find jamb result",
+        "jamb result error",
+        "jamb result not available",
+        "jamb registration number wrong",
+        "jamb result pending"
+      ],
+      "answer": "If your JAMB result is not showing: 1) Verify your registration number format (should be 8 digits followed by 2 letters, e.g., 12345678AB), 2) Confirm the exam year you selected is correct, 3) Some results take up to 48 hours to appear after JAMB releases them. If the issue persists, please contact our support team with your registration number.",
+      "tags": ["jamb", "result", "not found", "error", "registration number"]
+    },
+    {
+      "id": "jamb-003",
+      "category": "jamb",
+      "question": "How do I check JAMB admission status?",
+      "variations": [
+        "jamb admission check",
+        "check if I was admitted",
+        "jamb caps admission",
+        "how to know if I was admitted",
+        "admission status check",
+        "jamb admission verification"
+      ],
+      "answer": "To check your JAMB admission status: 1) Go to 'Education Services' > 'JAMB Admission Status', 2) Enter your JAMB registration number, 3) Select the exam year, 4) Click 'Check'. The result will show whether you've been offered admission, which institution, and the course.",
+      "tags": ["jamb", "admission", "caps", "status", "check", "university"]
+    },
+    {
+      "id": "jamb-004",
+      "category": "jamb",
+      "question": "How do I change my JAMB course or institution?",
+      "variations": [
+        "jamb change of course",
+        "jamb change of institution",
+        "how to change jamb course",
+        "change jamb school",
+        "jamb change of course and institution"
+      ],
+      "answer": "For JAMB change of course/institution: 1) Go to 'Education Services' > 'JAMB Change of Course/Institution', 2) Submit your registration number and requested changes, 3) Our JAMB agent will process it through the JAMB CAPS portal, 4) You'll be notified once completed. Note: JAMB change of course has specific windows — ensure you are within the approved period.",
+      "tags": ["jamb", "change of course", "change of institution", "caps", "change"]
+    },
+    {
+      "id": "jamb-005",
+      "category": "jamb",
+      "question": "What is JAMB direct entry and how do I process it?",
+      "variations": [
+        "jamb direct entry",
+        "de registration jamb",
+        "how to register for direct entry",
+        "direct entry form jamb",
+        "de admission"
+      ],
+      "answer": "JAMB Direct Entry (DE) is for candidates who already have OND, HND, NCE, A-Level, or other equivalent qualifications and want to gain university admission at 200 level. To process DE on Arapoint: submit your request in 'Education Services' > 'JAMB Direct Entry', provide your qualifications and preferred institution/course, and our agent will handle the JAMB portal registration.",
+      "tags": ["jamb", "direct entry", "de", "ond", "hnd", "nce"]
+    },
+    {
+      "id": "jamb-006",
+      "category": "jamb",
+      "question": "How do I get my JAMB admission letter?",
+      "variations": [
+        "download jamb admission letter",
+        "jamb letter of admission",
+        "jamb acceptance letter",
+        "print jamb admission letter",
+        "where to get admission letter"
+      ],
+      "answer": "To get your JAMB admission letter: 1) Go to 'Education Services' > 'Admission Letter', 2) Enter your JAMB registration number, 3) Our agent processes the request through the JAMB portal, 4) The official admission letter PDF is uploaded for you to download. This letter is needed for your school registration.",
+      "tags": ["jamb", "admission letter", "download", "print", "caps"]
+    },
+    {
+      "id": "jamb-007",
+      "category": "jamb",
+      "question": "What is JAMB regularization and mutation?",
+      "variations": [
+        "jamb regularization",
+        "jamb mutation",
+        "regularize jamb result",
+        "jamb course regularization",
+        "what is jamb regularization"
+      ],
+      "answer": "JAMB Regularization is for students who gained admission without proper JAMB authorization (e.g., admitted for a different course or year). Mutation is for correcting errors in your JAMB result or details. Both processes require JAMB agent intervention. Submit your request through 'Education Services' and provide all required documents.",
+      "tags": ["jamb", "regularization", "mutation", "correction", "jamb error"]
+    },
+    {
+      "id": "waec-001",
+      "category": "waec",
+      "question": "How do I check my WAEC result on Arapoint?",
+      "variations": [
+        "waec result checker",
+        "check waec score",
+        "waec ssce result",
+        "verify waec result",
+        "how to check waec",
+        "waec result verification"
+      ],
+      "answer": "To check your WAEC result: 1) Go to 'Education Services' > 'WAEC Result Checker', 2) Enter your exam number (e.g., 4120101001), 3) Select your exam year and type (SSCE, GCE), 4) Pay the verification fee, 5) Your result will be displayed showing all subjects and grades.",
+      "tags": ["waec", "result", "check", "ssce", "gce", "education"]
+    },
+    {
+      "id": "waec-002",
+      "category": "waec",
+      "question": "My WAEC result is not found",
+      "variations": [
+        "waec result not showing",
+        "cannot find waec result",
+        "waec result error",
+        "waec number invalid",
+        "waec check failed"
+      ],
+      "answer": "If your WAEC result is not found: 1) Ensure your exam number is correct (check your scratch card or WAEC statement of result), 2) Confirm the exam year and exam type (SSCE or GCE), 3) WAEC results for recent exams may take a few weeks to be released. If the issue persists, contact our support team.",
+      "tags": ["waec", "not found", "error", "result", "check"]
+    },
+    {
+      "id": "neco-001",
+      "category": "neco",
+      "question": "How do I check my NECO result on Arapoint?",
+      "variations": [
+        "neco result checker",
+        "check neco score",
+        "neco ssce result",
+        "verify neco result",
+        "how to check neco"
+      ],
+      "answer": "To check your NECO result: 1) Go to 'Education Services' > 'NECO Result Checker', 2) Enter your exam number, 3) Select your exam year and exam type (SSCE/JCE), 4) Pay the fee, 5) Your grades for all subjects will be displayed instantly.",
+      "tags": ["neco", "result", "check", "ssce", "education"]
+    },
+    {
+      "id": "nabteb-001",
+      "category": "nabteb",
+      "question": "How do I check my NABTEB result?",
+      "variations": [
+        "nabteb result checker",
+        "check nabteb result",
+        "nabteb verification",
+        "how to verify nabteb",
+        "nabteb score check"
+      ],
+      "answer": "To check your NABTEB result: 1) Go to 'Education Services' > 'NABTEB Result Checker', 2) Enter your NABTEB examination number, 3) Select the exam year, 4) Pay the fee and click 'Check'. Your NABTEB technical result will be displayed.",
+      "tags": ["nabteb", "result", "check", "technical", "education"]
+    },
+    {
+      "id": "nbais-001",
+      "category": "nbais",
+      "question": "How do I check my NBAIS result?",
+      "variations": [
+        "nbais result checker",
+        "check nbais result",
+        "nbais islamic education result",
+        "nbais verification",
+        "nbais score"
+      ],
+      "answer": "To check your NBAIS result: 1) Go to 'Education Services' > 'NBAIS Result Checker', 2) Enter your examination number, 3) Select the year and level, 4) Pay the applicable fee, 5) Your result will be shown. NBAIS covers Islamic education results.",
+      "tags": ["nbais", "result", "check", "islamic education", "education"]
+    },
+    {
+      "id": "vtu-001",
+      "category": "vtu",
+      "question": "How do I buy airtime on Arapoint?",
+      "variations": [
+        "purchase airtime",
+        "recharge phone",
+        "buy mtn airtime",
+        "airtel airtime purchase",
+        "glo recharge",
+        "9mobile airtime",
+        "how to recharge on arapoint",
+        "top up phone"
+      ],
+      "answer": "To buy airtime: 1) Go to 'VTU Services' > 'Airtime', 2) Select the network (MTN, Airtel, Glo, 9mobile), 3) Enter the phone number to recharge, 4) Enter the amount (minimum ₦50), 5) Confirm the purchase. Airtime is delivered instantly. Your wallet will be debited.",
+      "tags": ["airtime", "vtu", "recharge", "mtn", "airtel", "glo", "9mobile"]
+    },
+    {
+      "id": "vtu-002",
+      "category": "vtu",
+      "question": "How do I buy data bundle on Arapoint?",
+      "variations": [
+        "purchase data",
+        "buy data bundle",
+        "subscribe to data plan",
+        "mtn data bundle",
+        "airtel data plan",
+        "how to get data",
+        "data subscription"
+      ],
+      "answer": "To buy a data bundle: 1) Go to 'VTU Services' > 'Data', 2) Select the network, 3) Enter the phone number, 4) Choose a data plan from the list, 5) Confirm the purchase. Data is activated on the phone instantly. All major networks and plan sizes are available.",
+      "tags": ["data", "vtu", "data bundle", "internet", "mtn", "airtel", "glo"]
+    },
+    {
+      "id": "vtu-003",
+      "category": "vtu",
+      "question": "How do I pay my electricity bill on Arapoint?",
+      "variations": [
+        "electricity bill payment",
+        "buy prepaid token",
+        "electricity token",
+        "nepa payment",
+        "power bill payment",
+        "ekedc payment",
+        "ibedc token",
+        "phcn payment",
+        "electricity recharge"
+      ],
+      "answer": "To pay your electricity bill: 1) Go to 'VTU Services' > 'Electricity', 2) Select your electricity distribution company (EKEDC, IBEDC, AEDC, etc.), 3) Enter your meter number, 4) Enter the amount to pay, 5) Confirm. For prepaid meters, your electricity token will be provided instantly. For postpaid, your account will be credited.",
+      "tags": ["electricity", "vtu", "token", "bill", "prepaid", "meter", "nepa"]
+    },
+    {
+      "id": "vtu-004",
+      "category": "vtu",
+      "question": "How do I pay for cable TV on Arapoint?",
+      "variations": [
+        "dstv subscription",
+        "gotv subscription",
+        "startimes subscription",
+        "cable tv payment",
+        "tv subscription renewal",
+        "pay dstv",
+        "renew gotv"
+      ],
+      "answer": "To renew your cable TV subscription: 1) Go to 'VTU Services' > 'Cable TV', 2) Select your provider (DSTV, GOTV, StarTimes), 3) Enter your SmartCard number (IUC number), 4) Choose your subscription package, 5) Confirm payment. Your subscription is renewed instantly.",
+      "tags": ["dstv", "gotv", "startimes", "cable tv", "subscription", "vtu"]
+    },
+    {
+      "id": "vtu-005",
+      "category": "vtu",
+      "question": "My airtime/data purchase was deducted but not received",
+      "variations": [
+        "airtime not received",
+        "data not activated",
+        "airtime deducted but not credited",
+        "data purchase failed",
+        "recharge not reflected",
+        "airtime failed but money was taken"
+      ],
+      "answer": "If your airtime or data was deducted but not received: 1) Wait 5-10 minutes as network delivery can be delayed, 2) Check your current airtime/data balance on the network, 3) If still not received after 15 minutes, please contact support immediately with the transaction reference number and we will investigate. A refund will be issued if the delivery failed.",
+      "tags": ["airtime", "data", "not received", "deducted", "failed", "refund"]
+    },
+    {
+      "id": "vtu-006",
+      "category": "vtu",
+      "question": "My electricity token was not delivered",
+      "variations": [
+        "electricity token not received",
+        "electricity payment not credited",
+        "token not showing",
+        "electricity recharge failed",
+        "prepaid token not sent"
+      ],
+      "answer": "If your electricity token wasn't delivered: 1) Wait 5 minutes (some DisCos take a little time), 2) Check the transaction history on your Arapoint account for the token code, 3) The token is usually also sent via SMS to the phone number linked to the meter. If you still haven't received it, contact support with your transaction reference — we will resolve it promptly.",
+      "tags": ["electricity", "token", "not received", "failed", "refund"]
+    },
+    {
+      "id": "a2c-001",
+      "category": "a2c",
+      "question": "What is Airtime to Cash and how does it work?",
+      "variations": [
+        "airtime to cash service",
+        "how does a2c work",
+        "convert airtime to money",
+        "sell airtime for cash",
+        "airtime conversion",
+        "how to convert airtime",
+        "a2c meaning"
+      ],
+      "answer": "Airtime-to-Cash (A2C) is a service where you convert excess airtime into cash credited to your bank account. Here's how it works: 1) Submit an A2C request on Arapoint with the amount of airtime and your network, 2) An A2C agent will give you a phone number to transfer your airtime to, 3) Transfer the airtime using the share-and-sell method (*code# or network app), 4) After confirmation, the cash equivalent (typically 70-80% of airtime value) is sent to your bank account.",
+      "tags": ["a2c", "airtime to cash", "convert airtime", "sell airtime", "cash"]
+    },
+    {
+      "id": "a2c-002",
+      "category": "a2c",
+      "question": "What is the Airtime to Cash rate?",
+      "variations": [
+        "a2c conversion rate",
+        "airtime cash rate",
+        "how much do I get for airtime",
+        "a2c percentage",
+        "airtime to cash percentage",
+        "how much will I receive"
+      ],
+      "answer": "Arapoint's A2C rates are: MTN 75%, Airtel 75%, Glo 70%, 9mobile 70% of the airtime value. For example, if you send ₦1,000 MTN airtime, you receive approximately ₦750 cash. Rates may vary slightly based on market conditions and are displayed clearly before you confirm your request.",
+      "tags": ["a2c", "rate", "percentage", "conversion rate", "airtime"]
+    },
+    {
+      "id": "a2c-003",
+      "category": "a2c",
+      "question": "How long does Airtime to Cash take?",
+      "variations": [
+        "a2c processing time",
+        "when will I receive my cash",
+        "airtime to cash duration",
+        "how long for a2c",
+        "a2c time",
+        "airtime conversion time"
+      ],
+      "answer": "Airtime-to-Cash requests are typically processed within 15-45 minutes after the airtime transfer is confirmed. During peak hours, it may take up to 1 hour. Please do not submit a duplicate request while waiting. If your request takes longer than 2 hours, please contact support with your request ID.",
+      "tags": ["a2c", "processing time", "duration", "wait time", "how long"]
+    },
+    {
+      "id": "a2c-004",
+      "category": "a2c",
+      "question": "My A2C request is still pending after a long time",
+      "variations": [
+        "a2c request pending",
+        "airtime to cash not processed",
+        "a2c request stuck",
+        "airtime conversion pending",
+        "a2c still processing",
+        "a2c not completed"
+      ],
+      "answer": "If your A2C request has been pending for more than 2 hours: 1) Check your request status in 'Airtime to Cash' > 'My Requests', 2) Ensure the airtime was successfully transferred to the agent's number, 3) Contact support with your request ID and proof of airtime transfer. Our team will investigate and either process or resolve it.",
+      "tags": ["a2c", "pending", "stuck", "delayed", "not processed"]
+    },
+    {
+      "id": "a2c-005",
+      "category": "a2c",
+      "question": "Minimum and maximum amount for Airtime to Cash",
+      "variations": [
+        "minimum a2c amount",
+        "maximum airtime conversion",
+        "a2c limit",
+        "how much can I convert",
+        "smallest airtime to cash"
+      ],
+      "answer": "The minimum Airtime-to-Cash amount is ₦200 and the maximum per transaction is ₦50,000. For amounts above ₦50,000, please contact support to arrange a bulk conversion.",
+      "tags": ["a2c", "minimum", "maximum", "limit", "amount"]
+    },
+    {
+      "id": "a2c-006",
+      "category": "a2c",
+      "question": "What networks are supported for Airtime to Cash?",
+      "variations": [
+        "a2c networks",
+        "which network for airtime conversion",
+        "mtn a2c",
+        "airtel airtime to cash",
+        "glo a2c",
+        "9mobile airtime conversion",
+        "supported networks a2c"
+      ],
+      "answer": "Arapoint supports Airtime-to-Cash for all major Nigerian networks: MTN, Airtel, Glo, and 9mobile. Simply select your network when submitting your A2C request.",
+      "tags": ["a2c", "networks", "mtn", "airtel", "glo", "9mobile"]
+    },
+    {
+      "id": "a2c-007",
+      "category": "a2c",
+      "question": "How do I transfer airtime for A2C?",
+      "variations": [
+        "how to send airtime for a2c",
+        "airtime transfer method",
+        "how to share airtime",
+        "ussd code to share airtime",
+        "how to transfer mtn airtime",
+        "airtel share and sell"
+      ],
+      "answer": "To transfer airtime for A2C: MTN: *600*recipient_number*amount*PIN# (default PIN: 0000). Airtel: *432*recipient*amount# or Airtel Thanks app. Glo: *131*recipient*amount*1# or Glo Café app. 9mobile: *223*amount*recipient# . After transferring, mark your A2C request as 'Airtime Sent' on Arapoint.",
+      "tags": ["a2c", "transfer", "ussd", "airtime", "share"]
+    },
+    {
+      "id": "wallet-001",
+      "category": "wallet",
+      "question": "How do I fund my Arapoint wallet?",
+      "variations": [
+        "how to add money to wallet",
+        "fund my account",
+        "wallet topup",
+        "deposit to arapoint",
+        "how to credit my wallet",
+        "bank transfer to wallet",
+        "payvessel funding"
+      ],
+      "answer": "To fund your Arapoint wallet: 1) Go to 'Wallet' > 'Fund Wallet', 2) Select 'Bank Transfer (Payvessel)', 3) A unique virtual account number will be generated for you, 4) Make a bank transfer to that account from any Nigerian bank, 5) Your wallet is credited automatically within 5-15 minutes after the transfer is confirmed.",
+      "tags": ["wallet", "fund", "topup", "bank transfer", "payvessel", "deposit"]
+    },
+    {
+      "id": "wallet-002",
+      "category": "wallet",
+      "question": "My wallet was not credited after a bank transfer",
+      "variations": [
+        "wallet not funded",
+        "transfer not reflecting",
+        "money not showing in wallet",
+        "bank transfer not credited",
+        "payvessel transfer not received",
+        "wallet not updated after payment"
+      ],
+      "answer": "If your wallet hasn't been credited: 1) Bank transfers via Payvessel typically take 5-15 minutes. Wait at least 15 minutes, 2) Check your transaction history in your bank app to confirm the transfer was successful, 3) Ensure you transferred to the correct virtual account number (it's unique to your profile), 4) If it's been more than 30 minutes and the transfer shows successful in your bank, contact support immediately with the bank transaction receipt — we'll credit your wallet manually.",
+      "tags": ["wallet", "not credited", "transfer", "bank transfer", "payvessel", "delayed"]
+    },
+    {
+      "id": "wallet-003",
+      "category": "wallet",
+      "question": "How do I check my wallet balance?",
+      "variations": [
+        "wallet balance check",
+        "how much is in my wallet",
+        "check account balance",
+        "wallet balance"
+      ],
+      "answer": "Your wallet balance is displayed on your Arapoint dashboard as soon as you log in. You can also go to 'Wallet' to see your current balance and transaction history.",
+      "tags": ["wallet", "balance", "check"]
+    },
+    {
+      "id": "wallet-004",
+      "category": "wallet",
+      "question": "How do I withdraw from my Arapoint wallet?",
+      "variations": [
+        "withdraw from wallet",
+        "transfer from wallet to bank",
+        "cashout arapoint",
+        "how to withdraw money",
+        "wallet withdrawal"
+      ],
+      "answer": "Currently, wallet funds are used for purchasing services on Arapoint (VTU, identity verification, education services, etc.). Direct withdrawal to a bank account is not available for user wallets. For A2C earnings, cash is sent directly to your bank account. Contact support if you believe funds were incorrectly deposited.",
+      "tags": ["wallet", "withdraw", "cashout", "bank transfer", "withdrawal"]
+    },
+    {
+      "id": "wallet-005",
+      "category": "wallet",
+      "question": "My wallet was debited but service was not delivered",
+      "variations": [
+        "wallet deducted but service failed",
+        "money taken but not delivered",
+        "payment failed but debited",
+        "service failed wallet debited",
+        "charged but nothing happened",
+        "refund request"
+      ],
+      "answer": "If your wallet was debited but the service was not delivered, please contact our support team immediately with: 1) The service you purchased, 2) The amount deducted, 3) The date and time of the transaction, 4) Your transaction reference number. We will investigate and issue a refund to your wallet within 24-48 hours if the service failed.",
+      "tags": ["wallet", "debited", "failed", "refund", "service not delivered", "deducted"]
+    },
+    {
+      "id": "wallet-006",
+      "category": "wallet",
+      "question": "What is my virtual account number?",
+      "variations": [
+        "arapoint virtual account",
+        "my account number for transfer",
+        "payvessel account number",
+        "virtual account details",
+        "unique account number arapoint"
+      ],
+      "answer": "Your Arapoint virtual account number is generated when you go to 'Wallet' > 'Fund Wallet'. It is a unique bank account number (usually from Payvessel/PalmPay bank) assigned specifically to you. All transfers to this account are automatically credited to your Arapoint wallet. The account number remains the same — save it for future use.",
+      "tags": ["wallet", "virtual account", "account number", "payvessel", "palmpay"]
+    },
+    {
+      "id": "cac-001",
+      "category": "cac",
+      "question": "How do I register a business name on Arapoint?",
+      "variations": [
+        "business name registration",
+        "register business name",
+        "cac business registration",
+        "how to register my business",
+        "enterprise registration",
+        "sole proprietor registration",
+        "bn registration"
+      ],
+      "answer": "To register a business name (BN) on Arapoint: 1) Go to 'CAC Services' > 'Business Name Registration', 2) Provide your proposed business name, business address, and owner's details, 3) Pay the registration fee, 4) Our CAC agent processes the registration with the Corporate Affairs Commission, 5) Your business certificate is delivered digitally within 5-7 working days.",
+      "tags": ["cac", "business name", "registration", "bn", "enterprise", "sole proprietor"]
+    },
+    {
+      "id": "cac-002",
+      "category": "cac",
+      "question": "How do I register a company (RC) on Arapoint?",
+      "variations": [
+        "company registration",
+        "limited liability company",
+        "llc registration nigeria",
+        "register a company",
+        "rc registration",
+        "incorporated trustee",
+        "cac company registration"
+      ],
+      "answer": "To register a company (RC) with CAC through Arapoint: 1) Go to 'CAC Services' > 'Company Registration', 2) Provide company name, directors' details (BVN, NIN, passport photos), business address, and share capital, 3) Pay the applicable fee, 4) Our agent processes the registration end-to-end with CAC, 5) The company certificate (RC number) is delivered within 7-14 working days.",
+      "tags": ["cac", "company", "registration", "rc", "limited", "directors"]
+    },
+    {
+      "id": "cac-003",
+      "category": "cac",
+      "question": "How long does CAC registration take?",
+      "variations": [
+        "cac processing time",
+        "how long for business registration",
+        "business registration duration",
+        "cac approval time",
+        "when will my cac be ready"
+      ],
+      "answer": "Business Name (BN) registration typically takes 3-7 working days. Company (RC) registration takes 7-14 working days. Timelines may vary depending on CAC portal availability and document verification requirements. You'll receive updates and notifications as your registration progresses.",
+      "tags": ["cac", "processing time", "duration", "business name", "company"]
+    },
+    {
+      "id": "cac-004",
+      "category": "cac",
+      "question": "My CAC registration has been taking too long",
+      "variations": [
+        "cac registration delayed",
+        "business registration taking long",
+        "cac slow processing",
+        "cac registration stuck",
+        "why is my cac taking long"
+      ],
+      "answer": "CAC registrations can sometimes take longer due to CAC portal downtime or document review requirements. Please check your request status in 'CAC Services' > 'My Requests'. If it has exceeded the stated timeline by more than 3 days, contact our support team with your reference number and an agent will follow up directly with our CAC processing team.",
+      "tags": ["cac", "delayed", "long", "stuck", "processing"]
+    },
+    {
+      "id": "payment-001",
+      "category": "payment",
+      "question": "What payment methods does Arapoint accept?",
+      "variations": [
+        "how to pay on arapoint",
+        "payment options",
+        "accepted payment methods",
+        "can I pay with card",
+        "how to make payment"
+      ],
+      "answer": "Arapoint accepts payments through your wallet balance. To fund your wallet, you can make a bank transfer to your unique Payvessel virtual account number. We do not currently accept direct card payments. All services are paid from your wallet balance.",
+      "tags": ["payment", "methods", "bank transfer", "wallet", "card", "payvessel"]
+    },
+    {
+      "id": "payment-002",
+      "category": "payment",
+      "question": "How do I get a refund?",
+      "variations": [
+        "request refund",
+        "money back",
+        "refund policy",
+        "how long for refund",
+        "refund processing",
+        "get my money back"
+      ],
+      "answer": "To request a refund: 1) Contact support immediately via this chat or raise a ticket, 2) Provide the transaction reference, amount, and reason, 3) Our team investigates within 24 hours, 4) Approved refunds are credited back to your Arapoint wallet within 24-48 hours. Refunds are issued for failed services where your wallet was charged. We cannot refund completed services.",
+      "tags": ["refund", "money back", "payment", "failed transaction"]
+    },
+    {
+      "id": "payment-003",
+      "category": "payment",
+      "question": "My transaction shows failed but my wallet was debited",
+      "variations": [
+        "transaction failed money gone",
+        "service failed but charged",
+        "wallet deducted failed transaction",
+        "payment failed but debited",
+        "money taken for failed transaction",
+        "double charge"
+      ],
+      "answer": "This is a priority issue. If your wallet was debited for a failed transaction, please contact our support team immediately. Provide: the transaction reference, the amount debited, the service attempted, and the date/time. We will review and refund your wallet within 24 hours. This is always resolved — your money is safe.",
+      "tags": ["transaction", "failed", "debited", "refund", "payment", "charged"]
+    },
+    {
+      "id": "transaction-001",
+      "category": "transaction",
+      "question": "How do I view my transaction history?",
+      "variations": [
+        "check transaction history",
+        "view past transactions",
+        "transaction records",
+        "transaction log",
+        "payment history"
+      ],
+      "answer": "To view your transaction history: 1) Log in to your Arapoint account, 2) Go to 'Wallet' or 'Transaction History', 3) You can filter by date range, service type, or status. All transactions including wallet funding, service purchases, and A2C payments are recorded.",
+      "tags": ["transaction", "history", "records", "wallet"]
+    },
+    {
+      "id": "transaction-002",
+      "category": "transaction",
+      "question": "What is a transaction reference?",
+      "variations": [
+        "transaction id",
+        "transaction reference number",
+        "transaction ref",
+        "what is reference number",
+        "where to find transaction reference"
+      ],
+      "answer": "A transaction reference (or reference ID) is a unique alphanumeric code assigned to every transaction on Arapoint. You can find it in your transaction history or in the confirmation notification you received. When contacting support about a transaction, always provide the reference number — it helps us locate your transaction instantly.",
+      "tags": ["transaction", "reference", "id", "reference number", "tracking"]
+    },
+    {
+      "id": "security-001",
+      "category": "security",
+      "question": "I noticed unauthorized activity on my account",
+      "variations": [
+        "suspicious activity account",
+        "someone hacked my account",
+        "unauthorized transaction",
+        "account compromised",
+        "strange activity account",
+        "my account was accessed without permission"
+      ],
+      "answer": "If you suspect unauthorized access to your account: 1) Immediately change your password using 'Forgot Password', 2) Contact our support team immediately — this is treated as a high-priority issue, 3) Our security team will investigate and lock the account while reviewing, 4) Do not share your password or OTP with anyone — Arapoint staff will never ask for your password.",
+      "tags": ["security", "hacked", "unauthorized", "suspicious", "account", "compromised"]
+    },
+    {
+      "id": "security-002",
+      "category": "security",
+      "question": "Arapoint is asking for my PIN or password",
+      "variations": [
+        "someone asking for my password",
+        "arapoint staff requesting password",
+        "otp request",
+        "suspicious call from arapoint",
+        "someone claiming to be arapoint"
+      ],
+      "answer": "IMPORTANT: Arapoint will NEVER ask for your password, PIN, or OTP through any channel — phone, email, WhatsApp, or any other method. If someone is asking for this, they are SCAMMERS impersonating Arapoint. Do not share any information. Report it immediately to our support team.",
+      "tags": ["security", "scam", "password", "otp", "pin", "fraud", "phishing"]
+    },
+    {
+      "id": "otp-001",
+      "category": "account",
+      "question": "I did not receive my OTP",
+      "variations": [
+        "otp not received",
+        "verification code not sent",
+        "otp not arriving",
+        "code not delivered",
+        "sms not received",
+        "otp expired"
+      ],
+      "answer": "If you didn't receive your OTP: 1) Wait 2 minutes — it can be slightly delayed, 2) Check you're using the correct registered phone number, 3) Ensure your phone has network signal, 4) Check if your SMS inbox is full, 5) Click 'Resend OTP' if available, 6) If still not received after 2 tries, contact support — we can manually verify your account.",
+      "tags": ["otp", "sms", "verification code", "not received", "login"]
+    },
+    {
+      "id": "edu-pin-001",
+      "category": "education",
+      "question": "What are education PINs and how do I get them?",
+      "variations": [
+        "education pin",
+        "waec pin",
+        "neco pin",
+        "result checker pin",
+        "scratch card pin",
+        "how to get exam pin"
+      ],
+      "answer": "Education PINs are scratch card PINs used to check exam results directly on the official WAEC, NECO, NABTEB, or NBAIS portals. You can purchase these PINs on Arapoint: 1) Go to 'Education Services' > 'Buy PINs', 2) Select the exam body (WAEC/NECO/NABTEB/NBAIS), 3) Select quantity, 4) Pay and receive your PIN(s) instantly.",
+      "tags": ["pin", "education", "waec", "neco", "scratch card", "result checker"]
+    },
+    {
+      "id": "edu-pin-002",
+      "category": "education",
+      "question": "My education PIN is not working",
+      "variations": [
+        "pin not working",
+        "invalid pin",
+        "pin rejected",
+        "pin already used",
+        "exam pin error",
+        "waec pin invalid"
+      ],
+      "answer": "If your education PIN is not working: 1) Ensure you're entering it on the correct official website (e.g., waecdirect.org for WAEC), 2) Check that you selected the correct exam type, 3) If the PIN shows 'already used', it may have been previously scratched — contact support with your purchase reference, 4) If 'invalid', double-check all characters (no spaces, no extra characters).",
+      "tags": ["pin", "not working", "invalid", "education", "waec", "neco"]
+    },
+    {
+      "id": "network-001",
+      "category": "technical",
+      "question": "The Arapoint website is not loading",
+      "variations": [
+        "website down",
+        "arapoint not working",
+        "cannot access arapoint",
+        "site not loading",
+        "app not opening",
+        "arapoint error page"
+      ],
+      "answer": "If Arapoint is not loading: 1) Check your internet connection, 2) Try a different browser or clear your browser cache, 3) Try on a different device or network, 4) If the issue persists, Arapoint may be undergoing brief maintenance. Check our social media handles for service status announcements. We typically restore service within 30 minutes for maintenance windows.",
+      "tags": ["technical", "website", "not loading", "down", "maintenance"]
+    },
+    {
+      "id": "network-002",
+      "category": "technical",
+      "question": "I keep getting an error message on Arapoint",
+      "variations": [
+        "error on arapoint",
+        "error message",
+        "something went wrong",
+        "service unavailable",
+        "arapoint error",
+        "page error"
+      ],
+      "answer": "If you're seeing an error: 1) Note the exact error message and take a screenshot, 2) Refresh the page and try again, 3) Clear your browser cookies and cache, 4) Try using a different browser (Chrome, Firefox, Edge), 5) If the error persists, contact support with the screenshot and description of what you were doing — our technical team will investigate.",
+      "tags": ["error", "technical", "bug", "error message", "not working"]
+    },
+    {
+      "id": "pricing-001",
+      "category": "pricing",
+      "question": "Where can I see Arapoint's service prices?",
+      "variations": [
+        "how much does service cost",
+        "service pricing",
+        "price list",
+        "how much to verify nin",
+        "service fees",
+        "arapoint charges"
+      ],
+      "answer": "Service prices are displayed clearly on each service page before you confirm any purchase. You can also find a general price list in the 'Pricing' section on our website. All fees are shown in Nigerian Naira (NGN) and must be paid from your wallet balance.",
+      "tags": ["pricing", "cost", "fee", "charges", "price list"]
+    },
+    {
+      "id": "agent-001",
+      "category": "agent",
+      "question": "How do I become an A2C agent?",
+      "variations": [
+        "join as a2c agent",
+        "a2c agent registration",
+        "become airtime to cash agent",
+        "agent account",
+        "how to be an arapoint agent"
+      ],
+      "answer": "To become an Arapoint A2C agent, please contact our support team or send an email expressing your interest. Agent applications require: valid means of identification, a verified bank account, and a minimum activation fee. Agents receive requests from users looking to convert their airtime to cash and earn a commission on each completed transaction.",
+      "tags": ["agent", "a2c", "airtime", "become agent", "join", "agent registration"]
+    },
+    {
+      "id": "verification-001",
+      "category": "identity",
+      "question": "What documents do I need to verify my identity on Arapoint?",
+      "variations": [
+        "identity documents needed",
+        "kyc documents",
+        "what do I need to verify",
+        "identity verification requirements",
+        "documents for verification"
+      ],
+      "answer": "For NIN/BVN lookups, you only need the 11-digit number — no additional documents are required. For CAC registration, you'll need a government-issued ID (NIN, passport, driver's license) and other documents depending on the service type. All requirements are listed on each service page.",
+      "tags": ["identity", "verification", "documents", "kyc", "requirements"]
+    },
+    {
+      "id": "refund-001",
+      "category": "refund",
+      "question": "How long does a refund take?",
+      "variations": [
+        "refund timeline",
+        "when will refund come",
+        "refund processing time",
+        "how many days for refund",
+        "refund duration"
+      ],
+      "answer": "Refunds are processed within 24-48 hours after investigation. Once approved, the amount is credited directly back to your Arapoint wallet. You will receive a notification when your refund is completed. If you haven't received it after 48 hours, contact support with your ticket reference number.",
+      "tags": ["refund", "timeline", "processing", "duration", "wallet"]
+    },
+    {
+      "id": "refund-002",
+      "category": "refund",
+      "question": "Can I get a refund for a completed service?",
+      "variations": [
+        "refund for completed service",
+        "refund successful transaction",
+        "cancel completed order",
+        "refund after service done"
+      ],
+      "answer": "Refunds for fully completed services are generally not available, as we cannot reverse information already retrieved or services already processed on your behalf. Refunds are only issued when the service failed and your wallet was still charged. If you believe there's a special circumstance, contact support and our team will review your case.",
+      "tags": ["refund", "completed", "policy", "cancel"]
+    },
+    {
+      "id": "jamb-008",
+      "category": "jamb",
+      "question": "I need JAMB O-Level upload service",
+      "variations": [
+        "jamb olevel upload",
+        "upload waec result to jamb",
+        "jamb ssce upload",
+        "how to upload olevel to jamb",
+        "enter olevel results in jamb"
+      ],
+      "answer": "For JAMB O-Level (SSCE result) upload: 1) Go to 'Education Services' > 'JAMB O-Level Upload', 2) Provide your JAMB registration number, exam body (WAEC/NECO), exam year, and exam number, 3) Pay the processing fee, 4) Our agent uploads your results to your JAMB profile through the CAPS portal. This is needed for admission processing.",
+      "tags": ["jamb", "olevel", "upload", "waec", "neco", "ssce", "caps"]
+    },
+    {
+      "id": "nin-007",
+      "category": "nin",
+      "question": "How do I enroll for NIN if I don't have one?",
+      "variations": [
+        "how to get NIN",
+        "nin enrollment",
+        "register for nin",
+        "how to obtain nin",
+        "first time nin registration",
+        "where to get nin"
+      ],
+      "answer": "NIN enrollment is done physically at any NIMC enrollment center or licensed agent. Arapoint provides NIN lookup and verification services, not enrollment. To get your NIN: 1) Visit the nearest NIMC office or licensed enroller with a birth certificate or passport, 2) Complete enrollment and receive your NIN. Once you have your NIN, you can use Arapoint for lookups and vNIN generation.",
+      "tags": ["nin", "enrollment", "register", "get nin", "nimc"]
+    },
+    {
+      "id": "a2c-008",
+      "category": "a2c",
+      "question": "I sent airtime but my A2C request was cancelled",
+      "variations": [
+        "a2c request cancelled after sending airtime",
+        "airtime sent but request cancelled",
+        "cancelled a2c already transferred",
+        "request rejected after airtime transfer"
+      ],
+      "answer": "If your A2C request was cancelled after you already transferred the airtime, please contact support immediately with: your request ID, the airtime transfer details (amount, network, recipient number, date), and a screenshot of the transfer confirmation if available. We will investigate and ensure you receive the appropriate cash payment.",
+      "tags": ["a2c", "cancelled", "airtime sent", "refund", "transfer"]
+    },
+    {
+      "id": "general-tip-001",
+      "category": "general",
+      "question": "Tips for using Arapoint smoothly",
+      "variations": [
+        "how to use arapoint",
+        "tips for arapoint",
+        "arapoint best practices",
+        "arapoint usage guide"
+      ],
+      "answer": "Tips for using Arapoint: 1) Always fund your wallet before requesting services, 2) Double-check all numbers before submitting (NIN, BVN, meter numbers, phone numbers), 3) Save your transaction references for future reference, 4) Use the transaction history to track all your activities, 5) For time-sensitive services (e.g., JAMB changes), apply well before deadlines.",
+      "tags": ["tips", "guide", "usage", "best practices", "general"]
+    },
+    {
+      "id": "electricity-002",
+      "category": "vtu",
+      "question": "Which electricity companies can I pay on Arapoint?",
+      "variations": [
+        "supported disco",
+        "electricity companies arapoint",
+        "which disco arapoint supports",
+        "can I pay ekedc",
+        "ibedc payment",
+        "aedc payment",
+        "phcn arapoint",
+        "all electricity providers"
+      ],
+      "answer": "Arapoint supports all major electricity distribution companies (DisCos) in Nigeria: EKEDC (formerly PHCN, serving Lagos Island), IKEDC (Ikeja Electric), IBEDC (Ibadan), AEDC (Abuja), EEDC (Enugu), KEDCO (Kano), PHEDC (Port Harcourt), BEDC (Benin), YEDC (Yola), JED (Jos), and KAEDCO. Select your DisCo when making payment.",
+      "tags": ["electricity", "disco", "ekedc", "ikedc", "ibedc", "aedc", "vtu", "utility"]
+    },
+    {
+      "id": "wallet-007",
+      "category": "wallet",
+      "question": "Is there a minimum wallet balance required?",
+      "variations": [
+        "minimum wallet balance",
+        "minimum balance arapoint",
+        "minimum amount in wallet",
+        "wallet minimum"
+      ],
+      "answer": "There is no minimum wallet balance requirement on Arapoint. You can have any amount in your wallet, including zero. However, you need sufficient balance to cover the cost of any service you wish to use. Fund your wallet based on the services you plan to use.",
+      "tags": ["wallet", "minimum balance", "balance", "requirement"]
+    },
+    {
+      "id": "identity-002",
+      "category": "identity",
+      "question": "What is the difference between NIN and BVN?",
+      "variations": [
+        "nin vs bvn",
+        "difference between nin and bvn",
+        "bvn and nin difference",
+        "which is better nin or bvn",
+        "nin bvn comparison"
+      ],
+      "answer": "NIN (National Identification Number) is issued by NIMC and is the primary government identity number for all Nigerians. BVN (Bank Verification Number) is issued by CBN and is specific to banking. NIN is needed for SIM card registration, passports, government services. BVN is used for banking and financial KYC. Both are 11 digits but serve different purposes.",
+      "tags": ["nin", "bvn", "difference", "identity", "comparison"]
+    },
+    {
+      "id": "notification-001",
+      "category": "general",
+      "question": "Why am I not receiving Arapoint notifications?",
+      "variations": [
+        "no notifications from arapoint",
+        "arapoint not sending emails",
+        "notification not received",
+        "email notification missing",
+        "sms notification not coming"
+      ],
+      "answer": "If you're not receiving notifications: 1) Check your spam/junk email folder for email notifications, 2) Ensure your phone number is correct in your profile settings, 3) Check that Arapoint's email (no-reply@arapoint.com) is not blocked, 4) Log into your account to see in-app notifications which are always available.",
+      "tags": ["notification", "email", "sms", "spam", "alerts"]
+    },
+    {
+      "id": "cac-005",
+      "category": "cac",
+      "question": "What documents do I need for CAC business name registration?",
+      "variations": [
+        "cac business name documents",
+        "documents for bn registration",
+        "what do I need to register business name",
+        "business registration requirements",
+        "cac registration documents"
+      ],
+      "answer": "For CAC Business Name (BN) registration, you need: 1) Proposed business name (3 options in preference order), 2) Business owner's full name, 3) Owner's residential address, 4) Nature of business/business activities, 5) NIN and BVN of the owner, 6) Passport photograph, 7) Valid means of identification. Our agent will guide you through the process.",
+      "tags": ["cac", "documents", "business name", "requirements", "registration"]
+    },
+    {
+      "id": "a2c-009",
+      "category": "a2c",
+      "question": "Can I do A2C for someone else?",
+      "variations": [
+        "a2c for another person",
+        "someone else airtime conversion",
+        "convert airtime on behalf",
+        "third party a2c"
+      ],
+      "answer": "Yes, you can submit an A2C request for someone else's airtime. When submitting, select the correct network and enter the bank account details where the cash should be sent. However, you are responsible for ensuring the airtime transfer is made correctly. Contact support if there are any issues with third-party A2C requests.",
+      "tags": ["a2c", "third party", "someone else", "airtime conversion"]
+    },
+    {
+      "id": "ticket-001",
+      "category": "support",
+      "question": "How do I track my support ticket?",
+      "variations": [
+        "check support ticket status",
+        "track my ticket",
+        "support ticket reference",
+        "where to check ticket",
+        "ticket status"
+      ],
+      "answer": "To track your support ticket: 1) Go to 'Support' > 'My Tickets', 2) You can see all your open and resolved tickets, 3) Use your ticket reference number (format: ARP-XXXXXX) to track it. You'll also receive email/SMS notifications when your ticket status changes or an agent responds.",
+      "tags": ["ticket", "support", "track", "status", "reference"]
+    },
+    {
+      "id": "ticket-002",
+      "category": "support",
+      "question": "How do I escalate my issue to a human agent?",
+      "variations": [
+        "talk to human agent",
+        "speak to a real person",
+        "escalate to agent",
+        "human support",
+        "talk to customer care",
+        "live agent"
+      ],
+      "answer": "To escalate to a human agent: 1) Type 'agent' in this chat at any time, 2) Click 'Talk to Agent' button if available, 3) Alternatively, rate the AI response as unhelpful and you'll be offered escalation. An available support agent will be assigned to your ticket and will respond as quickly as possible during business hours.",
+      "tags": ["agent", "human", "escalate", "live agent", "customer care", "support"]
+    },
+    {
+      "id": "waec-003",
+      "category": "waec",
+      "question": "What is WAEC GCE and how do I check the result?",
+      "variations": [
+        "waec gce result",
+        "waec november december result",
+        "external candidate result",
+        "gce checker",
+        "check waec gce"
+      ],
+      "answer": "WAEC GCE (General Certificate Examination) is conducted for private/external candidates (usually Nov/Dec). To check your GCE result on Arapoint: 1) Go to 'Education Services' > 'WAEC Result Checker', 2) Select 'GCE' as the exam type, 3) Enter your exam number and year, 4) Pay the verification fee and click 'Check'.",
+      "tags": ["waec", "gce", "external", "result", "november december"]
+    },
+    {
+      "id": "jamb-009",
+      "category": "jamb",
+      "question": "What JAMB services are available on Arapoint?",
+      "variations": [
+        "jamb services list",
+        "what can arapoint do for jamb",
+        "all jamb services",
+        "jamb services arapoint offers"
+      ],
+      "answer": "Arapoint offers a comprehensive range of JAMB services: Result checking, Admission status check, Change of Course/Institution, Direct Entry (DE) registration, Admission Letter download, O-Level upload to CAPS, Regularization, Mutation, and document uploads. All services are handled by our trained JAMB agents.",
+      "tags": ["jamb", "services", "list", "all services", "caps"]
+    },
+    {
+      "id": "general-008",
+      "category": "general",
+      "question": "Is Arapoint legitimate and safe?",
+      "variations": [
+        "is arapoint legit",
+        "is arapoint safe",
+        "arapoint trusted",
+        "arapoint reliable",
+        "can I trust arapoint",
+        "arapoint scam"
+      ],
+      "answer": "Yes, Arapoint is a legitimate, registered Nigerian platform for identity verification and utility services. We process thousands of transactions daily with high success rates. Our platform uses bank-grade security for all transactions. Your personal data is protected and never shared without consent. We are compliant with Nigerian data protection regulations (NDPR).",
+      "tags": ["legitimate", "safe", "trusted", "security", "reliable", "scam", "legit"]
+    }
+  ]
+}
