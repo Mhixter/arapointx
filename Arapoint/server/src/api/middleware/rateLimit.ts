@@ -76,7 +76,7 @@ export const createRateLimiter = (options: RateLimitOptions) => {
 
 export const publicRateLimiter = createRateLimiter({
   windowMs: 60 * 1000,
-  max: 10,
+  max: 120,
   message: 'Too many requests from this IP, please try again after a minute',
   keyGenerator: (req) => req.ip || 'unknown',
 });

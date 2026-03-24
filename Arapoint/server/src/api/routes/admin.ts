@@ -77,7 +77,7 @@ const router = Router();
 router.use(adminAuthMiddleware);
 
 const supportAgentGuard = (req: Request, res: Response, next: NextFunction) => {
-  if (req.adminRole === 'support_agent' && !req.path.startsWith('/support/')) {
+  if (req.adminRole === 'support_agent' && !req.path.startsWith('/support/') && !req.path.startsWith('/ai/')) {
     return res.status(403).json({
       status: 'error',
       code: 403,
