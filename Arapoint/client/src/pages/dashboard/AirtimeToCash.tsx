@@ -434,10 +434,13 @@ export default function AirtimeToCash() {
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-orange-800 dark:text-orange-300">Request In Progress</p>
                     <p className="text-sm text-orange-700 dark:text-orange-400 mt-1">
-                      We have received your airtime. Your cash payment is being processed and will be sent to your bank shortly.
+                      We are verifying your airtime transfer. Please wait for this order to complete before making another request.
                     </p>
                     <div className="mt-3 space-y-1 text-sm">
                       <p className="text-muted-foreground">Tracking ID: <span className="font-mono font-medium">{waitingRequest.trackingId}</span></p>
+                      {waitingRequest.receivingNumber && (
+                        <p className="text-muted-foreground">Send airtime to: <span className="font-semibold font-mono">{waitingRequest.receivingNumber}</span></p>
+                      )}
                       <p className="text-muted-foreground">Airtime: <span className="font-semibold">₦{parseFloat(waitingRequest.airtimeAmount).toLocaleString()}</span></p>
                       <p className="text-muted-foreground">Cash to receive: <span className="font-semibold text-green-700">₦{parseFloat(waitingRequest.cashAmount).toLocaleString()}</span></p>
                       <p className="text-muted-foreground">Bank: <span className="font-medium">{waitingRequest.bankName} — {waitingRequest.accountNumber}</span></p>
@@ -447,7 +450,7 @@ export default function AirtimeToCash() {
                         </Badge>
                       </div>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-3">You cannot submit a new request while this one is being processed. Check the History tab for updates.</p>
+                    <p className="text-xs text-muted-foreground mt-3">Do not submit a new request while this one is being verified. Check the History tab for updates.</p>
                   </div>
                 </div>
               </CardContent>

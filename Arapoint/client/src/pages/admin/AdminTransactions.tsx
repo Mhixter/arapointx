@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ArrowLeft, Loader2, RefreshCw, Eye, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Wallet, Receipt, CalendarDays, Filter, X } from "lucide-react";
+import { ArrowLeft, Loader2, RefreshCw, Eye, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Wallet, Receipt, CalendarDays, Filter, X, RotateCcw } from "lucide-react";
 import { useLocation } from "wouter";
 import { adminApi } from "@/lib/api/admin";
+import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useCallback } from "react";
 import { tokenStorage } from "@/lib/tokenStorage";
 
@@ -129,6 +130,8 @@ function periodLabel(period: Period) {
 
 export default function AdminTransactions({ filterUserId, filterUserName, embedded }: Props = {}) {
   const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState('all');
   const [period, setPeriod] = useState<Period>('all');
@@ -138,6 +141,21 @@ export default function AdminTransactions({ filterUserId, filterUserName, embedd
   const [selectedTx, setSelectedTx] = useState<any>(null);
   const [appliedCustomStart, setAppliedCustomStart] = useState('');
   const [appliedCustomEnd, setAppliedCustomEnd] = useState('');
+  const [refundingTxId, setRefundingTxId] = useState<string | null>(null);
+
+  const refundMutation = useMutation({
+    mutationFn: (txId: string) => adminApi.refundTransaction(txId),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-transactions'] });
+      setSelectedTx(null);
+      setRefundingTxId(null);
+      toast({ title: "Refund Issued", description: `₦${result.amount.toLocaleString()} refunded successfully. Ref: ${result.refundReference}` });
+    },
+    onError: (error: any) => {
+      setRefundingTxId(null);
+      toast({ title: "Refund Failed", description: error.response?.data?.message || "Failed to process refund", variant: "destructive" });
+    }
+  });
 
   useEffect(() => { setPage(1); }, [filterUserId]);
   useEffect(() => { setPage(1); }, [typeFilter, period, appliedCustomStart, appliedCustomEnd]);
@@ -471,14 +489,32 @@ export default function AdminTransactions({ filterUserId, filterUserName, embedd
                             </Badge>
                           </td>
                           <td className="px-4 py-3.5">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={() => setSelectedTx(tx)}
-                            >
-                              <Eye className="h-3.5 w-3.5" />
-                            </Button>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0"
+                                onClick={() => setSelectedTx(tx)}
+                                title="View details"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                              </Button>
+                              {tx.transactionType !== 'refund' && tx.transactionType !== 'wallet_fund' && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-orange-600"
+                                  title="Issue refund"
+                                  disabled={refundMutation.isPending && refundingTxId === tx.id}
+                                  onClick={() => { setRefundingTxId(tx.id); refundMutation.mutate(tx.id); }}
+                                >
+                                  {refundMutation.isPending && refundingTxId === tx.id
+                                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    : <RotateCcw className="h-3.5 w-3.5" />
+                                  }
+                                </Button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -600,7 +636,22 @@ export default function AdminTransactions({ filterUserId, filterUserName, embedd
                     </div>
                   )}
                 </div>
-                <Button variant="outline" className="w-full" onClick={() => setSelectedTx(null)}>Close</Button>
+                <div className="flex gap-2">
+                  {selectedTx.transactionType !== 'refund' && selectedTx.transactionType !== 'wallet_fund' && (
+                    <Button
+                      variant="outline"
+                      className="flex-1 text-orange-600 border-orange-300"
+                      disabled={refundMutation.isPending}
+                      onClick={() => { setRefundingTxId(selectedTx.id); refundMutation.mutate(selectedTx.id); }}
+                    >
+                      {refundMutation.isPending && refundingTxId === selectedTx.id
+                        ? <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        : <RotateCcw className="h-4 w-4 mr-2" />}
+                      Refund
+                    </Button>
+                  )}
+                  <Button variant="outline" className="flex-1" onClick={() => setSelectedTx(null)}>Close</Button>
+                </div>
               </div>
             );
           })()}

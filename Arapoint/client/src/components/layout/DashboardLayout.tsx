@@ -24,7 +24,8 @@ import {
   User,
   HelpCircle,
   ChevronRight,
-  X
+  X,
+  Wrench
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -68,6 +69,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     staleTime: 30000,
     retry: 1,
     enabled: !!accessToken,
+  });
+
+  const { data: publicSettings } = useQuery({
+    queryKey: ['public-settings'],
+    queryFn: async () => {
+      const res = await fetch('/api/settings/public');
+      const json = await res.json();
+      return json.data || {};
+    },
+    staleTime: 60000,
+    refetchInterval: 120000,
   });
 
   const walletBalance = user?.walletBalance ? parseFloat(user.walletBalance) : 0;
@@ -313,6 +325,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
+        {publicSettings?.maintenanceMode && (
+          <div className="bg-amber-500 text-white px-4 py-2.5 flex items-center justify-center gap-2 text-sm font-medium">
+            <Wrench className="h-4 w-4 flex-shrink-0" />
+            <span>Arapoint is currently undergoing maintenance. Some features may be temporarily unavailable. We apologize for any inconvenience.</span>
+          </div>
+        )}
         <main className="flex-1 p-4 md:p-6 overflow-y-auto bg-slate-50 dark:bg-slate-900">
           <div className="max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
             {children}

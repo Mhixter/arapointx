@@ -15,7 +15,6 @@ const AMOUNT_PRESETS = [1000, 2000, 5000, 10000, 20000, 50000];
 
 export default function FundWallet() {
   const [amount, setAmount] = useState<string>("");
-  const [selectedGateway, setSelectedGateway] = useState<string>("paystack");
   const { toast } = useToast();
   const accessToken = tokenStorage.getItem('accessToken');
 
@@ -37,31 +36,15 @@ export default function FundWallet() {
     enabled: !!accessToken,
   });
 
-  const paystackMutation = useMutation({
-    mutationFn: (data: { amount: number; email?: string }) => walletApi.initializePaystack(data),
-    onSuccess: (data) => {
-      if (data.authorizationUrl) {
-        window.location.href = data.authorizationUrl;
-      }
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Payment Failed",
-        description: error?.response?.data?.message || "Failed to initialize payment",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const palmpayMutation = useMutation({
+  const payvesselMutation = useMutation({
     mutationFn: (data: { amount: number; email?: string }) => walletApi.initializePalmpay(data),
     onSuccess: (data) => {
       if (data.success && data.data?.paymentUrl) {
         window.location.href = data.data.paymentUrl;
       } else {
         toast({
-          title: "PalmPay Not Available",
-          description: data.error || "PalmPay integration is not configured. Please use Paystack instead.",
+          title: "Payment Unavailable",
+          description: data.error || "Payvessel payment is currently unavailable. Please try again later.",
           variant: "destructive",
         });
       }
@@ -69,7 +52,7 @@ export default function FundWallet() {
     onError: (error: any) => {
       toast({
         title: "Payment Failed",
-        description: error?.response?.data?.message || "Failed to initialize PalmPay payment",
+        description: error?.response?.data?.message || "Failed to initialize payment. Please try again.",
         variant: "destructive",
       });
     },
@@ -118,20 +101,12 @@ export default function FundWallet() {
       return;
     }
 
-    const paymentData = {
-      amount: numericAmount,
-      email: profile.email,
-    };
-
-    if (selectedGateway === "paystack") {
-      paystackMutation.mutate(paymentData);
-    } else if (selectedGateway === "palmpay") {
-      palmpayMutation.mutate(paymentData);
-    }
+    payvesselMutation.mutate({ amount: numericAmount, email: profile.email });
   };
 
-  const isLoading = paystackMutation.isPending || palmpayMutation.isPending;
+  const isLoading = payvesselMutation.isPending;
   const isProfileReady = !profileLoading && !profileError && !!profile?.email;
+  const isPayvesselConfigured = gateways?.palmpayConfigured;
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
@@ -205,7 +180,7 @@ export default function FundWallet() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Select Payment Method</CardTitle>
+          <CardTitle>Payment Method</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {gatewaysLoading ? (
@@ -213,70 +188,33 @@ export default function FundWallet() {
               <Loader2 className="h-6 w-6 animate-spin" />
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 gap-4">
-              <Card
-                className={`cursor-pointer transition-all border-2 ${
-                  selectedGateway === "paystack" 
-                    ? "border-primary bg-primary/5" 
-                    : "hover:border-primary/50"
-                } ${!gateways?.paystackConfigured ? "opacity-50 cursor-not-allowed" : ""}`}
-                onClick={() => gateways?.paystackConfigured && setSelectedGateway("paystack")}
-              >
-                <CardContent className="p-6 flex flex-col items-center gap-3">
-                  <div className="w-16 h-16 bg-[#00C3F7]/10 rounded-full flex items-center justify-center">
-                    <CreditCard className="h-8 w-8 text-[#00C3F7]" />
-                  </div>
-                  <h3 className="font-bold text-lg">Paystack</h3>
-                  <p className="text-sm text-muted-foreground text-center">
-                    Card, Bank Transfer, USSD, PalmPay, OPay
-                  </p>
-                  {gateways?.paystackConfigured ? (
-                    <span className="flex items-center gap-1 text-xs text-green-600">
-                      <CheckCircle2 className="h-3 w-3" /> Available
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-xs text-yellow-600">
-                      <AlertCircle className="h-3 w-3" /> Not configured
-                    </span>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card
-                className={`cursor-pointer transition-all border-2 ${
-                  selectedGateway === "palmpay" 
-                    ? "border-primary bg-primary/5" 
-                    : "hover:border-primary/50"
-                } ${!gateways?.palmpayConfigured ? "opacity-50 cursor-not-allowed" : ""}`}
-                onClick={() => gateways?.palmpayConfigured && setSelectedGateway("palmpay")}
-              >
-                <CardContent className="p-6 flex flex-col items-center gap-3">
-                  <div className="w-16 h-16 bg-[#8B5CF6]/10 rounded-full flex items-center justify-center">
-                    <Wallet className="h-8 w-8 text-[#8B5CF6]" />
-                  </div>
-                  <h3 className="font-bold text-lg">PalmPay Direct</h3>
-                  <p className="text-sm text-muted-foreground text-center">
-                    Direct PalmPay wallet payment
-                  </p>
-                  {gateways?.palmpayConfigured ? (
-                    <span className="flex items-center gap-1 text-xs text-green-600">
-                      <CheckCircle2 className="h-3 w-3" /> Available
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-xs text-yellow-600">
-                      <AlertCircle className="h-3 w-3" /> Coming Soon
-                    </span>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+            <Card className="border-2 border-primary bg-primary/5">
+              <CardContent className="p-6 flex flex-col items-center gap-3">
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                  <CreditCard className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="font-bold text-lg">Payvessel</h3>
+                <p className="text-sm text-muted-foreground text-center">
+                  Bank Transfer, Card, USSD & Mobile Money
+                </p>
+                {isPayvesselConfigured ? (
+                  <span className="flex items-center gap-1 text-xs text-green-600">
+                    <CheckCircle2 className="h-3 w-3" /> Available
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-xs text-yellow-600">
+                    <AlertCircle className="h-3 w-3" /> Currently Unavailable
+                  </span>
+                )}
+              </CardContent>
+            </Card>
           )}
 
-          <div className="pt-4">
+          <div className="pt-2">
             <Button 
               className="w-full h-14 text-lg" 
               onClick={handleSubmit}
-              disabled={!amount || isLoading || !isProfileReady || (selectedGateway === "paystack" && !gateways?.paystackConfigured) || (selectedGateway === "palmpay" && !gateways?.palmpayConfigured)}
+              disabled={!amount || isLoading || !isProfileReady || !isPayvesselConfigured}
             >
               {isLoading ? (
                 <>
@@ -286,14 +224,14 @@ export default function FundWallet() {
               ) : (
                 <>
                   <CreditCard className="mr-2 h-5 w-5" />
-                  Pay ₦{amount ? parseFloat(amount).toLocaleString() : "0"}
+                  Pay ₦{amount ? parseFloat(amount).toLocaleString() : "0"} via Payvessel
                 </>
               )}
             </Button>
           </div>
 
           <p className="text-xs text-center text-muted-foreground">
-            Payments are processed securely. Your wallet will be credited instantly upon successful payment.
+            Payments are processed securely via Payvessel. Your wallet will be credited instantly upon successful payment.
           </p>
         </CardContent>
       </Card>

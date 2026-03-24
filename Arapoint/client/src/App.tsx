@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import NotFound from "@/pages/not-found";
+import SuspendedPage from "@/pages/Suspended";
 import { MainLayout } from "@/components/layout/MainLayout";
 
 import Home from "@/pages/Home";
@@ -82,6 +83,8 @@ import AdminCRUDLayout from "@/components/layout/AdminCRUDLayout";
 function Router() {
   return (
     <Switch>
+      <Route path="/suspended" component={SuspendedPage} />
+
       {/* Support Agent Routes */}
       <Route path="/support/agent/login" component={SupportAgentLogin} />
       <Route path="/support/agent/dashboard" component={SupportAgentDashboard} />

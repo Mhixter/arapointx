@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { config } from '../../config/env';
 import { logger } from '../../utils/logger';
 import { db } from '../../config/database';
-import { adminUsers } from '../../db/schema';
+import { adminUsers, users } from '../../db/schema';
 import { eq } from 'drizzle-orm';
 
 declare global {
@@ -17,7 +17,7 @@ declare global {
   }
 }
 
-export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
+export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
     
@@ -29,7 +29,7 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
       });
     }
     
-    const token = authHeader.slice(7); // Extract token after 'Bearer '
+    const token = authHeader.slice(7);
     
     if (!token || token.trim() === '') {
       return res.status(401).json({
@@ -41,6 +41,26 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
     
     const decoded = jwt.verify(token, config.JWT_SECRET) as any;
     req.userId = decoded.userId;
+
+    const [user] = await db.select({ isSuspended: users.isSuspended, suspendReason: users.suspendReason })
+      .from(users)
+      .where(eq(users.id, decoded.userId))
+      .limit(1);
+
+    if (!user) {
+      return res.status(401).json({ status: 'error', code: 401, message: 'Account not found' });
+    }
+
+    if (user.isSuspended) {
+      return res.status(403).json({
+        status: 'error',
+        code: 403,
+        message: 'Your account has been suspended. Please contact support.',
+        reason: user.suspendReason || 'Account suspended by administrator',
+        suspended: true,
+      });
+    }
+
     next();
   } catch (error) {
     logger.error('Auth error:', error);

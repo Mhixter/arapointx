@@ -208,7 +208,7 @@ export const userService = {
   },
 
   generateTokens(payload: TokenPayload): AuthTokens {
-    const accessToken = jwt.sign(payload, config.JWT_SECRET, { expiresIn: '1h' });
+    const accessToken = jwt.sign(payload, config.JWT_SECRET, { expiresIn: '8h' });
     const refreshToken = jwt.sign(payload, config.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
 
     return { accessToken, refreshToken };

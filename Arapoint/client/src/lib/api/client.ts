@@ -27,6 +27,14 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
     
+    if (error.response?.status === 403 && (error.response?.data as any)?.suspended) {
+      tokenStorage.removeItem('accessToken');
+      tokenStorage.removeItem('refreshToken');
+      const reason = encodeURIComponent((error.response?.data as any)?.reason || 'Your account has been suspended.');
+      window.location.href = `/suspended?reason=${reason}`;
+      return Promise.reject(error);
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       

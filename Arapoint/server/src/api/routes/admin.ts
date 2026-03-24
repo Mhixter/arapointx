@@ -50,6 +50,7 @@ import {
   adminRoles as admin_roles 
 } from '../../db/schema';
 import { whatsappService } from '../../services/whatsappService';
+import { walletService } from '../../services/walletService';
 import { scrapeNbaisSchools, getSchoolsCount } from '../../rpa/workers/nbaisSchoolScraper';
 import { browserPool } from '../../rpa/browserPool';
 import bcrypt from 'bcryptjs';
@@ -802,6 +803,9 @@ router.get('/users', async (req: Request, res: Response) => {
       walletBalance: users.walletBalance,
       kycStatus: users.kycStatus,
       createdAt: users.createdAt,
+      isSuspended: users.isSuspended,
+      suspendedAt: users.suspendedAt,
+      suspendReason: users.suspendReason,
     })
       .from(users)
       .orderBy(desc(users.createdAt))
@@ -1121,6 +1125,88 @@ router.put('/users/:id/status', async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error('Update user status error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to update user status'));
+  }
+});
+
+router.put('/users/:id/suspend', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const [user] = await db.select({ id: users.id, email: users.email, isSuspended: users.isSuspended })
+      .from(users).where(eq(users.id, id)).limit(1);
+
+    if (!user) return res.status(404).json(formatErrorResponse(404, 'User not found'));
+
+    await db.update(users).set({
+      isSuspended: true,
+      suspendedAt: new Date(),
+      suspendReason: reason || 'Suspended by administrator',
+      updatedAt: new Date(),
+    }).where(eq(users.id, id));
+
+    logger.info('User suspended', { userId: id, reason });
+    res.json(formatResponse('success', 200, 'User suspended successfully', { id, suspended: true }));
+  } catch (error: any) {
+    logger.error('Suspend user error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to suspend user'));
+  }
+});
+
+router.put('/users/:id/unsuspend', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const [user] = await db.select({ id: users.id }).from(users).where(eq(users.id, id)).limit(1);
+    if (!user) return res.status(404).json(formatErrorResponse(404, 'User not found'));
+
+    await db.update(users).set({
+      isSuspended: false,
+      suspendedAt: null,
+      suspendReason: null,
+      updatedAt: new Date(),
+    }).where(eq(users.id, id));
+
+    logger.info('User unsuspended', { userId: id });
+    res.json(formatResponse('success', 200, 'User unsuspended successfully', { id, suspended: false }));
+  } catch (error: any) {
+    logger.error('Unsuspend user error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to unsuspend user'));
+  }
+});
+
+router.post('/transactions/:id/refund', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const [tx] = await db.select().from(transactions).where(eq(transactions.id, id)).limit(1);
+    if (!tx) return res.status(404).json(formatErrorResponse(404, 'Transaction not found'));
+
+    if (tx.transactionType === 'refund') {
+      return res.status(400).json(formatErrorResponse(400, 'Cannot refund a refund transaction'));
+    }
+
+    const amount = parseFloat(tx.amount as string);
+    if (isNaN(amount) || amount <= 0) {
+      return res.status(400).json(formatErrorResponse(400, 'Invalid transaction amount'));
+    }
+
+    const result = await walletService.refundBalance(
+      tx.userId!,
+      amount,
+      tx.referenceId || tx.id
+    );
+
+    logger.info('Admin refunded transaction', { txId: id, userId: tx.userId, amount, reason });
+    res.json(formatResponse('success', 200, 'Refund issued successfully', {
+      transactionId: id,
+      refundReference: result.reference,
+      amount,
+    }));
+  } catch (error: any) {
+    logger.error('Admin refund error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to issue refund'));
   }
 });
 

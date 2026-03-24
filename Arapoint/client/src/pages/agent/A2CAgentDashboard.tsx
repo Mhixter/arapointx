@@ -393,6 +393,7 @@ export default function A2CAgentDashboard() {
                           <TableRow>
                             <TableHead>ID</TableHead>
                             <TableHead>Customer</TableHead>
+                            <TableHead>Receiving #</TableHead>
                             <TableHead>Amount</TableHead>
                             <TableHead>Bank Details</TableHead>
                             <TableHead>Status</TableHead>
@@ -412,6 +413,18 @@ export default function A2CAgentDashboard() {
                                 <div className="text-sm">
                                   <div className="font-medium">{request.userName || 'N/A'}</div>
                                   <div className="text-xs text-muted-foreground">{request.phoneNumber}</div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="text-sm">
+                                  {request.receivingNumber ? (
+                                    <div className="flex items-center gap-1">
+                                      <Phone className="h-3 w-3 text-primary" />
+                                      <span className="font-mono font-medium text-primary">{request.receivingNumber}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-muted-foreground text-xs">—</span>
+                                  )}
                                 </div>
                               </TableCell>
                               <TableCell>

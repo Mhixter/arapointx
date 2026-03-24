@@ -20,6 +20,9 @@ export interface AdminUser {
   walletBalance: string;
   kycStatus: string;
   createdAt: string;
+  isSuspended?: boolean;
+  suspendedAt?: string | null;
+  suspendReason?: string | null;
 }
 
 export interface AdminTransaction {
@@ -121,6 +124,19 @@ export const adminApi = {
 
   updateUser: async (id: string, data: { name?: string; email?: string; phone?: string }): Promise<{ user: AdminUser }> => {
     const response = await adminApiClient.put<ApiResponse<{ user: AdminUser }>>(`/admin/users/${id}`, data);
+    return response.data.data;
+  },
+
+  suspendUser: async (id: string, reason?: string): Promise<void> => {
+    await adminApiClient.put(`/admin/users/${id}/suspend`, { reason });
+  },
+
+  unsuspendUser: async (id: string): Promise<void> => {
+    await adminApiClient.put(`/admin/users/${id}/unsuspend`);
+  },
+
+  refundTransaction: async (id: string, reason?: string): Promise<{ transactionId: string; refundReference: string; amount: number }> => {
+    const response = await adminApiClient.post<ApiResponse<{ transactionId: string; refundReference: string; amount: number }>>(`/admin/transactions/${id}/refund`, { reason });
     return response.data.data;
   },
 

@@ -19,6 +19,16 @@ Arapoint is a production-ready Nigerian Identity Verification and Management Pla
 - **Email**: SendGrid (for OTP delivery)
 - **Identity Verification**: YouVerify API (NIN/BVN)
 
+## Recent Updates (March 2026)
+- **JWT token expiry aligned**: `userService.ts` access token now uses `8h` (was `1h`), fixing JAMB download failures after 30 minutes
+- **A2C Agent Dashboard**: Added "Receiving #" column to agent request table, showing the customer airtime number per request
+- **Account suspension system**: `isSuspended`, `suspendedAt`, `suspendReason` fields added to users table (DB migrated); auth middleware now blocks suspended users with 403; admin endpoints `PUT /admin/users/:id/suspend` and `/unsuspend` added; Suspend/Unsuspend buttons with reason modal added to AdminUserManagement
+- **Admin refund on transactions**: `POST /admin/transactions/:id/refund` endpoint added; refund buttons added to AdminTransactions row hover actions and transaction detail dialog
+- **Suspended user page**: `/suspended` route added with a clean suspension notice page; API client redirects there on 403 with `suspended: true`
+- **Maintenance mode banner**: DashboardLayout now fetches public settings and shows an amber banner when `maintenanceMode` is enabled by admin
+- **Payment**: PayStack and Direct Debit removed; Payvessel (palmpay backend) is now the sole payment method
+- **PDF slip fix**: `PUPPETEER_EXECUTABLE_PATH` env var used for Chromium in pdfSlipGenerator
+
 ## Recent Updates (December 2025)
 - Integrated YouVerify API for real-time NIN and BVN verification
 - Created comprehensive slip generator with 4 official formats (Information, Regular, Standard, Premium)

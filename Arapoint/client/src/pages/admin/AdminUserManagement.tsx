@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowLeft, Edit2, Eye, Users, Wallet, Calendar, Loader2, Plus, DollarSign, MinusCircle, BarChart2 } from "lucide-react";
+import { ArrowLeft, Edit2, Eye, Users, Wallet, Calendar, Loader2, Plus, DollarSign, MinusCircle, BarChart2, Ban, ShieldCheck, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -45,6 +45,8 @@ export default function AdminUserManagement() {
   const [editForm, setEditForm] = useState({ name: '', email: '', phone: '' });
   const [fundAmount, setFundAmount] = useState('');
   const [debitAmount, setDebitAmount] = useState('');
+  const [suspendReason, setSuspendReason] = useState('');
+  const [showSuspendModal, setShowSuspendModal] = useState(false);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['admin', 'users'],
@@ -116,6 +118,33 @@ export default function AdminUserManagement() {
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.response?.data?.message || "Failed to debit wallet", variant: "destructive" });
+    }
+  });
+
+  const suspendUserMutation = useMutation({
+    mutationFn: ({ userId, reason }: { userId: string; reason?: string }) =>
+      adminApi.suspendUser(userId, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      setShowSuspendModal(false);
+      setShowViewModal(false);
+      setSuspendReason('');
+      toast({ title: "User Suspended", description: "User account has been suspended." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.response?.data?.message || "Failed to suspend user", variant: "destructive" });
+    }
+  });
+
+  const unsuspendUserMutation = useMutation({
+    mutationFn: (userId: string) => adminApi.unsuspendUser(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      setShowViewModal(false);
+      toast({ title: "User Unsuspended", description: "User account has been reactivated." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.response?.data?.message || "Failed to unsuspend user", variant: "destructive" });
     }
   });
 
@@ -574,6 +603,17 @@ export default function AdminUserManagement() {
           </DialogHeader>
           {selectedUser && (
             <div className="space-y-4 py-4">
+              {selectedUser.isSuspended && (
+                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-red-700">Account Suspended</p>
+                    {selectedUser.suspendReason && (
+                      <p className="text-xs text-red-600 truncate">{selectedUser.suspendReason}</p>
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground">User ID</p>
@@ -639,6 +679,28 @@ export default function AdminUserManagement() {
               <DollarSign className="h-4 w-4 mr-2" />
               Fund Wallet
             </Button>
+            {selectedUser?.isSuspended ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={unsuspendUserMutation.isPending}
+                onClick={() => selectedUser && unsuspendUserMutation.mutate(selectedUser.id)}
+                className="text-green-700 border-green-300"
+              >
+                {unsuspendUserMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
+                Unsuspend
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowSuspendModal(true)}
+                className="text-red-600 border-red-300"
+              >
+                <Ban className="h-4 w-4 mr-2" />
+                Suspend
+              </Button>
+            )}
             <Button 
               size="sm"
               disabled={updateStatusMutation.isPending}
@@ -650,6 +712,40 @@ export default function AdminUserManagement() {
             >
               {updateStatusMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Update Status
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showSuspendModal} onOpenChange={setShowSuspendModal}>
+        <DialogContent className="max-w-[95vw] sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700">
+              <Ban className="h-5 w-5" />
+              Suspend User
+            </DialogTitle>
+            <DialogDescription>
+              This will block <strong>{selectedUser?.name}</strong> from accessing the platform.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Label className="text-sm">Reason (optional)</Label>
+            <Input
+              placeholder="e.g. Fraudulent activity, TOS violation..."
+              value={suspendReason}
+              onChange={(e) => setSuspendReason(e.target.value)}
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowSuspendModal(false)}>Cancel</Button>
+            <Button
+              size="sm"
+              disabled={suspendUserMutation.isPending}
+              onClick={() => selectedUser && suspendUserMutation.mutate({ userId: selectedUser.id, reason: suspendReason || undefined })}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {suspendUserMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Ban className="h-4 w-4 mr-2" />}
+              Suspend Account
             </Button>
           </DialogFooter>
         </DialogContent>

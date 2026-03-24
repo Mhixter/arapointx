@@ -24,6 +24,9 @@ export const users = pgTable('users', {
   nin: varchar('nin', { length: 11 }),
   kycStatus: varchar('kyc_status', { length: 50 }).default('pending'),
   emailVerified: boolean('email_verified').default(false),
+  isSuspended: boolean('is_suspended').default(false),
+  suspendedAt: timestamp('suspended_at'),
+  suspendReason: text('suspend_reason'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
