@@ -6,13 +6,21 @@ import {
   supportConversations,
   supportMessages,
   supportPresence,
+  agentInternalMessages,
+  fraudAlerts,
   users,
   adminUsers,
   adminRoles,
+  transactions,
+  a2cRequests,
+  identityServiceRequests,
+  educationServiceRequests,
+  cacRegistrationRequests,
 } from '../../db/schema';
-import { eq, and, desc, gt, or, sql, count, asc } from 'drizzle-orm';
+import { eq, and, desc, gt, or, sql, count, asc, ilike } from 'drizzle-orm';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { logger } from '../../utils/logger';
+import { fraudService } from '../../services/fraudService';
 import OpenAI from 'openai';
 
 const router = Router();
@@ -184,7 +192,36 @@ router.post('/tickets', async (req: Request, res: Response) => {
         messages: [
           {
             role: 'system',
-            content: `You are Arapoint Support AI assistant. Help users with questions about identity verification (NIN, BVN), education services (JAMB, WAEC, NECO), VTU services (airtime, data), wallet funding, and CAC registration. Be helpful and concise. If the user has a complex issue you cannot resolve, tell them you can escalate to a human agent. Never make up information about their account.`
+            content: `You are Arapoint's AI Support Assistant. Arapoint is Nigeria's trusted identity and utility verification platform. You assist users with:
+
+SERVICES:
+- Identity Verification: NIN lookup, BVN retrieval, vNIN generation, NIN slip download (PDF/A4)
+- Education Verification: JAMB result checker, JAMB admission status, WAEC/NECO/NABTEB/NBAIS result checker
+- Education Services: JAMB change of course/institution, direct entry, admission letter, mutation, regularization
+- VTU Services: Airtime purchase (MTN, Airtel, Glo, 9mobile), data bundle purchase, electricity bill payment, cable TV subscription (DSTV, GOTV, StarTimes)
+- Airtime to Cash (A2C): Convert airtime to cash - user sends airtime to an agent's number, receives 70-80% cash value to their bank account
+- Wallet: Fund wallet via Payvessel (bank transfer), check balance, view transaction history
+- CAC Services: Business name registration, company registration
+
+COMMON ISSUES & RESOLUTIONS:
+- NIN/BVN not found: Ask user to verify the number is correct; NIN must be 11 digits, BVN must be 11 digits
+- JAMB result not showing: Ensure registration number format is correct (e.g., 12345678AB)
+- A2C request pending: Normal processing time is 15-30 minutes; instruct user to wait and not send another request yet
+- Wallet not credited: Bank transfers via Payvessel typically reflect within 5-15 minutes; if over 30 minutes, escalate
+- Transaction failed but wallet debited: This is a refund case - always escalate to human agent
+- Password/login issues: Direct user to "Forgot Password" on the login page
+
+ESCALATION TRIGGERS - End response with [ESCALATE] for:
+- Failed transaction but wallet was debited
+- Refund requests
+- Account locked or suspicious activity
+- Verification failure after multiple attempts
+- Technical errors not resolved by standard steps
+- Payment disputes
+- Urgent/high-priority issues the user explicitly states
+- Any issue you genuinely cannot resolve
+
+Keep responses concise (max 3-4 sentences). Never invent account data. Always be professional and empathetic.`
           },
           ...history,
         ],
@@ -498,30 +535,49 @@ router.post('/conversations/:id/messages', async (req: Request, res: Response) =
 
     let aiContent = '';
     let shouldEscalate = false;
-    try {
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `You are Arapoint Support AI. Help with identity verification (NIN, BVN), education services (JAMB, WAEC, NECO), VTU services, wallet funding, and CAC registration. Be concise and helpful.
 
-IMPORTANT: If the issue is complex and requires human intervention (e.g. failed transactions, payment disputes, account locked, refund requests, verification failures needing manual review, technical errors, urgent account issues), you MUST end your response with the exact tag [ESCALATE] on a new line. This will automatically connect the user to a human agent.
+    const escalationKeywords = ['refund', 'deducted', 'debited', 'charged', 'not credited', 'still pending', 'failed', 'error', 'locked', 'blocked', 'fraud', 'scam', 'unauthorized', 'dispute', 'urgent', 'asap', 'immediately', 'frustrated', 'angry', 'complaint'];
+    const userWantsAgent = content.toLowerCase().match(/\b(agent|human|person|speak to|talk to|escalate|representative|manager|supervisor)\b/);
+    const hasEscalationKeyword = escalationKeywords.some(kw => content.toLowerCase().includes(kw));
 
-Do NOT escalate for simple informational questions, how-to guides, or general FAQs.`
-          },
-          ...messagesForAI,
-        ],
-      });
-      aiContent = response.choices[0].message.content || 'I apologize, I am having trouble responding.';
-
-      if (aiContent.includes('[ESCALATE]')) {
-        shouldEscalate = true;
-        aiContent = aiContent.replace(/\[ESCALATE\]/g, '').trim();
-      }
-    } catch {
-      aiContent = 'I am currently unable to process your request. Let me connect you with a human support agent.';
+    if (userWantsAgent) {
       shouldEscalate = true;
+      aiContent = "I understand you'd like to speak with a human agent. I'm connecting you now — please hold on.";
+    } else {
+      try {
+        const response = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: `You are Arapoint's AI Support Assistant. Arapoint is Nigeria's trusted identity and utility verification platform.
+
+SERVICES: NIN/BVN lookup, vNIN, NIN slip PDF, JAMB results/admission/change of course/direct entry, WAEC/NECO/NABTEB/NBAIS results, airtime/data VTU, electricity bills, cable TV (DSTV/GOTV), Airtime-to-Cash (A2C), wallet funding via Payvessel, CAC registration.
+
+COMMON RESOLUTIONS:
+- NIN/BVN not found: verify number (NIN=11 digits, BVN=11 digits)
+- JAMB result: verify registration number format
+- A2C pending: normal wait 15-30 mins, do not send duplicate
+- Wallet not credited: Payvessel transfers take 5-15 mins; if >30 mins, escalate
+- Login issues: use Forgot Password link
+
+ESCALATION - End response with [ESCALATE] for: failed transactions with deduction, refund requests, account locked, multiple verification failures, payment disputes, technical errors unresolved, any urgent account issue.
+
+Be concise (2-3 sentences max). Never make up account data.`
+            },
+            ...messagesForAI,
+          ],
+        });
+        aiContent = response.choices[0].message.content || 'I apologize, I am having trouble responding.';
+
+        if (aiContent.includes('[ESCALATE]') || hasEscalationKeyword) {
+          shouldEscalate = true;
+          aiContent = aiContent.replace(/\[ESCALATE\]/g, '').trim();
+        }
+      } catch {
+        aiContent = 'I am currently unable to process your request. Let me connect you with a human support agent.';
+        shouldEscalate = true;
+      }
     }
 
     await db.insert(supportMessages).values({
@@ -633,6 +689,338 @@ router.post('/presence/heartbeat', async (req: Request, res: Response) => {
     res.json(formatResponse('success', 200, 'OK'));
   } catch (error: any) {
     res.status(500).json(formatErrorResponse(500, 'Failed'));
+  }
+});
+
+// =====================================================
+// CROSS-DEPARTMENT LOOKUP (Support Agent Tool)
+// =====================================================
+
+router.get('/lookup', async (req: Request, res: Response) => {
+  try {
+    const { q } = req.query as { q?: string };
+    if (!q || q.trim().length < 3) {
+      return res.status(400).json(formatErrorResponse(400, 'Search query too short (min 3 chars)'));
+    }
+
+    const query = q.trim();
+    const results: any[] = [];
+
+    // A2C Requests
+    try {
+      const a2cRows = await db.select({
+        id: a2cRequests.id,
+        trackingId: a2cRequests.trackingId,
+        phoneNumber: a2cRequests.phoneNumber,
+        airtimeAmount: a2cRequests.airtimeAmount,
+        cashAmount: a2cRequests.cashAmount,
+        status: a2cRequests.status,
+        network: a2cRequests.network,
+        createdAt: a2cRequests.createdAt,
+        userId: a2cRequests.userId,
+        userName: users.name,
+        userEmail: users.email,
+      }).from(a2cRequests)
+        .innerJoin(users, eq(a2cRequests.userId, users.id))
+        .where(or(
+          ilike(a2cRequests.trackingId, `%${query}%`),
+          ilike(a2cRequests.phoneNumber, `%${query}%`),
+          ilike(users.email, `%${query}%`),
+          ilike(users.phone, `%${query}%`),
+        )).limit(5);
+
+      for (const row of a2cRows) {
+        results.push({ type: 'a2c', label: 'Airtime to Cash', ...row });
+      }
+    } catch {}
+
+    // Identity Service Requests
+    try {
+      const idRows = await db.select({
+        id: identityServiceRequests.id,
+        referenceId: identityServiceRequests.trackingId,
+        serviceType: identityServiceRequests.serviceType,
+        status: identityServiceRequests.status,
+        createdAt: identityServiceRequests.createdAt,
+        userId: identityServiceRequests.userId,
+        userName: users.name,
+        userEmail: users.email,
+      }).from(identityServiceRequests)
+        .innerJoin(users, eq(identityServiceRequests.userId, users.id))
+        .where(or(
+          ilike(identityServiceRequests.trackingId, `%${query}%`),
+          ilike(users.email, `%${query}%`),
+          ilike(users.phone, `%${query}%`),
+        )).limit(5);
+
+      for (const row of idRows) {
+        results.push({ type: 'identity', label: 'Identity Verification', ...row });
+      }
+    } catch {}
+
+    // Education Service Requests
+    try {
+      const eduRows = await db.select({
+        id: educationServiceRequests.id,
+        referenceId: educationServiceRequests.trackingId,
+        serviceType: educationServiceRequests.serviceType,
+        status: educationServiceRequests.status,
+        createdAt: educationServiceRequests.createdAt,
+        userId: educationServiceRequests.userId,
+        userName: users.name,
+        userEmail: users.email,
+      }).from(educationServiceRequests)
+        .innerJoin(users, eq(educationServiceRequests.userId, users.id))
+        .where(or(
+          ilike(educationServiceRequests.trackingId, `%${query}%`),
+          ilike(users.email, `%${query}%`),
+          ilike(users.phone, `%${query}%`),
+        )).limit(5);
+
+      for (const row of eduRows) {
+        results.push({ type: 'education', label: 'Education Service', ...row });
+      }
+    } catch {}
+
+    // CAC Requests
+    try {
+      const cacRows = await db.select({
+        id: cacRegistrationRequests.id,
+        businessName: cacRegistrationRequests.businessName,
+        serviceType: cacRegistrationRequests.serviceType,
+        status: cacRegistrationRequests.status,
+        paymentReference: cacRegistrationRequests.paymentReference,
+        createdAt: cacRegistrationRequests.createdAt,
+        userId: cacRegistrationRequests.userId,
+        userName: users.name,
+        userEmail: users.email,
+      }).from(cacRegistrationRequests)
+        .innerJoin(users, eq(cacRegistrationRequests.userId, users.id))
+        .where(or(
+          ilike(cacRegistrationRequests.businessName, `%${query}%`),
+          ilike(cacRegistrationRequests.paymentReference, `%${query}%`),
+          ilike(users.email, `%${query}%`),
+          ilike(users.phone, `%${query}%`),
+        )).limit(5);
+
+      for (const row of cacRows) {
+        results.push({ type: 'cac', label: 'CAC Registration', ...row });
+      }
+    } catch {}
+
+    // Transactions
+    try {
+      const txRows = await db.select({
+        id: transactions.id,
+        reference: transactions.reference,
+        type: transactions.type,
+        amount: transactions.amount,
+        status: transactions.status,
+        description: transactions.description,
+        createdAt: transactions.createdAt,
+        userId: transactions.userId,
+        userName: users.name,
+        userEmail: users.email,
+      }).from(transactions)
+        .innerJoin(users, eq(transactions.userId, users.id))
+        .where(or(
+          ilike(transactions.reference, `%${query}%`),
+          ilike(users.email, `%${query}%`),
+          ilike(users.phone, `%${query}%`),
+        )).orderBy(desc(transactions.createdAt)).limit(5);
+
+      for (const row of txRows) {
+        results.push({ type: 'transaction', label: 'Transaction', ...row });
+      }
+    } catch {}
+
+    // Support Tickets
+    try {
+      const ticketRows = await db.select({
+        id: supportTickets.id,
+        referenceId: supportTickets.referenceId,
+        subject: supportTickets.subject,
+        status: supportTickets.status,
+        category: supportTickets.category,
+        departmentTag: supportTickets.departmentTag,
+        linkedOrderId: supportTickets.linkedOrderId,
+        createdAt: supportTickets.createdAt,
+        userId: supportTickets.userId,
+        userName: users.name,
+        userEmail: users.email,
+      }).from(supportTickets)
+        .innerJoin(users, eq(supportTickets.userId, users.id))
+        .where(or(
+          ilike(supportTickets.referenceId, `%${query}%`),
+          ilike(supportTickets.subject, `%${query}%`),
+          ilike(supportTickets.linkedOrderId, `%${query}%`),
+          ilike(users.email, `%${query}%`),
+          ilike(users.phone, `%${query}%`),
+        )).orderBy(desc(supportTickets.createdAt)).limit(5);
+
+      for (const row of ticketRows) {
+        results.push({ type: 'ticket', label: 'Support Ticket', ...row });
+      }
+    } catch {}
+
+    // User direct match
+    try {
+      const userRows = await db.select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        phone: users.phone,
+        role: users.role,
+        isVerified: users.isVerified,
+        isSuspended: users.isSuspended,
+        createdAt: users.createdAt,
+      }).from(users).where(or(
+        ilike(users.email, `%${query}%`),
+        ilike(users.name, `%${query}%`),
+        ilike(users.phone, `%${query}%`),
+      )).limit(5);
+
+      for (const row of userRows) {
+        results.push({ type: 'user', label: 'User Account', ...row });
+      }
+    } catch {}
+
+    res.json(formatResponse('success', 200, `Found ${results.length} results`, { results, query }));
+  } catch (error: any) {
+    logger.error('Lookup error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Lookup failed'));
+  }
+});
+
+// =====================================================
+// DEPARTMENT TAGGING
+// =====================================================
+
+router.put('/tickets/:id/department', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { departmentTag, linkedOrderId, linkedOrderType } = req.body;
+    const agentId = req.userId!;
+
+    const [ticket] = await db.select({ id: supportTickets.id })
+      .from(supportTickets).where(eq(supportTickets.id, id)).limit(1);
+
+    if (!ticket) return res.status(404).json(formatErrorResponse(404, 'Ticket not found'));
+
+    await db.update(supportTickets).set({
+      departmentTag: departmentTag || null,
+      linkedOrderId: linkedOrderId || null,
+      linkedOrderType: linkedOrderType || null,
+      updatedAt: new Date(),
+    }).where(eq(supportTickets.id, id));
+
+    logger.info('Ticket department tagged', { ticketId: id, departmentTag, linkedOrderId, agentId });
+
+    res.json(formatResponse('success', 200, 'Department tag updated', { departmentTag, linkedOrderId, linkedOrderType }));
+  } catch (error: any) {
+    logger.error('Tag department error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to tag department'));
+  }
+});
+
+// =====================================================
+// INTERNAL MESSAGES (cross-dept notes)
+// =====================================================
+
+router.get('/tickets/:id/internal-messages', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const [ticket] = await db.select({ id: supportTickets.id })
+      .from(supportTickets).where(eq(supportTickets.id, id)).limit(1);
+
+    if (!ticket) return res.status(404).json(formatErrorResponse(404, 'Ticket not found'));
+
+    const messages = await db.select()
+      .from(agentInternalMessages)
+      .where(eq(agentInternalMessages.ticketId, id))
+      .orderBy(asc(agentInternalMessages.createdAt));
+
+    res.json(formatResponse('success', 200, 'Internal messages', { messages }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to get internal messages'));
+  }
+});
+
+router.post('/tickets/:id/internal-messages', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { message, toDepartment, linkedOrderId } = req.body;
+    const agentId = req.userId!;
+
+    if (!message?.trim() || !toDepartment) {
+      return res.status(400).json(formatErrorResponse(400, 'Message and target department are required'));
+    }
+
+    const [ticket] = await db.select({ id: supportTickets.id })
+      .from(supportTickets).where(eq(supportTickets.id, id)).limit(1);
+
+    if (!ticket) return res.status(404).json(formatErrorResponse(404, 'Ticket not found'));
+
+    const [agentUser] = await db.select({ name: users.name })
+      .from(users).where(eq(users.id, agentId)).limit(1);
+
+    const [newMsg] = await db.insert(agentInternalMessages).values({
+      ticketId: id,
+      fromType: 'support_agent',
+      fromId: agentId,
+      fromName: agentUser?.name || 'Support Agent',
+      toDepartment,
+      message: message.trim(),
+      linkedOrderId: linkedOrderId || null,
+    }).returning();
+
+    logger.info('Internal message sent', { ticketId: id, toDepartment, agentId });
+
+    res.status(201).json(formatResponse('success', 201, 'Internal message sent', { message: newMsg }));
+  } catch (error: any) {
+    logger.error('Send internal message error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to send internal message'));
+  }
+});
+
+// =====================================================
+// FRAUD ALERTS
+// =====================================================
+
+router.get('/fraud-alerts', async (req: Request, res: Response) => {
+  try {
+    const { page = '1', limit = '20', status } = req.query as any;
+    const result = await fraudService.getAlerts(parseInt(page), parseInt(limit), status);
+    res.json(formatResponse('success', 200, 'Fraud alerts', result));
+  } catch (error: any) {
+    logger.error('Get fraud alerts error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get fraud alerts'));
+  }
+});
+
+router.post('/fraud-alerts/:id/resolve', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { note } = req.body;
+    const agentId = req.userId!;
+
+    await fraudService.resolveAlert(id, agentId, note || '');
+    res.json(formatResponse('success', 200, 'Alert resolved'));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to resolve alert'));
+  }
+});
+
+router.post('/fraud-alerts/:id/dismiss', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const agentId = req.userId!;
+
+    await fraudService.dismissAlert(id, agentId);
+    res.json(formatResponse('success', 200, 'Alert dismissed'));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to dismiss alert'));
   }
 });
 

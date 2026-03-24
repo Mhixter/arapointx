@@ -45,16 +45,19 @@ import {
   supportMessages as support_messages,
   supportInternalNotes as support_internal_notes,
   supportPresence as support_presence,
+  agentInternalMessages,
+  fraudAlerts,
   users as usersTable,
   adminUsers as admin_users, 
   adminRoles as admin_roles 
 } from '../../db/schema';
+import { fraudService } from '../../services/fraudService';
 import { whatsappService } from '../../services/whatsappService';
 import { walletService } from '../../services/walletService';
 import { scrapeNbaisSchools, getSchoolsCount } from '../../rpa/workers/nbaisSchoolScraper';
 import { browserPool } from '../../rpa/browserPool';
 import bcrypt from 'bcryptjs';
-import { eq, desc, count, sql, and, or, gt, asc, gte, lte } from 'drizzle-orm';
+import { eq, desc, count, sql, and, or, gt, asc, gte, lte, ilike } from 'drizzle-orm';
 import OpenAI from 'openai';
 
 let _openai: OpenAI | null = null;
@@ -3667,6 +3670,264 @@ router.post('/support/agents', async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error('Create support agent error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to create agent'));
+  }
+});
+
+// =====================================================
+// CROSS-DEPARTMENT LOOKUP
+// =====================================================
+
+router.get('/support/lookup', async (req: Request, res: Response) => {
+  try {
+    const { q } = req.query as { q?: string };
+    if (!q || q.trim().length < 3) {
+      return res.status(400).json(formatErrorResponse(400, 'Search query too short (min 3 chars)'));
+    }
+    const query = q.trim();
+    const results: any[] = [];
+
+    // A2C Requests
+    try {
+      const rows = await db.select({
+        id: a2cRequests.id,
+        trackingId: a2cRequests.trackingId,
+        phoneNumber: a2cRequests.phoneNumber,
+        airtimeAmount: a2cRequests.airtimeAmount,
+        cashAmount: a2cRequests.cashAmount,
+        status: a2cRequests.status,
+        network: a2cRequests.network,
+        createdAt: a2cRequests.createdAt,
+        userId: a2cRequests.userId,
+        userName: users.name,
+        userEmail: users.email,
+      }).from(a2cRequests).innerJoin(users, eq(a2cRequests.userId, users.id))
+        .where(or(ilike(a2cRequests.trackingId, `%${query}%`), ilike(a2cRequests.phoneNumber, `%${query}%`), ilike(users.email, `%${query}%`), ilike(users.phone, `%${query}%`))).limit(5);
+      rows.forEach(r => results.push({ type: 'a2c', label: 'Airtime to Cash', ...r }));
+    } catch {}
+
+    // Identity Service Requests
+    try {
+      const rows = await db.select({
+        id: identityServiceRequests.id,
+        referenceId: identityServiceRequests.trackingId,
+        serviceType: identityServiceRequests.serviceType,
+        status: identityServiceRequests.status,
+        createdAt: identityServiceRequests.createdAt,
+        userId: identityServiceRequests.userId,
+        userName: users.name,
+        userEmail: users.email,
+      }).from(identityServiceRequests).innerJoin(users, eq(identityServiceRequests.userId, users.id))
+        .where(or(ilike(identityServiceRequests.trackingId, `%${query}%`), ilike(users.email, `%${query}%`), ilike(users.phone, `%${query}%`))).limit(5);
+      rows.forEach(r => results.push({ type: 'identity', label: 'Identity Verification', ...r }));
+    } catch {}
+
+    // Education Service Requests
+    try {
+      const rows = await db.select({
+        id: educationServiceRequests.id,
+        referenceId: educationServiceRequests.trackingId,
+        serviceType: educationServiceRequests.serviceType,
+        status: educationServiceRequests.status,
+        createdAt: educationServiceRequests.createdAt,
+        userId: educationServiceRequests.userId,
+        userName: users.name,
+        userEmail: users.email,
+      }).from(educationServiceRequests).innerJoin(users, eq(educationServiceRequests.userId, users.id))
+        .where(or(ilike(educationServiceRequests.trackingId, `%${query}%`), ilike(users.email, `%${query}%`), ilike(users.phone, `%${query}%`))).limit(5);
+      rows.forEach(r => results.push({ type: 'education', label: 'Education Service', ...r }));
+    } catch {}
+
+    // CAC Requests
+    try {
+      const rows = await db.select({
+        id: cacRegistrationRequests.id,
+        businessName: cacRegistrationRequests.businessName,
+        serviceType: cacRegistrationRequests.serviceType,
+        status: cacRegistrationRequests.status,
+        paymentReference: cacRegistrationRequests.paymentReference,
+        createdAt: cacRegistrationRequests.createdAt,
+        userId: cacRegistrationRequests.userId,
+        userName: users.name,
+        userEmail: users.email,
+      }).from(cacRegistrationRequests).innerJoin(users, eq(cacRegistrationRequests.userId, users.id))
+        .where(or(ilike(cacRegistrationRequests.businessName, `%${query}%`), ilike(cacRegistrationRequests.paymentReference, `%${query}%`), ilike(users.email, `%${query}%`), ilike(users.phone, `%${query}%`))).limit(5);
+      rows.forEach(r => results.push({ type: 'cac', label: 'CAC Registration', ...r }));
+    } catch {}
+
+    // Transactions
+    try {
+      const rows = await db.select({
+        id: transactions.id,
+        reference: transactions.reference,
+        type: transactions.type,
+        amount: transactions.amount,
+        status: transactions.status,
+        description: transactions.description,
+        createdAt: transactions.createdAt,
+        userId: transactions.userId,
+        userName: users.name,
+        userEmail: users.email,
+      }).from(transactions).innerJoin(users, eq(transactions.userId, users.id))
+        .where(or(ilike(transactions.reference, `%${query}%`), ilike(users.email, `%${query}%`), ilike(users.phone, `%${query}%`))).orderBy(desc(transactions.createdAt)).limit(5);
+      rows.forEach(r => results.push({ type: 'transaction', label: 'Transaction', ...r }));
+    } catch {}
+
+    // Support Tickets
+    try {
+      const rows = await db.select({
+        id: support_tickets.id,
+        referenceId: support_tickets.referenceId,
+        subject: support_tickets.subject,
+        status: support_tickets.status,
+        category: support_tickets.category,
+        departmentTag: support_tickets.departmentTag,
+        linkedOrderId: support_tickets.linkedOrderId,
+        createdAt: support_tickets.createdAt,
+        userId: support_tickets.userId,
+        userName: users.name,
+        userEmail: users.email,
+      }).from(support_tickets).innerJoin(users, eq(support_tickets.userId, users.id))
+        .where(or(ilike(support_tickets.referenceId, `%${query}%`), ilike(support_tickets.subject, `%${query}%`), ilike(support_tickets.linkedOrderId, `%${query}%`), ilike(users.email, `%${query}%`), ilike(users.phone, `%${query}%`))).orderBy(desc(support_tickets.createdAt)).limit(5);
+      rows.forEach(r => results.push({ type: 'ticket', label: 'Support Ticket', ...r }));
+    } catch {}
+
+    // Users
+    try {
+      const rows = await db.select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        phone: users.phone,
+        role: users.role,
+        isVerified: users.isVerified,
+        isSuspended: users.isSuspended,
+        createdAt: users.createdAt,
+      }).from(users).where(or(ilike(users.email, `%${query}%`), ilike(users.name, `%${query}%`), ilike(users.phone, `%${query}%`))).limit(5);
+      rows.forEach(r => results.push({ type: 'user', label: 'User Account', ...r }));
+    } catch {}
+
+    res.json(formatResponse('success', 200, `Found ${results.length} results`, { results, query }));
+  } catch (error: any) {
+    logger.error('Lookup error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Lookup failed'));
+  }
+});
+
+// =====================================================
+// DEPARTMENT TAGGING
+// =====================================================
+
+router.put('/support/tickets/:id/department', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { departmentTag, linkedOrderId, linkedOrderType } = req.body;
+    const agentId = req.adminId!;
+
+    const [ticket] = await db.select({ id: support_tickets.id })
+      .from(support_tickets).where(eq(support_tickets.id, id)).limit(1);
+    if (!ticket) return res.status(404).json(formatErrorResponse(404, 'Ticket not found'));
+
+    await db.update(support_tickets).set({
+      departmentTag: departmentTag || null,
+      linkedOrderId: linkedOrderId || null,
+      linkedOrderType: linkedOrderType || null,
+      updatedAt: new Date(),
+    }).where(eq(support_tickets.id, id));
+
+    logger.info('Ticket department tagged', { ticketId: id, departmentTag, linkedOrderId, agentId });
+    res.json(formatResponse('success', 200, 'Department tag updated', { departmentTag, linkedOrderId, linkedOrderType }));
+  } catch (error: any) {
+    logger.error('Tag department error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to tag department'));
+  }
+});
+
+// =====================================================
+// INTERNAL MESSAGES
+// =====================================================
+
+router.get('/support/tickets/:id/internal-messages', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const messages = await db.select().from(agentInternalMessages)
+      .where(eq(agentInternalMessages.ticketId, id))
+      .orderBy(asc(agentInternalMessages.createdAt));
+    res.json(formatResponse('success', 200, 'Internal messages', { messages }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to get internal messages'));
+  }
+});
+
+router.post('/support/tickets/:id/internal-messages', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { message, toDepartment, linkedOrderId } = req.body;
+    const agentId = req.adminId!;
+
+    if (!message?.trim() || !toDepartment) {
+      return res.status(400).json(formatErrorResponse(400, 'Message and target department are required'));
+    }
+
+    const [ticket] = await db.select({ id: support_tickets.id })
+      .from(support_tickets).where(eq(support_tickets.id, id)).limit(1);
+    if (!ticket) return res.status(404).json(formatErrorResponse(404, 'Ticket not found'));
+
+    const [agentUser] = await db.select({ name: admin_users.name })
+      .from(admin_users).where(eq(admin_users.id, agentId)).limit(1);
+
+    const [newMsg] = await db.insert(agentInternalMessages).values({
+      ticketId: id,
+      fromType: 'support_agent',
+      fromId: agentId,
+      fromName: agentUser?.name || 'Support Agent',
+      toDepartment,
+      message: message.trim(),
+      linkedOrderId: linkedOrderId || null,
+    }).returning();
+
+    logger.info('Internal message sent', { ticketId: id, toDepartment, agentId });
+    res.status(201).json(formatResponse('success', 201, 'Internal message sent', { message: newMsg }));
+  } catch (error: any) {
+    logger.error('Send internal message error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to send internal message'));
+  }
+});
+
+// =====================================================
+// FRAUD ALERTS
+// =====================================================
+
+router.get('/support/fraud-alerts', async (req: Request, res: Response) => {
+  try {
+    const { page = '1', limit = '50', status } = req.query as any;
+    const result = await fraudService.getAlerts(parseInt(page), parseInt(limit), status);
+    res.json(formatResponse('success', 200, 'Fraud alerts', result));
+  } catch (error: any) {
+    logger.error('Get fraud alerts error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get fraud alerts'));
+  }
+});
+
+router.post('/support/fraud-alerts/:id/resolve', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { note } = req.body;
+    const agentId = req.adminId!;
+    await fraudService.resolveAlert(id, agentId, note || '');
+    res.json(formatResponse('success', 200, 'Alert resolved'));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to resolve alert'));
+  }
+});
+
+router.post('/support/fraud-alerts/:id/dismiss', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const agentId = req.adminId!;
+    await fraudService.dismissAlert(id, agentId);
+    res.json(formatResponse('success', 200, 'Alert dismissed'));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to dismiss alert'));
   }
 });
 

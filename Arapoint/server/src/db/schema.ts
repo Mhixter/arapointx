@@ -529,6 +529,9 @@ export const supportTickets = pgTable('support_tickets', {
   status: varchar('status', { length: 20 }).default('open').notNull(),
   priority: varchar('priority', { length: 20 }).default('medium'),
   assignedAgentId: uuid('assigned_agent_id').references(() => adminUsers.id),
+  departmentTag: varchar('department_tag', { length: 50 }), // a2c, identity, education, jamb, cac, vtu, wallet, general
+  linkedOrderId: varchar('linked_order_id', { length: 100 }), // tracking ID or transaction ref
+  linkedOrderType: varchar('linked_order_type', { length: 30 }), // a2c, identity, education, jamb, cac, transaction
   escalatedAt: timestamp('escalated_at'),
   assignedAt: timestamp('assigned_at'),
   resolvedAt: timestamp('resolved_at'),
@@ -536,6 +539,35 @@ export const supportTickets = pgTable('support_tickets', {
   lastActivityAt: timestamp('last_activity_at').defaultNow(),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+// Agent Internal Messages (support ↔ operational agents)
+export const agentInternalMessages = pgTable('agent_internal_messages', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  ticketId: uuid('ticket_id').references(() => supportTickets.id).notNull(),
+  fromType: varchar('from_type', { length: 30 }).notNull(), // support_agent, a2c_agent, identity_agent, jamb_agent, education_agent, cac_agent
+  fromId: varchar('from_id', { length: 100 }).notNull(),
+  fromName: varchar('from_name', { length: 100 }).notNull(),
+  toDepartment: varchar('to_department', { length: 50 }).notNull(), // a2c, identity, education, jamb, cac, support
+  message: text('message').notNull(),
+  linkedOrderId: varchar('linked_order_id', { length: 100 }),
+  readAt: timestamp('read_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Fraud Alerts
+export const fraudAlerts = pgTable('fraud_alerts', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  alertType: varchar('alert_type', { length: 50 }).notNull(), // rapid_transactions, multiple_failed, large_amount, suspicious_pattern, velocity_spike
+  severity: varchar('severity', { length: 20 }).default('medium').notNull(), // low, medium, high, critical
+  description: text('description').notNull(),
+  metadata: jsonb('metadata'), // raw data that triggered the alert
+  status: varchar('status', { length: 20 }).default('open').notNull(), // open, reviewed, resolved, dismissed
+  resolvedById: uuid('resolved_by_id'),
+  resolvedAt: timestamp('resolved_at'),
+  resolvedNote: text('resolved_note'),
+  createdAt: timestamp('created_at').defaultNow(),
 });
 
 // Support Conversations

@@ -20,6 +20,12 @@ Arapoint is a production-ready Nigerian Identity Verification and Management Pla
 - **Identity Verification**: YouVerify API (NIN/BVN)
 
 ## Recent Updates (March 2026)
+- **Fraud detection system**: `fraudService.ts` with velocity checks (15+ tx/hour), large-amount detection (₦500k+), daily volume caps (₦2M+), failed-tx pattern detection (5+ failed/day), and 6-hour dedup window. Hooks into `walletService.deductBalance` (fire-and-forget). `fraud_alerts` table in DB with severity levels (low/medium/high/critical).
+- **Cross-department lookup**: Support agents can search all departments (A2C, Identity, Education, CAC, Transactions, Tickets, Users) by tracking ID, phone, email, or business name via `GET /admin/support/lookup?q=`.
+- **Department tagging on support tickets**: `departmentTag`, `linkedOrderId`, `linkedOrderType` columns added to `support_tickets` (DB migrated). `PUT /admin/support/tickets/:id/department` endpoint.
+- **Internal messaging (cross-dept)**: New `agent_internal_messages` table. Support agents can send internal messages to any department with `POST /admin/support/tickets/:id/internal-messages`.
+- **SupportAgentDashboard rebuilt**: Three top-level tabs — My Tickets, Cross-Dept Lookup, Fraud Alerts. Ticket view has three inner tabs — Messages, Notes, Internal Messages. Department tagging controls in ticket header. Internal message composer with department selector.
+- **AI support improvements**: Both ticket-creation and message-handling prompts rewritten with full Arapoint service knowledge (NIN/BVN/JAMB/VTU/A2C/CAC/Wallet). Client-side keyword escalation detection (refund, deducted, fraud, etc.) and agent request detection before sending to AI.
 - **JWT token expiry aligned**: `userService.ts` access token now uses `8h` (was `1h`), fixing JAMB download failures after 30 minutes
 - **A2C Agent Dashboard**: Added "Receiving #" column to agent request table, showing the customer airtime number per request
 - **Account suspension system**: `isSuspended`, `suspendedAt`, `suspendReason` fields added to users table (DB migrated); auth middleware now blocks suspended users with 403; admin endpoints `PUT /admin/users/:id/suspend` and `/unsuspend` added; Suspend/Unsuspend buttons with reason modal added to AdminUserManagement

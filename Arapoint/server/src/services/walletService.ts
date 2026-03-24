@@ -3,6 +3,7 @@ import { users, transactions } from '../db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 import { generateReferenceId } from '../utils/helpers';
+import { fraudService } from './fraudService';
 
 export const walletService = {
   async getBalance(userId: string) {
@@ -83,6 +84,8 @@ export const walletService = {
     });
 
     logger.info('Wallet deducted', { userId, amount, description, reference });
+
+    fraudService.runAndAlert(userId, amount, serviceType).catch(() => {});
 
     return {
       newBalance,
