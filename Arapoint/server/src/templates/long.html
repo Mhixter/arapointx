@@ -3,254 +3,130 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NIN Extended Slip - {{slip_reference}}</title>
+  <title>NIN Long Slip - {{slip_reference}}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;900&display=swap');
-    @page { size: A4; margin: 0; }
+    
+    @page {
+      size: A4;
+      margin: 0;
+    }
+    
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body {
-      font-family: 'Roboto', Arial, sans-serif;
-      background: #fff;
-      width: 210mm;
-      min-height: 297mm;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
+    
+    html, body { 
+      font-family: 'Roboto', Arial, sans-serif; 
+      background: white;
+      margin: 0;
+      padding: 0;
+      width: 1267px;
+      height: 1652px;
     }
-    .page { width: 210mm; min-height: 297mm; background: #fff; }
+    
+    .page {
+      position: relative;
+      width: 1267px;
+      height: 1652px;
+    }
+    
+    .template-bg {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    
+    .data-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    
+    .photo-overlay {
+      position: absolute;
+      top: {{photo_top}};
+      left: {{photo_left}};
+      width: {{photo_width}};
+      height: auto;
+      object-fit: cover;
+    }
+    
+    .surname-overlay {
+      position: absolute;
+      top: {{surname_top}};
+      left: {{surname_left}};
+      font-size: {{surname_size}};
+      font-weight: 700;
+      color: #000;
+      text-transform: uppercase;
+    }
+    
+    .given-names-overlay {
+      position: absolute;
+      top: {{names_top}};
+      left: {{names_left}};
+      font-size: {{names_size}};
+      font-weight: 700;
+      color: #000;
+      text-transform: uppercase;
+    }
+    
+    .sex-overlay {
+      position: absolute;
+      top: {{sex_top}};
+      left: {{sex_left}};
+      font-size: {{sex_size}};
+      font-weight: 700;
+      color: #000;
+    }
 
-    .header {
-      background: #006400; padding: 14px 24px 12px;
-      display: flex; align-items: center; justify-content: space-between;
+    .nin-overlay {
+      position: absolute;
+      top: {{nin_top}};
+      left: {{nin_left}};
+      font-size: {{nin_size}};
+      font-weight: 700;
+      color: #000;
+      letter-spacing: 2px;
+      font-family: Arial, Helvetica, sans-serif;
     }
-    .header-left { display: flex; align-items: center; gap: 12px; }
-    .emblem {
-      width: 62px; height: 62px; border-radius: 50%;
-      background: #fff; display: flex; align-items: center; justify-content: center;
-      font-size: 30px; flex-shrink: 0; border: 2px solid #d4af37;
+
+    .tracking-overlay {
+      position: absolute;
+      top: {{tracking_top}};
+      left: {{tracking_left}};
+      font-size: {{tracking_size}};
+      font-weight: 600;
+      color: #000;
     }
-    .hdr-text { color: #fff; line-height: 1.3; }
-    .hdr-text .republic { font-size: 9px; letter-spacing: 1.5px; opacity: .75; text-transform: uppercase; }
-    .hdr-text .nimc { font-size: 15px; font-weight: 900; }
-    .hdr-text .nimc-sub { font-size: 9px; opacity: .65; }
-    .hdr-right { color: #fff; text-align: right; font-size: 9px; opacity: .8; line-height: 1.7; }
-    .hdr-right strong { font-size: 11px; opacity: 1; display: block; }
-    .gold-ribbon { height: 5px; background: linear-gradient(90deg, #8b6914, #d4af37, #ffd700, #d4af37, #8b6914); }
-    .title-band {
-      background: #004d00; color: #fff; text-align: center; padding: 7px;
-      font-size: 13px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase;
-    }
-    .subtitle-band {
-      background: #f0f7f0; color: #004d00; text-align: center; padding: 4px;
-      font-size: 9px; letter-spacing: 1px; border-bottom: 1px solid #c8e6c9;
-    }
-    .body { padding: 16px 22px 14px; }
-    .id-hero {
-      border: 2px solid #006400; border-radius: 10px; overflow: hidden;
-      box-shadow: 0 2px 12px rgba(0,100,0,.12); margin-bottom: 14px;
-    }
-    .id-hero-top { display: flex; background: linear-gradient(135deg, #f0f7f0, #e8f5e9); }
-    .hero-left {
-      width: 140px; flex-shrink: 0;
-      border-right: 1.5px solid #c8e6c9;
-      padding: 16px 12px; display: flex; flex-direction: column;
-      align-items: center; gap: 9px;
-      background: linear-gradient(180deg, #e8f5e9, #f5fbf5);
-    }
-    .photo-wrap {
-      width: 110px; height: 135px; border: 3px solid #006400;
-      border-radius: 5px; overflow: hidden; background: #ddd;
-    }
-    .photo-wrap img { width: 100%; height: 100%; object-fit: cover; }
-    .photo-caption { font-size: 7px; color: #666; text-align: center; text-transform: uppercase; letter-spacing: .4px; }
-    .tracking-card {
-      width: 100%; background: #006400; color: #fff;
-      border-radius: 4px; padding: 5px 7px; text-align: center;
-    }
-    .tracking-card .t-label { font-size: 6.5px; opacity: .75; letter-spacing: .7px; }
-    .tracking-card .t-val { font-size: 9px; font-weight: 700; font-family: monospace; letter-spacing: .5px; }
-    .hero-right { flex: 1; padding: 14px 16px; display: flex; flex-direction: column; gap: 0; }
-    .section-head {
-      font-size: 8px; text-transform: uppercase; letter-spacing: 1px;
-      color: #006400; font-weight: 700;
-      border-bottom: 1px solid #d4d4d4; margin-bottom: 10px; padding-bottom: 4px;
-    }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 10px; }
-    .grid-1 { margin-bottom: 10px; }
-    .field { display: flex; flex-direction: column; gap: 2px; }
-    .f-label { font-size: 7px; text-transform: uppercase; letter-spacing: .7px; color: #888; font-weight: 600; }
-    .f-value { font-size: 12px; font-weight: 700; color: #111; line-height: 1.2; }
-    .nin-bar {
-      background: linear-gradient(135deg, #002d00, #006400);
-      padding: 12px 20px; display: flex; align-items: center; justify-content: space-between;
-    }
-    .nin-left .nin-lbl { font-size: 8px; color: #a5d6a7; letter-spacing: 1.5px; text-transform: uppercase; }
-    .nin-left .nin-num {
-      font-size: 28px; font-weight: 900; color: #fff;
-      letter-spacing: 6px; font-family: 'Courier New', monospace; line-height: 1.1;
-    }
-    .nin-left .nin-note { font-size: 7px; color: rgba(255,255,255,.5); margin-top: 2px; }
-    .nin-qr img {
-      width: 82px; height: 82px; background: #fff;
-      border-radius: 4px; padding: 3px; box-shadow: 0 0 0 2px #d4af37;
-    }
-    .ext-section {
-      background: #f9fdf9; border: 1.5px solid #c8e6c9; border-radius: 8px;
-      padding: 12px 16px; margin-bottom: 14px;
-    }
-    .ext-section .section-head { margin-bottom: 9px; }
-    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 9px; }
-    .verify-row {
-      display: flex; align-items: flex-start; justify-content: space-between;
-      background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 6px;
-      padding: 8px 14px; margin-bottom: 14px; font-size: 7.5px; color: #555;
-    }
-    .v-ref { font-weight: 700; color: #222; font-size: 9px; }
-    .v-url { color: #006400; }
-    .v-note { font-size: 7px; color: #999; text-align: right; max-width: 170px; line-height: 1.5; }
-    .ara-footer {
-      background: linear-gradient(135deg, #003d00, #006400);
-      border-radius: 8px; padding: 11px 18px;
-      display: flex; align-items: center; justify-content: space-between; color: #fff;
-    }
-    .ara-brand .ara-name { font-size: 15px; font-weight: 900; letter-spacing: 2px; color: #d4af37; }
-    .ara-brand .ara-tag { font-size: 7.5px; opacity: .7; margin-top: 2px; }
-    .ara-contact { font-size: 7.5px; opacity: .8; text-align: right; line-height: 1.7; }
-    .watermark {
-      position: fixed; top: 50%; left: 50%;
-      transform: translate(-50%, -50%) rotate(-35deg);
-      font-size: 70px; font-weight: 900; color: rgba(0,100,0,.04);
-      letter-spacing: 10px; pointer-events: none; white-space: nowrap;
-      text-transform: uppercase; z-index: 0;
+
+    .address-overlay {
+      position: absolute;
+      top: {{address_top}};
+      left: {{address_left}};
+      font-size: {{address_size}};
+      font-weight: 600;
+      color: #000;
+      max-width: 60%;
     }
     {{hidden_fields_css}}
     {{field_font_css}}
   </style>
 </head>
 <body>
-  <div class="watermark">ARAPOINT VERIFIED</div>
   <div class="page">
-    <div class="header">
-      <div class="header-left">
-        <div class="emblem">🇳🇬</div>
-        <div class="hdr-text">
-          <div class="republic">Federal Republic of Nigeria</div>
-          <div class="nimc">National Identity Management Commission</div>
-          <div class="nimc-sub">NIMC — Abuja, Nigeria &nbsp;|&nbsp; www.nimc.gov.ng</div>
-        </div>
-      </div>
-      <div class="hdr-right">
-        <strong>NIMC</strong>
-        Secure Identity Document<br>Extended Information Slip
-      </div>
-    </div>
-    <div class="gold-ribbon"></div>
-    <div class="title-band">National Identity Number (NIN) — Extended Information Slip</div>
-    <div class="subtitle-band">CONFIDENTIAL — For Authorised Use Only</div>
-
-    <div class="body">
-      <div class="id-hero">
-        <div class="id-hero-top">
-          <div class="hero-left">
-            <div class="photo-wrap">
-              <img src="{{photo}}" alt="Photo" class="photo-overlay">
-            </div>
-            <div class="photo-caption">Holder's Passport<br>Photograph</div>
-            <div class="tracking-card">
-              <div class="t-label">Tracking ID</div>
-              <div class="t-val tracking-overlay">{{tracking_id}}</div>
-            </div>
-          </div>
-
-          <div class="hero-right">
-            <div class="section-head">Personal Details</div>
-            <div class="grid-1">
-              <div class="field" style="margin-bottom:9px;">
-                <span class="f-label">Surname</span>
-                <span class="f-value surname-overlay" style="font-size:14px;">{{surname}}</span>
-              </div>
-              <div class="field" style="margin-bottom:9px;">
-                <span class="f-label">First Name / Middle Name</span>
-                <span class="f-value given-names-overlay">{{firstname}} {{middlename}}</span>
-              </div>
-            </div>
-            <div class="grid-2">
-              <div class="field">
-                <span class="f-label">Date of Birth</span>
-                <span class="f-value dob-overlay">{{date_of_birth}}</span>
-              </div>
-              <div class="field">
-                <span class="f-label">Sex</span>
-                <span class="f-value sex-overlay">{{gender}}</span>
-              </div>
-              <div class="field">
-                <span class="f-label">Nationality</span>
-                <span class="f-value nationality-overlay">{{nationality}}</span>
-              </div>
-              <div class="field">
-                <span class="f-label">Phone Number</span>
-                <span class="f-value phone-overlay" style="font-family:monospace;">{{phone}}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="nin-bar">
-          <div class="nin-left">
-            <div class="nin-lbl">National Identification Number</div>
-            <div class="nin-num nin-overlay">{{nin}}</div>
-            <div class="nin-note">Keep this number confidential</div>
-          </div>
-          <div class="nin-qr qr-overlay">
-            <img src="{{qr_code}}" alt="QR Code">
-          </div>
-        </div>
-      </div>
-
-      <div class="ext-section">
-        <div class="section-head">Origin &amp; Residential Information</div>
-        <div class="grid-3">
-          <div class="field">
-            <span class="f-label">State of Origin</span>
-            <span class="f-value state-overlay">{{state}}</span>
-          </div>
-          <div class="field">
-            <span class="f-label">LGA of Origin</span>
-            <span class="f-value lga-overlay">{{lga}}</span>
-          </div>
-          <div class="field">
-            <span class="f-label">Date Issued</span>
-            <span class="f-value issue-date-overlay">{{issue_date}}</span>
-          </div>
-          <div class="field" style="grid-column: 1 / -1;">
-            <span class="f-label">Residential Address</span>
-            <span class="f-value address-overlay">{{address}}</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="verify-row">
-        <div>
-          <div>Issue Date: <strong class="issue-date-overlay">{{issue_date}}</strong></div>
-          <div class="v-ref">Slip Reference: {{slip_reference}}</div>
-          <div class="v-url">Verify at: {{verification_url}}</div>
-        </div>
-        <div class="v-note">
-          This is a certified extract from the National Identity Database.
-          Any alteration, mutilation or misuse is a criminal offence
-          under the NIMC Act 2007.
-        </div>
-      </div>
-
-      <div class="ara-footer">
-        <div class="ara-brand">
-          <div class="ara-name">ARAPOINT</div>
-          <div class="ara-tag">Nigeria's Trusted Identity &amp; Verification Platform</div>
-        </div>
-        <div class="ara-contact">
-          Generated by Arapoint Services Platform<br>
-          support@arapoint.com &nbsp;|&nbsp; +234 901 234 5678
-        </div>
-      </div>
+    <img src="{{template_image}}" alt="Template" class="template-bg">
+    
+    <div class="data-overlay">
+      <img src="{{photo}}" alt="Photo" class="photo-overlay">
+      <div class="surname-overlay">{{surname}}</div>
+      <div class="given-names-overlay">{{firstname}} {{middlename}}</div>
+      <div class="sex-overlay">{{gender}}</div>
+      <div class="nin-overlay">{{nin}}</div>
+      <div class="tracking-overlay">{{tracking_id}}</div>
+      <div class="address-overlay">{{address}}</div>
     </div>
   </div>
 </body>
