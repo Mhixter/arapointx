@@ -19,6 +19,11 @@ Arapoint is a production-ready Nigerian Identity Verification and Management Pla
 - **Email**: SendGrid (for OTP delivery)
 - **Identity Verification**: YouVerify API (NIN/BVN)
 
+## Recent Updates (March 2026 — Session 2)
+- **Transaction lookup fixed (G)**: Support agent lookup was querying non-existent `transactions.reference` field — corrected to `transactions.referenceId`. Search now spans reference ID, description, user email, phone, and name (was reference-only).
+- **NIN slip templates redesigned (R/S)**: All 4 templates (standard, premium, long, full_info) fully rewritten as self-contained HTML/CSS — no longer depend on background PNG images. Professional government-style design with green NIMC header, gold ribbon, photo frame, NIN band, QR code, and Arapoint footer branding. Template image load failure now returns empty string instead of throwing.
+- **PaymentPoint gateway added (I/J)**: New `paymentpointService.ts` with createVirtualAccount, webhook signature verification, and payload parsing. Added as primary virtual account provider (PaymentPoint → PalmPay → PayVessel fallback chain). Webhook endpoint `POST /api/webhooks/paymentpoint` added. Credentials: `PAYMENTPOINT_API_KEY`, `PAYMENTPOINT_SECRET_KEY`, `PAYMENTPOINT_MERCHANT_ID` (configurable in admin Gateways settings or via env vars / adminSettings DB).
+
 ## Recent Updates (March 2026)
 - **Fraud detection system**: `fraudService.ts` with velocity checks (15+ tx/hour), large-amount detection (₦500k+), daily volume caps (₦2M+), failed-tx pattern detection (5+ failed/day), and 6-hour dedup window. Hooks into `walletService.deductBalance` (fire-and-forget). `fraud_alerts` table in DB with severity levels (low/medium/high/critical).
 - **Cross-department lookup**: Support agents can search all departments (A2C, Identity, Education, CAC, Transactions, Tickets, Users) by tracking ID, phone, email, or business name via `GET /admin/support/lookup?q=`.

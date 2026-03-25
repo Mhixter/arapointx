@@ -6,120 +6,279 @@
   <title>NIN Standard Slip - {{slip_reference}}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;900&display=swap');
-    
-    @page {
-      size: A4;
-      margin: 0;
-    }
-    
+    @page { size: A4; margin: 0; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    
-    html, body { 
-      font-family: 'Roboto', Arial, sans-serif; 
-      background: white;
-      margin: 0;
-      padding: 0;
-      width: 1267px;
-      height: 1652px;
+    html, body {
+      font-family: 'Roboto', Arial, sans-serif;
+      background: #fff;
+      width: 210mm;
+      min-height: 297mm;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
-    
     .page {
+      width: 210mm;
+      min-height: 297mm;
+      background: #fff;
+      padding: 0;
       position: relative;
-      width: 1267px;
-      height: 1652px;
-    }
-    
-    .template-bg {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-    
-    .data-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-    }
-    
-    .photo-overlay {
-      position: absolute;
-      top: {{photo_top}};
-      left: {{photo_left}};
-      width: {{photo_width}};
-      height: auto;
-      object-fit: cover;
-    }
-    
-    .surname-overlay {
-      position: absolute;
-      top: {{surname_top}};
-      left: {{surname_left}};
-      font-size: {{surname_size}};
-      font-weight: 700;
-      color: #000;
-      text-transform: uppercase;
-    }
-    
-    .given-names-overlay {
-      position: absolute;
-      top: {{names_top}};
-      left: {{names_left}};
-      font-size: {{names_size}};
-      font-weight: 700;
-      color: #000;
-      text-transform: uppercase;
-    }
-    
-    .dob-overlay {
-      position: absolute;
-      top: {{dob_top}};
-      left: {{dob_left}};
-      font-size: {{dob_size}};
-      font-weight: 700;
-      color: #000;
     }
 
-    .nin-overlay {
-      position: absolute;
-      top: {{nin_top}};
-      left: {{nin_left}};
-      font-size: {{nin_size}};
-      font-weight: 600;
-      color: #000;
-      letter-spacing: 3px;
-      font-family: Arial, Helvetica, sans-serif;
+    /* ── Header bar ── */
+    .header {
+      background: #006400;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 24px 10px;
     }
-    
-    .qr-overlay {
-      position: absolute;
-      top: {{qr_top}};
-      right: {{qr_right}};
-      width: {{qr_width}};
+    .header-left { display: flex; align-items: center; gap: 10px; }
+    .coat-circle {
+      width: 58px; height: 58px; border-radius: 50%;
+      background: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; flex-shrink: 0;
     }
-    
-    .qr-overlay img {
-      width: 100%;
-      height: auto;
+    .header-titles { line-height: 1.25; }
+    .header-titles .country { font-size: 11px; letter-spacing: 1.5px; opacity: .85; text-transform: uppercase; }
+    .header-titles .dept { font-size: 13px; font-weight: 700; letter-spacing: .5px; }
+    .header-titles .sub { font-size: 10px; opacity: .75; }
+    .header-right { text-align: right; font-size: 9px; opacity: .8; line-height: 1.6; }
+    .header-right strong { font-size: 11px; display: block; opacity: 1; }
+
+    /* ── Title strip ── */
+    .title-strip {
+      background: #004d00;
+      color: #fff;
+      text-align: center;
+      padding: 7px 0 5px;
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
     }
+
+    /* ── Gold divider ── */
+    .gold-bar { height: 5px; background: linear-gradient(90deg, #b8860b, #ffd700, #b8860b); }
+
+    /* ── Body ── */
+    .body { padding: 20px 28px; }
+
+    /* ── Card ── */
+    .card {
+      border: 1.5px solid #ccc;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 8px rgba(0,0,0,.08);
+    }
+    .card-top {
+      background: linear-gradient(135deg, #f0f7f0 0%, #e8f5e9 100%);
+      border-bottom: 1px solid #c8e6c9;
+      display: flex;
+      gap: 0;
+    }
+    .photo-col {
+      padding: 18px 16px 18px 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .photo-box {
+      width: 110px; height: 130px;
+      border: 3px solid #006400;
+      border-radius: 4px;
+      overflow: hidden;
+      background: #e0e0e0;
+    }
+    .photo-box img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-label {
+      font-size: 8px; color: #555; text-align: center; line-height: 1.3;
+    }
+    .info-col {
+      flex: 1;
+      padding: 18px 16px 18px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .field-row { display: flex; flex-direction: column; gap: 2px; }
+    .field-label {
+      font-size: 8px; text-transform: uppercase; letter-spacing: .8px;
+      color: #777; font-weight: 600;
+    }
+    .field-value {
+      font-size: 13px; font-weight: 700; color: #111;
+      line-height: 1.2;
+    }
+    .field-row.two-col {
+      flex-direction: row; gap: 24px;
+    }
+    .field-row.two-col .field-half { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+
+    /* ── NIN band ── */
+    .nin-band {
+      background: #006400;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nin-label-block { color: #a5d6a7; }
+    .nin-label-block .nin-title { font-size: 9px; letter-spacing: 1.2px; text-transform: uppercase; }
+    .nin-label-block .nin-number {
+      font-size: 30px; font-weight: 900; color: #fff;
+      letter-spacing: 6px; font-family: 'Courier New', monospace;
+    }
+    .nin-qr img { width: 80px; height: 80px; background: #fff; border-radius: 4px; padding: 2px; }
+
+    /* ── Verification strip ── */
+    .verify-strip {
+      background: #f9f9f9;
+      border-top: 1px solid #eee;
+      padding: 8px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 8px;
+      color: #666;
+    }
+    .verify-left { line-height: 1.6; }
+    .verify-ref { font-weight: 700; color: #333; font-size: 9px; }
+    .verify-url { color: #006400; font-size: 7.5px; }
+
+    /* ── Arapoint footer ── */
+    .arapoint-footer {
+      margin-top: 18px;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #f9fdf9;
+    }
+    .ara-brand { display: flex; flex-direction: column; }
+    .ara-name { font-size: 13px; font-weight: 900; color: #006400; letter-spacing: 1px; }
+    .ara-tagline { font-size: 8px; color: #888; }
+    .ara-info { font-size: 8px; color: #666; text-align: right; line-height: 1.7; }
+    .ara-info strong { color: #333; }
+
+    /* ── Watermark ── */
+    .watermark {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%) rotate(-35deg);
+      font-size: 70px; font-weight: 900; color: rgba(0,100,0,.04);
+      letter-spacing: 10px; pointer-events: none; white-space: nowrap;
+      text-transform: uppercase; z-index: 0;
+    }
+
     {{hidden_fields_css}}
     {{field_font_css}}
   </style>
 </head>
 <body>
+  <div class="watermark">ARAPOINT VERIFIED</div>
   <div class="page">
-    <img src="{{template_image}}" alt="Template" class="template-bg">
-    
-    <div class="data-overlay">
-      <img src="{{photo}}" alt="Photo" class="photo-overlay">
-      <div class="surname-overlay">{{surname}}</div>
-      <div class="given-names-overlay">{{firstname}} {{middlename}}</div>
-      <div class="dob-overlay">{{date_of_birth}}</div>
-      <div class="nin-overlay">{{nin}}</div>
-      <div class="qr-overlay">
-        <img src="{{qr_code}}" alt="QR Code">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        <div class="coat-circle">🇳🇬</div>
+        <div class="header-titles">
+          <div class="country">Federal Republic of Nigeria</div>
+          <div class="dept">National Identity Management Commission</div>
+          <div class="sub">NIMC — Abuja, Nigeria</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <strong>NIMC</strong>
+        National Identity<br>Management Commission
+      </div>
+    </div>
+
+    <!-- Title -->
+    <div class="title-strip">National Identity Number (NIN) Slip — Standard</div>
+    <div class="gold-bar"></div>
+
+    <!-- Body -->
+    <div class="body">
+      <div class="card">
+
+        <!-- Card top: photo + info -->
+        <div class="card-top">
+          <div class="photo-col">
+            <div class="photo-box">
+              <img src="{{photo}}" alt="Photograph" class="photo-overlay">
+            </div>
+            <div class="photo-label">Holder's Passport<br>Photograph</div>
+          </div>
+
+          <div class="info-col">
+            <div class="field-row">
+              <span class="field-label">Surname</span>
+              <span class="field-value surname-overlay">{{surname}}</span>
+            </div>
+            <div class="field-row">
+              <span class="field-label">First Name / Middle Name</span>
+              <span class="field-value given-names-overlay">{{firstname}} {{middlename}}</span>
+            </div>
+            <div class="field-row two-col">
+              <div class="field-half">
+                <span class="field-label">Date of Birth</span>
+                <span class="field-value dob-overlay">{{date_of_birth}}</span>
+              </div>
+              <div class="field-half">
+                <span class="field-label">Sex</span>
+                <span class="field-value sex-overlay">{{gender}}</span>
+              </div>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Nationality</span>
+              <span class="field-value nationality-overlay">{{nationality}}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- NIN band -->
+        <div class="nin-band">
+          <div class="nin-label-block">
+            <div class="nin-title">National Identification Number</div>
+            <div class="nin-number nin-overlay">{{nin}}</div>
+          </div>
+          <div class="nin-qr qr-overlay">
+            <img src="{{qr_code}}" alt="QR Code">
+          </div>
+        </div>
+
+        <!-- Verification strip -->
+        <div class="verify-strip">
+          <div class="verify-left">
+            <div>Issue Date: <strong class="issue-date-overlay">{{issue_date}}</strong></div>
+            <div class="verify-ref">Reference: {{slip_reference}}</div>
+            <div class="verify-url">Verify at: {{verification_url}}</div>
+          </div>
+          <div style="font-size:8px; color:#999; text-align:right; max-width:160px;">
+            This slip is a certified extract from the<br>
+            National Identity Database. Tampering is<br>
+            a criminal offence under NIMC Act 2007.
+          </div>
+        </div>
+      </div>
+
+      <!-- Arapoint footer -->
+      <div class="arapoint-footer">
+        <div class="ara-brand">
+          <div class="ara-name">ARAPOINT</div>
+          <div class="ara-tagline">Nigeria's Trusted Verification Platform</div>
+        </div>
+        <div class="ara-info">
+          <strong>Generated via Arapoint Services</strong><br>
+          support@arapoint.com &nbsp;|&nbsp; +234 901 234 5678<br>
+          www.arapoint.com
+        </div>
       </div>
     </div>
   </div>

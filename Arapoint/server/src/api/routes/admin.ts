@@ -687,9 +687,19 @@ router.get('/payment-gateways/status', async (req: Request, res: Response) => {
           { key: 'palmpay_public_key', label: 'Public Key', type: 'text', required: false, value: savedSettings['palmpay_public_key'] || '' },
         ],
       },
+      paymentpoint: {
+        name: 'PaymentPoint',
+        description: 'Primary virtual account gateway for bank transfers (preferred)',
+        configured: !!(process.env.PAYMENTPOINT_API_KEY || savedSettings['paymentpoint_api_key']),
+        fields: [
+          { key: 'paymentpoint_api_key', label: 'API Key', type: 'text', required: true, value: savedSettings['paymentpoint_api_key'] || '' },
+          { key: 'paymentpoint_secret_key', label: 'Secret Key', type: 'password', required: true, value: '', hasValue: !!savedSettings['paymentpoint_secret_key'] },
+          { key: 'paymentpoint_merchant_id', label: 'Merchant ID', type: 'text', required: false, value: savedSettings['paymentpoint_merchant_id'] || '' },
+        ],
+      },
       payvessel: {
         name: 'PayVessel',
-        description: 'Virtual account generation for bank transfers',
+        description: 'Virtual account generation for bank transfers (fallback)',
         configured: !!(process.env.PAYVESSEL_API_KEY || savedSettings['payvessel_api_key']),
         fields: [
           { key: 'payvessel_api_key', label: 'API Key', type: 'text', required: true, value: savedSettings['payvessel_api_key'] || '' },
@@ -749,6 +759,9 @@ router.post('/payment-gateways/save', async (req: Request, res: Response) => {
       palmpay_app_id: 'PALMPAY_APP_ID',
       palmpay_private_key: 'PALMPAY_PRIVATE_KEY',
       palmpay_public_key: 'PALMPAY_PUBLIC_KEY',
+      paymentpoint_api_key: 'PAYMENTPOINT_API_KEY',
+      paymentpoint_secret_key: 'PAYMENTPOINT_SECRET_KEY',
+      paymentpoint_merchant_id: 'PAYMENTPOINT_MERCHANT_ID',
       payvessel_api_key: 'PAYVESSEL_API_KEY',
       payvessel_secret_key: 'PAYVESSEL_SECRET_KEY',
       payvessel_business_id: 'PAYVESSEL_BUSINESS_ID',
@@ -3682,15 +3695,14 @@ router.get('/support/lookup', async (req: Request, res: Response) => {
   try {
     const { q } = req.query as { q?: string };
     if (!q || q.trim().length < 3) {
-      return res.status(400).json(formatErrorResponse(400, 'Transaction ID must be at least 3 characters'));
+      return res.status(400).json(formatErrorResponse(400, 'Search query must be at least 3 characters'));
     }
     const query = q.trim();
 
-    // Search transactions by reference only
     const rows = await db.select({
       id: transactions.id,
-      reference: transactions.reference,
-      type: transactions.type,
+      referenceId: transactions.referenceId,
+      transactionType: transactions.transactionType,
       amount: transactions.amount,
       status: transactions.status,
       description: transactions.description,
@@ -3701,13 +3713,27 @@ router.get('/support/lookup', async (req: Request, res: Response) => {
       userPhone: users.phone,
     }).from(transactions)
       .innerJoin(users, eq(transactions.userId, users.id))
-      .where(ilike(transactions.reference, `%${query}%`))
+      .where(
+        or(
+          ilike(transactions.referenceId, `%${query}%`),
+          ilike(transactions.description, `%${query}%`),
+          ilike(users.email, `%${query}%`),
+          ilike(users.phone, `%${query}%`),
+          ilike(users.name, `%${query}%`),
+        )
+      )
       .orderBy(desc(transactions.createdAt))
       .limit(20);
 
-    const results = rows.map(r => ({ type: 'transaction', label: 'Transaction', ...r }));
+    const results = rows.map(r => ({
+      type: 'transaction',
+      label: 'Transaction',
+      ...r,
+      reference: r.referenceId,
+      type_display: r.transactionType,
+    }));
 
-    res.json(formatResponse('success', 200, `Found ${results.length} transaction(s)`, { results, query }));
+    res.json(formatResponse('success', 200, `Found ${results.length} result(s)`, { results, query }));
   } catch (error: any) {
     logger.error('Lookup error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Lookup failed'));

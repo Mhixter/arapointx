@@ -6,222 +6,308 @@
   <title>NIN Full Information Slip - {{slip_reference}}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;900&display=swap');
-    
-    @page {
-      size: A4;
-      margin: 0;
-    }
-    
+    @page { size: A4; margin: 0; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    
-    html, body { 
-      font-family: 'Roboto', Arial, sans-serif; 
-      background: white;
-      margin: 0;
-      padding: 0;
-      width: 1162px;
-      height: 1758px;
+    html, body {
+      font-family: 'Roboto', Arial, sans-serif;
+      background: #fff;
+      width: 210mm;
+      min-height: 297mm;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
-    
-    .page {
-      position: relative;
-      width: 1162px;
-      height: 1758px;
+    .page { width: 210mm; min-height: 297mm; background: #fff; }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #002d00 0%, #006400 60%, #004d00 100%);
+      padding: 16px 26px 14px;
+      display: flex; align-items: center; justify-content: space-between;
     }
-    
-    .template-bg {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
+    .hdr-left { display: flex; align-items: center; gap: 14px; }
+    .emblem {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: radial-gradient(circle, #fff 58%, #d4af37 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 34px; flex-shrink: 0;
+      border: 2px solid #d4af37;
+      box-shadow: 0 0 0 4px rgba(212,175,55,.25);
     }
-    
-    .data-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
+    .hdr-text { color: #fff; line-height: 1.3; }
+    .hdr-text .republic { font-size: 9.5px; letter-spacing: 2px; opacity: .75; text-transform: uppercase; }
+    .hdr-text .nimc { font-size: 17px; font-weight: 900; letter-spacing: .5px; }
+    .hdr-text .nimc-sub { font-size: 9px; opacity: .65; }
+    .hdr-right { color: #fff; text-align: right; }
+    .doc-badge {
+      display: inline-block; background: #d4af37; color: #002d00;
+      font-size: 8px; font-weight: 800; letter-spacing: 1.5px; padding: 5px 12px;
+      border-radius: 3px; text-transform: uppercase; margin-bottom: 5px;
     }
-    
-    .photo-overlay {
-      position: absolute;
-      top: {{photo_top}};
-      left: {{photo_left}};
-      width: {{photo_width}};
-      height: auto;
-      object-fit: cover;
+    .secure-lines { font-size: 7.5px; opacity: .65; line-height: 1.6; }
+
+    .gold-ribbon { height: 6px; background: linear-gradient(90deg, #8b6914, #d4af37, #ffd700, #d4af37, #8b6914); }
+    .title-band {
+      background: #004d00; color: #fff; text-align: center;
+      padding: 8px; font-size: 12px; font-weight: 800;
+      letter-spacing: 2.5px; text-transform: uppercase;
     }
-    
-    .surname-overlay {
-      position: absolute;
-      top: {{surname_top}};
-      left: {{surname_left}};
-      font-size: {{surname_size}};
-      font-weight: 700;
-      color: #000;
-      text-transform: uppercase;
+    .conf-strip {
+      background: #f0f7f0; color: #004d00; text-align: center;
+      padding: 4px; font-size: 8px; letter-spacing: 1.2px;
+      border-bottom: 1px solid #c8e6c9;
     }
-    
-    .given-names-overlay {
-      position: absolute;
-      top: {{names_top}};
-      left: {{names_left}};
-      font-size: {{names_size}};
-      font-weight: 700;
-      color: #000;
-      text-transform: uppercase;
+
+    /* Body */
+    .body { padding: 14px 20px 12px; }
+
+    /* Top section: photo + personal */
+    .top-card {
+      border: 2px solid #006400; border-radius: 10px; overflow: hidden;
+      box-shadow: 0 2px 14px rgba(0,100,0,.12); margin-bottom: 12px;
     }
-    
-    .dob-overlay {
-      position: absolute;
-      top: {{dob_top}};
-      left: {{dob_left}};
-      font-size: {{dob_size}};
-      font-weight: 700;
-      color: #000;
+    .top-inner { display: flex; background: linear-gradient(135deg, #f0f7f0, #edfaed); }
+    .photo-col {
+      width: 150px; flex-shrink: 0; border-right: 1.5px solid #c8e6c9;
+      padding: 16px 12px; display: flex; flex-direction: column;
+      align-items: center; gap: 9px;
+      background: linear-gradient(180deg, #e8f5e9, #f5fbf5);
     }
-    
-    .sex-overlay {
-      position: absolute;
-      top: {{sex_top}};
-      left: {{sex_left}};
-      font-size: {{sex_size}};
-      font-weight: 700;
-      color: #000;
+    .photo-frame {
+      width: 118px; height: 145px; border: 3px solid #006400;
+      border-radius: 6px; overflow: hidden; background: #ddd;
     }
-    
-    .nin-overlay {
-      position: absolute;
-      top: {{nin_top}};
-      left: {{nin_left}};
-      font-size: {{nin_size}};
-      font-weight: 900;
-      color: #000;
-      letter-spacing: 2px;
-      font-family: 'Arial Black', Arial, sans-serif;
+    .photo-frame img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-label { font-size: 7px; color: #666; text-align: center; text-transform: uppercase; letter-spacing: .4px; }
+    .tracking-box {
+      width: 100%; background: #006400; color: #fff;
+      border-radius: 4px; padding: 5px 7px; text-align: center;
     }
-    
-    .qr-overlay {
-      position: absolute;
-      top: {{qr_top}};
-      right: {{qr_right}};
-      width: {{qr_width}};
+    .tracking-box .tb-lbl { font-size: 6.5px; opacity: .75; letter-spacing: .7px; }
+    .tracking-box .tb-val { font-size: 9px; font-weight: 700; font-family: monospace; }
+    .issue-box {
+      width: 100%; background: #d4af37; color: #002d00;
+      border-radius: 4px; padding: 5px 7px; text-align: center;
     }
-    
-    .qr-overlay img {
-      width: 100%;
-      height: auto;
+    .issue-box .ib-lbl { font-size: 6.5px; font-weight: 600; letter-spacing: .6px; }
+    .issue-box .ib-val { font-size: 9px; font-weight: 700; }
+
+    .details-col { flex: 1; padding: 14px 16px; display: flex; flex-direction: column; gap: 11px; }
+    .section-head {
+      font-size: 7.5px; text-transform: uppercase; letter-spacing: 1px;
+      color: #006400; font-weight: 700;
+      border-bottom: 1px solid #d0d0d0; padding-bottom: 4px;
     }
-    
-    .issue-date-overlay {
-      position: absolute;
-      top: {{issue_top}};
-      left: {{issue_left}};
-      font-size: {{issue_size}};
-      font-weight: 600;
-      color: #000;
+    .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .field { display: flex; flex-direction: column; gap: 2px; }
+    .field.full { grid-column: 1 / -1; }
+    .fl { font-size: 7px; text-transform: uppercase; letter-spacing: .6px; color: #888; font-weight: 600; }
+    .fv { font-size: 11.5px; font-weight: 700; color: #111; line-height: 1.2; }
+    .fv.mono { font-family: monospace; letter-spacing: .5px; }
+
+    /* NIN band */
+    .nin-band {
+      background: linear-gradient(135deg, #001a00, #006400);
+      padding: 14px 22px;
+      display: flex; align-items: center; justify-content: space-between;
     }
-    
-    .tracking-overlay {
-      position: absolute;
-      top: {{tracking_top}};
-      left: {{tracking_left}};
-      font-size: {{tracking_size}};
-      font-weight: 600;
-      color: #000;
+    .nb-left .nb-lbl { font-size: 7.5px; color: #a5d6a7; letter-spacing: 1.5px; text-transform: uppercase; }
+    .nb-left .nb-num {
+      font-size: 30px; font-weight: 900; color: #fff;
+      letter-spacing: 7px; font-family: 'Courier New', monospace; line-height: 1.1;
     }
-    
-    .address-overlay {
-      position: absolute;
-      top: {{address_top}};
-      left: {{address_left}};
-      font-size: {{address_size}};
-      font-weight: 600;
-      color: #000;
-      max-width: 50%;
+    .nb-left .nb-note { font-size: 7px; color: rgba(255,255,255,.45); margin-top: 3px; }
+    .nb-qr img {
+      width: 90px; height: 90px; background: #fff;
+      border-radius: 5px; padding: 3px; box-shadow: 0 0 0 2px #d4af37;
     }
-    
-    .phone-overlay {
-      position: absolute;
-      top: {{phone_top}};
-      left: {{phone_left}};
-      font-size: {{phone_size}};
-      font-weight: 600;
-      color: #000;
+
+    /* Extended info grid */
+    .ext-card {
+      border: 1.5px solid #c8e6c9; border-radius: 8px; overflow: hidden;
+      margin-bottom: 12px;
     }
-    
-    .state-overlay {
-      position: absolute;
-      top: {{state_top}};
-      left: {{state_left}};
-      font-size: {{state_size}};
-      font-weight: 600;
-      color: #000;
+    .ext-header {
+      background: #006400; color: #fff; font-size: 8px;
+      font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+      padding: 6px 14px;
     }
-    
-    .lga-overlay {
-      position: absolute;
-      top: {{lga_top}};
-      left: {{lga_left}};
-      font-size: {{lga_size}};
-      font-weight: 600;
-      color: #000;
+    .ext-body { padding: 11px 14px; }
+    .g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 9px; }
+    .g4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 9px; }
+
+    /* Verify + footer */
+    .verify-row {
+      background: #f5f5f5; border: 1px solid #e0e0e0; border-radius: 6px;
+      padding: 8px 14px; margin-bottom: 12px;
+      display: flex; align-items: flex-start; justify-content: space-between;
+      font-size: 7.5px; color: #555;
     }
-    
-    .birth-state-overlay {
-      position: absolute;
-      top: {{birth_state_top}};
-      left: {{birth_state_left}};
-      font-size: {{birth_state_size}};
-      font-weight: 600;
-      color: #000;
+    .vr-ref { font-weight: 700; color: #222; font-size: 9px; }
+    .vr-url { color: #006400; font-size: 7px; }
+    .vr-note { font-size: 7px; color: #999; text-align: right; max-width: 175px; line-height: 1.5; }
+    .ara-footer {
+      background: linear-gradient(135deg, #003d00, #006400);
+      border-radius: 8px; padding: 10px 18px;
+      display: flex; align-items: center; justify-content: space-between; color: #fff;
     }
-    
-    .birth-lga-overlay {
-      position: absolute;
-      top: {{birth_lga_top}};
-      left: {{birth_lga_left}};
-      font-size: {{birth_lga_size}};
-      font-weight: 600;
-      color: #000;
+    .af-brand .af-name { font-size: 14px; font-weight: 900; letter-spacing: 2px; color: #d4af37; }
+    .af-brand .af-tag { font-size: 7px; opacity: .7; margin-top: 2px; }
+    .af-contact { font-size: 7.5px; opacity: .8; text-align: right; line-height: 1.7; }
+
+    .watermark {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%) rotate(-35deg);
+      font-size: 70px; font-weight: 900; color: rgba(0,100,0,.04);
+      letter-spacing: 10px; pointer-events: none; white-space: nowrap;
+      text-transform: uppercase; z-index: 0;
     }
-    
-    .nationality-overlay {
-      position: absolute;
-      top: {{nationality_top}};
-      left: {{nationality_left}};
-      font-size: {{nationality_size}};
-      font-weight: 600;
-      color: #000;
-    }
+
     {{hidden_fields_css}}
     {{field_font_css}}
   </style>
 </head>
 <body>
+  <div class="watermark">ARAPOINT VERIFIED</div>
   <div class="page">
-    <img src="{{template_image}}" alt="Template" class="template-bg">
-    
-    <div class="data-overlay">
-      <img src="{{photo}}" alt="Photo" class="photo-overlay">
-      <div class="surname-overlay">{{surname}}</div>
-      <div class="given-names-overlay">{{firstname}} {{middlename}}</div>
-      <div class="dob-overlay">{{date_of_birth}}</div>
-      <div class="sex-overlay">{{gender}}</div>
-      <div class="nin-overlay">{{nin}}</div>
-      <div class="qr-overlay">
-        <img src="{{qr_code}}" alt="QR Code">
+    <div class="header">
+      <div class="hdr-left">
+        <div class="emblem">🇳🇬</div>
+        <div class="hdr-text">
+          <div class="republic">Federal Republic of Nigeria</div>
+          <div class="nimc">National Identity Management Commission</div>
+          <div class="nimc-sub">NIMC HQ, Abuja, Nigeria &nbsp;|&nbsp; www.nimc.gov.ng</div>
+        </div>
       </div>
-      <div class="issue-date-overlay">{{issue_date}}</div>
-      <div class="tracking-overlay">{{tracking_id}}</div>
-      <div class="phone-overlay">{{phone}}</div>
-      <div class="address-overlay">{{address}}</div>
-      <div class="state-overlay">{{state}}</div>
-      <div class="lga-overlay">{{lga}}</div>
-      <div class="birth-state-overlay">{{birth_state}}</div>
-      <div class="birth-lga-overlay">{{birth_lga}}</div>
-      <div class="nationality-overlay">{{nationality}}</div>
+      <div class="hdr-right">
+        <div class="doc-badge">Full Information Slip</div>
+        <div class="secure-lines">
+          Official Identity Document<br>
+          Tamper-evident &amp; Digitally Verified<br>
+          NIMC Act 2007 — Protected Document
+        </div>
+      </div>
+    </div>
+    <div class="gold-ribbon"></div>
+    <div class="title-band">National Identity Number (NIN) — Full Information Slip</div>
+    <div class="conf-strip">CONFIDENTIAL — OFFICIAL USE ONLY — HANDLE WITH UTMOST CARE</div>
+
+    <div class="body">
+
+      <!-- Top card: photo + personal info + NIN -->
+      <div class="top-card">
+        <div class="top-inner">
+          <div class="photo-col">
+            <div class="photo-frame">
+              <img src="{{photo}}" alt="Photo" class="photo-overlay">
+            </div>
+            <div class="photo-label">Holder's Passport<br>Photograph</div>
+            <div class="tracking-box">
+              <div class="tb-lbl">Tracking ID</div>
+              <div class="tb-val tracking-overlay">{{tracking_id}}</div>
+            </div>
+            <div class="issue-box">
+              <div class="ib-lbl">Date Issued</div>
+              <div class="ib-val issue-date-overlay">{{issue_date}}</div>
+            </div>
+          </div>
+
+          <div class="details-col">
+            <div class="section-head">Personal Information</div>
+            <div class="g2">
+              <div class="field full">
+                <span class="fl">Surname</span>
+                <span class="fv surname-overlay" style="font-size:14px;">{{surname}}</span>
+              </div>
+              <div class="field full">
+                <span class="fl">First Name / Middle Name</span>
+                <span class="fv given-names-overlay">{{firstname}} {{middlename}}</span>
+              </div>
+              <div class="field">
+                <span class="fl">Date of Birth</span>
+                <span class="fv dob-overlay">{{date_of_birth}}</span>
+              </div>
+              <div class="field">
+                <span class="fl">Sex</span>
+                <span class="fv sex-overlay">{{gender}}</span>
+              </div>
+              <div class="field">
+                <span class="fl">Nationality</span>
+                <span class="fv nationality-overlay">{{nationality}}</span>
+              </div>
+              <div class="field">
+                <span class="fl">Phone Number</span>
+                <span class="fv phone-overlay mono">{{phone}}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="nin-band">
+          <div class="nb-left">
+            <div class="nb-lbl">National Identification Number</div>
+            <div class="nb-num nin-overlay">{{nin}}</div>
+            <div class="nb-note">Keep this number confidential — do not share unnecessarily</div>
+          </div>
+          <div class="nb-qr qr-overlay">
+            <img src="{{qr_code}}" alt="QR Code">
+          </div>
+        </div>
+      </div>
+
+      <!-- Origin & address -->
+      <div class="ext-card">
+        <div class="ext-header">Origin &amp; Residential Details</div>
+        <div class="ext-body">
+          <div class="g4" style="margin-bottom:9px;">
+            <div class="field">
+              <span class="fl">State of Origin</span>
+              <span class="fv state-overlay">{{state}}</span>
+            </div>
+            <div class="field">
+              <span class="fl">LGA of Origin</span>
+              <span class="fv lga-overlay">{{lga}}</span>
+            </div>
+            <div class="field">
+              <span class="fl">State of Birth</span>
+              <span class="fv birth-state-overlay">{{birth_state}}</span>
+            </div>
+            <div class="field">
+              <span class="fl">LGA of Birth</span>
+              <span class="fv birth-lga-overlay">{{birth_lga}}</span>
+            </div>
+          </div>
+          <div class="field">
+            <span class="fl">Residential Address</span>
+            <span class="fv address-overlay">{{address}}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Verify strip -->
+      <div class="verify-row">
+        <div>
+          <div>Issue Date: <strong class="issue-date-overlay">{{issue_date}}</strong></div>
+          <div class="vr-ref">Slip Reference: {{slip_reference}}</div>
+          <div class="vr-url">Verify at: {{verification_url}}</div>
+        </div>
+        <div class="vr-note">
+          This is a certified extract from the National Identity Database.
+          Any alteration, mutilation or unauthorised reproduction is a criminal
+          offence under the NIMC Act 2007. Report misuse to NIMC.
+        </div>
+      </div>
+
+      <!-- Arapoint footer -->
+      <div class="ara-footer">
+        <div class="af-brand">
+          <div class="af-name">ARAPOINT</div>
+          <div class="af-tag">Nigeria's Trusted Identity &amp; Verification Platform</div>
+        </div>
+        <div class="af-contact">
+          Generated by Arapoint Services Platform<br>
+          support@arapoint.com &nbsp;|&nbsp; +234 901 234 5678
+        </div>
+      </div>
     </div>
   </div>
 </body>

@@ -364,7 +364,7 @@ const loadTemplateImage = (
       `${slipType}_template-1.png`,
     );
     if (!fs.existsSync(altPath)) {
-      throw new Error(`Template image not found: ${slipType}_template.png`);
+      return "";
     }
     const imageBuffer = fs.readFileSync(altPath);
     return `data:image/png;base64,${imageBuffer.toString("base64")}`;

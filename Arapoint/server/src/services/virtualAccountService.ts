@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 import { palmpayVirtualAccountService } from './palmpayVirtualAccountService';
 import { payvesselService } from './payvesselService';
+import { paymentpointService } from './paymentpointService';
 
 interface VirtualAccountResult {
   success: boolean;
@@ -17,7 +18,7 @@ interface VirtualAccountResult {
 
 export const virtualAccountService = {
   isConfigured(): boolean {
-    return palmpayVirtualAccountService.isConfigured() || payvesselService.isConfigured();
+    return paymentpointService.isConfigured() || palmpayVirtualAccountService.isConfigured() || payvesselService.isConfigured();
   },
 
   async generateVirtualAccountForUser(userId: string, nin?: string, bvn?: string): Promise<VirtualAccountResult> {
@@ -68,8 +69,65 @@ export const virtualAccountService = {
       };
     }
 
+    const paymentpointConfigured = paymentpointService.isConfigured();
     const palmpayConfigured = palmpayVirtualAccountService.isConfigured();
     const payvesselConfigured = payvesselService.isConfigured();
+
+    if (paymentpointConfigured) {
+      const result = await paymentpointService.createVirtualAccount({
+        email: user.email,
+        name: user.name,
+        phoneNumber: user.phone || '08000000000',
+        bvn: userBvn || undefined,
+        nin: userNin || undefined,
+        accountReference: `arapoint_${userId}`,
+      });
+
+      if (result.success && result.account) {
+        await db.insert(virtualAccounts).values({
+          userId: userId,
+          bankName: result.account.bankName,
+          bankCode: 'paymentpoint',
+          accountNumber: result.account.accountNumber,
+          accountName: result.account.accountName,
+          dedicatedAccountId: result.account.trackingReference,
+          providerSlug: 'paymentpoint',
+          isActive: true,
+        }).onConflictDoUpdate({
+          target: virtualAccounts.userId,
+          set: {
+            bankName: result.account.bankName,
+            bankCode: 'paymentpoint',
+            accountNumber: result.account.accountNumber,
+            accountName: result.account.accountName,
+            dedicatedAccountId: result.account.trackingReference,
+            providerSlug: 'paymentpoint',
+            isActive: true,
+            updatedAt: new Date(),
+          },
+        });
+
+        logger.info('Virtual account created via PaymentPoint', {
+          userId,
+          accountNumber: result.account.accountNumber,
+        });
+
+        return {
+          success: true,
+          account: {
+            bankName: result.account.bankName,
+            accountNumber: result.account.accountNumber,
+            accountName: result.account.accountName,
+          },
+          message: 'Virtual account created successfully via PaymentPoint',
+        };
+      }
+
+      logger.warn('PaymentPoint VA creation failed, trying PalmPay fallback', {
+        userId,
+        error: result.error,
+      });
+    }
 
     if (palmpayConfigured) {
       const identityType = userNin ? 'personal_nin' : 'personal';
