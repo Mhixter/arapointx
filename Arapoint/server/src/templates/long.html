@@ -19,14 +19,14 @@
       background: white;
       margin: 0;
       padding: 0;
-      width: 1267px;
-      height: 1652px;
+      width: 1245px;
+      height: 1758px;
     }
     
     .page {
       position: relative;
-      width: 1267px;
-      height: 1652px;
+      width: 1245px;
+      height: 1758px;
     }
     
     .template-bg {
@@ -72,6 +72,26 @@
       color: #000;
       text-transform: uppercase;
     }
+
+    .firstname-overlay {
+      position: absolute;
+      top: {{firstname_top}};
+      left: {{firstname_left}};
+      font-size: {{firstname_size}};
+      font-weight: 700;
+      color: #000;
+      text-transform: uppercase;
+    }
+
+    .middlename-overlay {
+      position: absolute;
+      top: {{middlename_top}};
+      left: {{middlename_left}};
+      font-size: {{middlename_size}};
+      font-weight: 700;
+      color: #000;
+      text-transform: uppercase;
+    }
     
     .sex-overlay {
       position: absolute;
@@ -93,7 +113,7 @@
       font-family: Arial, Helvetica, sans-serif;
     }
 
-    .tracking-overlay {
+    .tracking-overlay, .tracking-id-overlay {
       position: absolute;
       top: {{tracking_top}};
       left: {{tracking_left}};
@@ -109,7 +129,7 @@
       font-size: {{address_size}};
       font-weight: 600;
       color: #000;
-      max-width: 60%;
+      max-width: 45%;
     }
     {{hidden_fields_css}}
     {{field_font_css}}
@@ -122,7 +142,8 @@
     <div class="data-overlay">
       <img src="{{photo}}" alt="Photo" class="photo-overlay">
       <div class="surname-overlay">{{surname}}</div>
-      <div class="given-names-overlay">{{firstname}} {{middlename}}</div>
+      <div class="firstname-overlay">{{firstname}}</div>
+      <div class="middlename-overlay">{{middlename}}</div>
       <div class="sex-overlay">{{gender}}</div>
       <div class="nin-overlay">{{nin}}</div>
       <div class="tracking-overlay">{{tracking_id}}</div>
