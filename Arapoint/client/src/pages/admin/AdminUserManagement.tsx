@@ -651,9 +651,8 @@ export default function AdminUserManagement() {
               </div>
             </div>
           )}
-          <DialogFooter className="flex-col sm:flex-row gap-2">
+          <DialogFooter className="grid grid-cols-2 gap-2 pt-2">
             <Button
-              variant="outline"
               size="sm"
               onClick={() => {
                 setShowViewModal(false);
@@ -662,42 +661,39 @@ export default function AdminUserManagement() {
                   setShowTransactionsModal(true);
                 }
               }}
-              className="text-blue-600"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
-              <BarChart2 className="h-4 w-4 mr-2" />
-              View Transactions
+              <BarChart2 className="h-4 w-4 mr-1" />
+              Transactions
             </Button>
             <Button 
-              variant="outline" 
               size="sm"
               onClick={() => {
                 setShowViewModal(false);
                 if (selectedUser) openFundModal(selectedUser);
               }}
-              className="text-green-600"
+              className="bg-green-600 hover:bg-green-700 text-white"
             >
-              <DollarSign className="h-4 w-4 mr-2" />
+              <DollarSign className="h-4 w-4 mr-1" />
               Fund Wallet
             </Button>
             {selectedUser?.isSuspended ? (
               <Button
-                variant="outline"
                 size="sm"
                 disabled={unsuspendUserMutation.isPending}
                 onClick={() => selectedUser && unsuspendUserMutation.mutate(selectedUser.id)}
-                className="text-green-700 border-green-300"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
               >
-                {unsuspendUserMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
+                {unsuspendUserMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <ShieldCheck className="h-4 w-4 mr-1" />}
                 Unsuspend
               </Button>
             ) : (
               <Button
-                variant="outline"
                 size="sm"
                 onClick={() => setShowSuspendModal(true)}
-                className="text-red-600 border-red-300"
+                className="bg-red-600 hover:bg-red-700 text-white"
               >
-                <Ban className="h-4 w-4 mr-2" />
+                <Ban className="h-4 w-4 mr-1" />
                 Suspend
               </Button>
             )}
@@ -709,9 +705,10 @@ export default function AdminUserManagement() {
                   updateStatusMutation.mutate({ userId: selectedUser.id, status: editStatus });
                 }
               }}
+              className="bg-primary hover:bg-primary/90 text-white col-span-2"
             >
-              {updateStatusMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Update Status
+              {updateStatusMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              Update KYC Status
             </Button>
           </DialogFooter>
         </DialogContent>

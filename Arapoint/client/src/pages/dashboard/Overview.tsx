@@ -326,7 +326,7 @@ export default function Overview() {
             { label: "NIN Lookup", icon: <ShieldCheck className="h-5 w-5" />, href: "/dashboard/identity", color: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400" },
             { label: "BVN Lookup", icon: <FileText className="h-5 w-5" />, href: "/dashboard/bvn-retrieval", color: "bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400" },
             { label: "Buy PINs", icon: <Zap className="h-5 w-5" />, href: "/dashboard/buy-pins", color: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-500" },
-            { label: "JAMB", icon: <GraduationCap className="h-5 w-5" />, href: "/dashboard/jamb-services", color: "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400" },
+            { label: "JAMB", icon: <GraduationCap className="h-5 w-5" />, href: "/dashboard/jamb", color: "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400" },
             { label: "Results", icon: <CheckCircle2 className="h-5 w-5" />, href: "/dashboard/education", color: "bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400" },
             { label: "VTU", icon: <Wifi className="h-5 w-5" />, href: "/dashboard/vtu", color: "bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400" },
             { label: "History", icon: <History className="h-5 w-5" />, href: "/dashboard/history", color: "bg-slate-100 dark:bg-slate-700/50 text-slate-700 dark:text-slate-300" },

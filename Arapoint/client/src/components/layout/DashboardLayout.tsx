@@ -78,8 +78,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const json = await res.json();
       return json.data || {};
     },
-    staleTime: 60000,
-    refetchInterval: 120000,
+    staleTime: 30000,
+    refetchInterval: 30000,
   });
 
   const walletBalance = user?.walletBalance ? parseFloat(user.walletBalance) : 0;
@@ -124,7 +124,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const NavContent = () => (
     <div className="flex flex-col h-full bg-gradient-to-b from-slate-900 to-slate-800">
       <div className="h-16 flex items-center justify-between px-4 border-b border-white/10">
-        <Link href="/" className="flex items-center gap-2 font-heading font-bold text-xl tracking-tight cursor-pointer">
+        <Link href="/dashboard" className="flex items-center gap-2 font-heading font-bold text-xl tracking-tight cursor-pointer">
           <div className="h-10 w-10">
             <img src={arapointLogo} alt="Arapoint" className="h-9 w-9 object-contain" />
           </div>

@@ -260,10 +260,10 @@ export default function AirtimeToCash() {
       return;
     }
 
-    if (parseFloat(amount) > 50000) {
+    if (parseFloat(amount) > 10000) {
       toast({
         title: "Maximum Amount",
-        description: "Maximum amount is ₦50,000",
+        description: "Maximum amount is ₦10,000",
         variant: "destructive",
       });
       return;
@@ -502,7 +502,7 @@ export default function AirtimeToCash() {
                         onChange={(e) => setAmount(e.target.value)}
                         placeholder="1000" 
                         min="100"
-                        max="50000"
+                        max="10000"
                         className="h-11 pl-8"
                         required
                       />

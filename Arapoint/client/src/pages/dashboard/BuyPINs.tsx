@@ -181,45 +181,23 @@ export default function BuyPINs() {
   };
 
   const handleDownload = async () => {
-    if (!selectedOrder) return;
+    if (!selectedOrder || !receiptRef.current) return;
     setIsDownloading(true);
     try {
-      const textContent = `
-========================================
-           ARAPOINT
-      Education PIN Receipt
-========================================
-
-Order ID:    ${selectedOrder.id?.substring(0, 8)}...
-Exam Type:   ${selectedOrder.examType?.toUpperCase()}
-Amount:      ₦${selectedOrder.amount?.toLocaleString()}
-Date:        ${new Date(selectedOrder.createdAt || Date.now()).toLocaleString()}
-
-----------------------------------------
-         YOUR PIN CODE
-----------------------------------------
-
-   ${selectedOrder.deliveredPin}
-
-----------------------------------------
-
-Keep this receipt safe.
-No refunds after delivery.
-
-Thank you for using Arapoint!
-========================================
-      `.trim();
-
-      const blob = new Blob([textContent], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
+      const canvas = await html2canvas(receiptRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+      });
+      const dataUrl = canvas.toDataURL('image/png');
       const link = document.createElement('a');
-      link.download = `${selectedOrder.examType?.toUpperCase()}_PIN_Receipt_${selectedOrder.id?.substring(0, 8)}.txt`;
-      link.href = url;
+      link.download = `Arapoint_${selectedOrder.examType?.toUpperCase()}_PIN_Receipt_${selectedOrder.id?.substring(0, 8)}.png`;
+      link.href = dataUrl;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      toast({ title: "Downloaded", description: "Receipt saved as text file" });
+      toast({ title: "Receipt Saved", description: "Your branded receipt has been downloaded." });
     } catch (error) {
       console.error('Download error:', error);
       toast({ title: "Error", description: "Failed to download receipt", variant: "destructive" });

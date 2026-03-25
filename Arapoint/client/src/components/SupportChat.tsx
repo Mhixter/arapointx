@@ -6,13 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Tabs,
   TabsContent,
   TabsList,
@@ -72,15 +65,6 @@ interface Ticket {
 
 type View = "lobby" | "chat";
 
-const CATEGORIES = [
-  { value: "general", label: "General" },
-  { value: "identity", label: "Identity Verification" },
-  { value: "education", label: "Education Services" },
-  { value: "vtu", label: "VTU / Airtime & Data" },
-  { value: "wallet", label: "Wallet & Payments" },
-  { value: "cac", label: "CAC Registration" },
-];
-
 function statusBadgeVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
   switch (status) {
     case "open":
@@ -122,6 +106,7 @@ export default function SupportChat() {
 
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [isAiTyping, setIsAiTyping] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [escalating, setEscalating] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
@@ -290,15 +275,16 @@ export default function SupportChat() {
     };
   }, [stopPolling, stopHeartbeat]);
 
-  const handleCreateTicket = async () => {
-    if (!subject.trim() || !initialMessage.trim()) return;
+  const handleCreateTicketWith = async (sub: string, cat: string, msg: string) => {
+    if (!msg.trim()) return;
     setCreating(true);
     setCreateError(null);
+    const autoSubject = sub.trim() || msg.trim().split(/\s+/).slice(0, 6).join(" ") + (msg.trim().split(/\s+/).length > 6 ? "…" : "");
     try {
       const res = await apiClient.post("/support/tickets", {
-        subject: subject.trim(),
-        category,
-        message: initialMessage.trim(),
+        subject: autoSubject,
+        category: cat || "general",
+        message: msg.trim(),
       });
       const { ticket, conversationId: convId } = res.data.data;
       const newTicket: Ticket = {
@@ -314,10 +300,14 @@ export default function SupportChat() {
       setInitialMessage("");
       openChat(newTicket);
     } catch (error: any) {
-      setCreateError(error.response?.data?.message || "Failed to create ticket. Please try again.");
+      setCreateError(error.response?.data?.message || "Failed to start chat. Please try again.");
     } finally {
       setCreating(false);
     }
+  };
+
+  const handleCreateTicket = async () => {
+    await handleCreateTicketWith(subject, category, initialMessage);
   };
 
   const handleTrack = async () => {
@@ -358,6 +348,7 @@ export default function SupportChat() {
         createdAt: new Date().toISOString(),
       },
     ]);
+    setIsAiTyping(true);
 
     try {
       const res = await apiClient.post(
@@ -401,6 +392,7 @@ export default function SupportChat() {
       setTimeout(() => setChatError(null), 5000);
     } finally {
       setSending(false);
+      setIsAiTyping(false);
     }
   };
 
@@ -567,6 +559,23 @@ export default function SupportChat() {
                   );
                 })}
 
+                {isAiTyping && (
+                  <div className="flex justify-start">
+                    <div className="flex gap-2 items-center">
+                      <div className="h-7 w-7 rounded-full flex items-center justify-center shrink-0 bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400">
+                        <Bot className="h-3.5 w-3.5" />
+                      </div>
+                      <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-2">
+                        <div className="flex gap-1">
+                          <span className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce [animation-delay:0ms]" />
+                          <span className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce [animation-delay:150ms]" />
+                          <span className="w-1.5 h-1.5 bg-muted-foreground/60 rounded-full animate-bounce [animation-delay:300ms]" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {agentPresence?.isTyping && (
                   <div className="flex justify-start">
                     <div className="flex gap-2 items-center">
@@ -686,7 +695,7 @@ export default function SupportChat() {
               <TabsTrigger value="tickets">Active Tickets</TabsTrigger>
               <TabsTrigger value="new">
                 <Plus className="h-3.5 w-3.5 mr-1" />
-                New Ticket
+                New Chat
               </TabsTrigger>
             </TabsList>
 
@@ -768,7 +777,7 @@ export default function SupportChat() {
                 )}
 
                 <div>
-                  <p className="text-xs text-muted-foreground mb-2">Quick issue selection:</p>
+                  <p className="text-xs text-muted-foreground mb-2">Quick issue — tap to start instantly:</p>
                   <div className="grid grid-cols-2 gap-1.5">
                     {[
                       { subject: "Failed Transaction", category: "wallet", message: "I have a failed transaction that was debited but not completed." },
@@ -780,11 +789,13 @@ export default function SupportChat() {
                     ].map((quick, i) => (
                       <button
                         key={i}
-                        className="text-left text-xs p-2 rounded-md border hover:bg-primary/5 hover:border-primary/30 transition-colors"
+                        className="text-left text-xs p-2 rounded-md border hover:bg-primary/5 hover:border-primary/30 transition-colors disabled:opacity-50"
+                        disabled={creating}
                         onClick={() => {
                           setSubject(quick.subject);
                           setCategory(quick.category);
                           setInitialMessage(quick.message);
+                          setTimeout(() => handleCreateTicketWith(quick.subject, quick.category, quick.message), 0);
                         }}
                       >
                         {quick.subject}
@@ -793,35 +804,15 @@ export default function SupportChat() {
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Subject</label>
-                  <Input
-                    placeholder="Brief description of your issue"
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                  />
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-px bg-border" />
+                  <span className="text-xs text-muted-foreground">or describe your issue</span>
+                  <div className="flex-1 h-px bg-border" />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Category</label>
-                  <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIES.map((cat) => (
-                        <SelectItem key={cat.value} value={cat.value}>
-                          {cat.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Message</label>
                   <Textarea
-                    placeholder="Describe your issue in detail..."
+                    placeholder="Type your message to start chatting with our AI assistant..."
                     value={initialMessage}
                     onChange={(e) => setInitialMessage(e.target.value)}
                     rows={4}
@@ -832,22 +823,32 @@ export default function SupportChat() {
                 <Button
                   className="w-full"
                   onClick={handleCreateTicket}
-                  disabled={
-                    creating || !subject.trim() || !initialMessage.trim()
-                  }
+                  disabled={creating || !initialMessage.trim()}
                 >
                   {creating ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Creating Ticket...
+                      Starting Chat...
                     </>
                   ) : (
                     <>
                       <Send className="h-4 w-4 mr-2" />
-                      Create Ticket & Start Chat
+                      Start Chat
                     </>
                   )}
                 </Button>
+
+                <div className="pt-2 border-t space-y-1.5">
+                  <p className="text-xs font-medium text-muted-foreground">Need to reach us directly?</p>
+                  <div className="flex flex-col gap-1">
+                    <a href="mailto:support@arapoint.com" className="text-xs text-primary hover:underline flex items-center gap-1.5">
+                      <span>📧</span> support@arapoint.com
+                    </a>
+                    <a href="tel:+2349012345678" className="text-xs text-primary hover:underline flex items-center gap-1.5">
+                      <span>📞</span> +234 901 234 5678
+                    </a>
+                  </div>
+                </div>
               </div>
             </TabsContent>
           </Tabs>

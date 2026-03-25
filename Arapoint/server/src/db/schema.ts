@@ -782,6 +782,7 @@ export const ninSlips = pgTable('nin_slips', {
   verificationReference: varchar('verification_reference', { length: 100 }),
   verificationStatus: varchar('verification_status', { length: 50 }).default('verified'),
   pdfPath: varchar('pdf_path', { length: 500 }),
+  pdfData: text('pdf_data'), // base64-encoded PDF stored permanently in DB
   qrCodeData: text('qr_code_data'),
   isPublic: boolean('is_public').default(true),
   downloadCount: integer('download_count').default(0),

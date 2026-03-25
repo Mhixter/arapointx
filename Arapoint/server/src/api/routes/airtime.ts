@@ -166,8 +166,8 @@ router.post('/to-cash', async (req: Request, res: Response) => {
       return res.status(400).json(formatErrorResponse(400, 'Minimum amount is ₦100'));
     }
 
-    if (amount > 50000) {
-      return res.status(400).json(formatErrorResponse(400, 'Maximum amount is ₦50,000'));
+    if (amount > 10000) {
+      return res.status(400).json(formatErrorResponse(400, 'Maximum amount is ₦10,000 per request (MTN transfer limit)'));
     }
 
     // Block new request if user already has an active one
@@ -503,7 +503,7 @@ router.get('/to-cash/rates', async (req: Request, res: Response) => {
     res.json(formatResponse('success', 200, 'Conversion rates', { 
       rates,
       minAmount: 100,
-      maxAmount: 50000,
+      maxAmount: 10000,
     }));
   } catch (error: any) {
     res.status(500).json(formatErrorResponse(500, 'Failed to get rates'));

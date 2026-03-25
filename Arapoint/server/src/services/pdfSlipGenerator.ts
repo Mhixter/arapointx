@@ -630,6 +630,15 @@ export const generatePdfSlip = async (
     }
   }
 
+  // Read the generated PDF and store as base64 in DB for permanent persistence
+  let pdfBase64: string | null = null;
+  try {
+    const pdfBuffer = fs.readFileSync(pdfPath);
+    pdfBase64 = pdfBuffer.toString("base64");
+  } catch (err) {
+    console.error("Failed to read PDF for DB storage:", (err as Error).message);
+  }
+
   await db.insert(ninSlips).values({
     userId: userId || null,
     slipReference,
@@ -645,6 +654,7 @@ export const generatePdfSlip = async (
     verificationReference: data.verification_reference || null,
     verificationStatus: "verified",
     pdfPath: pdfFilename,
+    pdfData: pdfBase64,
     qrCodeData: JSON.stringify(qrCodeData),
   });
 
@@ -673,6 +683,17 @@ export const getSlipPdf = async (
     return null;
   }
 
+  await db
+    .update(ninSlips)
+    .set({ downloadCount: (slip[0].downloadCount || 0) + 1 })
+    .where(eq(ninSlips.slipReference, slipReference));
+
+  // Prefer DB-stored PDF (permanent) over local file (ephemeral)
+  if (slip[0].pdfData) {
+    return Buffer.from(slip[0].pdfData, "base64");
+  }
+
+  // Fallback: try local filesystem (may not exist after server restart)
   const pdfPath = path.join(
     process.cwd(),
     "server/generated-slips",
@@ -682,11 +703,6 @@ export const getSlipPdf = async (
   if (!fs.existsSync(pdfPath)) {
     return null;
   }
-
-  await db
-    .update(ninSlips)
-    .set({ downloadCount: (slip[0].downloadCount || 0) + 1 })
-    .where(eq(ninSlips.slipReference, slipReference));
 
   return fs.readFileSync(pdfPath);
 };

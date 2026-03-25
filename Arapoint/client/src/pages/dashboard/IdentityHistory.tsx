@@ -35,15 +35,15 @@ import {
 
 interface IdentityVerificationRecord {
   id: string;
-  userId: string;
+  source: 'api' | 'agent';
   verificationType: string;
   nin: string | null;
-  phone: string | null;
   status: string;
-  verificationData: any;
-  slipHtml: string | null;
-  slipType: string | null;
-  reference: string | null;
+  downloadUrl: string | null;
+  slipReference?: string | null;
+  slipType?: string | null;
+  trackingId?: string | null;
+  agentNotes?: string | null;
   createdAt: string;
 }
 
@@ -117,17 +117,23 @@ export default function IdentityHistory() {
     return nin.substring(0, 4) + '****' + nin.substring(nin.length - 3);
   };
 
-  const handleDownload = async (record: IdentityVerificationRecord, slipType: string = 'standard') => {
+  const handleDownload = async (record: IdentityVerificationRecord) => {
+    if (!record.downloadUrl) return;
     setDownloading(record.id);
     try {
-      const response = await fetch(`/api/identity/slip/${record.id}/download?slipType=${slipType}`, {
+      const isPdf = record.source === 'api' && record.slipReference;
+      const fetchUrl = isPdf
+        ? `/api/slips/download/${record.slipReference}`
+        : record.downloadUrl!;
+
+      const response = await fetch(fetchUrl, {
         headers: {
           'Authorization': `Bearer ${tokenStorage.getItem('accessToken')}`,
         },
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || 'Download failed');
       }
 
@@ -135,7 +141,8 @@ export default function IdentityHistory() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `NIN_Slip_${record.nin || record.id}_${slipType}.html`;
+      const ext = isPdf ? 'pdf' : 'pdf';
+      a.download = `NIN_Slip_${record.nin || record.id}.${ext}`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -241,10 +248,8 @@ export default function IdentityHistory() {
       ) : (
         <div className="space-y-4">
           {history.map((record) => {
-            const hasSlip = record.status === 'completed' && record.verificationData;
-            const personName = record.verificationData?.firstName 
-              ? `${record.verificationData.firstName} ${record.verificationData.lastName || ''}`
-              : null;
+            const hasSlip = !!record.downloadUrl;
+            const sourceLabel = record.source === 'agent' ? 'Agent Request' : 'Online';
 
             return (
               <Card key={record.id} className="overflow-hidden hover:shadow-md transition-shadow">
@@ -255,34 +260,31 @@ export default function IdentityHistory() {
                         <CreditCard className="h-5 w-5 text-green-600" />
                         <h3 className="font-semibold">{getServiceName(record.verificationType)}</h3>
                         {getStatusBadge(record.status)}
+                        <Badge variant="secondary" className="text-xs">{sourceLabel}</Badge>
                         {hasSlip && (
                           <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                             <Download className="h-3 w-3 mr-1" />
-                            Slip Available
+                            Slip Ready
                           </Badge>
                         )}
                       </div>
-                      <div className="text-sm text-muted-foreground space-y-1">
-                        {personName && <p className="font-medium text-foreground">{personName}</p>}
+                      <div className="text-sm text-muted-foreground space-y-0.5">
                         <p>NIN: <span className="font-mono">{maskNIN(record.nin)}</span></p>
-                        {record.reference && <p>Reference: <span className="font-mono text-xs">{record.reference}</span></p>}
+                        {record.slipReference && (
+                          <p>Slip Ref: <span className="font-mono text-xs text-blue-600">{record.slipReference}</span></p>
+                        )}
+                        {record.trackingId && (
+                          <p>Tracking: <span className="font-mono text-xs">{record.trackingId}</span></p>
+                        )}
                         <p>Date: {formatDate(record.createdAt)}</p>
                       </div>
                     </div>
-                    {hasSlip && (
-                      <div className="flex gap-2 flex-wrap">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleViewSlip(record)}
-                        >
-                          <Eye className="h-4 w-4 mr-2" />
-                          View Slip
-                        </Button>
+                    <div className="flex gap-2 flex-wrap">
+                      {hasSlip && (
                         <Button
                           size="sm"
                           variant="default"
-                          onClick={() => handleDownload(record, record.slipType || 'standard')}
+                          onClick={() => handleDownload(record)}
                           disabled={downloading === record.id}
                         >
                           {downloading === record.id ? (
@@ -290,10 +292,15 @@ export default function IdentityHistory() {
                           ) : (
                             <Download className="h-4 w-4 mr-2" />
                           )}
-                          Download
+                          Download PDF
                         </Button>
-                      </div>
-                    )}
+                      )}
+                      {record.source === 'api' && record.status === 'completed' && !hasSlip && (
+                        <Badge variant="outline" className="text-xs text-muted-foreground">
+                          No slip generated
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>

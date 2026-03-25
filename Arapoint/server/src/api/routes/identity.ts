@@ -617,14 +617,17 @@ router.post('/nin', async (req: Request, res: Response) => {
       ));
     }
 
-    const price = await getServicePrice('nin_lookup', 150);
+    const slipType = (req.body.slipType as 'information' | 'regular' | 'standard' | 'premium') || 'standard';
+    const slipPriceKey = `nin_slip_${slipType}`;
+    const slipPriceDefaults: Record<string, number> = { information: 150, regular: 180, standard: 180, premium: 200 };
+    const price = await getServicePrice(slipPriceKey, slipPriceDefaults[slipType] || 150);
     
     const balance = await walletService.getBalance(req.userId!);
     if (balance.balance < price) {
       return res.status(402).json(formatErrorResponse(402, 'Insufficient wallet balance'));
     }
 
-    logger.info('NIN lookup started', { userId: req.userId, nin: validation.data.nin.substring(0, 4) + '***' });
+    logger.info('NIN lookup started', { userId: req.userId, nin: validation.data.nin.substring(0, 4) + '***', slipType });
 
     const result = await verifyNINWithFallback(validation.data.nin);
 
@@ -633,9 +636,7 @@ router.post('/nin', async (req: Request, res: Response) => {
       return res.status(400).json(formatErrorResponse(400, result.error || 'NIN verification failed. No charge applied.'));
     }
 
-    await walletService.deductBalance(req.userId!, price, 'NIN Lookup', 'nin_verification');
-
-    const slipType = (req.body.slipType as 'information' | 'regular' | 'standard' | 'premium') || 'standard';
+    await walletService.deductBalance(req.userId!, price, `NIN ${slipType.charAt(0).toUpperCase() + slipType.slice(1)} Lookup`, 'nin_verification');
     const ninData = result.data as any;
     const slip = generateNINSlip(ninData, result.reference, slipType);
 
