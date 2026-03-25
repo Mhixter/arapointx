@@ -722,11 +722,58 @@ export const getSlipPdf = async (
     slip[0].pdfPath || "",
   );
 
-  if (!fs.existsSync(pdfPath)) {
-    return null;
+  if (fs.existsSync(pdfPath)) {
+    const buf = fs.readFileSync(pdfPath);
+    // Backfill pdfData so future downloads are instant
+    try {
+      await db
+        .update(ninSlips)
+        .set({ pdfData: buf.toString("base64") })
+        .where(eq(ninSlips.slipReference, slipReference));
+    } catch (_) {}
+    return buf;
   }
 
-  return fs.readFileSync(pdfPath);
+  // Last resort: regenerate from stored slip record data
+  const record = slip[0];
+  if (
+    record.slipType &&
+    record.nin &&
+    record.surname &&
+    record.firstname &&
+    record.dateOfBirth
+  ) {
+    try {
+      console.log(`[getSlipPdf] Regenerating slip ${slipReference} from stored data`);
+      const result = await generatePdfSlip({
+        userId: record.userId || undefined,
+        slipType: record.slipType as "standard" | "premium" | "long" | "full_info",
+        data: {
+          nin: record.nin,
+          surname: record.surname,
+          firstname: record.firstname,
+          middlename: record.middlename || undefined,
+          date_of_birth: record.dateOfBirth,
+          gender: record.gender || undefined,
+          photo: record.photo || undefined,
+          tracking_id: record.trackingId || undefined,
+          verification_reference: record.verificationReference || undefined,
+        },
+      });
+      const regeneratedPath = path.join(
+        process.cwd(),
+        "server/generated-slips",
+        result.pdfPath,
+      );
+      if (fs.existsSync(regeneratedPath)) {
+        return fs.readFileSync(regeneratedPath);
+      }
+    } catch (regenErr) {
+      console.error("[getSlipPdf] Regeneration failed:", (regenErr as Error).message);
+    }
+  }
+
+  return null;
 };
 
 export const getSlipInfo = async (

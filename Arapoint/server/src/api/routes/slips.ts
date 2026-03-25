@@ -259,9 +259,14 @@ router.get('/analyzer/:type', async (req: Request, res: Response) => {
 
     const settings = getSlipSettings(slipType);
     const positions = settings.positions;
-    const templateFileName = slipType === 'full_info' ? 'full_info_template.png' : `${slipType}_template-1.png`;
-    const templatePath = path.join(process.cwd(), 'server/src/templates', templateFileName);
-    
+
+    // Try new template file first (without -1), fall back to -1 version
+    const templateFileName = slipType === 'full_info' ? 'full_info_template.png' : `${slipType}_template.png`;
+    let templatePath = path.join(process.cwd(), 'server/src/templates', templateFileName);
+    if (!fs.existsSync(templatePath)) {
+      const altName = slipType === 'full_info' ? 'full_info_template.png' : `${slipType}_template-1.png`;
+      templatePath = path.join(process.cwd(), 'server/src/templates', altName);
+    }
     if (!fs.existsSync(templatePath)) {
       return res.status(404).json({
         status: 'error',
@@ -273,16 +278,22 @@ router.get('/analyzer/:type', async (req: Request, res: Response) => {
     const imageBuffer = fs.readFileSync(templatePath);
     const templateImage = `data:image/png;base64,${imageBuffer.toString('base64')}`;
 
+    // Correct canvas dimensions matching actual PNG sizes
+    const canvasW = slipType === 'full_info' ? 1162 : slipType === 'long' ? 1245 : 1246;
+    const canvasH = slipType === 'full_info' ? 1758 : slipType === 'standard' || slipType === 'premium' ? 1755 : 1758;
+
     const hiddenFieldsJson = JSON.stringify(settings.hidden_fields || []);
     const fieldConfigsJson = JSON.stringify(settings.field_configs || {});
 
     const allFieldDefs: {key: string; label: string; condition: boolean; posFields: {id: string; label: string}[]; isImage?: boolean}[] = [
       { key: 'photo', label: 'Photo', condition: true, posFields: [{id:'photo_top',label:'Top'},{id:'photo_left',label:'Left'},{id:'photo_width',label:'Width'}], isImage: true },
       { key: 'surname', label: 'Surname', condition: true, posFields: [{id:'surname_top',label:'Top'},{id:'surname_left',label:'Left'},{id:'surname_size',label:'Font Size'}] },
-      { key: 'names', label: 'Given Names', condition: true, posFields: [{id:'names_top',label:'Top'},{id:'names_left',label:'Left'},{id:'names_size',label:'Font Size'}] },
-      { key: 'dob', label: 'Date of Birth', condition: true, posFields: [{id:'dob_top',label:'Top'},{id:'dob_left',label:'Left'},{id:'dob_size',label:'Font Size'}] },
+      { key: 'names', label: 'Given Names (combined)', condition: slipType !== 'long', posFields: [{id:'names_top',label:'Top'},{id:'names_left',label:'Left'},{id:'names_size',label:'Font Size'}] },
+      { key: 'firstname', label: 'First Name', condition: slipType === 'long', posFields: [{id:'firstname_top',label:'Top'},{id:'firstname_left',label:'Left'},{id:'firstname_size',label:'Font Size'}] },
+      { key: 'middlename', label: 'Middle Name', condition: slipType === 'long', posFields: [{id:'middlename_top',label:'Top'},{id:'middlename_left',label:'Left'},{id:'middlename_size',label:'Font Size'}] },
+      { key: 'dob', label: 'Date of Birth', condition: slipType !== 'long', posFields: [{id:'dob_top',label:'Top'},{id:'dob_left',label:'Left'},{id:'dob_size',label:'Font Size'}] },
       { key: 'nin', label: 'NIN', condition: true, posFields: [{id:'nin_top',label:'Top'},{id:'nin_left',label:'Left'},{id:'nin_size',label:'Font Size'}] },
-      { key: 'qr_code', label: 'QR Code', condition: true, posFields: [{id:'qr_top',label:'Top'},{id:'qr_right',label:'Right'},{id:'qr_width',label:'Width'}], isImage: true },
+      { key: 'qr_code', label: 'QR Code', condition: slipType !== 'long', posFields: [{id:'qr_top',label:'Top'},{id:'qr_right',label:'Right'},{id:'qr_width',label:'Width'}], isImage: true },
       { key: 'sex', label: 'Sex/Gender', condition: slipType !== 'standard', posFields: [{id:'sex_top',label:'Top'},{id:'sex_left',label:'Left'},{id:'sex_size',label:'Font Size'}] },
       { key: 'issue_date', label: 'Issue Date', condition: slipType === 'premium' || slipType === 'full_info', posFields: [{id:'issue_top',label:'Top'},{id: slipType === 'premium' ? 'issue_right' : 'issue_left',label: slipType === 'premium' ? 'Right' : 'Left'},{id:'issue_size',label:'Font Size'}] },
       { key: 'tracking_id', label: 'Tracking ID', condition: slipType === 'long' || slipType === 'full_info', posFields: [{id:'tracking_top',label:'Top'},{id:'tracking_left',label:'Left'},{id:'tracking_size',label:'Font Size'}] },
@@ -367,8 +378,8 @@ router.get('/analyzer/:type', async (req: Request, res: Response) => {
     body { font-family: Arial, sans-serif; background: #1a1a2e; color: #fff; min-height: 100vh; }
     .container { display: flex; gap: 20px; padding: 20px; }
     .preview { flex: 1; position: relative; overflow: auto; }
-    .preview-inner { position: relative; display: inline-block; width: ${slipType === 'full_info' ? '1162px' : '1267px'}; height: ${slipType === 'full_info' ? '1758px' : '1652px'}; }
-    .template-img { width: ${slipType === 'full_info' ? '1162px' : '1267px'}; height: ${slipType === 'full_info' ? '1758px' : '1652px'}; display: block; }
+    .preview-inner { position: relative; display: inline-block; width: ${canvasW}px; height: ${canvasH}px; }
+    .template-img { width: ${canvasW}px; height: ${canvasH}px; display: block; }
     .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
     .controls { width: 420px; background: #16213e; padding: 20px; border-radius: 10px; max-height: 90vh; overflow-y: auto; }
     h1 { margin-bottom: 15px; color: #e94560; font-size: 20px; }
