@@ -77,8 +77,18 @@ export default function FundWallet() {
 
     if (virtualAccount?.account) {
       const acct = virtualAccount.account;
+      const isOldGateway = acct.providerSlug === 'payvessel' || acct.providerSlug === 'palmpay';
       return (
         <div className="space-y-3">
+          {isOldGateway && (
+            <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 flex items-center justify-between gap-2">
+              <p className="text-xs text-blue-800 dark:text-blue-300">A new payment account is available for faster funding.</p>
+              <Button size="sm" variant="outline" className="shrink-0 text-xs border-blue-300" onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending}>
+                {generateMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                Upgrade
+              </Button>
+            </div>
+          )}
           <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
             <span className="text-sm text-muted-foreground">Bank</span>
             <span className="text-sm font-semibold">{acct.bankName}</span>

@@ -27,16 +27,23 @@ export const virtualAccountService = {
       .where(eq(virtualAccounts.userId, userId))
       .limit(1);
 
+    const paymentpointConfigured = paymentpointService.isConfigured();
+    const palmpayConfigured = palmpayVirtualAccountService.isConfigured();
+    const payvesselConfigured = payvesselService.isConfigured();
+
     if (existingAccount.length > 0 && existingAccount[0].accountNumber) {
-      return {
-        success: true,
-        account: {
-          bankName: existingAccount[0].bankName || 'PalmPay',
-          accountNumber: existingAccount[0].accountNumber,
-          accountName: existingAccount[0].accountName || 'Arapoint Account',
-        },
-        message: 'Virtual account retrieved successfully',
-      };
+      const isOldGateway = ['payvessel', 'palmpay'].includes(existingAccount[0].providerSlug || '');
+      if (!isOldGateway || !paymentpointConfigured) {
+        return {
+          success: true,
+          account: {
+            bankName: existingAccount[0].bankName || 'PalmPay',
+            accountNumber: existingAccount[0].accountNumber,
+            accountName: existingAccount[0].accountName || 'Arapoint Account',
+          },
+          message: 'Virtual account retrieved successfully',
+        };
+      }
     }
 
     const userResult = await db.select()
@@ -55,7 +62,7 @@ export const virtualAccountService = {
     const userNin = nin || user.nin;
     const userBvn = bvn || user.bvn;
 
-    if (!userNin && !userBvn) {
+    if (!paymentpointConfigured && !userNin && !userBvn) {
       return {
         success: false,
         message: 'NIN or BVN verification is required to generate a virtual account. Please complete KYC verification first.',
@@ -68,10 +75,6 @@ export const virtualAccountService = {
         message: 'Payment gateway not configured. Please contact support.',
       };
     }
-
-    const paymentpointConfigured = paymentpointService.isConfigured();
-    const palmpayConfigured = palmpayVirtualAccountService.isConfigured();
-    const payvesselConfigured = payvesselService.isConfigured();
 
     if (paymentpointConfigured) {
       const result = await paymentpointService.createVirtualAccount({
@@ -272,6 +275,7 @@ export const virtualAccountService = {
           bankName: existingAccount[0].bankName || 'PalmPay',
           accountNumber: existingAccount[0].accountNumber,
           accountName: existingAccount[0].accountName || 'Arapoint Account',
+          providerSlug: existingAccount[0].providerSlug || '',
         },
         message: 'Virtual account found',
       };

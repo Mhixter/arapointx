@@ -54,6 +54,7 @@ export interface VirtualAccount {
   bankName: string;
   accountNumber: string;
   accountName: string;
+  providerSlug?: string;
 }
 
 export interface VirtualAccountResponse {

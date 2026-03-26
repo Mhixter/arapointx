@@ -9,7 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Loader2, CheckCircle2, ShoppingCart, Plus, Minus, AlertTriangle, RefreshCw, History, CreditCard, Clock, XCircle, Printer, Eye, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import QRCode from "react-qr-code";
-import html2canvas from "html2canvas";
+
 
 const getAuthToken = () => tokenStorage.getItem('accessToken');
 
@@ -141,85 +141,200 @@ export default function BuyPINs() {
     }
   };
 
+  const buildReceiptHtml = (order: typeof selectedOrder) => {
+    if (!order) return '';
+    const amount = `₦${parseFloat(String(order.amount || 0)).toLocaleString()}`;
+    const date = formatDate(order.createdAt);
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>PIN Receipt - ${order.examType?.toUpperCase()}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f8; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; padding: 24px 0; }
+    .card { background: #fff; border-radius: 14px; width: 360px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.12); }
+    .header { background: linear-gradient(135deg, #16a34a, #15803d); padding: 24px 20px 20px; text-align: center; }
+    .logo { font-size: 26px; font-weight: 900; color: #fff; letter-spacing: -0.5px; }
+    .subtitle { color: #bbf7d0; font-size: 12px; margin-top: 4px; }
+    .badge { display: inline-block; background: rgba(255,255,255,0.2); border-radius: 20px; padding: 4px 14px; margin-top: 10px; color: #fff; font-size: 11px; font-weight: 600; }
+    .body { padding: 20px; }
+    .row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px dashed #e5e7eb; }
+    .row:last-child { border-bottom: none; }
+    .label { font-size: 12px; color: #6b7280; }
+    .value { font-size: 13px; font-weight: 600; color: #111827; text-align: right; max-width: 60%; word-break: break-all; }
+    .pin-box { background: #f0fdf4; border: 2px solid #86efac; border-radius: 10px; padding: 16px; margin: 16px 0; text-align: center; }
+    .pin-label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .pin-value { font-family: 'Courier New', monospace; font-size: 22px; font-weight: 900; color: #16a34a; letter-spacing: 3px; }
+    .serial { font-family: monospace; font-size: 11px; color: #6b7280; margin-top: 4px; }
+    .footer { background: #f9fafb; border-top: 1px solid #e5e7eb; padding: 12px 20px; text-align: center; }
+    .footer-text { font-size: 10px; color: #9ca3af; line-height: 1.6; }
+    @media print { body { padding: 0; background: #fff; } .card { box-shadow: none; border-radius: 0; width: 100%; } }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div class="logo">Arapoint</div>
+      <div class="subtitle">Education PIN Receipt</div>
+      <div class="badge">✓ PIN Delivered</div>
+    </div>
+    <div class="body">
+      <div class="row"><span class="label">Order ID</span><span class="value">${order.id?.substring(0, 8)}...</span></div>
+      <div class="row"><span class="label">Exam Type</span><span class="value">${order.examType?.toUpperCase() || ''}</span></div>
+      <div class="row"><span class="label">Amount</span><span class="value">${amount}</span></div>
+      <div class="row"><span class="label">Date</span><span class="value">${date}</span></div>
+      <div class="pin-box">
+        <div class="pin-label">Your PIN Code</div>
+        <div class="pin-value">${order.deliveredPin || ''}</div>
+        ${order.deliveredSerial ? `<div class="serial">Serial: ${order.deliveredSerial}</div>` : ''}
+      </div>
+    </div>
+    <div class="footer">
+      <div class="footer-text">Keep this receipt safe — No refunds after delivery<br>© ${new Date().getFullYear()} Arapoint · arapoint.com.ng</div>
+    </div>
+  </div>
+</body>
+</html>`;
+  };
+
   const handlePrint = () => {
-    if (!receiptRef.current) return;
-    const printContent = receiptRef.current.innerHTML;
+    if (!selectedOrder) return;
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
-    
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>PIN Receipt - ${selectedOrder?.examType?.toUpperCase()}</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; max-width: 400px; margin: 0 auto; }
-          .receipt { border: 2px dashed #333; padding: 20px; }
-          .header { text-align: center; border-bottom: 1px dashed #333; padding-bottom: 15px; margin-bottom: 15px; }
-          .logo { font-size: 24px; font-weight: bold; color: #16a34a; }
-          .title { font-size: 14px; color: #666; margin-top: 5px; }
-          .content { margin: 15px 0; }
-          .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dotted #ddd; }
-          .label { color: #666; font-size: 12px; }
-          .value { font-weight: bold; font-size: 14px; }
-          .pin-section { background: #f5f5f5; padding: 15px; margin: 15px 0; border-radius: 8px; text-align: center; }
-          .pin-label { font-size: 12px; color: #666; margin-bottom: 5px; }
-          .pin-value { font-family: monospace; font-size: 20px; font-weight: bold; letter-spacing: 2px; color: #16a34a; }
-          .qr-section { text-align: center; margin: 20px 0; padding: 15px; border: 1px dashed #ddd; }
-          .qr-label { font-size: 10px; color: #999; margin-top: 10px; }
-          .footer { text-align: center; font-size: 10px; color: #999; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #333; }
-          @media print { body { padding: 0; } .receipt { border: none; } }
-        </style>
-      </head>
-      <body>${printContent}</body>
-      </html>
-    `);
+    printWindow.document.write(buildReceiptHtml(selectedOrder));
     printWindow.document.close();
     printWindow.focus();
-    setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
+    setTimeout(() => { printWindow.print(); }, 400);
   };
 
   const handleDownload = async () => {
-    if (!selectedOrder || !receiptRef.current) return;
+    if (!selectedOrder) return;
     setIsDownloading(true);
     try {
-      const clone = receiptRef.current.cloneNode(true) as HTMLElement;
+      const DPR = 2;
+      const W = 400, H = 560;
+      const canvas = document.createElement('canvas');
+      canvas.width = W * DPR;
+      canvas.height = H * DPR;
+      const ctx = canvas.getContext('2d')!;
+      ctx.scale(DPR, DPR);
 
-      const svgElements = Array.from(clone.querySelectorAll('svg'));
-      await Promise.all(svgElements.map((svg) =>
-        new Promise<void>((resolve) => {
-          const svgData = new XMLSerializer().serializeToString(svg);
-          const img = document.createElement('img');
-          img.style.width = svg.getAttribute('width') || '128px';
-          img.style.height = svg.getAttribute('height') || '128px';
-          img.onload = () => { svg.parentNode?.replaceChild(img, svg); resolve(); };
-          img.onerror = () => resolve();
-          img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
-        })
-      ));
+      const rr = (x: number, y: number, w: number, h: number, r: number) => {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+      };
 
-      clone.style.position = 'fixed';
-      clone.style.left = '-9999px';
-      clone.style.top = '0';
-      clone.style.background = '#ffffff';
-      clone.style.width = `${receiptRef.current.offsetWidth}px`;
-      document.body.appendChild(clone);
+      ctx.fillStyle = '#f4f6f8';
+      ctx.fillRect(0, 0, W, H);
 
-      const canvas = await html2canvas(clone, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-      });
+      const CX = 20, CW = W - 40;
 
-      document.body.removeChild(clone);
+      const grd = ctx.createLinearGradient(CX, 0, CX + CW, 110);
+      grd.addColorStop(0, '#16a34a');
+      grd.addColorStop(1, '#15803d');
+      ctx.fillStyle = grd;
+      rr(CX, 16, CW, 110, 12);
+      ctx.fill();
 
-      const dataUrl = canvas.toDataURL('image/png');
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 24px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Arapoint', W / 2, 60);
+      ctx.fillStyle = '#bbf7d0';
+      ctx.font = '12px Arial';
+      ctx.fillText('Education PIN Receipt', W / 2, 82);
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      rr(W / 2 - 56, 93, 112, 22, 11);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 10px Arial';
+      ctx.fillText('✓  PIN DELIVERED', W / 2, 108);
+
+      ctx.fillStyle = '#ffffff';
+      rr(CX, 120, CW, H - 140, 12);
+      ctx.fill();
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = 1;
+      rr(CX, 120, CW, H - 140, 12);
+      ctx.stroke();
+
+      let y = 150;
+      const drawRow = (label: string, value: string, last = false) => {
+        ctx.fillStyle = '#6b7280';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText(label, CX + 16, y);
+        ctx.fillStyle = '#111827';
+        ctx.font = 'bold 13px Arial';
+        ctx.textAlign = 'right';
+        ctx.fillText(value, CX + CW - 16, y);
+        y += 10;
+        if (!last) {
+          ctx.setLineDash([3, 3]);
+          ctx.strokeStyle = '#e5e7eb';
+          ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          ctx.moveTo(CX + 16, y);
+          ctx.lineTo(CX + CW - 16, y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+        y += 16;
+      };
+
+      const amount = `\u20A6${parseFloat(String(selectedOrder.amount || 0)).toLocaleString()}`;
+      drawRow('Order ID', `${selectedOrder.id?.substring(0, 8)}...`);
+      drawRow('Exam Type', selectedOrder.examType?.toUpperCase() || '');
+      drawRow('Amount', amount);
+      drawRow('Date', formatDate(selectedOrder.createdAt), true);
+
+      y += 8;
+      ctx.fillStyle = '#f0fdf4';
+      rr(CX + 16, y, CW - 32, 84, 10);
+      ctx.fill();
+      ctx.strokeStyle = '#86efac';
+      ctx.lineWidth = 1.5;
+      rr(CX + 16, y, CW - 32, 84, 10);
+      ctx.stroke();
+
+      ctx.fillStyle = '#6b7280';
+      ctx.font = '10px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('YOUR PIN CODE', W / 2, y + 20);
+
+      ctx.fillStyle = '#16a34a';
+      ctx.font = 'bold 22px Courier New, monospace';
+      ctx.textAlign = 'center';
+      const pinDisplay = (selectedOrder.deliveredPin || '').split('').join(' ');
+      ctx.fillText(pinDisplay, W / 2, y + 52);
+
+      if (selectedOrder.deliveredSerial) {
+        ctx.fillStyle = '#6b7280';
+        ctx.font = '10px monospace';
+        ctx.fillText(`Serial: ${selectedOrder.deliveredSerial}`, W / 2, y + 72);
+      }
+
+      y += 100;
+
+      ctx.fillStyle = '#9ca3af';
+      ctx.font = '10px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Keep this receipt safe \u2014 No refunds after delivery', W / 2, y + 10);
+      ctx.fillText(`\u00A9 ${new Date().getFullYear()} Arapoint \u00B7 arapoint.com.ng`, W / 2, y + 26);
+
       const link = document.createElement('a');
       link.download = `Arapoint_${selectedOrder.examType?.toUpperCase()}_PIN_Receipt_${selectedOrder.id?.substring(0, 8)}.png`;
-      link.href = dataUrl;
+      link.href = canvas.toDataURL('image/png');
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

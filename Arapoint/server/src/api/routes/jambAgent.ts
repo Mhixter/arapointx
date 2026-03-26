@@ -330,7 +330,7 @@ router.post('/requests/:id/upload', jambAgentAuthMiddleware, agentUpload.single(
       return res.status(400).json(formatErrorResponse(400, 'No file uploaded'));
     }
 
-    const fileKey = `/uploads/jamb-docs/${req.file.filename}`;
+    const fileKey = `uploads/jamb-docs/${req.file.filename}`;
 
     const [doc] = await db.insert(jambRequestDocuments).values({
       requestId: id,
@@ -364,7 +364,8 @@ router.get('/documents/:docId/download', jambAgentAuthMiddleware, async (req: Re
       return res.status(404).json(formatErrorResponse(404, 'Document not found'));
     }
 
-    const localPath = path.join(process.cwd(), doc.fileKey);
+    const relativeKey = doc.fileKey.replace(/^\//, '');
+    const localPath = path.join(process.cwd(), relativeKey);
     if (!fs.existsSync(localPath)) {
       return res.status(404).json(formatErrorResponse(404, 'File not found on server'));
     }
