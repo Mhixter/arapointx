@@ -206,7 +206,7 @@ export default function JAMBServices() {
   const handleFileUpload = async (requestId: string, file: File) => {
     setUploading(true);
     try {
-      const token = sessionStorage.getItem('accessToken') || '';
+      const token = tokenStorage.getItem('accessToken') || '';
       const formData = new FormData();
       formData.append('file', file);
       const response = await fetch(`/api/education/jamb-request/${requestId}/upload`, {

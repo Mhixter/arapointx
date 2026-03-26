@@ -184,12 +184,38 @@ export default function BuyPINs() {
     if (!selectedOrder || !receiptRef.current) return;
     setIsDownloading(true);
     try {
-      const canvas = await html2canvas(receiptRef.current, {
+      const clone = receiptRef.current.cloneNode(true) as HTMLElement;
+
+      const svgElements = Array.from(clone.querySelectorAll('svg'));
+      await Promise.all(svgElements.map((svg) =>
+        new Promise<void>((resolve) => {
+          const svgData = new XMLSerializer().serializeToString(svg);
+          const img = document.createElement('img');
+          img.style.width = svg.getAttribute('width') || '128px';
+          img.style.height = svg.getAttribute('height') || '128px';
+          img.onload = () => { svg.parentNode?.replaceChild(img, svg); resolve(); };
+          img.onerror = () => resolve();
+          img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+        })
+      ));
+
+      clone.style.position = 'fixed';
+      clone.style.left = '-9999px';
+      clone.style.top = '0';
+      clone.style.background = '#ffffff';
+      clone.style.width = `${receiptRef.current.offsetWidth}px`;
+      document.body.appendChild(clone);
+
+      const canvas = await html2canvas(clone, {
         backgroundColor: '#ffffff',
         scale: 2,
         useCORS: true,
         allowTaint: true,
+        logging: false,
       });
+
+      document.body.removeChild(clone);
+
       const dataUrl = canvas.toDataURL('image/png');
       const link = document.createElement('a');
       link.download = `Arapoint_${selectedOrder.examType?.toUpperCase()}_PIN_Receipt_${selectedOrder.id?.substring(0, 8)}.png`;
