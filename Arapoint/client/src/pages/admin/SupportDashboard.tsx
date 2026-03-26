@@ -46,6 +46,10 @@ import {
   Wifi,
   WifiOff,
   Sparkles,
+  Paperclip,
+  FileIcon,
+  Download,
+  X,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -135,6 +139,9 @@ export default function SupportDashboard() {
   const [isTyping, setIsTyping] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [agentAttachedFile, setAgentAttachedFile] = useState<{ url: string; name: string } | null>(null);
+  const [agentFileUploading, setAgentFileUploading] = useState(false);
+  const agentFileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const lastMessageTimestamp = useRef<string | null>(null);
@@ -245,11 +252,29 @@ export default function SupportDashboard() {
     [isTyping]
   );
 
+  const handleAgentFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAgentFileUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await adminApiClient.post("/admin/support/upload", formData, { headers: { "Content-Type": "multipart/form-data" } });
+      setAgentAttachedFile({ url: res.data.data.fileUrl, name: res.data.data.fileName || file.name });
+    } catch {
+      toast({ title: "Upload failed", description: "Failed to upload file. Please try again.", variant: "destructive" });
+    } finally {
+      setAgentFileUploading(false);
+      if (agentFileInputRef.current) agentFileInputRef.current.value = "";
+    }
+  };
+
   const replyMutation = useMutation({
-    mutationFn: (content: string) =>
-      adminApiClient.post(`/admin/support/tickets/${selectedTicketId}/reply`, { content }),
+    mutationFn: ({ content, fileUrl, fileName }: { content: string; fileUrl?: string; fileName?: string }) =>
+      adminApiClient.post(`/admin/support/tickets/${selectedTicketId}/reply`, { content, fileUrl, fileName }),
     onSuccess: () => {
       setReplyContent("");
+      setAgentAttachedFile(null);
       setIsTyping(false);
       queryClient.invalidateQueries({ queryKey: ["admin", "support", "messages", selectedTicketId] });
       queryClient.invalidateQueries({ queryKey: ["admin", "support", "tickets"] });
@@ -397,8 +422,12 @@ export default function SupportDashboard() {
   };
 
   const handleSendReply = () => {
-    if (!replyContent.trim()) return;
-    replyMutation.mutate(replyContent.trim());
+    if (!replyContent.trim() && !agentAttachedFile) return;
+    replyMutation.mutate({
+      content: replyContent.trim(),
+      fileUrl: agentAttachedFile?.url,
+      fileName: agentAttachedFile?.name,
+    });
     setSuggestions([]);
   };
 
@@ -672,7 +701,19 @@ export default function SupportDashboard() {
                                   <span className="text-[10px] opacity-60">{m.senderName}</span>
                                 )}
                               </div>
-                              <p className="text-sm whitespace-pre-wrap">{m.content}</p>
+                              {m.content && <p className="text-sm whitespace-pre-wrap">{m.content}</p>}
+                              {m.fileUrl && (
+                                <a
+                                  href={m.fileUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 mt-1.5 text-xs rounded-lg px-2.5 py-1.5 border border-border bg-background/50 text-foreground hover:opacity-80 transition-opacity"
+                                >
+                                  <FileIcon className="h-3.5 w-3.5 shrink-0" />
+                                  <span className="truncate max-w-[180px]">{m.attachments?.[0]?.name || m.fileName || "File"}</span>
+                                  <Download className="h-3 w-3 shrink-0 ml-auto" />
+                                </a>
+                              )}
                               <div className="text-[10px] opacity-50 mt-1 text-right">
                                 {m.createdAt
                                   ? format(new Date(m.createdAt), "MMM d, h:mm a")
@@ -704,46 +745,71 @@ export default function SupportDashboard() {
                       </div>
                     </div>
                   )}
-                  <div className="p-3 border-t flex gap-2">
-                    <Textarea
-                      placeholder="Type your reply..."
-                      value={replyContent}
-                      onChange={(e) => handleTypingChange(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSendReply();
-                        }
-                      }}
-                      className="min-h-[40px] max-h-[100px] resize-none"
-                      rows={1}
-                    />
-                    <Button
-                      onClick={handleSendReply}
-                      disabled={replyMutation.isPending || !replyContent.trim()}
-                      size="icon"
-                      className="shrink-0"
-                    >
-                      {replyMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Send className="h-4 w-4" />
-                      )}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={fetchSuggestions}
-                      disabled={loadingSuggestions}
-                      title="Get AI reply suggestions"
-                      className="shrink-0"
-                    >
-                      {loadingSuggestions ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-4 w-4 text-violet-500" />
-                      )}
-                    </Button>
+                  <div className="border-t">
+                    {agentAttachedFile && (
+                      <div className="px-3 pt-2 flex items-center gap-2">
+                        <div className="flex items-center gap-2 bg-muted rounded-lg px-2.5 py-1.5 text-xs flex-1 min-w-0">
+                          <FileIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <span className="truncate text-muted-foreground">{agentAttachedFile.name}</span>
+                        </div>
+                        <button type="button" onClick={() => setAgentAttachedFile(null)} className="text-muted-foreground hover:text-foreground">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
+                    <div className="p-3 flex gap-2">
+                      <input ref={agentFileInputRef} type="file" className="hidden" accept="image/*,.pdf,.doc,.docx,.txt,.mp4,.mp3" onChange={handleAgentFileSelect} />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0"
+                        onClick={() => agentFileInputRef.current?.click()}
+                        disabled={agentFileUploading || replyMutation.isPending}
+                        title="Attach file"
+                      >
+                        {agentFileUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                      </Button>
+                      <Textarea
+                        placeholder="Type your reply..."
+                        value={replyContent}
+                        onChange={(e) => handleTypingChange(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSendReply();
+                          }
+                        }}
+                        className="min-h-[40px] max-h-[100px] resize-none"
+                        rows={1}
+                      />
+                      <Button
+                        onClick={handleSendReply}
+                        disabled={replyMutation.isPending || agentFileUploading || (!replyContent.trim() && !agentAttachedFile)}
+                        size="icon"
+                        className="shrink-0"
+                      >
+                        {replyMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={fetchSuggestions}
+                        disabled={loadingSuggestions}
+                        title="Get AI reply suggestions"
+                        className="shrink-0"
+                      >
+                        {loadingSuggestions ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-4 w-4 text-violet-500" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </TabsContent>
 

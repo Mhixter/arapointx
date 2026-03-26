@@ -36,6 +36,9 @@ import {
   ExternalLink,
   RefreshCw,
   Zap,
+  Paperclip,
+  FileIcon,
+  Download,
 } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 import { format, formatDistanceToNow } from "date-fns";
@@ -46,6 +49,8 @@ interface Message {
   senderName?: string;
   content: string;
   createdAt: string;
+  fileUrl?: string | null;
+  fileName?: string | null;
 }
 
 interface Presence {
@@ -143,6 +148,10 @@ export default function SupportChat() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [escalating, setEscalating] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+
+  const [attachedFile, setAttachedFile] = useState<{ url: string; name: string } | null>(null);
+  const [fileUploading, setFileUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -291,15 +300,39 @@ export default function SupportChat() {
     finally { setTracking(false); }
   };
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await apiClient.post("/support/upload", formData, { headers: { "Content-Type": "multipart/form-data" } });
+      setAttachedFile({ url: res.data.data.fileUrl, name: res.data.data.fileName || file.name });
+    } catch {
+      setChatError("Failed to upload file. Please try again.");
+      setTimeout(() => setChatError(null), 5000);
+    } finally {
+      setFileUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || !conversationId || !isActive) return;
-    const userMsg = input.trim(); setInput(""); setSending(true); isTypingRef.current = false;
+    if ((!input.trim() && !attachedFile) || !conversationId || !isActive) return;
+    const userMsg = input.trim();
+    const fileToSend = attachedFile;
+    setInput(""); setAttachedFile(null); setSending(true); isTypingRef.current = false;
     const tempId = `temp-${Date.now()}`;
-    setMessages((prev) => [...prev, { id: tempId, senderType: "user", content: userMsg, createdAt: new Date().toISOString() }]);
+    setMessages((prev) => [...prev, { id: tempId, senderType: "user", content: userMsg || (fileToSend ? `Sent a file: ${fileToSend.name}` : ""), fileUrl: fileToSend?.url, fileName: fileToSend?.name, createdAt: new Date().toISOString() }]);
     setIsAiTyping(true);
     try {
-      const res = await apiClient.post(`/support/conversations/${conversationId}/messages`, { content: userMsg });
+      const res = await apiClient.post(`/support/conversations/${conversationId}/messages`, {
+        content: userMsg,
+        fileUrl: fileToSend?.url,
+        fileName: fileToSend?.name,
+      });
       const data = res.data.data;
       setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, id: data.message.id, createdAt: data.message.createdAt } : m)));
       lastMessageTimestampRef.current = data.message.createdAt;
@@ -411,7 +444,19 @@ export default function SupportChat() {
                               </p>
                             )}
                             <div className={`rounded-2xl px-3.5 py-2.5 ${isUser ? "bg-primary text-primary-foreground rounded-tr-sm" : "bg-muted rounded-tl-sm"}`}>
-                              <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                              {msg.content && <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>}
+                              {msg.fileUrl && (
+                                <a
+                                  href={msg.fileUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className={`flex items-center gap-2 mt-1.5 text-xs rounded-lg px-2.5 py-1.5 border ${isUser ? "border-primary-foreground/20 bg-primary-foreground/10 text-primary-foreground" : "border-border bg-background text-foreground"} hover:opacity-80 transition-opacity`}
+                                >
+                                  <FileIcon className="h-3.5 w-3.5 shrink-0" />
+                                  <span className="truncate max-w-[160px]">{(msg as any).attachments?.[0]?.name || msg.fileName || "File"}</span>
+                                  <Download className="h-3 w-3 shrink-0 ml-auto" />
+                                </a>
+                              )}
                             </div>
                             <p className="text-[10px] text-muted-foreground mt-0.5 px-1">
                               {msg.createdAt ? formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true }) : ""}
@@ -471,12 +516,29 @@ export default function SupportChat() {
               </div>
             )}
             {isActive && (
-              <form onSubmit={handleSend} className="p-3 border-t flex gap-2">
-                <Input placeholder="Type your message..." value={input} onChange={handleInputChange} disabled={sending} className="flex-1" />
-                <Button type="submit" size="icon" disabled={sending || !input.trim()}>
-                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                </Button>
-              </form>
+              <div className="border-t">
+                {attachedFile && (
+                  <div className="px-3 pt-2 flex items-center gap-2">
+                    <div className="flex items-center gap-2 bg-muted rounded-lg px-2.5 py-1.5 text-xs flex-1 min-w-0">
+                      <FileIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <span className="truncate text-muted-foreground">{attachedFile.name}</span>
+                    </div>
+                    <button type="button" onClick={() => setAttachedFile(null)} className="text-muted-foreground hover:text-foreground">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+                <form onSubmit={handleSend} className="p-3 flex gap-2">
+                  <input ref={fileInputRef} type="file" className="hidden" accept="image/*,.pdf,.doc,.docx,.txt,.mp4,.mp3" onChange={handleFileSelect} />
+                  <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => fileInputRef.current?.click()} disabled={fileUploading || sending} title="Attach file">
+                    {fileUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                  </Button>
+                  <Input placeholder="Type your message..." value={input} onChange={handleInputChange} disabled={sending} className="flex-1" />
+                  <Button type="submit" size="icon" disabled={sending || fileUploading || (!input.trim() && !attachedFile)}>
+                    {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  </Button>
+                </form>
+              </div>
             )}
           </CardContent>
         </Card>

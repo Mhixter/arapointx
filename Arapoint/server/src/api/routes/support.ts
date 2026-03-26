@@ -22,6 +22,31 @@ import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { logger } from '../../utils/logger';
 import { fraudService } from '../../services/fraudService';
 import { localAi } from '../../services/localAiService';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { randomUUID } from 'crypto';
+
+const SUPPORT_UPLOADS_DIR = path.join(process.cwd(), 'uploads', 'support');
+if (!fs.existsSync(SUPPORT_UPLOADS_DIR)) fs.mkdirSync(SUPPORT_UPLOADS_DIR, { recursive: true });
+
+const supportStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, SUPPORT_UPLOADS_DIR),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${randomUUID()}${ext}`);
+  },
+});
+const supportUpload = multer({
+  storage: supportStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.doc', '.docx', '.txt', '.mp4', '.mp3'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowed.includes(ext)) cb(null, true);
+    else cb(new Error('File type not allowed'));
+  },
+});
 
 const router = Router();
 
@@ -408,14 +433,40 @@ router.get('/conversations/:id/messages', async (req: Request, res: Response) =>
   }
 });
 
+router.post('/upload', supportUpload.single('file'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) return res.status(400).json(formatErrorResponse(400, 'No file uploaded'));
+    const fileUrl = `/api/support/files/${req.file.filename}`;
+    res.json(formatResponse('success', 200, 'File uploaded', {
+      fileUrl,
+      fileName: req.file.originalname,
+      fileSize: req.file.size,
+      mimeType: req.file.mimetype,
+    }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to upload file'));
+  }
+});
+
+router.get('/files/:filename', async (req: Request, res: Response) => {
+  try {
+    const filePath = path.join(SUPPORT_UPLOADS_DIR, req.params.filename);
+    if (!fs.existsSync(filePath)) return res.status(404).json(formatErrorResponse(404, 'File not found'));
+    res.setHeader('Content-Disposition', `attachment; filename="${req.params.filename}"`);
+    res.sendFile(filePath);
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to download file'));
+  }
+});
+
 router.post('/conversations/:id/messages', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { content } = req.body;
+    const { content, fileUrl, fileName } = req.body;
     const userId = req.userId!;
 
-    if (!content?.trim()) {
-      return res.status(400).json(formatErrorResponse(400, 'Message content is required'));
+    if (!content?.trim() && !fileUrl) {
+      return res.status(400).json(formatErrorResponse(400, 'Message content or file is required'));
     }
 
     const [conv] = await db.select()
@@ -434,7 +485,9 @@ router.post('/conversations/:id/messages', async (req: Request, res: Response) =
       senderType: 'user',
       senderId: userId,
       senderName: user?.name || 'User',
-      content: content.trim(),
+      content: content?.trim() || (fileName ? `Sent a file: ${fileName}` : 'Sent a file'),
+      fileUrl: fileUrl || null,
+      attachments: fileUrl ? [{ url: fileUrl, name: fileName || 'File', type: 'file' }] : [],
     }).returning();
 
     await db.update(supportConversations)

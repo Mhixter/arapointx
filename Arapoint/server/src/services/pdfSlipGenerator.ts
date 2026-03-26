@@ -101,15 +101,15 @@ const defaultPositions: Record<
     dob_left: "44%",
     dob_size: "14px",
     nin_top: "42.6%",
-    nin_left: "41%",
+    nin_left: "40%",
     nin_size: "34px",
     qr_top: "31.5%",
     qr_right: "30%",
     qr_width: "10%",
     hidden_fields: [],
     field_configs: {},
-    global_font_family: "'Times New Roman', serif",
-    global_font_weight: "400",
+    global_font_family: "'Roboto', Arial, sans-serif",
+    global_font_weight: "700",
     global_color: "#000000",
   },
   premium: {
@@ -126,7 +126,7 @@ const defaultPositions: Record<
     dob_left: "40.8%",
     dob_size: "15px",
     nin_top: "47.2%",
-    nin_left: "39.7%",
+    nin_left: "38.5%",
     nin_size: "38px",
     qr_top: "33%",
     qr_right: "31%",
@@ -138,12 +138,9 @@ const defaultPositions: Record<
     issue_right: "32.8%",
     issue_size: "14px",
     hidden_fields: [],
-    field_configs: {
-      surname: { font_family: "'Times New Roman', serif", font_weight: "400" },
-      nin: { font_family: "'Times New Roman', serif", font_weight: "400", color: "#201e1e" },
-    },
-    global_font_family: "'Times New Roman', serif",
-    global_font_weight: "400",
+    field_configs: {},
+    global_font_family: "'Roboto', Arial, sans-serif",
+    global_font_weight: "700",
     global_color: "#000000",
   },
   long: {
@@ -427,6 +424,25 @@ const generateQRCode = async (data: object): Promise<string> => {
   }
 };
 
+const wrapAddress = (text: string, maxChars: number): string => {
+  if (!text || text.length <= maxChars) return text;
+  const words = text.split(" ");
+  const lines: string[] = [];
+  let currentLine = "";
+  for (const word of words) {
+    if (currentLine.length === 0) {
+      currentLine = word;
+    } else if ((currentLine + " " + word).length <= maxChars) {
+      currentLine += " " + word;
+    } else {
+      lines.push(currentLine);
+      currentLine = word;
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+  return lines.join("\n");
+};
+
 const injectDataIntoTemplate = (
   template: string,
   data: Record<string, string>,
@@ -523,7 +539,7 @@ export const generatePdfSlip = async (
     tracking_top: positions.tracking_top || "",
     tracking_left: positions.tracking_left || "",
     tracking_size: positions.tracking_size || "",
-    address: data.address?.toUpperCase() || "",
+    address: wrapAddress(data.address?.toUpperCase() || "", 17),
     address_top: positions.address_top || "",
     address_left: positions.address_left || "",
     address_size: positions.address_size || "",

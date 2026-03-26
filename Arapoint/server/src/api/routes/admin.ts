@@ -58,6 +58,31 @@ import { localAi } from '../../services/localAiService';
 import { scrapeNbaisSchools, getSchoolsCount } from '../../rpa/workers/nbaisSchoolScraper';
 import { browserPool } from '../../rpa/browserPool';
 import bcrypt from 'bcryptjs';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { randomUUID } from 'crypto';
+
+const SUPPORT_UPLOADS_DIR = path.join(process.cwd(), 'uploads', 'support');
+if (!fs.existsSync(SUPPORT_UPLOADS_DIR)) fs.mkdirSync(SUPPORT_UPLOADS_DIR, { recursive: true });
+
+const agentSupportStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, SUPPORT_UPLOADS_DIR),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `${randomUUID()}${ext}`);
+  },
+});
+const agentSupportUpload = multer({
+  storage: agentSupportStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.doc', '.docx', '.txt', '.mp4', '.mp3'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowed.includes(ext)) cb(null, true);
+    else cb(new Error('File type not allowed'));
+  },
+});
 import { eq, desc, count, sql, and, or, gt, asc, gte, lte, ilike } from 'drizzle-orm';
 import OpenAI from 'openai';
 
@@ -3353,14 +3378,29 @@ router.post('/support/tickets/:id/assign', async (req: Request, res: Response) =
   }
 });
 
+router.post('/support/upload', agentSupportUpload.single('file'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) return res.status(400).json(formatErrorResponse(400, 'No file uploaded'));
+    const fileUrl = `/api/support/files/${req.file.filename}`;
+    res.json(formatResponse('success', 200, 'File uploaded', {
+      fileUrl,
+      fileName: req.file.originalname,
+      fileSize: req.file.size,
+      mimeType: req.file.mimetype,
+    }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to upload file'));
+  }
+});
+
 router.post('/support/tickets/:id/reply', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { content } = req.body;
+    const { content, fileUrl, fileName } = req.body;
     const agentId = req.userId!;
 
-    if (!content?.trim()) {
-      return res.status(400).json(formatErrorResponse(400, 'Reply content is required'));
+    if (!content?.trim() && !fileUrl) {
+      return res.status(400).json(formatErrorResponse(400, 'Reply content or file is required'));
     }
 
     const [agent] = await db.select({ name: admin_users.name })
@@ -3378,7 +3418,9 @@ router.post('/support/tickets/:id/reply', async (req: Request, res: Response) =>
       senderType: 'agent',
       senderId: agentId,
       senderName: agent?.name || 'Support Agent',
-      content: content.trim(),
+      content: content?.trim() || (fileName ? `Sent a file: ${fileName}` : 'Sent a file'),
+      fileUrl: fileUrl || null,
+      attachments: fileUrl ? [{ url: fileUrl, name: fileName || 'File', type: 'file' }] : [],
     }).returning();
 
     const now = new Date();

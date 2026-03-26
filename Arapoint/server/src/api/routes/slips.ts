@@ -610,6 +610,12 @@ router.get('/analyzer/:type', async (req: Request, res: Response) => {
       if (pos.names_top) {
         html += '<div class="text-box' + (isHidden('names') ? ' hidden' : '') + '" style="top:'+pos.names_top+';left:'+pos.names_left+';font-size:'+pos.names_size+';'+fontStyle('names')+'">FIRSTNAME MIDDLE</div>';
       }
+      if (pos.firstname_top) {
+        html += '<div class="text-box' + (isHidden('firstname') ? ' hidden' : '') + '" style="top:'+pos.firstname_top+';left:'+pos.firstname_left+';font-size:'+pos.firstname_size+';'+fontStyle('firstname')+'">FIRSTNAME</div>';
+      }
+      if (pos.middlename_top) {
+        html += '<div class="text-box' + (isHidden('middlename') ? ' hidden' : '') + '" style="top:'+pos.middlename_top+';left:'+pos.middlename_left+';font-size:'+pos.middlename_size+';'+fontStyle('middlename')+'">MIDDLENAME</div>';
+      }
       if (pos.dob_top) {
         html += '<div class="text-box' + (isHidden('dob') ? ' hidden' : '') + '" style="top:'+pos.dob_top+';left:'+pos.dob_left+';font-size:'+pos.dob_size+';'+fontStyle('dob')+'">01 JAN 1990</div>';
       }
