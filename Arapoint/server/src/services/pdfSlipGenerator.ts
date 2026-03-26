@@ -101,7 +101,7 @@ const defaultPositions: Record<
     dob_left: "44%",
     dob_size: "14px",
     nin_top: "42.6%",
-    nin_left: "40%",
+    nin_left: "38%",
     nin_size: "34px",
     qr_top: "31.5%",
     qr_right: "30%",
@@ -126,7 +126,7 @@ const defaultPositions: Record<
     dob_left: "40.8%",
     dob_size: "15px",
     nin_top: "47.2%",
-    nin_left: "38.5%",
+    nin_left: "37.5%",
     nin_size: "38px",
     qr_top: "33%",
     qr_right: "31%",
@@ -681,6 +681,7 @@ export const generatePdfSlip = async (
       height: `${dimensions.height}px`,
       printBackground: true,
       margin: { top: "0", right: "0", bottom: "0", left: "0" },
+      pageRanges: "1",
     });
   } finally {
     if (browser) {
