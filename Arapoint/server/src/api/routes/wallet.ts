@@ -92,10 +92,6 @@ router.post('/virtual-account/generate', async (req: Request, res: Response) => 
   try {
     const { nin, bvn } = req.body;
 
-    if (!nin && !bvn) {
-      return res.status(400).json(formatErrorResponse(400, 'NIN or BVN is required for virtual account generation. Identity verification is needed.'));
-    }
-
     if (nin && nin.length !== 11) {
       return res.status(400).json(formatErrorResponse(400, 'NIN must be exactly 11 digits'));
     }
