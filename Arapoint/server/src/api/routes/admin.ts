@@ -719,7 +719,7 @@ router.get('/payment-gateways/status', async (req: Request, res: Response) => {
         fields: [
           { key: 'paymentpoint_api_key', label: 'API Key', type: 'text', required: true, value: savedSettings['paymentpoint_api_key'] || '' },
           { key: 'paymentpoint_secret_key', label: 'Secret Key', type: 'password', required: true, value: '', hasValue: !!savedSettings['paymentpoint_secret_key'] },
-          { key: 'paymentpoint_merchant_id', label: 'Merchant ID', type: 'text', required: false, value: savedSettings['paymentpoint_merchant_id'] || '' },
+          { key: 'paymentpoint_merchant_id', label: 'Business ID', type: 'text', required: true, value: savedSettings['paymentpoint_merchant_id'] || '' },
         ],
       },
       payvessel: {

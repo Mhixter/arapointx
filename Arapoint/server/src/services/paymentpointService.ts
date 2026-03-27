@@ -7,7 +7,7 @@ const BASE_URL = 'https://api.paymentpoint.co';
 const getConfig = () => ({
   apiKey: process.env.PAYMENTPOINT_API_KEY || '',
   secretKey: process.env.PAYMENTPOINT_SECRET_KEY || '',
-  merchantId: process.env.PAYMENTPOINT_MERCHANT_ID || '',
+  businessId: process.env.PAYMENTPOINT_MERCHANT_ID || process.env.PAYMENTPOINT_BUSINESS_ID || '',
 });
 
 interface PPCreateVARequest {
@@ -71,6 +71,7 @@ export const paymentpointService = {
     }
 
     try {
+      const config = getConfig();
       const requestBody: Record<string, any> = {
         email: data.email,
         name: data.name,
@@ -78,6 +79,7 @@ export const paymentpointService = {
         account_reference: data.accountReference,
       };
 
+      if (config.businessId) requestBody.business_id = config.businessId;
       if (data.bvn) requestBody.bvn = data.bvn;
       if (data.nin) requestBody.nin = data.nin;
 
