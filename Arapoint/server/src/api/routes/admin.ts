@@ -848,20 +848,20 @@ router.post('/payment-gateways/paymentpoint/test', async (req: Request, res: Res
       secretKeyLength: secretKey.length,
       businessId: businessId ? businessId.substring(0, 8) + '...' : 'MISSING',
       businessIdLength: businessId.length,
-      endpoint: 'https://api.paymentpoint.co/v1/virtual-accounts',
+      endpoint: 'https://api.paymentpoint.co/api/v1/createVirtualAccount',
     };
 
     try {
       const testPayload: Record<string, any> = {
         email: 'test@arapoint.ng',
         name: 'Test User',
-        phone: '08000000000',
-        account_reference: 'ARAPOINT-TEST-' + Date.now(),
+        phoneNumber: '08000000000',
+        bankCode: ['20946', '20897'],
       };
-      if (businessId) testPayload.business_id = businessId;
+      if (businessId) testPayload.businessId = businessId;
 
-      const response = await axios.post('https://api.paymentpoint.co/v1/virtual-accounts', testPayload, {
-        headers: { 'x-api-key': apiKey, 'x-secret-key': secretKey, 'Content-Type': 'application/json' },
+      const response = await axios.post('https://api.paymentpoint.co/api/v1/createVirtualAccount', testPayload, {
+        headers: { 'Authorization': `Bearer ${secretKey}`, 'api-key': apiKey, 'Content-Type': 'application/json' },
         timeout: 15000,
       });
       debugInfo.httpStatus = response.status;

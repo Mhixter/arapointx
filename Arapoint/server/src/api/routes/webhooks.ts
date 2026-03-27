@@ -95,11 +95,11 @@ const router = Router();
 
 router.post('/paymentpoint', async (req: Request, res: Response) => {
   try {
-    const signature = req.headers['x-paymentpoint-signature'] as string;
+    const signature = req.headers['paymentpoint-signature'] as string;
     const payload = JSON.stringify(req.body);
 
     if (!signature) {
-      logger.warn('PaymentPoint webhook received without signature');
+      logger.warn('PaymentPoint webhook received without signature', { headers: Object.keys(req.headers) });
       return res.status(401).json(formatErrorResponse(401, 'Missing webhook signature'));
     }
 
@@ -115,47 +115,49 @@ router.post('/paymentpoint', async (req: Request, res: Response) => {
       return res.status(400).json(formatErrorResponse(400, 'Invalid webhook payload'));
     }
 
-    if (webhookData.status !== 'successful' && webhookData.status !== 'completed' && webhookData.status !== 'success') {
+    const isSuccess = webhookData.status === 'success' || webhookData.notificationStatus === 'payment_successful';
+    if (!isSuccess) {
       logger.info('PaymentPoint webhook received with non-successful status', {
         status: webhookData.status,
-        reference: webhookData.transactionReference,
+        notificationStatus: webhookData.notificationStatus,
+        transactionId: webhookData.transactionId,
       });
       return res.json(formatResponse('success', 200, 'Webhook received but transaction not processed'));
     }
 
     const userId = await virtualAccountService.findUserByAccountNumber(
-      webhookData.destinationAccountNumber
+      webhookData.receiverAccountNumber
     );
 
     if (!userId) {
       logger.warn('PaymentPoint webhook: Account number not found', {
-        accountNumber: webhookData.destinationAccountNumber,
+        accountNumber: webhookData.receiverAccountNumber,
       });
       return res.status(404).json(formatErrorResponse(404, 'Account not found'));
     }
 
     const fundResult = await walletService.addBalance(
       userId,
-      webhookData.amount,
-      webhookData.transactionReference,
+      webhookData.amountPaid,
+      webhookData.transactionId,
       'paymentpoint_transfer'
     );
 
-    sendWalletCreditEmail(userId, webhookData.amount, fundResult.newBalance, webhookData.transactionReference, 'Bank Transfer (9PSB)').catch(() => {});
+    sendWalletCreditEmail(userId, webhookData.amountPaid, fundResult.newBalance, webhookData.transactionId, 'Bank Transfer (PaymentPoint)').catch(() => {});
 
     logger.info('PaymentPoint webhook processed successfully', {
       userId,
-      accountNumber: webhookData.destinationAccountNumber,
-      amount: webhookData.amount,
-      reference: webhookData.transactionReference,
+      accountNumber: webhookData.receiverAccountNumber,
+      amount: webhookData.amountPaid,
+      transactionId: webhookData.transactionId,
       newBalance: fundResult.newBalance,
     });
 
     return res.json(formatResponse('success', 200, 'Webhook processed successfully', {
       userId,
-      amount: webhookData.amount,
+      amount: webhookData.amountPaid,
       newBalance: fundResult.newBalance,
-      reference: webhookData.transactionReference,
+      transactionId: webhookData.transactionId,
     }));
 
   } catch (error: any) {
