@@ -1,0 +1,264 @@
+# Webhook Documentation
+
+This webhook documentation outlines how to integrate and handle payment notifications from PaymentPoint. When a payment is successfully processed, a webhook notification will be sent to your provided URL. This webhook contains information regarding the transaction, including the status, amount, sender, receiver, and other relevant details.
+
+### Webhook Notification Format
+
+The webhook will send a **JSON payload** to your endpoint, with the following structure:
+
+```json
+// Some code
+{
+  "notification_status": "payment_successful",
+  "transaction_id": "xxx",
+  "amount_paid": 100,
+  "settlement_amount": 99.5,
+  "settlement_fee": 0.5,
+  "transaction_status": "success",
+  "sender": {
+    "name": "AGH ONLINE ACADEMY TUTORS LIMITED",
+    "account_number": "****4290",
+    "bank": "HYDROGEN"
+  },
+  "receiver": {
+    "name": "ALBARKADATASUB-Abd(Paymentpoint)",
+    "account_number": "6679854996",
+    "bank": "PalmPay"
+  },
+  "customer": {
+    "name": "Abdulismail",
+    "email": "albarkadatasub@gmail.com",
+    "phone": null,
+    "customer_id": "xxx"
+  },
+  "description": "Your payment has been successfully processed.",
+  "timestamp": "2024-11-22T13:00:04.256092Z"
+}
+
+```
+
+#### Webhook Data Breakdown
+
+* **notification\_status**: The status of the notification, e.g., "payment\_successful".
+* **transaction\_id**: Unique identifier for the transaction.
+* **amount\_paid**: The total amount paid by the customer (in the transaction's currency).
+* **settlement\_amount**: The actual amount that will be settled after any fees.
+* **settlement\_fee**: The fee deducted from the payment before settlement.
+* **transaction\_status**: The status of the payment transaction (e.g., "success").
+* **sender**: Information about the sender:
+  * `name`: Name of the sender.
+  * `account_number`: Masked sender's account number.
+  * `bank`: The bank of the sender.
+* **receiver**: Information about the receiver:
+  * `name`: Name of the receiver.
+  * `account_number`: The account number of the receiver.
+  * `bank`: The bank of the receiver.
+* **customer**: Information about the customer:
+  * `name`: Customer's name.
+  * `email`: Customer's email address.
+  * `phone`: Customer's phone number (may be null).
+  * `customer_id`: Unique identifier for the customer in your system.
+* **description**: A message describing the payment status.
+* **timestamp**: The time the webhook notification was generated, in ISO 8601 format.
+
+**Webhook Integration Examples**<br>
+
+{% tabs %}
+{% tab title="PHP" %}
+
+```php
+<?php
+
+// Your paymentpoint secret security key
+$secretKey = 'your-secret-key'; // Replace with your actual secret key
+
+// Step 1: Read the raw POST data from the request body
+$inputData = file_get_contents('php://input');
+
+// Step 2: Get the signature from the headers
+$signatureHeader = $_SERVER['HTTP_PAYMENTPOINT_SIGNATURE'];
+
+// Step 3: Calculate the expected signature using HMAC-SHA256
+$calculatedSignature = hash_hmac('sha256', $inputData, $secretKey);
+
+// Step 4: Verify if the calculated signature matches the signature from the header
+if (!hash_equals($calculatedSignature, $signatureHeader)) {
+    // If signatures don't match, return an error response (possible tampering)
+    http_response_code(400);
+    echo "Invalid signature.";
+    exit; // Stop further processing
+}
+
+// Step 5: Decode the JSON payload
+$webhookData = json_decode($inputData, true);
+
+// Step 6: Ensure the data was successfully decoded
+if ($webhookData === null) {
+    // If the data couldn't be decoded, return an error response
+    http_response_code(400);
+    echo "Invalid JSON data received.";
+    exit; // Stop further processing
+}
+
+// Step 7: Extract relevant data from the decoded webhook
+$transactionId = $webhookData['transaction_id'] ?? null;
+$amountPaid = $webhookData['amount_paid'] ?? null;
+$settlementAmount = $webhookData['settlement_amount'] ?? null;
+$status = $webhookData['transaction_status'] ?? null;
+
+// Check if required data is present
+if (!$transactionId || !$amountPaid || !$settlementAmount || !$status) {
+    http_response_code(400);
+    echo "Missing required data.";
+    exit;
+}
+
+// Step 8: Process the data (store in database, send notifications, etc.)
+echo "Transaction ID: " . htmlspecialchars($transactionId) . "\n";
+echo "Amount Paid: " . htmlspecialchars($amountPaid) . "\n";
+echo "Settlement Amount: " . htmlspecialchars($settlementAmount) . "\n";
+echo "Status: " . htmlspecialchars($status) . "\n";
+
+// Step 9: Respond with a 200 OK status to acknowledge receipt of the webhook
+http_response_code(200);
+echo "Webhook processed successfully.";
+
+?>
+
+
+
+```
+
+{% endtab %}
+
+{% tab title="Python(Django)" %}
+
+```django
+// Some code
+
+import hashlib
+import hmac
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
+
+# Your secret security key (provided by PaymentPoint)
+security_key = 'xxx'  # Replace with your actual security key
+
+@csrf_exempt  # Disable CSRF validation for the webhook (it's not necessary for webhooks)
+def webhook(request):
+    if request.method == 'POST':
+        # Get the raw JSON data from the request
+        webhook_data = request.body  # Raw bytes, not text
+
+        # Get the Paymentpoint-Signature from the request headers
+        signature = request.headers.get('Paymentpoint-Signature')
+
+        # Recreate the hash using the raw body and your security key
+        calculated_signature = hmac.new(
+            security_key.encode('utf-8'),
+            webhook_data,
+            hashlib.sha256
+        ).hexdigest()
+
+        # Verify if the calculated signature matches the one in the header
+        if calculated_signature == signature:
+            # Signature is valid, process the webhook data
+            try:
+                # Parse the incoming JSON data
+                data = json.loads(webhook_data)
+
+                # Extract relevant data
+                transaction_id = data.get('transaction_id')
+                amount_paid = data.get('amount_paid')
+                settlement_amount = data.get('settlement_amount')
+                status = data.get('transaction_status')
+
+                # Process the data (e.g., store in DB, send email, etc.)
+                print(f"Transaction ID: {transaction_id}")
+                print(f"Amount Paid: {amount_paid}")
+                print(f"Settlement Amount: {settlement_amount}")
+                print(f"Status: {status}")
+
+                # Respond with a 200 OK status to acknowledge receipt of the webhook
+                return JsonResponse({"status": "success"}, status=200)
+            except json.JSONDecodeError:
+                return JsonResponse({"error": "Invalid JSON format"}, status=400)
+        else:
+            # Invalid signature, reject the request
+            return JsonResponse({"error": "Invalid signature"}, status=400)
+    else:
+        # Method not allowed
+        return JsonResponse({"error": "Invalid method"}, status=405)
+
+
+```
+
+{% endtab %}
+
+{% tab title="Node" %}
+
+```javascript
+// Get the Paymentpoint-Signature from the request headers
+const express = require('express'); const crypto = require('crypto'); const bodyParser = require('body-parser');
+const app = express(); const port = 3000;
+// Your secret security key (provided by PaymentPoint) const securityKey = 'xxx'; // Replace with your actual security key
+// Middleware to parse JSON bodies app.use(bodyParser.json());
+app.post('/webhook', (req, res) => { // Get the raw body of the request const webhookData = JSON.stringify(req.body);
+const signature = req.headers['paymentpoint-signature'];
+
+// Recreate the hash using the raw body and your security key
+const calculatedSignature = crypto
+    .createHmac('sha256', securityKey)
+    .update(webhookData)
+    .digest('hex');
+
+// Verify if the calculated signature matches the one in the header
+if (calculatedSignature === signature) {
+    // Signature is valid, process the webhook data
+    const data = req.body;
+
+    // Extract relevant data
+    const transactionId = data.transaction_id;
+    const amountPaid = data.amount_paid;
+    const settlementAmount = data.settlement_amount;
+    const status = data.transaction_status;
+
+    // Process the data (store in DB, etc.)
+    console.log(`Transaction ID: ${transactionId}`);
+    console.log(`Amount Paid: ${amountPaid}`);
+    console.log(`Settlement Amount: ${settlementAmount}`);
+    console.log(`Status: ${status}`);
+
+    // Respond with a 200 OK status to acknowledge receipt of the webhook
+    res.status(200).json({ status: 'success' });
+} else {
+    // Invalid signature, reject the request
+    res.status(400).json({ error: 'Invalid signature' });
+}
+```
+
+});
+
+app.listen(port, () => { console.log(`Server is running on port ${port}`); });
+{% endtab %}
+{% endtabs %}
+
+To ensure that the incoming webhook is coming from PaymentPoint and hasn't been tampered with, you need to verify the signature by hashing the payload with your secret security key and comparing it with the value in the `Paymentpoint-Signature` header.
+
+Here's an updated version of the webhook documentation, including how to implement signature verification in **PHP**, **Python**, and **Node.js**.
+
+***
+
+### Verifying the PaymentPoint Signature
+
+#### How the Signature is Generated
+
+The signature sent by PaymentPoint (`Paymentpoint-Signature`) is a hash of the raw JSON payload, generated using your security key. To validate that the request is legitimate, you will hash the incoming payload (excluding the signature) with your security key and compare it to the signature sent in the request header.
+
+#### Steps to Verify the Signature:
+
+1. **Retrieve the `Paymentpoint-Signature` header** from the request.
+2. **Remove the signature from the payload** (this is the `Paymentpoint-Signature` header).
+3. **Recreate the hash**: Hash the raw JSON payload using the same hashing algorithm (likely SHA-256) and your security key.
+4. **Compare the hashes**: If the generated hash matches the `Paymentpoint-Signature` header, then the request is valid.

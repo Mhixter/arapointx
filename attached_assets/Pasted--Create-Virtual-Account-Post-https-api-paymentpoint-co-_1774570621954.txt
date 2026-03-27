@@ -1,0 +1,79 @@
+# Create Virtual Account
+
+> Post <https://api.paymentpoint.co/api/v1/createVirtualAccount>
+
+### Partners Bank Code.
+
+| Bank Code | Bank Name |
+| --------- | --------- |
+| PALMPAY   | 20946     |
+| OPAY      | 20897     |
+
+### Request Headers
+
+| Authorization | Bearer 07fda3af3a007f57d8210d827c3ad9cabb9c1f255b8026f3c562314205d46b7ba52f150362e542514a0ca1fec729a22bcf086665608092fad08177b0 |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| api-key       | bfede6d4fd5b96735f74a29dfa9c5e9bfae272f8                                                                                        |
+| Content-Type  | application/json                                                                                                                |
+
+```javascript
+// header sample
+const headers = {
+  'Authorization': ⁠ Bearer ${apiSecret} ⁠, // Add your Bearer token
+  'Content-Type': 'application/json',
+  'api-key': apiKey, // Your API key
+};
+
+```
+
+### Request Body
+
+| email       | {customer\_email}                        |
+| ----------- | ---------------------------------------- |
+| name        | {customer\_name}                         |
+| phoneNumber | {customer\_phone\_number}                |
+| bankCode    | \['20946', '20897']                      |
+| businessId  | bfede6d4fd5b96735f74a29dfa9c5e9bfae272f8 |
+
+```javascript
+// request body sample
+const data = {
+  email: {customer_email},
+  name: {customer_name,
+  phoneNumber: {customer_phone_number},
+  bankCode: ['20946', '20897'],
+  businessId: '3AB2B22345EF407',
+};
+```
+
+### Response Body
+
+```json
+// Some code
+{
+    "status": "success",
+    "message": "Customer account created successfully. Bank account(s) processed and ready for use.",
+    "customer": {
+        "customer_id": "fa6aa77cbc60ee04c67f5b7d56394733ed67b924",
+        "customer_name": "a",
+        "customer_email": "ad.com",
+        "customer_phone_number": "07"
+    },
+    "business": {
+        "business_name": "Av",
+        "business_email": "a",
+        "business_phone_number": "07018",
+        "business_Id": null
+    },
+    "bankAccounts": [
+        {
+            "bankCode": "20946",
+            "accountNumber": "6698059290",
+            "accountName": "A(paymentpoint)",
+            "bankName": "Palmpay",
+            "Reserved_Account_Id": "3a28cfe332ccf8596bd374bc4616ad2609454584"
+        }
+    ],
+    "errors": []
+}
+```
