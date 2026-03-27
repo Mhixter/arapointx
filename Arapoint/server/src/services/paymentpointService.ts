@@ -57,11 +57,16 @@ export const paymentpointService = {
 
   getHeaders() {
     const config = getConfig();
-    return {
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${config.apiKey}`,
       'x-api-key': config.apiKey,
       'x-secret-key': config.secretKey,
       'Content-Type': 'application/json',
     };
+    if (config.businessId) {
+      headers['x-business-id'] = config.businessId;
+    }
+    return headers;
   },
 
   async createVirtualAccount(data: PPCreateVARequest): Promise<PPCreateVAResponse> {
@@ -83,19 +88,25 @@ export const paymentpointService = {
       if (data.bvn) requestBody.bvn = data.bvn;
       if (data.nin) requestBody.nin = data.nin;
 
+      const headers = this.getHeaders();
       logger.info('Creating PaymentPoint virtual account', {
         email: data.email,
         name: data.name,
         reference: data.accountReference,
+        apiKeyPrefix: config.apiKey ? config.apiKey.substring(0, 8) + '...' : 'MISSING',
+        businessId: config.businessId ? config.businessId.substring(0, 8) + '...' : 'MISSING',
+        endpoint: `${BASE_URL}/v1/virtual-accounts`,
+        bodyKeys: Object.keys(requestBody),
       });
 
       const response = await axios.post(
         `${BASE_URL}/v1/virtual-accounts`,
         requestBody,
-        { headers: this.getHeaders(), timeout: 30000 }
+        { headers, timeout: 30000 }
       );
 
       const res = response.data;
+      logger.info('PaymentPoint API response', { status: response.status, data: res });
 
       if (res.status === true || res.success === true || res.code === '00') {
         const account = res.data || res.account || res;
@@ -117,14 +128,15 @@ export const paymentpointService = {
       }
 
       const errorMsg = res.message || res.error || 'Failed to create virtual account';
-      logger.error('PaymentPoint API returned unsuccessful response', { res });
+      logger.error('PaymentPoint API returned unsuccessful response', { fullResponse: res });
       return { success: false, error: errorMsg };
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message;
-      logger.error('PaymentPoint virtual account creation failed', {
+      logger.error('PaymentPoint virtual account creation FAILED', {
         error: errorMessage,
-        data: error.response?.data,
-        status: error.response?.status,
+        fullResponseData: error.response?.data,
+        httpStatus: error.response?.status,
+        endpoint: `${BASE_URL}/v1/virtual-accounts`,
       });
       return { success: false, error: errorMessage };
     }

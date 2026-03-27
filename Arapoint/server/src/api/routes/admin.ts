@@ -831,6 +831,53 @@ router.post('/payment-gateways/save', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/payment-gateways/paymentpoint/test', async (req: Request, res: Response) => {
+  try {
+    const axios = (await import('axios')).default;
+    const apiKey = process.env.PAYMENTPOINT_API_KEY || '';
+    const secretKey = process.env.PAYMENTPOINT_SECRET_KEY || '';
+    const businessId = process.env.PAYMENTPOINT_MERCHANT_ID || process.env.PAYMENTPOINT_BUSINESS_ID || '';
+
+    if (!apiKey || !secretKey) {
+      return res.json({ success: false, error: 'Credentials not loaded in memory', apiKeyLoaded: !!apiKey, secretKeyLoaded: !!secretKey, businessIdLoaded: !!businessId });
+    }
+
+    const debugInfo: Record<string, any> = {
+      apiKeyPrefix: apiKey.substring(0, 8) + '...',
+      apiKeyLength: apiKey.length,
+      secretKeyLength: secretKey.length,
+      businessId: businessId ? businessId.substring(0, 8) + '...' : 'MISSING',
+      businessIdLength: businessId.length,
+      endpoint: 'https://api.paymentpoint.co/v1/virtual-accounts',
+    };
+
+    try {
+      const testPayload: Record<string, any> = {
+        email: 'test@arapoint.ng',
+        name: 'Test User',
+        phone: '08000000000',
+        account_reference: 'ARAPOINT-TEST-' + Date.now(),
+      };
+      if (businessId) testPayload.business_id = businessId;
+
+      const response = await axios.post('https://api.paymentpoint.co/v1/virtual-accounts', testPayload, {
+        headers: { 'x-api-key': apiKey, 'x-secret-key': secretKey, 'Content-Type': 'application/json' },
+        timeout: 15000,
+      });
+      debugInfo.httpStatus = response.status;
+      debugInfo.apiResponse = response.data;
+      return res.json({ success: true, debug: debugInfo });
+    } catch (err: any) {
+      debugInfo.httpStatus = err.response?.status;
+      debugInfo.apiResponse = err.response?.data;
+      debugInfo.networkError = err.message;
+      return res.json({ success: false, debug: debugInfo });
+    }
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 router.get('/users', async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
