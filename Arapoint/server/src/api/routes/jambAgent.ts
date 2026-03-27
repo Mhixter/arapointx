@@ -17,6 +17,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
+import { objectStorageService, ObjectNotFoundError } from '../../services/objectStorage';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_here';
@@ -24,14 +25,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_here';
 const AGENT_UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'jamb-docs');
 fs.mkdirSync(AGENT_UPLOAD_DIR, { recursive: true });
 
-const agentDiskStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, AGENT_UPLOAD_DIR),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname) || '';
-    cb(null, `${randomUUID()}${ext}`);
-  },
-});
-const agentUpload = multer({ storage: agentDiskStorage, limits: { fileSize: 20 * 1024 * 1024 } });
+const agentUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
 const jambAgentAuthMiddleware = async (req: Request, res: Response, next: Function) => {
   try {
@@ -322,7 +316,6 @@ router.post('/requests/:id/upload', jambAgentAuthMiddleware, agentUpload.single(
       .limit(1);
 
     if (!request) {
-      if (req.file) fs.unlinkSync(req.file.path);
       return res.status(404).json(formatErrorResponse(404, 'Request not found'));
     }
 
@@ -330,20 +323,38 @@ router.post('/requests/:id/upload', jambAgentAuthMiddleware, agentUpload.single(
       return res.status(400).json(formatErrorResponse(400, 'No file uploaded'));
     }
 
-    const fileKey = `uploads/jamb-docs/${req.file.filename}`;
+    const ext = path.extname(req.file.originalname) || '';
+    let fileKey: string;
+
+    // Try object storage first; fall back to local disk
+    const objectPath = await objectStorageService.uploadBuffer(
+      req.file.buffer,
+      req.file.mimetype || 'application/octet-stream',
+      'jamb-docs',
+      ext
+    );
+
+    if (objectPath) {
+      fileKey = objectPath;
+    } else {
+      const filename = `${randomUUID()}${ext}`;
+      const localPath = path.join(AGENT_UPLOAD_DIR, filename);
+      fs.writeFileSync(localPath, req.file.buffer);
+      fileKey = `uploads/jamb-docs/${filename}`;
+    }
 
     const [doc] = await db.insert(jambRequestDocuments).values({
       requestId: id,
       uploadedBy: agentId,
       uploaderRole: 'agent',
       fileType: req.file.mimetype || 'application/octet-stream',
-      fileName: req.file.originalname || req.file.filename,
+      fileName: req.file.originalname,
       fileKey,
       fileSize: req.file.size,
       isResult: true,
     }).returning();
 
-    logger.info('JAMB agent document uploaded', { agentId, requestId: id, fileName: req.file.originalname });
+    logger.info('JAMB agent document uploaded', { agentId, requestId: id, fileName: req.file.originalname, storage: fileKey.startsWith('/objects/') ? 'object' : 'disk' });
     res.json(formatResponse('success', 200, 'Document uploaded successfully', { document: doc }));
   } catch (error: any) {
     logger.error('JAMB agent upload error', { error: error.message });
@@ -364,12 +375,28 @@ router.get('/documents/:docId/download', jambAgentAuthMiddleware, async (req: Re
       return res.status(404).json(formatErrorResponse(404, 'Document not found'));
     }
 
+    res.setHeader('Content-Disposition', `attachment; filename="${doc.fileName || 'document'}"`);
+
+    // Serve from object storage if stored there
+    if (doc.fileKey.startsWith('/objects/')) {
+      try {
+        const file = await objectStorageService.getObjectEntityFile(doc.fileKey);
+        await objectStorageService.downloadObject(file, res);
+      } catch (storageErr: any) {
+        if (storageErr instanceof ObjectNotFoundError) {
+          return res.status(404).json(formatErrorResponse(404, 'File not found in storage'));
+        }
+        throw storageErr;
+      }
+      return;
+    }
+
+    // Fall back to local disk
     const relativeKey = doc.fileKey.replace(/^\//, '');
     const localPath = path.join(process.cwd(), relativeKey);
     if (!fs.existsSync(localPath)) {
       return res.status(404).json(formatErrorResponse(404, 'File not found on server'));
     }
-    res.setHeader('Content-Disposition', `attachment; filename="${doc.fileName || 'document'}"`);
     res.sendFile(localPath, (sendErr) => {
       if (sendErr && !res.headersSent) {
         logger.error('Send JAMB file error', { error: sendErr.message, localPath });

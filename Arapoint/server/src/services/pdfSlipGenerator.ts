@@ -343,16 +343,33 @@ const formatNIN = (nin: string): string => {
 };
 
 const formatDate = (dateStr: string): string => {
+  if (!dateStr) return '';
   try {
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return dateStr;
-    return date
-      .toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })
-      .toUpperCase();
+    // Detect DD-MM-YYYY or D-M-YYYY (as Prembly returns e.g. "10-11-2001" = 10 Nov 2001)
+    const ddmmyyyy = dateStr.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+    if (ddmmyyyy) {
+      const day = parseInt(ddmmyyyy[1], 10);
+      const month = parseInt(ddmmyyyy[2], 10); // Prembly: month is the second segment
+      const year = parseInt(ddmmyyyy[3], 10);
+      // Use UTC to avoid timezone shifts
+      const date = new Date(Date.UTC(year, month - 1, day));
+      if (!isNaN(date.getTime())) {
+        return date
+          .toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })
+          .toUpperCase();
+      }
+    }
+    // Handle YYYY-MM-DD (ISO 8601) safely
+    const isoDate = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoDate) {
+      const date = new Date(Date.UTC(parseInt(isoDate[1]), parseInt(isoDate[2]) - 1, parseInt(isoDate[3])));
+      if (!isNaN(date.getTime())) {
+        return date
+          .toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })
+          .toUpperCase();
+      }
+    }
+    return dateStr;
   } catch {
     return dateStr;
   }

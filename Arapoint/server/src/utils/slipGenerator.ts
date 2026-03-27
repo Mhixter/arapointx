@@ -27,14 +27,32 @@ const getPremiumTemplateBase64 = (): string => {
   return '';
 };
 
+const parseDateSafe = (dateStr: string): Date | null => {
+  if (!dateStr) return null;
+  // DD-MM-YYYY or D-M-YYYY (Prembly format e.g. "10-11-2001" = 10 Nov 2001)
+  const ddmmyyyy = dateStr.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+  if (ddmmyyyy) {
+    const d = new Date(Date.UTC(parseInt(ddmmyyyy[3]), parseInt(ddmmyyyy[2]) - 1, parseInt(ddmmyyyy[1])));
+    if (!isNaN(d.getTime())) return d;
+  }
+  // YYYY-MM-DD (ISO)
+  const iso = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) {
+    const d = new Date(Date.UTC(parseInt(iso[1]), parseInt(iso[2]) - 1, parseInt(iso[3])));
+    if (!isNaN(d.getTime())) return d;
+  }
+  return null;
+};
+
 const formatDateShort = (dateStr: string): string => {
   if (!dateStr) return 'N/A';
   try {
-    const date = new Date(dateStr);
-    const day = date.getDate().toString().padStart(2, '0');
     const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-    const month = months[date.getMonth()];
-    const year = date.getFullYear();
+    const date = parseDateSafe(dateStr);
+    if (!date) return dateStr;
+    const day = date.getUTCDate().toString().padStart(2, '0');
+    const month = months[date.getUTCMonth()];
+    const year = date.getUTCFullYear();
     return `${day} ${month} ${year}`;
   } catch {
     return dateStr;
@@ -44,10 +62,11 @@ const formatDateShort = (dateStr: string): string => {
 const formatDateSlash = (dateStr: string): string => {
   if (!dateStr) return 'N/A';
   try {
-    const date = new Date(dateStr);
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
+    const date = parseDateSafe(dateStr);
+    if (!date) return dateStr;
+    const day = date.getUTCDate().toString().padStart(2, '0');
+    const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+    const year = date.getUTCFullYear();
     return `${day}/${month}/${year}`;
   } catch {
     return dateStr;

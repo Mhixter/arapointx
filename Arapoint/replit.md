@@ -19,6 +19,14 @@ Arapoint is a production-ready Nigerian Identity Verification and Management Pla
 - **Email**: SendGrid (for OTP delivery)
 - **Identity Verification**: YouVerify API (NIN/BVN)
 
+## Recent Updates (March 2026 — Session 3)
+- **DOB date parsing fixed (all templates)**: Both `pdfSlipGenerator.ts` and `slipGenerator.ts` now correctly parse Prembly's DD-MM-YYYY format using regex + UTC construction (e.g. "10-11-2001" → "10 NOV 2001" instead of "11 OCT 2001"). ISO YYYY-MM-DD is also handled via UTC to avoid timezone-shift off-by-one errors. A shared `parseDateSafe()` helper was added to `slipGenerator.ts` used by both `formatDateShort` and `formatDateSlash`.
+- **`trackingId` added to NINData**: Interface now includes `trackingId?: string`. All 4 NINData instantiations in `premblyService.ts` (verifyNIN, verifyVNIN, verifyNINWithPhone, retrieveNINByPhone) now map `rawData.trackingId || rawData.tracking_id || rawData.centralID`.
+- **Compression middleware wired**: `compression` package now loaded in `server/index.ts` before all other middleware. Level 6 deflate/gzip on all API and HTML responses.
+- **Keep-alive endpoint added**: `GET /api/ping` returns `{ok:true, ts:<ms>}` — use a cron job or frontend interval to prevent Replit container from sleeping.
+- **JAMB file uploads migrated to object storage**: Both `education.ts` and `jambAgent.ts` now use `multer.memoryStorage()` and try to upload via `objectStorageService.uploadBuffer()`. If object storage is not configured (`PRIVATE_OBJECT_DIR` not set), files fall back to local disk `uploads/jamb-docs/`. Download routes detect whether `fileKey` starts with `/objects/` and serve from object storage or local disk accordingly — fully backward-compatible with existing disk-stored files.
+- **`objectStorageService.uploadBuffer()`**: New server-side method added to `objectStorage.ts` — accepts a `Buffer`, MIME type, prefix, and extension; signs a PUT URL via sidecar, uploads, and returns the `/objects/…` path (or `null` on failure/unconfigured).
+
 ## Recent Updates (March 2026 — Session 2)
 - **Transaction lookup fixed (G)**: Support agent lookup was querying non-existent `transactions.reference` field — corrected to `transactions.referenceId`. Search now spans reference ID, description, user email, phone, and name (was reference-only).
 - **NIN slip templates redesigned (R/S)**: All 4 templates (standard, premium, long, full_info) fully rewritten as self-contained HTML/CSS — no longer depend on background PNG images. Professional government-style design with green NIMC header, gold ribbon, photo frame, NIN band, QR code, and Arapoint footer branding. Template image load failure now returns empty string instead of throwing.

@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import compression from "compression";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -14,6 +15,20 @@ declare module "http" {
     rawBody: unknown;
   }
 }
+
+// Compress all responses except already-compressed media
+app.use(compression({
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) return false;
+    return compression.filter(req, res);
+  },
+  level: 6,
+}));
+
+// Keep-alive endpoint — prevents Replit container from sleeping under low traffic
+app.get('/api/ping', (_req: Request, res: Response) => {
+  res.json({ ok: true, ts: Date.now() });
+});
 
 app.use(
   express.json({

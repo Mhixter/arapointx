@@ -44,6 +44,48 @@ export class ObjectStorageService {
     return dir;
   }
 
+  /**
+   * Upload a Buffer directly from the server to object storage.
+   * Returns the canonical /objects/… path, or null if object storage is not configured.
+   */
+  async uploadBuffer(
+    buffer: Buffer,
+    mimeType: string,
+    prefix: string = "uploads",
+    extension: string = ""
+  ): Promise<string | null> {
+    try {
+      const privateObjectDir = this.getPrivateObjectDir();
+      const objectId = randomUUID();
+      const ext = extension ? (extension.startsWith('.') ? extension : `.${extension}`) : '';
+      const objectKey = `${prefix}/${objectId}${ext}`;
+      const fullPath = `${privateObjectDir}/${objectKey}`;
+      const { bucketName, objectName } = this.parseObjectPath(fullPath);
+
+      const uploadURL = await this.signObjectURL({
+        bucketName,
+        objectName,
+        method: "PUT",
+        ttlSec: 300,
+      });
+
+      const uploadRes = await fetch(uploadURL, {
+        method: "PUT",
+        headers: { "Content-Type": mimeType },
+        body: buffer,
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error(`Object storage PUT failed: ${uploadRes.status}`);
+      }
+
+      return `/objects/${objectKey}`;
+    } catch (err: any) {
+      logger.warn("uploadBuffer: falling back to disk", { error: err.message });
+      return null;
+    }
+  }
+
   async getObjectEntityUploadURL(prefix: string = "uploads"): Promise<{ uploadURL: string; objectPath: string }> {
     const privateObjectDir = this.getPrivateObjectDir();
     const objectId = randomUUID();

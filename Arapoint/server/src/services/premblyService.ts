@@ -19,6 +19,7 @@ interface VerificationResult {
 
 export interface NINData {
   id: string;
+  trackingId?: string;
   firstName: string;
   middleName: string;
   lastName: string;
@@ -103,6 +104,7 @@ class PremblyService {
         
         const ninData: NINData = {
           id: rawData.nin || rawData.centralID || nin,
+          trackingId: rawData.trackingId || rawData.tracking_id || rawData.centralID || '',
           firstName: rawData.firstname || rawData.firstName || '',
           middleName: rawData.middlename || rawData.middleName || '',
           lastName: rawData.surname || rawData.lastName || '',
@@ -258,6 +260,7 @@ class PremblyService {
         
         const ninData: NINData = {
           id: rawData.nin || rawData.centralID || '',
+          trackingId: rawData.trackingId || rawData.tracking_id || rawData.centralID || '',
           firstName: rawData.firstname || rawData.firstName || '',
           middleName: rawData.middlename || rawData.middleName || '',
           lastName: rawData.surname || rawData.lastName || '',
@@ -329,6 +332,7 @@ class PremblyService {
         
         const ninData: NINData = {
           id: rawData.nin || rawData.centralID || nin,
+          trackingId: rawData.trackingId || rawData.tracking_id || rawData.centralID || '',
           firstName: rawData.firstname || rawData.firstName || '',
           middleName: rawData.middlename || rawData.middleName || '',
           lastName: rawData.surname || rawData.lastName || '',
@@ -441,6 +445,7 @@ class PremblyService {
         
         const ninData: NINData = {
           id: rawData.nin || rawData.centralID || '',
+          trackingId: rawData.trackingId || rawData.tracking_id || rawData.centralID || '',
           firstName: rawData.firstname || '',
           middleName: rawData.middlename || '',
           lastName: rawData.surname || '',
