@@ -454,18 +454,26 @@ router.post('/jamb', async (req: Request, res: Response) => {
     }
 
     const price = await pricingService.getPrice('jamb');
-    await walletService.deductBalance(req.userId!, price, 'JAMB Score Lookup', 'jamb_score_lookup');
 
-    const trackingId = generateReferenceId('JSR');
+    // Create the request FIRST, then deduct — so a DB failure never silently takes money
+    const trackingId = `JMB${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 100)}`;
     const [jambRequest] = await db.insert(jambServiceRequests).values({
       userId: req.userId!,
       trackingId,
       serviceType: 'check-result',
       registrationNumber: validation.data.registrationNumber,
-      examYear: validation.data.examYear,
+      examYear: validation.data.examYear?.toString(),
       fee: price.toFixed(2),
-      isPaid: true,
+      isPaid: false,
     }).returning();
+
+    // Deduct wallet only after DB insert succeeds
+    await walletService.deductBalance(req.userId!, price, 'JAMB Score Lookup', 'jamb_score_lookup');
+
+    // Mark as paid
+    await db.update(jambServiceRequests)
+      .set({ isPaid: true })
+      .where(eq(jambServiceRequests.id, jambRequest.id));
 
     logger.info('JAMB score check routed to agents', { userId: req.userId, trackingId });
 
