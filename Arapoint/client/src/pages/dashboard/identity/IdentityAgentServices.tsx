@@ -406,7 +406,14 @@ export default function IdentityAgentServices() {
                         </div>
                       </div>
                     )}
-                    {!selectedRequest.agentNotes && !selectedRequest.slipUrl && (
+                    {selectedRequest.serviceType === 'ipe_clearance' && selectedRequest.resolvedTrackingId && (
+                      <div>
+                        <Label className="text-muted-foreground text-xs">New NIMC Tracking ID</Label>
+                        <p className="text-sm font-semibold text-green-700 dark:text-green-400 mt-1 font-mono">{selectedRequest.resolvedTrackingId}</p>
+                        <p className="text-xs text-muted-foreground mt-1">This is your updated NIMC tracking ID after IPE clearance.</p>
+                      </div>
+                    )}
+                    {!selectedRequest.agentNotes && !selectedRequest.slipUrl && !selectedRequest.resolvedTrackingId && (
                       <p className="text-sm text-muted-foreground">No additional feedback provided by the agent.</p>
                     )}
                   </div>

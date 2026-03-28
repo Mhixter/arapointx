@@ -289,6 +289,22 @@ export default function EducationServices() {
     const form = e.target as HTMLFormElement;
     
     try {
+      // JAMB score check is now handled by human agents — no polling needed
+      if (selectedService === 'jamb-result') {
+        const regNumber = (form.querySelector('#jamb-reg') as HTMLInputElement)?.value;
+        setStatusMessage('Submitting your JAMB result request...');
+        const agentRes = await servicesApi.education.checkJAMB({ registrationNumber: regNumber });
+        queryClient.invalidateQueries({ queryKey: ['wallet'] });
+        setStatusMessage('');
+        setLoading(false);
+        toast({
+          title: "Request Submitted",
+          description: `Your JAMB score check has been submitted (Tracking: ${(agentRes as any).trackingId}). Our team will process it and you'll be notified by email when ready. ₦${agentRes.price} deducted from your wallet.`,
+        });
+        setSelectedService(null);
+        return;
+      }
+
       let jobResponse: { jobId: string; price: number };
       
       switch (selectedService) {

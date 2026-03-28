@@ -456,16 +456,22 @@ router.post('/jamb', async (req: Request, res: Response) => {
     const price = await pricingService.getPrice('jamb');
     await walletService.deductBalance(req.userId!, price, 'JAMB Score Lookup', 'jamb_score_lookup');
 
-    const job = await jobService.createEducationJob(req.userId!, {
-      serviceType: 'jamb',
+    const trackingId = generateReferenceId('JSR');
+    const [jambRequest] = await db.insert(jambServiceRequests).values({
+      userId: req.userId!,
+      trackingId,
+      serviceType: 'check-result',
       registrationNumber: validation.data.registrationNumber,
       examYear: validation.data.examYear,
-    });
+      fee: price.toFixed(2),
+      isPaid: true,
+    }).returning();
 
-    logger.info('JAMB lookup request', { userId: req.userId, jobId: job.jobId });
+    logger.info('JAMB score check routed to agents', { userId: req.userId, trackingId });
 
-    res.status(202).json(formatResponse('success', 202, 'JAMB score lookup submitted', {
-      ...job,
+    res.status(202).json(formatResponse('success', 202, 'JAMB score check request submitted. Our team will process it shortly.', {
+      trackingId,
+      requestId: jambRequest.id,
       price,
     }));
   } catch (error: any) {

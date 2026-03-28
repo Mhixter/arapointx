@@ -31,7 +31,7 @@ export default function IdentityAgentDashboard() {
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showStatusUpdate, setShowStatusUpdate] = useState(false);
-  const [updateData, setUpdateData] = useState({ status: '', agentNotes: '', slipUrl: '' });
+  const [updateData, setUpdateData] = useState({ status: '', agentNotes: '', slipUrl: '', resolvedTrackingId: '' });
   const [uploadingFile, setUploadingFile] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -190,7 +190,7 @@ export default function IdentityAgentDashboard() {
       const response = await fetch(`/api/identity-agent/requests/${selectedRequest.id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ status: updateData.status, agentNotes: updateData.agentNotes, slipUrl })
+        body: JSON.stringify({ status: updateData.status, agentNotes: updateData.agentNotes, slipUrl, resolvedTrackingId: updateData.resolvedTrackingId || undefined })
       });
       const data = await response.json();
       if (data.status === 'success') {
@@ -199,7 +199,7 @@ export default function IdentityAgentDashboard() {
         fetchStats();
         setShowStatusUpdate(false);
         setSelectedRequest(null);
-        setUpdateData({ status: '', agentNotes: '', slipUrl: '' });
+        setUpdateData({ status: '', agentNotes: '', slipUrl: '', resolvedTrackingId: '' });
         setSelectedFile(null);
       } else {
         toast({ title: "Failed", description: data.message, variant: "destructive" });
@@ -394,7 +394,7 @@ export default function IdentityAgentDashboard() {
                         {request.status !== 'completed' && (
                           <Button size="sm" onClick={() => { 
                             setSelectedRequest(request); 
-                            setUpdateData({ status: request.status, agentNotes: request.agentNotes || '', slipUrl: request.slipUrl || '' });
+                            setUpdateData({ status: request.status, agentNotes: request.agentNotes || '', slipUrl: request.slipUrl || '', resolvedTrackingId: request.resolvedTrackingId || '' });
                             setShowStatusUpdate(true); 
                           }}>
                             Update
@@ -522,6 +522,9 @@ export default function IdentityAgentDashboard() {
               {selectedRequest.slipUrl && (
                 <div><strong>Slip:</strong> <a href={selectedRequest.slipUrl} target="_blank" className="text-blue-600 underline">View Slip</a></div>
               )}
+              {selectedRequest.resolvedTrackingId && (
+                <div><strong>Resolved NIMC Tracking ID:</strong> <span className="font-mono text-green-700 dark:text-green-400">{selectedRequest.resolvedTrackingId}</span></div>
+              )}
             </div>
           )}
         </DialogContent>
@@ -556,6 +559,18 @@ export default function IdentityAgentDashboard() {
                 placeholder="Add notes about this request..."
               />
             </div>
+
+            {updateData.status === 'completed' && selectedRequest?.serviceType === 'ipe_clearance' && (
+              <div className="space-y-2">
+                <Label>New NIMC Tracking ID</Label>
+                <Input
+                  placeholder="Enter the new NIMC tracking ID issued after clearance"
+                  value={updateData.resolvedTrackingId}
+                  onChange={(e) => setUpdateData(prev => ({ ...prev, resolvedTrackingId: e.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground">This is the updated tracking ID from NIMC after the IPE issue has been resolved.</p>
+              </div>
+            )}
 
             {updateData.status === 'completed' && (
               <div className="space-y-2">

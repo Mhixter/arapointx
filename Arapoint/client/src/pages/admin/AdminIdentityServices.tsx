@@ -114,13 +114,13 @@ export default function AdminIdentityServices() {
   );
 
   const ninVerification = filteredServices.filter(s => 
-    s.verificationType === "nin_verification" || s.verificationType === "nin-verification"
+    s.verificationType === "nin" || s.verificationType === "vnin"
   );
   const ninPhone = filteredServices.filter(s => 
-    s.verificationType === "nin_phone" || s.verificationType === "nin-phone"
+    s.verificationType === "nin_phone"
   );
   const ninRecovery = filteredServices.filter(s => 
-    s.verificationType === "nin_recovery" || s.verificationType === "ipe-clearance"
+    s.verificationType === "lost_nin"
   );
 
   const tabs = [

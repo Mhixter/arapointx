@@ -18,6 +18,7 @@ import path from 'path';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
 import { objectStorageService, ObjectNotFoundError } from '../../services/objectStorage';
+import { sendEmail } from '../../services/emailService';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_here';
@@ -297,6 +298,40 @@ router.put('/requests/:id/status', jambAgentAuthMiddleware, async (req: Request,
       .where(eq(jambServiceRequests.id, id));
 
     logger.info('JAMB request status updated', { requestId: id, status, agentId });
+
+    // Send email notification when completed
+    if (status === 'completed') {
+      try {
+        const [user] = await db.select({ name: users.name, email: users.email })
+          .from(users).where(eq(users.id, request.userId)).limit(1);
+        if (user?.email) {
+          const serviceLabels: Record<string, string> = {
+            'olevel-upload': 'O-Level Result Upload',
+            'admission-letter': 'Admission Letter',
+            'original-result': 'Original JAMB Result',
+            'reprinting-caps': 'CAPS Reprinting',
+            'check-result': 'JAMB Score Check',
+          };
+          const serviceName = serviceLabels[request.serviceType] || request.serviceType;
+          await sendEmail(
+            user.email,
+            `Your ${serviceName} Request Has Been Completed — Arapoint`,
+            `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+              <h2 style="color:#1a7a4a;">JAMB Request Completed ✓</h2>
+              <p>Dear ${user.name},</p>
+              <p>Your <strong>${serviceName}</strong> request (Tracking ID: <strong>${request.trackingId}</strong>) has been completed by our team.</p>
+              ${agentNotes ? `<p><strong>Agent Feedback:</strong> ${agentNotes}</p>` : ''}
+              ${resultData ? `<p>Your result/data has been recorded. Please log in to view the details.</p>` : ''}
+              <p>Log in to <a href="https://arapoint.com.ng/dashboard/education">your account</a> to view the full details and any uploaded documents.</p>
+              <p style="color:#666;font-size:12px;">This is an automated notification from Arapoint.</p>
+            </div>`,
+            `Your ${serviceName} request (${request.trackingId}) has been completed. Log in to your Arapoint account to view details.`
+          );
+        }
+      } catch (emailErr: any) {
+        logger.warn('Failed to send JAMB completion email', { error: emailErr.message });
+      }
+    }
 
     res.json(formatResponse('success', 200, 'Request updated'));
   } catch (error: any) {

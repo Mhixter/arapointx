@@ -17,6 +17,7 @@ import jwt from 'jsonwebtoken';
 import { authMiddleware } from '../middleware/auth';
 import { pricingService } from '../../services/pricingService';
 import { walletService } from '../../services/walletService';
+import { sendEmail } from '../../services/emailService';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -208,7 +209,7 @@ router.put('/requests/:id/status', identityAgentAuthMiddleware, async (req: Requ
   try {
     const agentId = (req as any).agentId;
     const { id } = req.params;
-    const { status, agentNotes, slipUrl } = req.body;
+    const { status, agentNotes, slipUrl, resolvedTrackingId } = req.body;
 
     if (!['pending', 'pickup', 'completed'].includes(status)) {
       return res.status(400).json(formatErrorResponse(400, 'Invalid status'));
@@ -235,9 +236,8 @@ router.put('/requests/:id/status', identityAgentAuthMiddleware, async (req: Requ
 
     if (status === 'completed') {
       updateData.completedAt = new Date();
-      if (slipUrl) {
-        updateData.slipUrl = slipUrl;
-      }
+      if (slipUrl) updateData.slipUrl = slipUrl;
+      if (resolvedTrackingId) updateData.resolvedTrackingId = resolvedTrackingId;
     }
 
     if (agentNotes) {
@@ -259,6 +259,40 @@ router.put('/requests/:id/status', identityAgentAuthMiddleware, async (req: Requ
     });
 
     logger.info('Identity request status updated', { requestId: id, status, agentId });
+
+    // Send email notification when completed
+    if (status === 'completed') {
+      try {
+        const [user] = await db.select({ name: users.name, email: users.email })
+          .from(users).where(eq(users.id, request.userId)).limit(1);
+        if (user?.email) {
+          const serviceLabels: Record<string, string> = {
+            nin_validation: 'NIN Validation',
+            ipe_clearance: 'IPE Clearance',
+            nin_personalization: 'NIN Personalization',
+          };
+          const serviceName = serviceLabels[request.serviceType] || request.serviceType;
+          const newTid = resolvedTrackingId || '';
+          await sendEmail(
+            user.email,
+            `Your ${serviceName} Request Has Been Completed — Arapoint`,
+            `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+              <h2 style="color:#1a7a4a;">Request Completed ✓</h2>
+              <p>Dear ${user.name},</p>
+              <p>Your <strong>${serviceName}</strong> request (Tracking ID: <strong>${request.trackingId}</strong>) has been completed by our team.</p>
+              ${newTid ? `<p>Your new NIMC Tracking ID is: <strong style="font-size:18px;color:#1a7a4a;">${newTid}</strong></p>` : ''}
+              ${agentNotes ? `<p><strong>Agent Feedback:</strong> ${agentNotes}</p>` : ''}
+              ${slipUrl ? `<p>Your completed document is available. Please log in to your Arapoint account to download it.</p>` : ''}
+              <p>Log in to <a href="https://arapoint.com.ng/dashboard/identity">your account</a> to view the full details.</p>
+              <p style="color:#666;font-size:12px;">This is an automated notification from Arapoint.</p>
+            </div>`,
+            `Your ${serviceName} request (${request.trackingId}) has been completed. ${newTid ? `New tracking ID: ${newTid}.` : ''} Log in to view details.`
+          );
+        }
+      } catch (emailErr: any) {
+        logger.warn('Failed to send identity completion email', { error: emailErr.message });
+      }
+    }
 
     res.json(formatResponse('success', 200, 'Request updated'));
   } catch (error: any) {

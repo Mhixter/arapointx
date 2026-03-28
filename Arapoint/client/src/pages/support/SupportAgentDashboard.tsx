@@ -227,6 +227,13 @@ export default function SupportAgentDashboard() {
           return true;
         });
       }
+      // Hide tickets where user has been offline for 20+ minutes
+      const twentyMinutesAgo = Date.now() - 20 * 60 * 1000;
+      ticketList = ticketList.filter((t: any) => {
+        if (t.status === 'resolved' || t.status === 'closed') return true;
+        if (!t.lastActivityAt) return true;
+        return new Date(t.lastActivityAt).getTime() >= twentyMinutesAgo;
+      });
       setTickets(ticketList);
     } catch {
       setTickets([]);
