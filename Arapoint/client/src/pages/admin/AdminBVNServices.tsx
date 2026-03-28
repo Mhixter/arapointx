@@ -294,6 +294,12 @@ export default function AdminBVNServices() {
               <div className="grid grid-cols-2 gap-2">
                 <span className="text-muted-foreground">User:</span>
                 <span className="font-medium">{selectedRequest.userName}</span>
+                {selectedRequest.userEmail && (
+                  <>
+                    <span className="text-muted-foreground">Email:</span>
+                    <span className="text-xs break-all">{selectedRequest.userEmail}</span>
+                  </>
+                )}
                 <span className="text-muted-foreground">Service:</span>
                 <span className="capitalize">{selectedRequest.serviceType}</span>
                 <span className="text-muted-foreground">BVN:</span>
@@ -313,6 +319,35 @@ export default function AdminBVNServices() {
                 <span className="text-muted-foreground">Date:</span>
                 <span>{formatDate(selectedRequest.createdAt)}</span>
               </div>
+              {selectedRequest.serviceType === 'modification' && selectedRequest.responseData && (
+                <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 space-y-2">
+                  <p className="font-semibold text-amber-800 text-xs uppercase tracking-wide">Modification Details</p>
+                  {selectedRequest.responseData.changeCategory && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Category:</span>
+                      <span className="font-medium capitalize">{selectedRequest.responseData.changeCategory}</span>
+                    </div>
+                  )}
+                  {selectedRequest.responseData.oldValue && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Old Value:</span>
+                      <span className="font-mono text-red-600">{selectedRequest.responseData.oldValue}</span>
+                    </div>
+                  )}
+                  {selectedRequest.responseData.newValue && (
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">New Value:</span>
+                      <span className="font-mono text-green-700">{selectedRequest.responseData.newValue}</span>
+                    </div>
+                  )}
+                  {selectedRequest.responseData.reason && (
+                    <div className="flex flex-col gap-1 text-xs">
+                      <span className="text-muted-foreground">Reason:</span>
+                      <span className="italic text-gray-700">{selectedRequest.responseData.reason}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
           <DialogFooter className="gap-2">

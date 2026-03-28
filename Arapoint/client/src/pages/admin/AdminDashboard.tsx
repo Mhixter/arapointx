@@ -1,12 +1,43 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLocation } from "wouter";
-import { Users, DollarSign, AlertTriangle, FileCheck, ShieldCheck, BookOpen, Smartphone, Loader2, MessageSquare, Receipt } from "lucide-react";
+import { Users, DollarSign, AlertTriangle, FileCheck, ShieldCheck, BookOpen, Smartphone, Loader2, MessageSquare, Receipt, Bell, X } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminApi } from "@/lib/api";
+import { useState, useEffect } from "react";
+import { tokenStorage } from "@/lib/tokenStorage";
+
+interface AdminNotification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  requestId?: string;
+  createdAt: string;
+}
+
+async function fetchPendingNotifications(): Promise<AdminNotification[]> {
+  const token = tokenStorage.getItem('adminToken');
+  const res = await fetch('/api/admin/notifications/pending', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.data?.notifications || [];
+}
+
+async function markNotificationRead(id: string): Promise<void> {
+  const token = tokenStorage.getItem('adminToken');
+  await fetch(`/api/admin/notifications/${id}/read`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
 
 export default function AdminDashboard() {
   const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['admin', 'stats'],
@@ -17,6 +48,20 @@ export default function AdminDashboard() {
     queryKey: ['admin', 'users'],
     queryFn: () => adminApi.getUsers(1, 100),
   });
+
+  const { data: notifications = [] } = useQuery({
+    queryKey: ['admin', 'notifications', 'pending'],
+    queryFn: fetchPendingNotifications,
+    refetchInterval: 30000,
+  });
+
+  const visibleNotifications = notifications.filter(n => !dismissedIds.has(n.id));
+
+  const handleDismiss = async (id: string) => {
+    setDismissedIds(prev => new Set([...prev, id]));
+    await markNotificationRead(id);
+    queryClient.invalidateQueries({ queryKey: ['admin', 'notifications', 'pending'] });
+  };
 
   const formatCurrency = (amount: number) => {
     if (amount >= 1000000) {
@@ -145,6 +190,40 @@ export default function AdminDashboard() {
         <p className="text-sm sm:text-base text-muted-foreground">Manage all platform services, users, and settings.</p>
         <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">Logged in as: Administrator</p>
       </div>
+
+      {visibleNotifications.length > 0 && (
+        <div className="space-y-2">
+          {visibleNotifications.map(notification => (
+            <div
+              key={notification.id}
+              className="flex items-start gap-3 p-3 sm:p-4 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700"
+            >
+              <div className="mt-0.5 flex-shrink-0 p-1.5 rounded-full bg-amber-100 dark:bg-amber-800">
+                <Bell className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm text-amber-800 dark:text-amber-300">{notification.title}</p>
+                <p className="text-xs sm:text-sm text-amber-700 dark:text-amber-400 mt-0.5 break-words">{notification.message}</p>
+                {notification.requestId && (
+                  <button
+                    className="mt-1.5 text-xs text-blue-600 underline hover:text-blue-800"
+                    onClick={() => navigate('/admin/bvn')}
+                  >
+                    View in BVN Services →
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={() => handleDismiss(notification.id)}
+                className="flex-shrink-0 p-1 rounded hover:bg-amber-200 dark:hover:bg-amber-800 transition-colors"
+                aria-label="Dismiss"
+              >
+                <X className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
         {adminStats.map((stat) => (

@@ -8,7 +8,7 @@ import { bvnRetrieveSchema, bvnDigitalCardSchema, bvnModifySchema } from '../val
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { bvnServices, users, identityAgents } from '../../db/schema';
+import { bvnServices, users, identityAgents, adminNotifications } from '../../db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { generateReferenceId } from '../../utils/helpers';
 import { whatsappService } from '../../services/whatsappService';
@@ -284,6 +284,17 @@ router.post('/modify', async (req: Request, res: Response) => {
         userId: req.userId,
       }).catch(err => logger.error('Failed to queue WhatsApp notification', { error: err.message }));
     }
+
+    // Insert admin dashboard notification (no agent handles BVN — goes directly to admin)
+    const [user] = await db.select({ name: users.name }).from(users).where(eq(users.id, req.userId!)).limit(1);
+    await db.insert(adminNotifications).values({
+      type: 'bvn_modification',
+      title: 'New BVN Modification Request',
+      message: `${user?.name || 'A user'} submitted a BVN modification request (${validation.data.changeCategory === 'name' ? 'Name Change' : 'Date of Birth Change'}): "${validation.data.oldValue}" → "${validation.data.newValue}". Request ID: ${requestId}`,
+      requestId,
+      userId: req.userId!,
+      isRead: false,
+    }).catch(err => logger.error('Failed to insert admin notification', { error: err.message }));
 
     logger.info('BVN modification request', { userId: req.userId, requestId, price });
 

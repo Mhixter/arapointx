@@ -383,6 +383,45 @@ router.put('/requests/:id/status', cacAgentAuthMiddleware, async (req: Request, 
           updatedAt: new Date(),
         })
         .where(eq(cacAgents.id, agentId));
+
+      // Send completion email to the user who submitted this request
+      const [requestRow] = await db.select({
+        businessName: cacRegistrationRequests.businessName,
+        serviceType: cacRegistrationRequests.serviceType,
+        userId: cacRegistrationRequests.userId,
+        userEmail: users.email,
+        userName: users.name,
+      })
+        .from(cacRegistrationRequests)
+        .leftJoin(users, eq(cacRegistrationRequests.userId, users.id))
+        .where(eq(cacRegistrationRequests.id, id))
+        .limit(1);
+
+      if (requestRow?.userEmail) {
+        const { sendEmail } = await import('../../services/emailService');
+        await sendEmail(
+          requestRow.userEmail,
+          'Your CAC Registration Has Been Completed',
+          `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, #15803d, #22c55e); padding: 32px; text-align: center; border-radius: 8px 8px 0 0;">
+              <h1 style="color: white; margin: 0; font-size: 24px;">CAC Registration Complete</h1>
+            </div>
+            <div style="background: #f8fafc; padding: 32px; border-radius: 0 0 8px 8px; border: 1px solid #e2e8f0;">
+              <p style="color: #374151; font-size: 16px;">Dear ${requestRow.userName || 'Valued Customer'},</p>
+              <p style="color: #374151;">Your CAC registration for <strong>${requestRow.businessName || 'your business'}</strong> has been completed successfully.</p>
+              <div style="background: #dcfce7; border: 1px solid #86efac; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                <p style="margin: 0; color: #15803d; font-weight: bold;">✓ Registration Number: ${cacRegistrationNumber || 'N/A'}</p>
+                <p style="margin: 8px 0 0; color: #15803d;">Service Type: ${requestRow.serviceType || 'N/A'}</p>
+                ${certificateUrl ? `<p style="margin: 8px 0 0;"><a href="${certificateUrl}" style="color: #1d4ed8;">Download Certificate</a></p>` : ''}
+              </div>
+              <p style="color: #6b7280; font-size: 14px;">Log in to your Arapoint dashboard to view your registration documents.</p>
+              <p style="color: #6b7280; font-size: 13px; margin-top: 24px;">Thank you for choosing Arapoint!</p>
+            </div>
+          </div>
+          `,
+        ).catch(err => logger.error('CAC completion email failed', { error: err.message }));
+      }
     }
 
     if (status === CAC_STATUS.REJECTED) {

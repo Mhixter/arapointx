@@ -1,0 +1,158 @@
+import { Router, Request, Response } from 'express';
+import { authMiddleware } from '../middleware/auth';
+import { logger } from '../../utils/logger';
+import { formatResponse, formatErrorResponse } from '../../utils/helpers';
+import { db } from '../../config/database';
+import { sharedFiles } from '../../db/schema';
+import { eq, and, or, desc } from 'drizzle-orm';
+import { objectStorageService, ObjectNotFoundError } from '../../services/objectStorage';
+import multer from 'multer';
+
+const router = Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+
+// POST /api/files/upload — upload a file to object storage and record it in the DB
+router.post('/upload', authMiddleware, upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json(formatErrorResponse(400, 'No file provided'));
+    }
+
+    const { relatedRequestId, relatedRequestType, description, accessibleTo } = req.body;
+    const { originalname, mimetype, size, buffer } = req.file;
+
+    const ext = originalname.includes('.') ? `.${originalname.split('.').pop()}` : '';
+    const prefix = `shared/${relatedRequestType || 'general'}`;
+
+    const fileKey = await objectStorageService.uploadBuffer(buffer, mimetype, prefix, ext);
+
+    if (!fileKey) {
+      return res.status(503).json(formatErrorResponse(503, 'Object storage is not configured. Please contact admin.'));
+    }
+
+    const [inserted] = await db.insert(sharedFiles).values({
+      uploadedByUserId: req.userId!,
+      uploaderRole: 'user',
+      fileKey,
+      fileName: originalname,
+      mimeType: mimetype,
+      fileSize: size,
+      relatedRequestId: relatedRequestId || null,
+      relatedRequestType: relatedRequestType || null,
+      accessibleTo: accessibleTo || 'all',
+      description: description || null,
+    }).returning();
+
+    logger.info('File uploaded', { fileId: inserted.id, userId: req.userId, fileKey });
+    res.status(201).json(formatResponse('success', 201, 'File uploaded successfully', {
+      fileId: inserted.id,
+      fileKey,
+      fileName: originalname,
+    }));
+  } catch (error: any) {
+    logger.error('File upload error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'File upload failed'));
+  }
+});
+
+// GET /api/files — list files accessible to the requesting user
+router.get('/', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { relatedRequestId, relatedRequestType } = req.query;
+
+    let query = db.select().from(sharedFiles)
+      .where(
+        and(
+          eq(sharedFiles.isDeleted, false),
+          or(
+            eq(sharedFiles.uploadedByUserId, req.userId!),
+            eq(sharedFiles.accessibleTo, 'all'),
+            eq(sharedFiles.accessibleTo, 'user'),
+          )
+        )
+      )
+      .orderBy(desc(sharedFiles.createdAt))
+      .limit(50);
+
+    const files = await query;
+
+    const filtered = files.filter(f => {
+      if (relatedRequestId && f.relatedRequestId !== relatedRequestId) return false;
+      if (relatedRequestType && f.relatedRequestType !== relatedRequestType) return false;
+      return true;
+    });
+
+    res.json(formatResponse('success', 200, 'Files retrieved', { files: filtered }));
+  } catch (error: any) {
+    logger.error('List files error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to list files'));
+  }
+});
+
+// GET /api/files/:id/download — stream a file from object storage
+router.get('/:id/download', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const [file] = await db.select().from(sharedFiles)
+      .where(and(eq(sharedFiles.id, id), eq(sharedFiles.isDeleted, false)))
+      .limit(1);
+
+    if (!file) {
+      return res.status(404).json(formatErrorResponse(404, 'File not found'));
+    }
+
+    const isOwner = file.uploadedByUserId === req.userId;
+    const isAccessible = file.accessibleTo === 'all' || file.accessibleTo === 'user';
+
+    if (!isOwner && !isAccessible) {
+      return res.status(403).json(formatErrorResponse(403, 'Access denied'));
+    }
+
+    const objectFile = await objectStorageService.getObjectEntityFile(file.fileKey);
+    const stream = objectFile.createReadStream();
+
+    res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
+    res.setHeader('Content-Type', file.mimeType);
+
+    stream.on('error', (err) => {
+      logger.error('File download stream error', { error: err.message });
+      if (!res.headersSent) res.status(500).json(formatErrorResponse(500, 'Download failed'));
+    });
+
+    stream.pipe(res);
+  } catch (error: any) {
+    if (error instanceof ObjectNotFoundError) {
+      return res.status(404).json(formatErrorResponse(404, 'File not found in storage'));
+    }
+    logger.error('File download error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to download file'));
+  }
+});
+
+// DELETE /api/files/:id — soft-delete a file
+router.delete('/:id', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const [file] = await db.select().from(sharedFiles)
+      .where(and(eq(sharedFiles.id, id), eq(sharedFiles.isDeleted, false)))
+      .limit(1);
+
+    if (!file) {
+      return res.status(404).json(formatErrorResponse(404, 'File not found'));
+    }
+
+    if (file.uploadedByUserId !== req.userId) {
+      return res.status(403).json(formatErrorResponse(403, 'Access denied'));
+    }
+
+    await db.update(sharedFiles).set({ isDeleted: true }).where(eq(sharedFiles.id, id));
+    res.json(formatResponse('success', 200, 'File deleted'));
+  } catch (error: any) {
+    logger.error('Delete file error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to delete file'));
+  }
+});
+
+export default router;

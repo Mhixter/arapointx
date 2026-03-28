@@ -914,6 +914,36 @@ export const aiKnowledgeBase = pgTable('ai_knowledge_base', {
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
+// Admin Notifications - Banner alerts shown on the admin dashboard
+export const adminNotifications = pgTable('admin_notifications', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  type: varchar('type', { length: 50 }).notNull(), // bvn_modification, cac_request, etc.
+  title: varchar('title', { length: 255 }).notNull(),
+  message: text('message').notNull(),
+  requestId: varchar('request_id', { length: 100 }),
+  userId: uuid('user_id').references(() => users.id),
+  isRead: boolean('is_read').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Shared Files - Files uploaded by agents/users and shared between them
+export const sharedFiles = pgTable('shared_files', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  uploadedByUserId: uuid('uploaded_by_user_id').references(() => users.id),
+  uploadedByAgentId: uuid('uploaded_by_agent_id'),
+  uploaderRole: varchar('uploader_role', { length: 20 }).notNull(), // 'user' | 'agent' | 'admin'
+  fileKey: varchar('file_key', { length: 500 }).notNull(), // object storage path /objects/...
+  fileName: varchar('file_name', { length: 255 }).notNull(),
+  mimeType: varchar('mime_type', { length: 100 }).notNull(),
+  fileSize: integer('file_size'),
+  relatedRequestId: varchar('related_request_id', { length: 100 }),
+  relatedRequestType: varchar('related_request_type', { length: 50 }), // 'bvn', 'cac', 'identity', etc.
+  accessibleTo: varchar('accessible_to', { length: 20 }).default('all'), // 'user' | 'agent' | 'all'
+  description: text('description'),
+  isDeleted: boolean('is_deleted').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 // AI Unresolved Queries - Queries the AI couldn't answer; agents review and teach the AI
 export const aiUnresolvedQueries = pgTable('ai_unresolved_queries', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
