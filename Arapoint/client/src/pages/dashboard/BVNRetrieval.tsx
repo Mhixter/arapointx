@@ -27,7 +27,13 @@ import {
   Heart,
   Flag,
   AlertTriangle,
+  Eye,
+  ArrowRight,
+  Clock,
+  Hash,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -65,6 +71,7 @@ export default function BVNRetrieval() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [modificationHistory, setModificationHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState<any | null>(null);
 
   const getAuthToken = () => tokenStorage.getItem('accessToken');
 
@@ -391,15 +398,31 @@ export default function BVNRetrieval() {
                 ) : (
                   <div className="space-y-3">
                     {modificationHistory.map((request) => (
-                      <div key={request.id} className="flex items-center justify-between p-4 rounded-xl border bg-muted/20">
-                        <div className="space-y-0.5">
+                      <button
+                        key={request.id}
+                        onClick={() => setSelectedHistoryItem(request)}
+                        className="w-full text-left flex items-center justify-between p-4 rounded-xl border bg-muted/20 hover:bg-muted/40 hover:border-violet-300 dark:hover:border-violet-700 transition-all group"
+                      >
+                        <div className="space-y-1">
                           <p className="font-medium font-mono text-sm">BVN: {request.bvn?.substring(0, 4)}****{request.bvn?.substring(8)}</p>
-                          <p className="text-xs text-muted-foreground">{new Date(request.createdAt).toLocaleDateString('en-NG', { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(request.createdAt).toLocaleDateString('en-NG', { year: 'numeric', month: 'short', day: 'numeric' })}
+                            </p>
+                            {request.responseData?.changeCategory && (
+                              <span className="text-xs text-violet-600 dark:text-violet-400 font-medium">
+                                · {request.responseData.changeCategory === 'name' ? 'Name Change' : 'Date of Birth Change'}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${request.status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : request.status === 'pending' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'}`}>
-                          {request.status?.charAt(0).toUpperCase() + request.status?.slice(1)}
-                        </span>
-                      </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${request.status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' : request.status === 'pending' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400' : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'}`}>
+                            {request.status?.charAt(0).toUpperCase() + request.status?.slice(1)}
+                          </span>
+                          <Eye className="h-4 w-4 text-muted-foreground group-hover:text-violet-600 transition-colors" />
+                        </div>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -407,6 +430,147 @@ export default function BVNRetrieval() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* ── Request Detail Dialog ── */}
+        <Dialog open={!!selectedHistoryItem} onOpenChange={(open) => { if (!open) setSelectedHistoryItem(null); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FilePenLine className="h-5 w-5 text-violet-600" />
+                BVN Modification Request
+              </DialogTitle>
+            </DialogHeader>
+
+            {selectedHistoryItem && (
+              <div className="space-y-4 py-1">
+                {/* Status banner */}
+                <div className={`flex items-center justify-between p-3 rounded-xl border ${
+                  selectedHistoryItem.status === 'completed'
+                    ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                    : selectedHistoryItem.status === 'rejected'
+                    ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+                    : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <Clock className={`h-4 w-4 ${
+                      selectedHistoryItem.status === 'completed' ? 'text-green-600' :
+                      selectedHistoryItem.status === 'rejected' ? 'text-red-600' : 'text-yellow-600'
+                    }`} />
+                    <span className="text-sm font-medium">
+                      {selectedHistoryItem.status === 'pending' && 'Under Review — 3–5 business days'}
+                      {selectedHistoryItem.status === 'completed' && 'Modification Completed'}
+                      {selectedHistoryItem.status === 'rejected' && 'Request Rejected'}
+                    </span>
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                    selectedHistoryItem.status === 'completed' ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400' :
+                    selectedHistoryItem.status === 'rejected' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' :
+                    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400'
+                  }`}>
+                    {selectedHistoryItem.status?.charAt(0).toUpperCase() + selectedHistoryItem.status?.slice(1)}
+                  </span>
+                </div>
+
+                {/* BVN & Reference */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-lg bg-muted/40 border space-y-0.5">
+                    <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                      <CreditCard className="h-3 w-3" /> BVN
+                    </p>
+                    <p className="font-mono font-bold text-sm">
+                      {selectedHistoryItem.bvn?.substring(0, 4)}****{selectedHistoryItem.bvn?.substring(8)}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/40 border space-y-0.5">
+                    <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                      <Hash className="h-3 w-3" /> Reference
+                    </p>
+                    <p className="font-mono text-xs font-semibold break-all">
+                      {selectedHistoryItem.requestId || selectedHistoryItem.id?.slice(0, 12) + '...'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Change details */}
+                {selectedHistoryItem.responseData && (
+                  <div className="rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/20 overflow-hidden">
+                    <div className="px-4 py-2.5 border-b border-violet-200 dark:border-violet-800">
+                      <p className="text-xs font-bold text-violet-700 dark:text-violet-300 uppercase tracking-wider">Modification Details</p>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Type of Change</span>
+                        <span className="text-sm font-semibold capitalize">
+                          {selectedHistoryItem.responseData.changeCategory === 'name' ? 'Change of Name' :
+                           selectedHistoryItem.responseData.changeCategory === 'dob' ? 'Change of Date of Birth' :
+                           selectedHistoryItem.responseData.changeCategory || '—'}
+                        </span>
+                      </div>
+                      {selectedHistoryItem.responseData.oldValue && (
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-xs text-muted-foreground pt-0.5">Current Value</span>
+                          <span className="text-sm font-mono font-medium text-red-600 dark:text-red-400 text-right">
+                            {selectedHistoryItem.responseData.oldValue}
+                          </span>
+                        </div>
+                      )}
+                      {selectedHistoryItem.responseData.oldValue && selectedHistoryItem.responseData.newValue && (
+                        <div className="flex justify-center">
+                          <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      )}
+                      {selectedHistoryItem.responseData.newValue && (
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-xs text-muted-foreground pt-0.5">Requested New Value</span>
+                          <span className="text-sm font-mono font-medium text-green-700 dark:text-green-400 text-right">
+                            {selectedHistoryItem.responseData.newValue}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Extra info */}
+                <div className="space-y-2 text-sm">
+                  {selectedHistoryItem.phone && (
+                    <div className="flex items-center justify-between py-1.5 border-b">
+                      <span className="text-muted-foreground flex items-center gap-1.5">
+                        <Phone className="h-3.5 w-3.5" /> Phone
+                      </span>
+                      <span className="font-medium">{selectedHistoryItem.phone}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between py-1.5 border-b">
+                    <span className="text-muted-foreground flex items-center gap-1.5">
+                      <Calendar className="h-3.5 w-3.5" /> Date Submitted
+                    </span>
+                    <span className="font-medium">
+                      {new Date(selectedHistoryItem.createdAt).toLocaleDateString('en-NG', { year: 'numeric', month: 'short', day: 'numeric' })}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-1.5">
+                    <span className="text-muted-foreground">Amount Paid</span>
+                    <span className="font-bold text-primary">₦2,500</span>
+                  </div>
+                </div>
+
+                {selectedHistoryItem.status === 'pending' && (
+                  <div className="flex items-start gap-2.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-xs text-blue-700 dark:text-blue-300">
+                    <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                    <p>Your request is being processed by our identity agents. You will be notified via email and SMS once completed.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setSelectedHistoryItem(null)} className="w-full">
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
           <AlertDialogContent>
