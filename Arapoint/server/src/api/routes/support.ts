@@ -17,7 +17,7 @@ import {
   educationServiceRequests,
   cacRegistrationRequests,
 } from '../../db/schema';
-import { eq, and, desc, gt, or, sql, count, asc, ilike } from 'drizzle-orm';
+import { eq, and, desc, gt, or, sql, count, asc, ilike, lt } from 'drizzle-orm';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { logger } from '../../utils/logger';
 import { fraudService } from '../../services/fraudService';
@@ -245,6 +245,17 @@ router.post('/tickets', async (req: Request, res: Response) => {
 router.get('/tickets/active', async (req: Request, res: Response) => {
   try {
     const userId = req.userId!;
+    const now = new Date();
+    const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
+
+    // Auto-close tickets inactive for more than 10 minutes
+    await db.update(supportTickets)
+      .set({ status: 'closed', updatedAt: now })
+      .where(and(
+        eq(supportTickets.userId, userId),
+        sql`${supportTickets.status} NOT IN ('closed', 'resolved')`,
+        lt(supportTickets.lastActivityAt, tenMinutesAgo)
+      ));
 
     const activeTickets = await db.select({
       id: supportTickets.id,

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2, Search, CheckCircle2, Download, Printer, Clock, FileText, AlertCircle, AlertTriangle, Eye, ShieldCheck, Zap } from "lucide-react";
+import { ArrowLeft, Loader2, Search, CheckCircle2, Download, Clock, FileText, AlertCircle, AlertTriangle, Eye, ShieldCheck, Zap } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SERVICES } from "../IdentityVerification";
 import { useState, useRef, useEffect, useMemo } from "react";
@@ -70,6 +70,24 @@ function StepBadge({ n }: { n: number }) {
 }
 
 function SlipCard({ slip, selected, onClick }: { slip: any; selected: boolean; onClick: () => void }) {
+  if (slip.maintenance) {
+    return (
+      <div className="relative rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 p-3 opacity-70 cursor-not-allowed select-none">
+        <div className="text-center mb-2">
+          <span className="text-sm font-bold text-gray-400">₦{Number(slip.price).toFixed(2)}</span>
+        </div>
+        <div className="aspect-[3/2] bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden mb-2 relative">
+          <img src={slip.image} alt={slip.name} className="w-full h-full object-cover grayscale" />
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+            <div className="text-center">
+              <span className="text-[10px] font-bold text-yellow-300 bg-yellow-900/70 px-2 py-0.5 rounded-full whitespace-nowrap">🔧 Maintenance</span>
+            </div>
+          </div>
+        </div>
+        <p className="text-xs text-center font-semibold text-gray-400">{slip.name}</p>
+      </div>
+    );
+  }
   return (
     <div
       onClick={onClick}
@@ -227,7 +245,7 @@ function ServiceContent({ service }: { service: any }) {
   const SLIP_TYPES = useMemo(() => {
     const pricing = pricingData;
     return [
-      { id: "information", name: "Information Slip", price: pricing?.information || 200, image: slipInfo },
+      { id: "information", name: "Full Information Slip", price: pricing?.information || 200, image: slipInfo, maintenance: true },
       { id: "regular",     name: "Regular Slip",     price: pricing?.regular     || 250, image: slipRegular },
       { id: "standard",    name: "Standard Slip",    price: pricing?.standard    || 300, image: slipStandard },
       { id: "premium",     name: "Premium Slip",     price: pricing?.premium     || 300, image: slipPremium },
@@ -356,16 +374,6 @@ function ServiceContent({ service }: { service: any }) {
     }
   };
 
-  const handlePrintSlip = () => {
-    if (!slipHtml) return;
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(slipHtml);
-      printWindow.document.close(); printWindow.focus();
-      setTimeout(() => printWindow.print(), 500);
-    }
-  };
-
   /* ── Status screens ─────────────────────────────────────────────── */
   if (requestStatus === "pending") {
     return (
@@ -468,7 +476,7 @@ function ServiceContent({ service }: { service: any }) {
         </Card>
 
         {result && (
-          <ResultSection result={result} slipHtml={slipHtml} onDownload={handleDownloadSlip} onPrint={handlePrintSlip} slipContainerRef={slipContainerRef} />
+          <ResultSection result={result} slipHtml={slipHtml} onDownload={handleDownloadSlip} slipContainerRef={slipContainerRef} />
         )}
       </div>
     );
@@ -527,7 +535,7 @@ function ServiceContent({ service }: { service: any }) {
         </Card>
 
         {result && (
-          <ResultSection result={result} slipHtml={slipHtml} onDownload={handleDownloadSlip} onPrint={handlePrintSlip} slipContainerRef={slipContainerRef} />
+          <ResultSection result={result} slipHtml={slipHtml} onDownload={handleDownloadSlip} slipContainerRef={slipContainerRef} />
         )}
       </div>
     );
@@ -588,7 +596,7 @@ function ServiceContent({ service }: { service: any }) {
         </Card>
 
         {result && (
-          <ResultSection result={result} slipHtml={slipHtml} onDownload={handleDownloadSlip} onPrint={handlePrintSlip} slipContainerRef={slipContainerRef} />
+          <ResultSection result={result} slipHtml={slipHtml} onDownload={handleDownloadSlip} slipContainerRef={slipContainerRef} />
         )}
       </div>
     );
@@ -1156,7 +1164,7 @@ function VerificationsHistory() {
 }
 
 /* ── Result Section ─────────────────────────────────────────────────── */
-function ResultSection({ result, slipHtml, onDownload, onPrint, slipContainerRef }: any) {
+function ResultSection({ result, slipHtml, onDownload, slipContainerRef }: any) {
   const fullName = `${result.lastName || ''} ${result.firstName || ''} ${result.middleName || ''}`.trim();
 
   return (
@@ -1209,9 +1217,6 @@ function ResultSection({ result, slipHtml, onDownload, onPrint, slipContainerRef
         <div className="flex gap-3 justify-center">
           <Button onClick={onDownload} size="lg" className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-md">
             <Download className="mr-2 h-5 w-5" /> Download NIN Slip
-          </Button>
-          <Button onClick={onPrint} size="lg" variant="outline">
-            <Printer className="mr-2 h-5 w-5" /> Print
           </Button>
         </div>
       )}
