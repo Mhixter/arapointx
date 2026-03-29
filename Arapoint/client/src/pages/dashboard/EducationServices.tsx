@@ -132,6 +132,7 @@ export default function EducationServices() {
   const [pinStock, setPinStock] = useState<Record<string, { available: boolean; price: number }>>({});
   const [purchasedPin, setPurchasedPin] = useState<any>(null);
   const [pinLoading, setPinLoading] = useState(false);
+  const [livePrices, setLivePrices] = useState<Record<string, number>>({});
   
   const [waecYear, setWaecYear] = useState(new Date().getFullYear().toString());
   const [waecType, setWaecType] = useState('WASSCE');
@@ -245,9 +246,48 @@ export default function EducationServices() {
     }
   };
 
+  // Fetch live prices from admin pricing settings
+  const fetchLivePrices = async () => {
+    try {
+      const [educationRes, jambRes] = await Promise.all([
+        fetch('/api/pricing/category/education'),
+        fetch('/api/education/jamb-service-prices'),
+      ]);
+      const prices: Record<string, number> = {};
+      // Map education result check pricing: server key → frontend service id
+      const eduKeyMap: Record<string, string> = {
+        jamb: 'jamb-result',
+        waec: 'waec-result',
+        neco: 'neco-result',
+        nabteb: 'nabteb-result',
+        nbais: 'nbais-result',
+      };
+      if (educationRes.ok) {
+        const eduData = await educationRes.json();
+        const pricing: { serviceType: string; price: number }[] = eduData.data?.pricing || [];
+        pricing.forEach((p) => {
+          const frontendId = eduKeyMap[p.serviceType];
+          if (frontendId) prices[frontendId] = p.price;
+        });
+      }
+      // JAMB sub-service prices: keys match the frontend service ids directly
+      if (jambRes.ok) {
+        const jambData = await jambRes.json();
+        const jambPrices: Record<string, number> = jambData.data?.prices || {};
+        Object.entries(jambPrices).forEach(([key, val]) => {
+          prices[key] = val as number;
+        });
+      }
+      setLivePrices(prices);
+    } catch {
+      // silently fall back to hardcoded defaults
+    }
+  };
+
   // Load PIN stock on mount
   useEffect(() => {
     fetchPinStock();
+    fetchLivePrices();
   }, []);
 
   const pollJobStatus = async (jobId: string, maxAttempts = 60): Promise<any> => {
@@ -836,7 +876,7 @@ export default function EducationServices() {
                 <div>
                   <div className="flex items-center justify-center gap-2">
                     <h3 className="font-bold text-lg">{service.name}</h3>
-                    {service.price && <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">₦{service.price.toLocaleString()}</span>}
+                    {(livePrices[service.id] ?? service.price) ? <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">₦{(livePrices[service.id] ?? service.price).toLocaleString()}</span> : null}
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">{service.desc}</p>
                 </div>
@@ -920,8 +960,8 @@ export default function EducationServices() {
                   <h3 className="font-bold text-lg">{service.name}</h3>
                   <p className="text-sm text-muted-foreground mt-1">{service.desc}</p>
                 </div>
-                {service.price > 0 && (
-                  <p className="text-sm font-semibold text-primary">₦{service.price.toLocaleString()}</p>
+                {(livePrices[service.id] ?? service.price) > 0 && (
+                  <p className="text-sm font-semibold text-primary">₦{(livePrices[service.id] ?? service.price).toLocaleString()}</p>
                 )}
               </CardContent>
             </Card>
@@ -1093,10 +1133,10 @@ export default function EducationServices() {
                   <p className="text-xs font-semibold text-muted-foreground uppercase">Service</p>
                   <p className="text-lg font-medium text-foreground mt-1">{service?.name}</p>
                 </div>
-                {service?.price !== undefined && service?.price > 0 && (
+                {((livePrices[service?.id ?? ''] ?? service?.price) ?? 0) > 0 && (
                   <div className="border-t pt-4">
                     <p className="text-xs font-semibold text-muted-foreground uppercase">Amount</p>
-                    <p className="text-lg font-bold text-primary mt-1">₦{service.price.toLocaleString()}</p>
+                    <p className="text-lg font-bold text-primary mt-1">₦{(livePrices[service?.id ?? ''] ?? service?.price ?? 0).toLocaleString()}</p>
                   </div>
                 )}
               </div>
