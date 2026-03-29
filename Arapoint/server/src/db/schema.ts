@@ -498,6 +498,8 @@ export const identityServiceRequests = pgTable('identity_service_requests', {
   // Result
   slipUrl: varchar('slip_url', { length: 500 }), // For completed IPE/Personalization
   resolvedTrackingId: varchar('resolved_tracking_id', { length: 100 }), // New NIMC tracking ID issued after IPE clearance (filled by agent)
+  validatedFullName: varchar('validated_full_name', { length: 200 }), // Full name from NIMC for NIN validation (filled by agent)
+  validatedDateOfBirth: varchar('validated_date_of_birth', { length: 50 }), // Date of birth from NIMC for NIN validation (filled by agent)
   resultData: jsonb('result_data'), // Any additional result data
   customerNotes: text('customer_notes'),
   agentNotes: text('agent_notes'),

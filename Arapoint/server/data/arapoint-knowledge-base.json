@@ -1711,6 +1711,322 @@
       ],
       "answer": "The fastest ways to get Arapoint support:\n\n1. **Type 'agent'** in this chat — instantly connects you to a live agent (8am–8pm WAT, Mon–Sat)\n2. **Submit an 'Urgent' ticket** — tagged for priority review\n3. **Provide your transaction reference upfront** — agents can resolve issues much faster when you have this ready\n\nFor best results, always have your transaction reference, account email, and a clear description of the issue ready before contacting support.",
       "tags": ["support", "fast", "quick", "urgent", "help", "agent"]
+    },
+
+    {
+      "id": "identity-001",
+      "category": "identity_services",
+      "question": "What are Arapoint's identity agent services?",
+      "variations": [
+        "identity agent services", "manual identity services", "what is identity agent",
+        "arapoint identity services", "identity services arapoint", "what identity services do you offer",
+        "nin services arapoint", "manual nin services", "identity processing", "ipe clearance arapoint",
+        "nin validation arapoint", "nin personalization arapoint", "identity service list"
+      ],
+      "answer": "Arapoint offers three Manual Identity Services processed by our trained identity agents:\n\n1. **NIN Validation** — Resolve issues with your NIN record such as 'No Record Found', photograph errors, duplicate NIN, date of birth correction, name correction, or gender correction.\n\n2. **IPE Clearance** — Clear IPE (Identity Process Error) issues on your NIN. After clearance, you receive a new NIMC Tracking ID that replaces your old one.\n\n3. **NIN Personalization** — Update personal details on your NIN record (address, phone, etc.).\n\nAll services are paid upfront from your wallet, processed manually by our agents, and you'll receive email notification when your request is completed.",
+      "tags": ["identity", "nin", "ipe", "validation", "personalization", "agent", "manual"]
+    },
+
+    {
+      "id": "identity-002",
+      "category": "identity_services",
+      "question": "What is IPE Clearance?",
+      "variations": [
+        "what is ipe", "ipe clearance meaning", "ipe clearance explained", "what does ipe mean",
+        "ipe error nin", "ipe on my nin", "what is ipe clearance", "ipe clearance service",
+        "ipe nin clearance", "how to clear ipe", "ipe clearance process", "ipe clearance fee",
+        "how long does ipe clearance take", "ipe clearance tracking id", "ipe old tracking id new tracking id",
+        "my nin has ipe error", "clear ipe error", "identity process error"
+      ],
+      "answer": "**IPE (Identity Process Error)** is an error that can appear on your NIN record at NIMC, usually indicating a problem with your enrollment or identity record that needs to be resolved manually.\n\n**How Arapoint's IPE Clearance works:**\n1. Submit your request on the Identity Agent Services page — provide your 11-digit NIN and your current NIMC Tracking ID\n2. The fee is deducted from your wallet\n3. Our identity agent picks up your request and works with NIMC to clear the IPE\n4. Once cleared, your **old Tracking ID is replaced with a new NIMC Tracking ID**\n5. You receive an email notification and the new Tracking ID appears on your dashboard under 'My Requests'\n\nYou can view your new tracking ID by going to **Identity Services → My Requests → View** on any completed IPE clearance request.",
+      "tags": ["ipe", "clearance", "tracking id", "nimc", "nin", "error", "identity"]
+    },
+
+    {
+      "id": "identity-003",
+      "category": "identity_services",
+      "question": "What is NIN Validation?",
+      "variations": [
+        "nin validation meaning", "what is nin validation", "nin validation service",
+        "validate my nin", "nin record issue", "no record found nin", "nin not showing",
+        "nin photograph error", "update nin record", "nin date of birth correction",
+        "nin name correction", "nin gender correction", "duplicate nin", "fix nin problem",
+        "nin issue arapoint", "nin validation process", "how does nin validation work",
+        "nin validation result", "what happens after nin validation"
+      ],
+      "answer": "**NIN Validation** is a manual service where our identity agents resolve specific issues on your NIN record at NIMC.\n\n**Issues we can resolve:**\n• No Record Found\n• Photograph Error\n• Update Record\n• Date of Birth Correction\n• Name Correction\n• Gender Correction\n• Duplicate NIN\n• Other Issues\n\n**How it works:**\n1. Go to **Identity Services → Manual Identity Services**\n2. Select **NIN Validation** and choose your specific issue type\n3. Enter your 11-digit NIN and submit — fee is deducted from your wallet\n4. Our agent processes your request with NIMC\n5. When complete, you receive an email notification and can view the **validated full name and date of birth** from your NIN record on your dashboard under 'My Requests'\n\nThe validated name and date of birth are the exact details as recorded at NIMC for your NIN.",
+      "tags": ["nin", "validation", "record", "photograph", "date of birth", "name correction", "duplicate", "identity"]
+    },
+
+    {
+      "id": "identity-004",
+      "category": "identity_services",
+      "question": "How do I track my identity service request?",
+      "variations": [
+        "track identity request", "check my identity request", "my identity request status",
+        "identity request tracking", "where is my nin request", "nin request status",
+        "ipe request status", "check ipe request", "identity request pending",
+        "how to check identity service status", "my request status identity",
+        "track my request arapoint", "how to see my submitted request",
+        "view my identity request", "identity service tracking id", "ISR tracking"
+      ],
+      "answer": "To track your identity service request:\n\n1. Go to **Dashboard → Identity Services → Manual Identity Services**\n2. Click the **'My Requests'** tab\n3. You'll see all your requests with their tracking IDs (format: ISR-XXXXXX) and status:\n   - **Pending** — Waiting to be picked up by an agent\n   - **In Progress** — An agent has picked up your request and is processing it\n   - **Completed** — Your request has been resolved\n4. Click the **eye icon** (View) on any request to see full details including:\n   - Exactly what information you submitted (NIN, issue type, tracking ID, notes)\n   - Agent feedback and notes\n   - For IPE: your new NIMC Tracking ID\n   - For Validation: your validated full name and date of birth from NIMC\n   - Download link for any result documents\n\nYou also receive an **email notification** once your request is marked completed.",
+      "tags": ["track", "status", "identity", "request", "ISR", "pending", "progress", "completed"]
+    },
+
+    {
+      "id": "identity-005",
+      "category": "identity_services",
+      "question": "How long does identity agent service take?",
+      "variations": [
+        "how long identity service", "identity request processing time", "how long nin validation takes",
+        "how long ipe clearance takes", "identity service duration", "when will my request be done",
+        "processing time identity agent", "how long to complete identity service",
+        "identity agent turnaround time", "nin validation how many days"
+      ],
+      "answer": "Processing times for Arapoint identity agent services vary depending on NIMC response times and request volume:\n\n• **NIN Validation** — Typically 1–3 working days\n• **IPE Clearance** — Typically 2–5 working days (depends on NIMC backend processing)\n• **NIN Personalization** — Typically 2–5 working days\n\nYou can check the current status of your request anytime under **Identity Services → My Requests**. You'll also receive an **email notification** as soon as your request is completed.\n\nIf your request has been pending for more than 5 working days, please contact our support team.",
+      "tags": ["time", "duration", "processing", "how long", "identity", "days", "turnaround"]
+    },
+
+    {
+      "id": "identity-006",
+      "category": "identity_services",
+      "question": "What is NIN Personalization?",
+      "variations": [
+        "nin personalization", "personalize my nin", "update nin details", "change nin information",
+        "nin personalization service", "update my nin record", "change details on nin",
+        "nin address update", "nin phone number update", "personalization service arapoint"
+      ],
+      "answer": "**NIN Personalization** allows you to update personal details on your NIN record through our identity agents.\n\n**Details you can update:**\n• Address\n• Phone number\n• Other personal information\n\n**How to request:**\n1. Go to **Identity Services → Manual Identity Services**\n2. Select **NIN Personalization**\n3. Enter your 11-digit NIN\n4. In the 'Fields to Update' box, list what you want to change (e.g. 'Address: No. 12 Adeola Street, Lagos')\n5. Submit — fee is deducted from your wallet\n\nOur agents will process the update with NIMC and notify you by email when done.",
+      "tags": ["personalization", "nin", "update", "address", "phone", "details", "change"]
+    },
+
+    {
+      "id": "identity-007",
+      "category": "identity_services",
+      "question": "Why did my identity request get a new tracking ID?",
+      "variations": [
+        "new tracking id ipe", "why new tracking id", "my tracking id changed", "nimc new tracking id",
+        "ipe clearance new tracking id", "resolved tracking id", "old tracking id replaced",
+        "what is resolved tracking id", "new nimc tracking id after ipe", "tracking id after clearance"
+      ],
+      "answer": "When your **IPE Clearance** request is completed, NIMC replaces your old tracking ID with a **new NIMC Tracking ID**.\n\nThis is normal and expected — it means the IPE (Identity Process Error) on your NIN has been successfully cleared and NIMC has issued a fresh tracking reference for your record.\n\n**To find your new tracking ID:**\n1. Go to **Identity Services → My Requests**\n2. Find your IPE Clearance request (status: Completed)\n3. Click the **View (eye icon)** button\n4. Your new NIMC Tracking ID is displayed prominently in the completed section\n5. You also received it in your completion email\n\nKeep your new tracking ID safe — it is now the reference for your NIN record at NIMC.",
+      "tags": ["tracking id", "ipe", "new tracking id", "resolved", "nimc", "clearance", "changed"]
+    },
+
+    {
+      "id": "identity-008",
+      "category": "identity_services",
+      "question": "What validated name and date of birth means on my NIN validation result?",
+      "variations": [
+        "validated name nin", "validated date of birth nin", "what is validated full name",
+        "nin validation result name", "nin validation result dob", "name on nimc record",
+        "date of birth on nimc", "what does validated mean", "nin record name",
+        "nin record date of birth", "full name from nimc", "dob from nimc validation"
+      ],
+      "answer": "When your **NIN Validation** request is completed by our agent, we retrieve and display:\n\n• **Full Name on Record** — Your full name exactly as it appears in the NIMC database for the NIN you submitted\n• **Date of Birth on Record** — Your date of birth exactly as registered at NIMC\n\nThese details are provided so you can verify that your NIN record is accurate. If the name or date of birth shown does not match what you expected, please contact our support team.\n\n**To view these details:**\n1. Go to **Identity Services → My Requests**\n2. Find your NIN Validation request (status: Completed)\n3. Click **View** — the validated name and date of birth appear in the completed section",
+      "tags": ["validated name", "validated dob", "nin validation", "full name", "date of birth", "nimc record", "result"]
+    },
+
+    {
+      "id": "identity-009",
+      "category": "identity_services",
+      "question": "Can I get a refund if my identity request fails?",
+      "variations": [
+        "identity service refund", "refund nin validation", "refund ipe clearance",
+        "my nin request failed refund", "identity agent refund policy", "refund identity service arapoint",
+        "failed identity request refund"
+      ],
+      "answer": "If your identity service request cannot be completed due to reasons on our end, please contact our support team with your tracking ID (ISR-XXXXXX) and we will review your case.\n\nRefund eligibility depends on the situation — our team will assess whether NIMC processing was initiated or not.\n\nTo raise a refund request:\n1. Type **'agent'** in this chat to reach our support team\n2. Provide your ISR tracking ID and explain the issue\n3. Our team will investigate and respond within 24–48 hours",
+      "tags": ["refund", "identity", "failed", "request", "nin", "ipe", "refund policy"]
+    },
+
+    {
+      "id": "wallet-001",
+      "category": "wallet",
+      "question": "How do I fund my Arapoint wallet?",
+      "variations": [
+        "how to fund wallet", "top up wallet", "add money to wallet", "fund my account arapoint",
+        "how to add funds arapoint", "wallet top up arapoint", "fund arapoint wallet",
+        "deposit money arapoint", "add balance arapoint", "how to deposit on arapoint",
+        "arapoint wallet funding", "how do i fund arapoint", "top up arapoint account"
+      ],
+      "answer": "To fund your Arapoint wallet:\n\n1. Go to your **Dashboard → Wallet**\n2. Click **'Fund Wallet'** or **'Add Funds'**\n3. Enter the amount you want to add\n4. Complete payment via bank transfer, card, or USSD (powered by Paystack/Flutterwave)\n5. Your wallet balance is updated instantly after successful payment\n\n**Minimum top-up:** ₦100\n\nIf your wallet was debited but balance was not updated, wait 5 minutes and refresh. If it's still not reflecting, contact support with your payment reference.",
+      "tags": ["wallet", "fund", "top up", "deposit", "balance", "add money"]
+    },
+
+    {
+      "id": "wallet-002",
+      "category": "wallet",
+      "question": "Why was money deducted from my wallet for an identity service?",
+      "variations": [
+        "why deducted wallet identity", "wallet debited identity service", "money removed for identity",
+        "identity service payment wallet", "wallet charged identity", "fee deducted wallet",
+        "why was my wallet charged", "identity service cost wallet", "service fee wallet deducted"
+      ],
+      "answer": "When you submit an identity agent service request (NIN Validation, IPE Clearance, or NIN Personalization), the service fee is **automatically deducted from your Arapoint wallet** at the time of submission.\n\nThis is because our agents begin working on your request immediately after submission, and the fee covers:\n• Agent processing time and effort\n• NIMC portal access and processing fees\n• Administrative costs\n\nThe fee amount is always shown on the service selection screen before you submit. If you believe you were charged incorrectly, contact support with your ISR tracking ID.",
+      "tags": ["wallet", "deducted", "fee", "identity", "charged", "payment", "service"]
+    },
+
+    {
+      "id": "nin-auto-001",
+      "category": "nin",
+      "question": "What is the difference between NIN lookup and NIN validation?",
+      "variations": [
+        "nin lookup vs validation", "difference between nin lookup and validation",
+        "nin verification vs validation", "what is nin lookup", "nin search vs nin validation",
+        "automatic nin vs manual nin", "instant nin vs agent nin"
+      ],
+      "answer": "Arapoint offers two types of NIN services:\n\n**NIN Lookup (Instant/Automated)**\n• Fetches NIN details instantly from the NIMC database\n• Returns name, date of birth, phone, gender, and other details\n• Processed automatically — results in seconds\n• Used for identity verification purposes\n\n**NIN Validation (Manual/Agent)**\n• Used when there is a **problem** with a NIN record that needs to be fixed\n• Handled by a trained Arapoint identity agent\n• Takes 1–3 working days\n• Resolves issues like: No Record Found, Photograph Error, Name/DOB Correction, Duplicate NIN, etc.\n• Results include the corrected/validated name and date of birth from NIMC\n\nIf you just want to look up someone's NIN details, use the automated NIN Lookup. If you have an issue with your NIN that needs fixing, use NIN Validation.",
+      "tags": ["nin", "lookup", "validation", "difference", "automated", "manual", "agent", "instant"]
+    },
+
+    {
+      "id": "services-overview-001",
+      "category": "general",
+      "question": "What services does Arapoint offer?",
+      "variations": [
+        "arapoint services", "what can arapoint do", "list of arapoint services",
+        "all arapoint services", "arapoint platform services", "what does arapoint offer",
+        "arapoint features", "arapoint service list", "what can i do on arapoint",
+        "services on arapoint", "arapoint capabilities"
+      ],
+      "answer": "Arapoint is a comprehensive digital services platform. Here's a full overview of what we offer:\n\n**Identity Services**\n• NIN Lookup — Instant NIN details verification\n• BVN Lookup — Instant BVN details verification\n• NIN Validation (Agent) — Fix issues on your NIN record\n• IPE Clearance (Agent) — Clear IPE errors and get new tracking ID\n• NIN Personalization (Agent) — Update NIN personal details\n\n**Education Services**\n• WAEC Result Checker — Check West African Exam results\n• JAMB Result Checker — Check JAMB/UTME results\n• NECO Result Checker — Check NECO exam results\n\n**VTU (Virtual Top-Up) Services**\n• Airtime — Purchase airtime for all Nigerian networks (MTN, Airtel, Glo, 9mobile)\n• Data — Buy data bundles for all networks\n• Electricity — Pay electricity bills (EKEDC, IKEDC, AEDC, etc.)\n• Cable TV — Pay DSTV, GOtv, Startimes subscriptions\n\n**Business Services**\n• CAC Registration — Register your business name or company\n• CAC Name Search — Check business name availability\n\n**Wallet & Payments**\n• Wallet top-up via bank transfer, card, USSD\n• Transaction history and receipts\n\nAll services are accessible from your Arapoint dashboard after creating and verifying your account.",
+      "tags": ["services", "overview", "nin", "bvn", "vtu", "airtime", "data", "electricity", "cac", "education", "identity", "wallet"]
+    },
+
+    {
+      "id": "services-overview-002",
+      "category": "general",
+      "question": "How does Arapoint work?",
+      "variations": [
+        "how arapoint works", "arapoint workflow", "how does arapoint work",
+        "explain arapoint", "arapoint process", "how to use arapoint",
+        "arapoint guide", "arapoint tutorial", "getting started arapoint",
+        "arapoint step by step"
+      ],
+      "answer": "Here's how Arapoint works from start to finish:\n\n**Step 1: Create an Account**\nSign up at arapoint.com.ng with your email and phone number. Verify your email to activate your account.\n\n**Step 2: Fund Your Wallet**\nAll Arapoint services are paid from your wallet. Fund it via bank transfer, card, or USSD from your dashboard.\n\n**Step 3: Use Any Service**\n• For **instant services** (NIN Lookup, BVN, Airtime, Data, Electricity, Results): Results are delivered immediately\n• For **manual/agent services** (NIN Validation, IPE Clearance, NIN Personalization): Submit your request and an identity agent will process it within 1–5 working days\n\n**Step 4: Receive Your Results**\n• Instant services: Results shown immediately on screen\n• Agent services: Email notification when complete + view results in 'My Requests'\n\n**Step 5: Track & Download**\nAll your transactions, request history, and results are stored in your dashboard for future reference.",
+      "tags": ["how it works", "workflow", "guide", "getting started", "process", "step by step"]
+    },
+
+    {
+      "id": "account-001",
+      "category": "account",
+      "question": "How do I create an Arapoint account?",
+      "variations": [
+        "how to create account", "sign up arapoint", "register arapoint", "create account arapoint",
+        "how to register arapoint", "arapoint registration", "new account arapoint",
+        "open account arapoint", "arapoint signup", "how to join arapoint"
+      ],
+      "answer": "To create an Arapoint account:\n\n1. Visit **arapoint.com.ng**\n2. Click **'Sign Up'** or **'Create Account'**\n3. Enter your full name, email address, and phone number\n4. Set a secure password\n5. Verify your email address (check your inbox for a verification link)\n6. Log in and fund your wallet to start using services\n\nAccount creation is free. You only pay when you use services.",
+      "tags": ["account", "create", "sign up", "register", "new account"]
+    },
+
+    {
+      "id": "account-002",
+      "category": "account",
+      "question": "I forgot my password, how do I reset it?",
+      "variations": [
+        "forgot password", "reset password", "can't login arapoint", "password reset arapoint",
+        "lost my password", "password forgotten arapoint", "how to reset password",
+        "change password arapoint", "account access arapoint", "can't access account"
+      ],
+      "answer": "To reset your Arapoint password:\n\n1. Go to the **Login page** at arapoint.com.ng\n2. Click **'Forgot Password'**\n3. Enter your registered email address\n4. Check your email for the password reset link (also check spam/junk folder)\n5. Click the link and set a new password\n6. Log in with your new password\n\nIf you don't receive the reset email after 5 minutes, contact support — type **'agent'** in this chat.",
+      "tags": ["password", "forgot", "reset", "login", "access", "account"]
+    },
+
+    {
+      "id": "vtu-001",
+      "category": "vtu",
+      "question": "How do I buy airtime on Arapoint?",
+      "variations": [
+        "buy airtime arapoint", "purchase airtime", "recharge phone arapoint",
+        "airtime purchase arapoint", "how to buy airtime", "mtn airtime arapoint",
+        "airtel airtime arapoint", "glo airtime arapoint", "9mobile airtime arapoint",
+        "airtime on arapoint", "top up phone"
+      ],
+      "answer": "To buy airtime on Arapoint:\n\n1. Go to **Dashboard → VTU Services → Airtime**\n2. Select the network (MTN, Airtel, Glo, 9mobile)\n3. Enter the phone number to recharge\n4. Enter the amount (minimum ₦50)\n5. Click **'Purchase'** — your wallet is debited instantly\n6. Airtime is delivered to the phone number within seconds\n\nYou can recharge any phone number, not just your own. Airtime is available 24/7.",
+      "tags": ["airtime", "vtu", "purchase", "recharge", "mtn", "airtel", "glo", "9mobile", "phone"]
+    },
+
+    {
+      "id": "vtu-002",
+      "category": "vtu",
+      "question": "How do I buy data on Arapoint?",
+      "variations": [
+        "buy data arapoint", "data bundle arapoint", "purchase data", "buy internet data",
+        "mtn data arapoint", "airtel data arapoint", "glo data arapoint", "9mobile data arapoint",
+        "data subscription arapoint", "how to buy data bundles"
+      ],
+      "answer": "To buy data bundles on Arapoint:\n\n1. Go to **Dashboard → VTU Services → Data**\n2. Select the network (MTN, Airtel, Glo, 9mobile)\n3. Enter the phone number\n4. Choose a data plan from the available bundles\n5. Click **'Purchase'** — wallet is debited and data is activated\n\nData bundles are activated within seconds. Available plans vary by network and are updated regularly.",
+      "tags": ["data", "bundle", "vtu", "internet", "mtn", "airtel", "glo", "9mobile", "subscription"]
+    },
+
+    {
+      "id": "electricity-001",
+      "category": "bills",
+      "question": "How do I pay electricity bill on Arapoint?",
+      "variations": [
+        "pay electricity arapoint", "electricity bill arapoint", "buy electricity token",
+        "prepaid meter arapoint", "pay nepa arapoint", "pay phcn arapoint",
+        "electricity token arapoint", "ekedc arapoint", "ikedc arapoint", "aedc arapoint",
+        "how to pay light bill arapoint", "pay electricity bill"
+      ],
+      "answer": "To pay electricity bills on Arapoint:\n\n1. Go to **Dashboard → VTU Services → Electricity**\n2. Select your electricity distributor (EKEDC, IKEDC, AEDC, PHED, EEDC, JED, KEDC, etc.)\n3. Enter your **meter number**\n4. Select meter type (Prepaid or Postpaid)\n5. Enter the amount you want to pay\n6. Click **'Pay'** — your wallet is debited and the token is generated\n7. Your electricity token appears on screen and is sent to your registered phone/email\n\nTokens are generated within seconds. For postpaid meters, payment confirmation is sent to the utility company.",
+      "tags": ["electricity", "bill", "token", "meter", "prepaid", "postpaid", "ekedc", "ikedc", "aedc", "phed"]
+    },
+
+    {
+      "id": "transaction-001",
+      "category": "transactions",
+      "question": "My transaction failed but money was deducted from my wallet",
+      "variations": [
+        "transaction failed money deducted", "debited but no result", "wallet deducted failed transaction",
+        "failed transaction arapoint", "money gone no service", "charged but didn't get service",
+        "transaction error wallet", "deducted no airtime", "deducted no data", "wallet deducted no electricity",
+        "deducted no result", "failed payment arapoint"
+      ],
+      "answer": "If your transaction failed but your wallet was debited:\n\n**First, wait 5–10 minutes** — some transactions auto-reverse or complete with a delay.\n\n**If still not resolved after 10 minutes:**\n1. Check your **Transaction History** in the dashboard for the transaction status\n2. Note your **Transaction Reference/ID**\n3. Type **'agent'** in this chat to reach our support team\n4. Provide your transaction reference, the service you tried to use, and the amount\n\nOur team will investigate and either deliver the service or refund your wallet within 24 hours.",
+      "tags": ["failed", "transaction", "deducted", "refund", "no result", "wallet", "charged"]
+    },
+
+    {
+      "id": "waec-001",
+      "category": "education",
+      "question": "How do I check WAEC result on Arapoint?",
+      "variations": [
+        "waec result arapoint", "check waec result", "waec checker arapoint",
+        "waec result check", "how to check waec", "west african exam result",
+        "waec scratchcard arapoint", "waec result verification"
+      ],
+      "answer": "To check WAEC results on Arapoint:\n\n1. Go to **Dashboard → Education Services → WAEC Result**\n2. Enter your **Exam Number** (7 digits + year, e.g. 4031234567)\n3. Select the **Exam Year**\n4. Select the **Exam Type** (WASSCE, BECE, GCE, etc.)\n5. Click **'Check Result'**\n6. Pay the small checking fee from your wallet\n7. Your results appear on screen and can be downloaded\n\nResults from 2004 to the most recent sitting are available.",
+      "tags": ["waec", "result", "education", "exam", "check", "west african"]
+    },
+
+    {
+      "id": "jamb-001",
+      "category": "education",
+      "question": "How do I check JAMB result on Arapoint?",
+      "variations": [
+        "jamb result arapoint", "check jamb result", "jamb result checker arapoint",
+        "utme result arapoint", "how to check jamb result", "jamb score arapoint",
+        "check utme result"
+      ],
+      "answer": "To check JAMB/UTME results on Arapoint:\n\n1. Go to **Dashboard → Education Services → JAMB Result**\n2. Enter your **JAMB Registration Number**\n3. Select the **Exam Year**\n4. Click **'Check Result'** and pay from your wallet\n5. Your UTME score and subject scores appear on screen\n\nJAMB results from recent years are available. For older results, contact JAMB directly.",
+      "tags": ["jamb", "utme", "result", "education", "exam", "check", "score"]
+    },
+
+    {
+      "id": "cac-001",
+      "category": "cac",
+      "question": "How do I register my business on Arapoint?",
+      "variations": [
+        "cac registration arapoint", "register business arapoint", "business registration arapoint",
+        "how to register business", "company registration arapoint", "cac arapoint",
+        "business name registration", "register company arapoint", "cac service arapoint"
+      ],
+      "answer": "To register your business through Arapoint:\n\n1. Go to **Dashboard → CAC Services → Business Registration**\n2. Choose registration type:\n   • **Business Name** (sole proprietorship)\n   • **Limited Liability Company (LLC)**\n   • **Incorporated Trustee** (NGO/church/association)\n3. Provide your proposed business name(s) — always have 2–3 alternatives in case one is taken\n4. Fill in the required details (proprietors/directors, registered address, business objectives)\n5. Upload required documents (ID card, signature, etc.)\n6. Pay the processing fee from your wallet\n7. Our CAC agent processes your registration with the Corporate Affairs Commission\n8. Certificate delivered within 3–7 working days\n\nFor questions about required documents, type **'agent'** to speak with our support team.",
+      "tags": ["cac", "registration", "business", "company", "business name", "llc", "certificate"]
     }
 
   ]

@@ -31,7 +31,7 @@ export default function IdentityAgentDashboard() {
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showStatusUpdate, setShowStatusUpdate] = useState(false);
-  const [updateData, setUpdateData] = useState({ status: '', agentNotes: '', slipUrl: '', resolvedTrackingId: '' });
+  const [updateData, setUpdateData] = useState({ status: '', agentNotes: '', slipUrl: '', resolvedTrackingId: '', validatedFullName: '', validatedDateOfBirth: '' });
   const [uploadingFile, setUploadingFile] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -190,7 +190,7 @@ export default function IdentityAgentDashboard() {
       const response = await fetch(`/api/identity-agent/requests/${selectedRequest.id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ status: updateData.status, agentNotes: updateData.agentNotes, slipUrl, resolvedTrackingId: updateData.resolvedTrackingId || undefined })
+        body: JSON.stringify({ status: updateData.status, agentNotes: updateData.agentNotes, slipUrl, resolvedTrackingId: updateData.resolvedTrackingId || undefined, validatedFullName: updateData.validatedFullName || undefined, validatedDateOfBirth: updateData.validatedDateOfBirth || undefined })
       });
       const data = await response.json();
       if (data.status === 'success') {
@@ -199,7 +199,7 @@ export default function IdentityAgentDashboard() {
         fetchStats();
         setShowStatusUpdate(false);
         setSelectedRequest(null);
-        setUpdateData({ status: '', agentNotes: '', slipUrl: '', resolvedTrackingId: '' });
+        setUpdateData({ status: '', agentNotes: '', slipUrl: '', resolvedTrackingId: '', validatedFullName: '', validatedDateOfBirth: '' });
         setSelectedFile(null);
       } else {
         toast({ title: "Failed", description: data.message, variant: "destructive" });
@@ -394,7 +394,7 @@ export default function IdentityAgentDashboard() {
                         {request.status !== 'completed' && (
                           <Button size="sm" onClick={() => { 
                             setSelectedRequest(request); 
-                            setUpdateData({ status: request.status, agentNotes: request.agentNotes || '', slipUrl: request.slipUrl || '', resolvedTrackingId: request.resolvedTrackingId || '' });
+                            setUpdateData({ status: request.status, agentNotes: request.agentNotes || '', slipUrl: request.slipUrl || '', resolvedTrackingId: request.resolvedTrackingId || '', validatedFullName: request.validatedFullName || '', validatedDateOfBirth: request.validatedDateOfBirth || '' });
                             setShowStatusUpdate(true); 
                           }}>
                             Update
@@ -525,6 +525,12 @@ export default function IdentityAgentDashboard() {
               {selectedRequest.resolvedTrackingId && (
                 <div><strong>Resolved NIMC Tracking ID:</strong> <span className="font-mono text-green-700 dark:text-green-400">{selectedRequest.resolvedTrackingId}</span></div>
               )}
+              {selectedRequest.validatedFullName && (
+                <div><strong>Validated Full Name:</strong> <span className="font-semibold text-green-700 dark:text-green-400">{selectedRequest.validatedFullName}</span></div>
+              )}
+              {selectedRequest.validatedDateOfBirth && (
+                <div><strong>Validated Date of Birth:</strong> <span className="font-semibold text-green-700 dark:text-green-400">{selectedRequest.validatedDateOfBirth}</span></div>
+              )}
             </div>
           )}
         </DialogContent>
@@ -569,6 +575,29 @@ export default function IdentityAgentDashboard() {
                   onChange={(e) => setUpdateData(prev => ({ ...prev, resolvedTrackingId: e.target.value }))}
                 />
                 <p className="text-xs text-muted-foreground">This is the updated tracking ID from NIMC after the IPE issue has been resolved.</p>
+              </div>
+            )}
+
+            {updateData.status === 'completed' && selectedRequest?.serviceType === 'nin_validation' && (
+              <div className="space-y-3 p-3 border rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
+                <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">NIN Validation Result</p>
+                <div className="space-y-2">
+                  <Label>Full Name (as on NIMC record)</Label>
+                  <Input
+                    placeholder="e.g. JOHN ADEBAYO OKAFOR"
+                    value={updateData.validatedFullName}
+                    onChange={(e) => setUpdateData(prev => ({ ...prev, validatedFullName: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Date of Birth (as on NIMC record)</Label>
+                  <Input
+                    placeholder="e.g. 15-Mar-1990 or 1990-03-15"
+                    value={updateData.validatedDateOfBirth}
+                    onChange={(e) => setUpdateData(prev => ({ ...prev, validatedDateOfBirth: e.target.value }))}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Enter the name and date of birth exactly as shown on the NIMC record for this NIN.</p>
               </div>
             )}
 

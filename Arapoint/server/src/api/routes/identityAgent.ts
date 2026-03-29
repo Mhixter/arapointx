@@ -184,6 +184,9 @@ router.get('/requests', identityAgentAuthMiddleware, async (req: Request, res: R
       customerNotes: identityServiceRequests.customerNotes,
       agentNotes: identityServiceRequests.agentNotes,
       slipUrl: identityServiceRequests.slipUrl,
+      resolvedTrackingId: identityServiceRequests.resolvedTrackingId,
+      validatedFullName: identityServiceRequests.validatedFullName,
+      validatedDateOfBirth: identityServiceRequests.validatedDateOfBirth,
       createdAt: identityServiceRequests.createdAt,
       userName: users.name,
     })
@@ -209,7 +212,7 @@ router.put('/requests/:id/status', identityAgentAuthMiddleware, async (req: Requ
   try {
     const agentId = (req as any).agentId;
     const { id } = req.params;
-    const { status, agentNotes, slipUrl, resolvedTrackingId } = req.body;
+    const { status, agentNotes, slipUrl, resolvedTrackingId, validatedFullName, validatedDateOfBirth } = req.body;
 
     if (!['pending', 'pickup', 'completed'].includes(status)) {
       return res.status(400).json(formatErrorResponse(400, 'Invalid status'));
@@ -238,6 +241,8 @@ router.put('/requests/:id/status', identityAgentAuthMiddleware, async (req: Requ
       updateData.completedAt = new Date();
       if (slipUrl) updateData.slipUrl = slipUrl;
       if (resolvedTrackingId) updateData.resolvedTrackingId = resolvedTrackingId;
+      if (validatedFullName) updateData.validatedFullName = validatedFullName;
+      if (validatedDateOfBirth) updateData.validatedDateOfBirth = validatedDateOfBirth;
     }
 
     if (agentNotes) {

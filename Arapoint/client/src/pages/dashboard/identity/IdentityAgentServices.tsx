@@ -356,75 +356,124 @@ export default function IdentityAgentServices() {
       </Tabs>
 
       <Dialog open={showDetails} onOpenChange={setShowDetails}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Request Details</DialogTitle>
             <DialogDescription>{selectedRequest?.trackingId}</DialogDescription>
           </DialogHeader>
           {selectedRequest && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+              <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <Label className="text-muted-foreground">Service</Label>
+                  <Label className="text-muted-foreground text-xs">Service</Label>
                   <p className="font-medium">{getServiceName(selectedRequest.serviceType)}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">Status</Label>
+                  <Label className="text-muted-foreground text-xs">Status</Label>
                   <p>{getStatusBadge(selectedRequest.status)}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">Fee</Label>
+                  <Label className="text-muted-foreground text-xs">Fee Paid</Label>
                   <p className="font-medium">₦{parseFloat(selectedRequest.fee || 0).toLocaleString()}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">Created</Label>
-                  <p className="text-sm">{new Date(selectedRequest.createdAt).toLocaleDateString()}</p>
+                  <Label className="text-muted-foreground text-xs">Submitted</Label>
+                  <p className="text-sm">{new Date(selectedRequest.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                 </div>
+              </div>
+
+              <div className="border rounded-lg p-3 bg-gray-50 dark:bg-gray-800/50 space-y-2 text-sm">
+                <p className="font-semibold text-xs text-muted-foreground uppercase tracking-wide">Submitted Information</p>
+                {selectedRequest.nin && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">NIN</span>
+                    <span className="font-mono font-medium">{'*'.repeat(7)}{selectedRequest.nin.slice(-4)}</span>
+                  </div>
+                )}
+                {selectedRequest.updateFields?.validationType && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Validation Issue</span>
+                    <span className="font-medium text-orange-600">
+                      {VALIDATION_TYPES.find(v => v.value === selectedRequest.updateFields.validationType)?.label || selectedRequest.updateFields.validationType}
+                    </span>
+                  </div>
+                )}
+                {selectedRequest.newTrackingId && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">NIMC Tracking ID</span>
+                    <span className="font-mono font-medium">{selectedRequest.newTrackingId}</span>
+                  </div>
+                )}
+                {selectedRequest.updateFields?.slipType && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Slip Type</span>
+                    <span className="font-medium capitalize">{selectedRequest.updateFields.slipType}</span>
+                  </div>
+                )}
+                {selectedRequest.updateFields?.fields && (
+                  <div>
+                    <span className="text-muted-foreground block">Fields to Update</span>
+                    <span className="font-medium">{selectedRequest.updateFields.fields}</span>
+                  </div>
+                )}
                 {selectedRequest.customerNotes && (
-                  <div className="col-span-2">
-                    <Label className="text-muted-foreground">Your Notes</Label>
-                    <p className="text-sm">{selectedRequest.customerNotes}</p>
-                  </div>
-                )}
-                {selectedRequest.status === 'completed' && (
-                  <div className="col-span-2 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 space-y-2">
-                    <p className="font-medium text-green-700 dark:text-green-400 text-sm">Request Completed</p>
-                    {selectedRequest.agentNotes && (
-                      <div>
-                        <Label className="text-muted-foreground text-xs">Agent Feedback</Label>
-                        <p className="text-sm mt-1">{selectedRequest.agentNotes}</p>
-                      </div>
-                    )}
-                    {selectedRequest.slipUrl && (
-                      <div>
-                        <Label className="text-muted-foreground text-xs">Completed Document</Label>
-                        <div className="mt-1">
-                          <a href={selectedRequest.slipUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 underline text-sm font-medium">
-                            <FileText className="h-4 w-4" />
-                            Download Slip
-                          </a>
-                        </div>
-                      </div>
-                    )}
-                    {selectedRequest.serviceType === 'ipe_clearance' && selectedRequest.resolvedTrackingId && (
-                      <div>
-                        <Label className="text-muted-foreground text-xs">New NIMC Tracking ID</Label>
-                        <p className="text-sm font-semibold text-green-700 dark:text-green-400 mt-1 font-mono">{selectedRequest.resolvedTrackingId}</p>
-                        <p className="text-xs text-muted-foreground mt-1">This is your updated NIMC tracking ID after IPE clearance.</p>
-                      </div>
-                    )}
-                    {!selectedRequest.agentNotes && !selectedRequest.slipUrl && !selectedRequest.resolvedTrackingId && (
-                      <p className="text-sm text-muted-foreground">No additional feedback provided by the agent.</p>
-                    )}
-                  </div>
-                )}
-                {selectedRequest.status !== 'completed' && selectedRequest.agentNotes && (
-                  <div className="col-span-2">
-                    <Label className="text-muted-foreground">Agent Notes</Label>
-                    <p className="text-sm">{selectedRequest.agentNotes}</p>
+                  <div>
+                    <span className="text-muted-foreground block">Your Notes</span>
+                    <span>{selectedRequest.customerNotes}</span>
                   </div>
                 )}
               </div>
+
+              {selectedRequest.status === 'completed' && (
+                <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 space-y-3">
+                  <p className="font-semibold text-green-700 dark:text-green-400 text-sm">Request Completed</p>
+                  {selectedRequest.agentNotes && (
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Agent Feedback</Label>
+                      <p className="text-sm mt-1">{selectedRequest.agentNotes}</p>
+                    </div>
+                  )}
+                  {selectedRequest.serviceType === 'ipe_clearance' && selectedRequest.resolvedTrackingId && (
+                    <div>
+                      <Label className="text-muted-foreground text-xs">New NIMC Tracking ID</Label>
+                      <p className="text-base font-bold text-green-700 dark:text-green-400 mt-1 font-mono">{selectedRequest.resolvedTrackingId}</p>
+                      <p className="text-xs text-muted-foreground mt-1">This is your updated NIMC tracking ID after IPE clearance.</p>
+                    </div>
+                  )}
+                  {selectedRequest.serviceType === 'nin_validation' && selectedRequest.validatedFullName && (
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Full Name on Record</Label>
+                      <p className="text-sm font-bold text-green-700 dark:text-green-400 mt-1">{selectedRequest.validatedFullName}</p>
+                    </div>
+                  )}
+                  {selectedRequest.serviceType === 'nin_validation' && selectedRequest.validatedDateOfBirth && (
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Date of Birth on Record</Label>
+                      <p className="text-sm font-bold text-green-700 dark:text-green-400 mt-1">{selectedRequest.validatedDateOfBirth}</p>
+                    </div>
+                  )}
+                  {selectedRequest.slipUrl && (
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Result Document</Label>
+                      <div className="mt-1">
+                        <a href={selectedRequest.slipUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 underline text-sm font-medium">
+                          <FileText className="h-4 w-4" />
+                          Download Slip
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                  {!selectedRequest.agentNotes && !selectedRequest.slipUrl && !selectedRequest.resolvedTrackingId && !selectedRequest.validatedFullName && (
+                    <p className="text-sm text-muted-foreground">No additional feedback provided by the agent yet.</p>
+                  )}
+                </div>
+              )}
+              {selectedRequest.status !== 'completed' && selectedRequest.agentNotes && (
+                <div>
+                  <Label className="text-muted-foreground text-xs">Agent Notes</Label>
+                  <p className="text-sm mt-1">{selectedRequest.agentNotes}</p>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
