@@ -3,8 +3,8 @@ import { createServer, type Server } from "http";
 import { objectStorageService, ObjectNotFoundError } from "./src/services/objectStorage";
 import { db } from "./src/config/database";
 import { servicePricing } from "./src/db/schema";
-import { eq, inArray } from "drizzle-orm";
-import { adminSettings } from "./src/db/schema";
+import { eq, inArray, and, gt } from "drizzle-orm";
+import { adminSettings, supportPresence } from "./src/db/schema";
 
 import authRoutes from "./src/api/routes/auth";
 import otpRoutes from "./src/api/routes/otp";
@@ -71,7 +71,8 @@ export async function registerRoutes(
     try {
       const publicKeys = [
         'siteName', 'siteEmail', 'sitePhone', 'siteAddress',
-        'maintenanceMode', 'currency', 'timezone'
+        'maintenanceMode', 'currency', 'timezone',
+        'supportWhatsappChannel', 'supportWhatsappGroup',
       ];
       
       const settings = await db.select().from(adminSettings)
@@ -271,6 +272,24 @@ export async function registerRoutes(
   app.use('/api/jamb-agent', jambAgentRoutes);
   app.use('/api/rpa-techhub', authenticatedRateLimiter, rpaRoutes);
   app.use('/api/slips', slipsRoutes);
+  app.get('/api/support/availability', publicRateLimiter, async (req, res) => {
+    try {
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+      const onlineAgents = await db.select({ id: supportPresence.id })
+        .from(supportPresence)
+        .where(
+          and(
+            eq(supportPresence.participantType, 'agent'),
+            gt(supportPresence.lastSeenAt, tenMinutesAgo)
+          )
+        )
+        .limit(1);
+      res.json({ status: 'success', code: 200, message: 'OK', data: { agentsOnline: onlineAgents.length > 0 } });
+    } catch {
+      res.json({ status: 'success', code: 200, message: 'OK', data: { agentsOnline: false } });
+    }
+  });
+
   app.use('/api/support', authenticatedRateLimiter, supportRoutes);
   app.use('/api/webhooks', webhookRoutes);
   app.use('/api/files', authenticatedRateLimiter, filesRoutes);

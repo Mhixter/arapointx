@@ -85,7 +85,6 @@ const JAMB_SERVICES = [
           "ACCEPT UNDISCLOSED ADMISSION",
         ],
       },
-      { name: "quantity", label: "Quantity", type: "number", required: true },
     ],
     hasFileUpload: false,
   },
@@ -360,7 +359,6 @@ export default function JAMBServices() {
         case 'reprinting-caps':
           if (form['jamb-reg'] || req.registrationNumber) fields.push({ label: 'JAMB Reg. No.', value: form['jamb-reg'] || req.registrationNumber });
           if (form.itemType) fields.push({ label: 'Item Type', value: form.itemType });
-          if (form.quantity) fields.push({ label: 'Quantity', value: String(form.quantity) });
           break;
       }
       return fields;

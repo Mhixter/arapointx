@@ -113,12 +113,26 @@ const faqs = [
   { q: "Can I get a refund on a failed VTU top-up?", a: "Yes. Failed VTU transactions are automatically reversed to your wallet within minutes. Check your wallet balance." },
 ];
 
+interface SupportSettings {
+  siteEmail: string;
+  sitePhone: string;
+  supportWhatsappChannel: string;
+  supportWhatsappGroup: string;
+}
+
 export default function SupportChat() {
   const [view, setView] = useState<View>("lobby");
   const [activeTickets, setActiveTickets] = useState<Ticket[]>([]);
   const [loadingTickets, setLoadingTickets] = useState(true);
   const [showNewForm, setShowNewForm] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [agentsOnline, setAgentsOnline] = useState<boolean | null>(null);
+  const [supportSettings, setSupportSettings] = useState<SupportSettings>({
+    siteEmail: "support@arapoint.com.ng",
+    sitePhone: "",
+    supportWhatsappChannel: "",
+    supportWhatsappGroup: "",
+  });
 
   const [subject, setSubject] = useState("");
   const [category, setCategory] = useState("general");
@@ -173,6 +187,35 @@ export default function SupportChat() {
   }, []);
 
   useEffect(() => { fetchActiveTickets(); }, [fetchActiveTickets]);
+
+  useEffect(() => {
+    const fetchAvailability = async () => {
+      try {
+        const res = await fetch('/api/support/availability');
+        const data = await res.json();
+        setAgentsOnline(data.data?.agentsOnline ?? false);
+      } catch {
+        setAgentsOnline(false);
+      }
+    };
+    const fetchSupportSettings = async () => {
+      try {
+        const res = await fetch('/api/settings/public');
+        const data = await res.json();
+        const s = data.data || {};
+        setSupportSettings({
+          siteEmail: s.siteEmail || "support@arapoint.com.ng",
+          sitePhone: s.sitePhone || "",
+          supportWhatsappChannel: s.supportWhatsappChannel || "",
+          supportWhatsappGroup: s.supportWhatsappGroup || "",
+        });
+      } catch {}
+    };
+    fetchAvailability();
+    fetchSupportSettings();
+    const interval = setInterval(fetchAvailability, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => { scrollRef.current?.scrollIntoView({ behavior: "smooth" }); }, 100);
@@ -554,10 +597,21 @@ export default function SupportChat() {
           <div className="flex-1">
             <h3 className="text-2xl sm:text-3xl font-bold tracking-tight">How can we help you?</h3>
             <p className="text-muted-foreground mt-1.5 text-sm sm:text-base">Our AI is ready 24/7. Human agents available Mon–Fri, 8am–6pm WAT.</p>
+            {agentsOnline === false && (
+              <div className="mt-3 inline-flex items-center gap-2 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 text-xs font-medium px-3 py-1.5 rounded-full border border-amber-200 dark:border-amber-800/50">
+                <span className="h-2 w-2 rounded-full bg-amber-500 inline-block" />
+                Human agents are currently offline — AI support is still available
+              </div>
+            )}
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
-            <Button onClick={() => setShowNewForm(true)} size="lg" className="gap-2 font-semibold">
-              <MessageCircle className="h-4 w-4" /> Start Live Chat
+            <Button
+              onClick={() => setShowNewForm(true)}
+              size="lg"
+              className="gap-2 font-semibold"
+              variant={agentsOnline === false ? "outline" : "default"}
+            >
+              <MessageCircle className="h-4 w-4" /> {agentsOnline === false ? "Chat with AI" : "Start Live Chat"}
             </Button>
           </div>
         </div>
@@ -723,28 +777,56 @@ export default function SupportChat() {
           <div>
             <h4 className="text-base font-semibold mb-3">Contact Us Directly</h4>
             <div className="grid grid-cols-1 gap-2.5">
-              <a href="mailto:support@arapoint.com" className="flex items-center gap-4 p-4 rounded-xl border hover:bg-muted/40 hover:border-primary/20 transition-all group">
-                <div className="h-10 w-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center shrink-0">
-                  <Mail className="h-4.5 w-4.5 text-blue-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold">Email Support</p>
-                  <p className="text-xs text-muted-foreground">support@arapoint.com</p>
-                  <p className="text-[10px] text-muted-foreground/70 mt-0.5">Response within 2–4 business hours</p>
-                </div>
-                <ExternalLink className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-              </a>
-              <a href="tel:+2349012345678" className="flex items-center gap-4 p-4 rounded-xl border hover:bg-muted/40 hover:border-primary/20 transition-all group">
-                <div className="h-10 w-10 rounded-full bg-green-50 dark:bg-green-900/20 flex items-center justify-center shrink-0">
-                  <Phone className="h-4.5 w-4.5 text-green-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold">Phone Support</p>
-                  <p className="text-xs text-muted-foreground">+234 901 234 5678</p>
-                  <p className="text-[10px] text-muted-foreground/70 mt-0.5">Mon–Fri, 8:00am – 6:00pm WAT</p>
-                </div>
-                <ExternalLink className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
-              </a>
+              {supportSettings.siteEmail && (
+                <a href={`mailto:${supportSettings.siteEmail}`} className="flex items-center gap-4 p-4 rounded-xl border hover:bg-muted/40 hover:border-primary/20 transition-all group">
+                  <div className="h-10 w-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center shrink-0">
+                    <Mail className="h-4.5 w-4.5 text-blue-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold">Email Support</p>
+                    <p className="text-xs text-muted-foreground">{supportSettings.siteEmail}</p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-0.5">Response within 2–4 business hours</p>
+                  </div>
+                  <ExternalLink className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                </a>
+              )}
+              {supportSettings.sitePhone && (
+                <a href={`tel:${supportSettings.sitePhone}`} className="flex items-center gap-4 p-4 rounded-xl border hover:bg-muted/40 hover:border-primary/20 transition-all group">
+                  <div className="h-10 w-10 rounded-full bg-green-50 dark:bg-green-900/20 flex items-center justify-center shrink-0">
+                    <Phone className="h-4.5 w-4.5 text-green-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold">Phone Support</p>
+                    <p className="text-xs text-muted-foreground">{supportSettings.sitePhone}</p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-0.5">Mon–Fri, 8:00am – 6:00pm WAT</p>
+                  </div>
+                  <ExternalLink className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                </a>
+              )}
+              {supportSettings.supportWhatsappChannel && (
+                <a href={supportSettings.supportWhatsappChannel} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-xl border hover:bg-muted/40 hover:border-primary/20 transition-all group">
+                  <div className="h-10 w-10 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center shrink-0">
+                    <MessageCircle className="h-4.5 w-4.5 text-emerald-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold">WhatsApp Channel</p>
+                    <p className="text-xs text-muted-foreground">Follow for updates and announcements</p>
+                  </div>
+                  <ExternalLink className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                </a>
+              )}
+              {supportSettings.supportWhatsappGroup && (
+                <a href={supportSettings.supportWhatsappGroup} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 rounded-xl border hover:bg-muted/40 hover:border-primary/20 transition-all group">
+                  <div className="h-10 w-10 rounded-full bg-teal-50 dark:bg-teal-900/20 flex items-center justify-center shrink-0">
+                    <MessageCircle className="h-4.5 w-4.5 text-teal-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold">WhatsApp Group</p>
+                    <p className="text-xs text-muted-foreground">Join our community for support</p>
+                  </div>
+                  <ExternalLink className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                </a>
+              )}
             </div>
           </div>
         </div>

@@ -39,6 +39,8 @@ export default function AdminSettings() {
     smtpPass: "",
     smtpFromName: "Arapoint",
     smtpFromEmail: "",
+    supportWhatsappChannel: "",
+    supportWhatsappGroup: "",
   });
   const [testEmail, setTestEmail] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
@@ -193,6 +195,8 @@ export default function AdminSettings() {
       maintenanceMode: settings.maintenanceMode,
       currency: settings.currency,
       timezone: settings.timezone,
+      supportWhatsappChannel: settings.supportWhatsappChannel,
+      supportWhatsappGroup: settings.supportWhatsappGroup,
     }, "General", true);
   };
 
@@ -318,6 +322,37 @@ export default function AdminSettings() {
                     id="site-address"
                     value={settings.siteAddress}
                     onChange={(e) => setSettings(prev => ({ ...prev, siteAddress: e.target.value }))}
+                    className="h-8 sm:h-9 text-sm"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Support Contact Links</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">WhatsApp links shown on the user support page</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-0 space-y-3 sm:space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label htmlFor="wa-channel" className="text-xs sm:text-sm">WhatsApp Channel Link</Label>
+                  <Input
+                    id="wa-channel"
+                    placeholder="https://whatsapp.com/channel/..."
+                    value={settings.supportWhatsappChannel}
+                    onChange={(e) => setSettings(prev => ({ ...prev, supportWhatsappChannel: e.target.value }))}
+                    className="h-8 sm:h-9 text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label htmlFor="wa-group" className="text-xs sm:text-sm">WhatsApp Group Link</Label>
+                  <Input
+                    id="wa-group"
+                    placeholder="https://chat.whatsapp.com/..."
+                    value={settings.supportWhatsappGroup}
+                    onChange={(e) => setSettings(prev => ({ ...prev, supportWhatsappGroup: e.target.value }))}
                     className="h-8 sm:h-9 text-sm"
                   />
                 </div>
