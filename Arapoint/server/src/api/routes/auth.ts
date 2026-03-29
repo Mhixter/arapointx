@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { userService } from '../../services/userService';
 import { registerSchema, loginSchema, refreshTokenSchema, updateProfileSchema } from '../validators/auth';
 import { authMiddleware } from '../middleware/auth';
+import { authRateLimiter } from '../middleware/rateLimit';
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { db } from '../../config/database';
@@ -14,7 +15,7 @@ import { config } from '../../config/env';
 
 const router = Router();
 
-router.post('/register', async (req: Request, res: Response) => {
+router.post('/register', authRateLimiter, async (req: Request, res: Response) => {
   try {
     const validation = registerSchema.safeParse(req.body);
     if (!validation.success) {
@@ -37,7 +38,7 @@ router.post('/register', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', authRateLimiter, async (req: Request, res: Response) => {
   try {
     const validation = loginSchema.safeParse(req.body);
     if (!validation.success) {
@@ -55,7 +56,7 @@ router.post('/login', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/admin/login', async (req: Request, res: Response) => {
+router.post('/admin/login', authRateLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
     
@@ -169,7 +170,7 @@ router.post('/logout', authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
-router.post('/forgot-password', async (req: Request, res: Response) => {
+router.post('/forgot-password', authRateLimiter, async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
     
@@ -192,7 +193,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/reset-password', async (req: Request, res: Response) => {
+router.post('/reset-password', authRateLimiter, async (req: Request, res: Response) => {
   try {
     const { email, otp, newPassword } = req.body;
     

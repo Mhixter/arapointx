@@ -1,6 +1,6 @@
 import { db } from '../config/database';
 import { users, transactions } from '../db/schema';
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, sql, count } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 import { generateReferenceId } from '../utils/helpers';
 import { fraudService } from './fraudService';
@@ -23,16 +23,20 @@ export const walletService = {
   },
 
   async addBalance(userId: string, amount: number, reference: string, paymentMethod: string = 'wallet_fund') {
-    const currentBalance = await this.getBalance(userId);
-    const newBalance = currentBalance.balance + amount;
+    let newBalance: number;
 
     await db.transaction(async (tx) => {
-      await tx.update(users)
+      // Atomic increment — no read-modify-write race condition
+      const [updated] = await tx.update(users)
         .set({
-          walletBalance: newBalance.toFixed(2),
+          walletBalance: sql`${users.walletBalance} + ${amount.toFixed(2)}`,
           updatedAt: new Date(),
         })
-        .where(eq(users.id, userId));
+        .where(eq(users.id, userId))
+        .returning({ walletBalance: users.walletBalance });
+
+      if (!updated) throw new Error('User not found');
+      newBalance = parseFloat(updated.walletBalance || '0');
 
       await tx.insert(transactions).values({
         userId,
@@ -48,29 +52,34 @@ export const walletService = {
     logger.info('Wallet funded', { userId, amount, reference });
 
     return {
-      newBalance,
+      newBalance: newBalance!,
       amount,
       reference,
     };
   },
 
   async deductBalance(userId: string, amount: number, description: string, serviceType: string = 'service_purchase') {
-    const currentBalance = await this.getBalance(userId);
-
-    if (currentBalance.balance < amount) {
-      throw new Error('Insufficient wallet balance');
-    }
-
-    const newBalance = currentBalance.balance - amount;
     const reference = generateReferenceId();
+    let newBalance: number;
 
     await db.transaction(async (tx) => {
-      await tx.update(users)
+      // Atomic decrement — only deducts if balance is sufficient; fails cleanly otherwise
+      const [updated] = await tx.update(users)
         .set({
-          walletBalance: newBalance.toFixed(2),
+          walletBalance: sql`${users.walletBalance} - ${amount.toFixed(2)}`,
           updatedAt: new Date(),
         })
-        .where(eq(users.id, userId));
+        .where(eq(users.id, userId))
+        .returning({ walletBalance: users.walletBalance });
+
+      if (!updated) throw new Error('User not found');
+
+      newBalance = parseFloat(updated.walletBalance || '0');
+
+      // Guard against negative balance (belt-and-suspenders; DB CHECK constraint is the true safety net)
+      if (newBalance < 0) {
+        throw new Error('Insufficient wallet balance');
+      }
 
       await tx.insert(transactions).values({
         userId,
@@ -88,7 +97,7 @@ export const walletService = {
     fraudService.runAndAlert(userId, amount, serviceType).catch(() => {});
 
     return {
-      newBalance,
+      newBalance: newBalance!,
       amount,
       reference,
       description,
@@ -96,17 +105,21 @@ export const walletService = {
   },
 
   async refundBalance(userId: string, amount: number, originalReference: string) {
-    const currentBalance = await this.getBalance(userId);
-    const newBalance = currentBalance.balance + amount;
     const refundReference = `refund_${originalReference}`;
+    let newBalance: number;
 
     await db.transaction(async (tx) => {
-      await tx.update(users)
+      // Atomic increment
+      const [updated] = await tx.update(users)
         .set({
-          walletBalance: newBalance.toFixed(2),
+          walletBalance: sql`${users.walletBalance} + ${amount.toFixed(2)}`,
           updatedAt: new Date(),
         })
-        .where(eq(users.id, userId));
+        .where(eq(users.id, userId))
+        .returning({ walletBalance: users.walletBalance });
+
+      if (!updated) throw new Error('User not found');
+      newBalance = parseFloat(updated.walletBalance || '0');
 
       await tx.insert(transactions).values({
         userId,
@@ -121,7 +134,7 @@ export const walletService = {
     logger.info('Wallet refunded', { userId, amount, refundReference });
 
     return {
-      newBalance,
+      newBalance: newBalance!,
       amount,
       reference: refundReference,
     };
@@ -130,24 +143,27 @@ export const walletService = {
   async getTransactionHistory(userId: string, page: number = 1, limit: number = 20) {
     const offset = (page - 1) * limit;
 
-    const userTransactions = await db.select()
-      .from(transactions)
-      .where(eq(transactions.userId, userId))
-      .orderBy(desc(transactions.createdAt))
-      .limit(limit)
-      .offset(offset);
+    const [userTransactions, [{ total }]] = await Promise.all([
+      db.select()
+        .from(transactions)
+        .where(eq(transactions.userId, userId))
+        .orderBy(desc(transactions.createdAt))
+        .limit(limit)
+        .offset(offset),
 
-    const allTransactions = await db.select()
-      .from(transactions)
-      .where(eq(transactions.userId, userId));
+      // Single COUNT query instead of fetching all rows
+      db.select({ total: count() })
+        .from(transactions)
+        .where(eq(transactions.userId, userId)),
+    ]);
 
     return {
       transactions: userTransactions,
       pagination: {
         page,
         limit,
-        total: allTransactions.length,
-        totalPages: Math.ceil(allTransactions.length / limit),
+        total,
+        totalPages: Math.ceil(total / limit),
       },
     };
   },

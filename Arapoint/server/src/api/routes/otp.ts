@@ -4,10 +4,11 @@ import { userService } from '../../services/userService';
 import { sendOTPSchema, verifyOTPSchema, registerWithOTPSchema } from '../validators/otp';
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
+import { authRateLimiter } from '../middleware/rateLimit';
 
 const router = Router();
 
-router.post('/send', async (req: Request, res: Response) => {
+router.post('/send', authRateLimiter, async (req: Request, res: Response) => {
   try {
     const validation = sendOTPSchema.safeParse(req.body);
     if (!validation.success) {

@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { generatePdfSlip, getSlipPdf, getSlipInfo, SlipData, getSlipPositions, setSlipPositions, getDefaultPositions, SlipPositions, getSlipSettings, setSlipSettings, SlipSettings } from '../../services/pdfSlipGenerator';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, adminAuthMiddleware } from '../middleware/auth';
 import { publicRateLimiter } from '../middleware/rateLimit';
 import { logger } from '../../utils/logger';
 import * as fs from 'fs';
@@ -166,7 +166,7 @@ router.get('/verify/:reference', publicRateLimiter, async (req: Request, res: Re
   }
 });
 
-router.get('/positions/:type', async (req: Request, res: Response) => {
+router.get('/positions/:type', adminAuthMiddleware, async (req: Request, res: Response) => {
   try {
     const slipType = req.params.type as 'standard' | 'premium' | 'long' | 'full_info';
     if (!['standard', 'premium', 'long', 'full_info'].includes(slipType)) {
@@ -205,7 +205,7 @@ router.get('/positions/:type', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/positions/:type', async (req: Request, res: Response) => {
+router.post('/positions/:type', adminAuthMiddleware, async (req: Request, res: Response) => {
   try {
     const slipType = req.params.type as 'standard' | 'premium' | 'long' | 'full_info';
     if (!['standard', 'premium', 'long', 'full_info'].includes(slipType)) {
@@ -246,7 +246,7 @@ router.post('/positions/:type', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/analyzer/:type', async (req: Request, res: Response) => {
+router.get('/analyzer/:type', adminAuthMiddleware, async (req: Request, res: Response) => {
   try {
     const slipType = req.params.type as 'standard' | 'premium' | 'long' | 'full_info';
     if (!['standard', 'premium', 'long', 'full_info'].includes(slipType)) {

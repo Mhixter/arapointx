@@ -94,3 +94,11 @@ export const rpaRateLimiter = createRateLimiter({
   message: 'RPA query limit reached, please try again after a minute',
   keyGenerator: (req) => `rpa_${req.userId || req.ip || 'unknown'}`,
 });
+
+// Strict limiter for authentication endpoints — 10 attempts per 15 minutes per IP
+export const authRateLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: 'Too many login attempts, please try again in 15 minutes',
+  keyGenerator: (req) => `auth_${req.ip || 'unknown'}`,
+});

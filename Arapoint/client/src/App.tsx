@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { SettingsProvider } from "@/contexts/SettingsContext";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import NotFound from "@/pages/not-found";
 import SuspendedPage from "@/pages/Suspended";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -367,7 +368,9 @@ function App() {
         <SettingsProvider>
           <TooltipProvider>
             <Toaster />
-            <Router />
+            <ErrorBoundary>
+              <Router />
+            </ErrorBoundary>
           </TooltipProvider>
         </SettingsProvider>
       </QueryClientProvider>
