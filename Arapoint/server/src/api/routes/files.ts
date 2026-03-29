@@ -4,9 +4,10 @@ import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { db } from '../../config/database';
 import { sharedFiles } from '../../db/schema';
-import { eq, and, or, desc } from 'drizzle-orm';
+import { eq, and, or, desc, isNull } from 'drizzle-orm';
 import { objectStorageService, ObjectNotFoundError } from '../../services/objectStorage';
 import multer from 'multer';
+import { randomBytes } from 'crypto';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -60,7 +61,25 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { relatedRequestId, relatedRequestType } = req.query;
 
-    let query = db.select().from(sharedFiles)
+    const files = await db
+      .select({
+        id: sharedFiles.id,
+        uploadedByUserId: sharedFiles.uploadedByUserId,
+        uploaderRole: sharedFiles.uploaderRole,
+        fileKey: sharedFiles.fileKey,
+        fileName: sharedFiles.fileName,
+        mimeType: sharedFiles.mimeType,
+        fileSize: sharedFiles.fileSize,
+        relatedRequestId: sharedFiles.relatedRequestId,
+        relatedRequestType: sharedFiles.relatedRequestType,
+        accessibleTo: sharedFiles.accessibleTo,
+        description: sharedFiles.description,
+        shareToken: sharedFiles.shareToken,
+        shareTokenExpiresAt: sharedFiles.shareTokenExpiresAt,
+        isDeleted: sharedFiles.isDeleted,
+        createdAt: sharedFiles.createdAt,
+      })
+      .from(sharedFiles)
       .where(
         and(
           eq(sharedFiles.isDeleted, false),
@@ -72,9 +91,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
         )
       )
       .orderBy(desc(sharedFiles.createdAt))
-      .limit(50);
-
-    const files = await query;
+      .limit(100);
 
     const filtered = files.filter(f => {
       if (relatedRequestId && f.relatedRequestId !== relatedRequestId) return false;
@@ -94,7 +111,9 @@ router.get('/:id/download', authMiddleware, async (req: Request, res: Response) 
   try {
     const { id } = req.params;
 
-    const [file] = await db.select().from(sharedFiles)
+    const [file] = await db
+      .select()
+      .from(sharedFiles)
       .where(and(eq(sharedFiles.id, id), eq(sharedFiles.isDeleted, false)))
       .limit(1);
 
@@ -130,12 +149,120 @@ router.get('/:id/download', authMiddleware, async (req: Request, res: Response) 
   }
 });
 
+// POST /api/files/:id/share — generate or refresh a shareable link token (expires in 7 days)
+router.post('/:id/share', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { expiryDays = 7 } = req.body;
+
+    const [file] = await db
+      .select({ id: sharedFiles.id, uploadedByUserId: sharedFiles.uploadedByUserId, fileName: sharedFiles.fileName, isDeleted: sharedFiles.isDeleted })
+      .from(sharedFiles)
+      .where(and(eq(sharedFiles.id, id), eq(sharedFiles.isDeleted, false)))
+      .limit(1);
+
+    if (!file) {
+      return res.status(404).json(formatErrorResponse(404, 'File not found'));
+    }
+
+    if (file.uploadedByUserId !== req.userId) {
+      return res.status(403).json(formatErrorResponse(403, 'Access denied — you can only share your own files'));
+    }
+
+    const days = Math.min(Math.max(parseInt(expiryDays) || 7, 1), 30);
+    const shareToken = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+
+    await db.update(sharedFiles)
+      .set({ shareToken, shareTokenExpiresAt: expiresAt })
+      .where(eq(sharedFiles.id, id));
+
+    logger.info('Share link generated', { fileId: id, userId: req.userId, expiresAt });
+
+    res.json(formatResponse('success', 200, 'Share link generated', {
+      shareToken,
+      expiresAt: expiresAt.toISOString(),
+      expiryDays: days,
+    }));
+  } catch (error: any) {
+    logger.error('Share link error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to generate share link'));
+  }
+});
+
+// DELETE /api/files/:id/share — revoke a shareable link
+router.delete('/:id/share', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const [file] = await db
+      .select({ id: sharedFiles.id, uploadedByUserId: sharedFiles.uploadedByUserId })
+      .from(sharedFiles)
+      .where(and(eq(sharedFiles.id, id), eq(sharedFiles.isDeleted, false)))
+      .limit(1);
+
+    if (!file) return res.status(404).json(formatErrorResponse(404, 'File not found'));
+    if (file.uploadedByUserId !== req.userId) return res.status(403).json(formatErrorResponse(403, 'Access denied'));
+
+    await db.update(sharedFiles)
+      .set({ shareToken: null, shareTokenExpiresAt: null })
+      .where(eq(sharedFiles.id, id));
+
+    res.json(formatResponse('success', 200, 'Share link revoked'));
+  } catch (error: any) {
+    logger.error('Revoke share error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to revoke share link'));
+  }
+});
+
+// GET /api/files/shared/:token — public download via share token (no auth required)
+router.get('/shared/:token', async (req: Request, res: Response) => {
+  try {
+    const { token } = req.params;
+
+    const [file] = await db
+      .select()
+      .from(sharedFiles)
+      .where(and(eq(sharedFiles.shareToken, token), eq(sharedFiles.isDeleted, false)))
+      .limit(1);
+
+    if (!file) {
+      return res.status(404).json(formatErrorResponse(404, 'Share link is invalid or has been revoked'));
+    }
+
+    if (file.shareTokenExpiresAt && new Date(file.shareTokenExpiresAt) < new Date()) {
+      return res.status(410).json(formatErrorResponse(410, 'This share link has expired'));
+    }
+
+    const objectFile = await objectStorageService.getObjectEntityFile(file.fileKey);
+    const stream = objectFile.createReadStream();
+
+    res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
+    res.setHeader('Content-Type', file.mimeType);
+
+    stream.on('error', (err) => {
+      logger.error('Shared file download error', { error: err.message });
+      if (!res.headersSent) res.status(500).json(formatErrorResponse(500, 'Download failed'));
+    });
+
+    stream.pipe(res);
+  } catch (error: any) {
+    if (error instanceof ObjectNotFoundError) {
+      return res.status(404).json(formatErrorResponse(404, 'File not found in storage'));
+    }
+    logger.error('Shared file error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to retrieve shared file'));
+  }
+});
+
 // DELETE /api/files/:id — soft-delete a file
 router.delete('/:id', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const [file] = await db.select().from(sharedFiles)
+    const [file] = await db
+      .select({ id: sharedFiles.id, uploadedByUserId: sharedFiles.uploadedByUserId })
+      .from(sharedFiles)
       .where(and(eq(sharedFiles.id, id), eq(sharedFiles.isDeleted, false)))
       .limit(1);
 
@@ -147,7 +274,7 @@ router.delete('/:id', authMiddleware, async (req: Request, res: Response) => {
       return res.status(403).json(formatErrorResponse(403, 'Access denied'));
     }
 
-    await db.update(sharedFiles).set({ isDeleted: true }).where(eq(sharedFiles.id, id));
+    await db.update(sharedFiles).set({ isDeleted: true, shareToken: null }).where(eq(sharedFiles.id, id));
     res.json(formatResponse('success', 200, 'File deleted'));
   } catch (error: any) {
     logger.error('Delete file error', { error: error.message });

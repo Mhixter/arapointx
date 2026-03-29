@@ -25,7 +25,8 @@ import {
   HelpCircle,
   ChevronRight,
   X,
-  Wrench
+  Wrench,
+  HardDrive
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -117,6 +118,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const accountNavItems = [
     { href: "/dashboard/profile", label: "My Profile", icon: User },
+    { href: "/dashboard/files", label: "File Storage", icon: HardDrive },
     { href: "/dashboard/settings", label: "Settings", icon: Settings },
     { href: "/dashboard/chat", label: "Help & Support", icon: HelpCircle },
   ];

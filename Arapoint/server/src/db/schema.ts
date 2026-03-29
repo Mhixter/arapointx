@@ -942,6 +942,8 @@ export const sharedFiles = pgTable('shared_files', {
   relatedRequestType: varchar('related_request_type', { length: 50 }), // 'bvn', 'cac', 'identity', etc.
   accessibleTo: varchar('accessible_to', { length: 20 }).default('all'), // 'user' | 'agent' | 'all'
   description: text('description'),
+  shareToken: varchar('share_token', { length: 64 }).unique(),
+  shareTokenExpiresAt: timestamp('share_token_expires_at'),
   isDeleted: boolean('is_deleted').default(false),
   createdAt: timestamp('created_at').defaultNow(),
 });

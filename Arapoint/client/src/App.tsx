@@ -54,6 +54,7 @@ import Profile from "@/pages/dashboard/Profile";
 import Settings from "@/pages/dashboard/Settings";
 import Notifications from "@/pages/dashboard/Notifications";
 import Chat from "@/pages/dashboard/Chat";
+import FileStorage from "@/pages/dashboard/FileStorage";
 import AdminSupportDashboard from "@/pages/admin/SupportDashboard";
 import SupportAgentLogin from "@/pages/support/SupportAgentLogin";
 import SupportAgentDashboard from "@/pages/support/SupportAgentDashboard";
@@ -343,6 +344,11 @@ function Router() {
         <Route path="/dashboard/chat">
           <DashboardLayout>
             <Chat />
+          </DashboardLayout>
+        </Route>
+        <Route path="/dashboard/files">
+          <DashboardLayout>
+            <FileStorage />
           </DashboardLayout>
         </Route>
 
