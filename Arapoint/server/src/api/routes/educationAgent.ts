@@ -12,6 +12,7 @@ import {
   educationPinOrders,
   servicePricing,
   agentInternalMessages,
+  sharedFiles,
 } from '../../db/schema';
 import { eq, desc, count, sql, and, isNull } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
@@ -284,6 +285,21 @@ router.post('/requests/:id/upload', educationAgentAuthMiddleware, async (req: Re
       fileKey: objectPath,
       isResult: true,
     }).returning();
+
+    // Share this result with the user permanently
+    if (request.userId) {
+      db.insert(sharedFiles).values({
+        uploadedByUserId: request.userId,
+        uploaderRole: 'agent',
+        fileKey: objectPath,
+        fileName: fileName || 'education-result',
+        mimeType: fileType || 'application/pdf',
+        relatedRequestId: id,
+        relatedRequestType: 'education',
+        accessibleTo: 'user',
+        description: `Education result document — delivered by agent (Ref: ${request.trackingId})`,
+      }).catch(e => logger.warn('Failed to sync edu doc to shared_files', { error: e.message }));
+    }
 
     res.json(formatResponse('success', 200, 'Upload URL generated', { uploadURL, document: doc }));
   } catch (error: any) {

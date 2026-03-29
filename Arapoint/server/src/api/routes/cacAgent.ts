@@ -12,6 +12,7 @@ import {
   adminUsers,
   users,
   agentInternalMessages,
+  sharedFiles,
 } from '../../db/schema';
 import { eq, desc, count, and, isNull, or, sql } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
@@ -384,6 +385,34 @@ router.put('/requests/:id/status', cacAgentAuthMiddleware, async (req: Request, 
         })
         .where(eq(cacAgents.id, agentId));
 
+      // Share result files with the user via shared_files
+      if (certificateUrl && request.userId) {
+        db.insert(sharedFiles).values({
+          uploadedByUserId: request.userId,
+          uploaderRole: 'agent',
+          fileKey: certificateUrl,
+          fileName: `CAC Certificate - ${request.businessName || 'Registration'}.pdf`,
+          mimeType: 'application/pdf',
+          relatedRequestId: id,
+          relatedRequestType: 'cac',
+          accessibleTo: 'user',
+          description: `CAC registration certificate for ${request.businessName || 'your business'} (RC: ${cacRegistrationNumber || 'N/A'})`,
+        }).catch(e => logger.warn('Failed to sync CAC cert to shared_files', { error: e.message }));
+      }
+      if (statusReportUrl && request.userId) {
+        db.insert(sharedFiles).values({
+          uploadedByUserId: request.userId,
+          uploaderRole: 'agent',
+          fileKey: statusReportUrl,
+          fileName: `CAC Status Report - ${request.businessName || 'Registration'}.pdf`,
+          mimeType: 'application/pdf',
+          relatedRequestId: id,
+          relatedRequestType: 'cac',
+          accessibleTo: 'user',
+          description: `CAC status report for ${request.businessName || 'your business'}`,
+        }).catch(e => logger.warn('Failed to sync CAC status report to shared_files', { error: e.message }));
+      }
+
       // Send completion email to the user who submitted this request
       const [requestRow] = await db.select({
         businessName: cacRegistrationRequests.businessName,
@@ -661,6 +690,28 @@ router.post('/requests/:id/upload-document', cacAgentAuthMiddleware, async (req:
       action: 'document_uploaded',
       comment: `Document uploaded: ${documentType} - ${fileName}`,
     });
+
+    // Share this document with the user permanently
+    if (request.userId) {
+      const docTypeLabel: Record<string, string> = {
+        cac_certificate: 'CAC Certificate',
+        status_report: 'CAC Status Report',
+        incorporation_document: 'Incorporation Document',
+        other: 'CAC Document',
+      };
+      db.insert(sharedFiles).values({
+        uploadedByUserId: request.userId,
+        uploaderRole: 'agent',
+        fileKey: fileUrl,
+        fileName: fileName,
+        mimeType: mimeType || 'application/pdf',
+        fileSize: fileSize || null,
+        relatedRequestId: id,
+        relatedRequestType: 'cac',
+        accessibleTo: 'user',
+        description: `${docTypeLabel[documentType] || 'CAC Document'} — uploaded by agent`,
+      }).catch(e => logger.warn('Failed to sync CAC doc to shared_files', { error: e.message }));
+    }
 
     logger.info('Agent uploaded document', { agentId, requestId: id, documentType });
 

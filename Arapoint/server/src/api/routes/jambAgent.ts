@@ -9,6 +9,7 @@ import {
   adminUsers,
   users,
   agentInternalMessages,
+  sharedFiles,
 } from '../../db/schema';
 import { eq, desc, count, sql, and, isNull } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
@@ -388,6 +389,29 @@ router.post('/requests/:id/upload', jambAgentAuthMiddleware, agentUpload.single(
       fileSize: req.file.size,
       isResult: true,
     }).returning();
+
+    // Share this result with the user permanently (no expiry, no token)
+    if (request.userId) {
+      const serviceLabels: Record<string, string> = {
+        'olevel-upload': 'O-Level Result',
+        'admission-letter': 'Admission Letter',
+        'original-result': 'JAMB Original Result',
+        'reprinting-caps': 'CAPS Reprint',
+        'check-result': 'JAMB Score',
+      };
+      db.insert(sharedFiles).values({
+        uploadedByUserId: request.userId,
+        uploaderRole: 'agent',
+        fileKey,
+        fileName: req.file.originalname,
+        mimeType: req.file.mimetype || 'application/octet-stream',
+        fileSize: req.file.size,
+        relatedRequestId: id,
+        relatedRequestType: 'jamb',
+        accessibleTo: 'user',
+        description: `${serviceLabels[request.serviceType] || 'JAMB result'} — delivered by agent (Ref: ${request.trackingId})`,
+      }).catch(e => logger.warn('Failed to sync JAMB doc to shared_files', { error: e.message }));
+    }
 
     logger.info('JAMB agent document uploaded', { agentId, requestId: id, fileName: req.file.originalname, storage: fileKey.startsWith('/objects/') ? 'object' : 'disk' });
     res.json(formatResponse('success', 200, 'Document uploaded successfully', { document: doc }));

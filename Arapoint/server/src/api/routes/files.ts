@@ -106,7 +106,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/files/:id/download — stream a file from object storage
+// GET /api/files/:id/download — stream or redirect to a file
 router.get('/:id/download', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -126,6 +126,11 @@ router.get('/:id/download', authMiddleware, async (req: Request, res: Response) 
 
     if (!isOwner && !isAccessible) {
       return res.status(403).json(formatErrorResponse(403, 'Access denied'));
+    }
+
+    // If the fileKey is an external URL (e.g. CAC certificate URL), redirect to it
+    if (file.fileKey.startsWith('http://') || file.fileKey.startsWith('https://')) {
+      return res.redirect(302, file.fileKey);
     }
 
     const objectFile = await objectStorageService.getObjectEntityFile(file.fileKey);

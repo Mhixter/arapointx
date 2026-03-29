@@ -10,6 +10,7 @@ import {
   users,
   servicePricing,
   agentInternalMessages,
+  sharedFiles,
 } from '../../db/schema';
 import { eq, desc, count, and, sql, isNull } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
@@ -262,6 +263,27 @@ router.put('/requests/:id/status', identityAgentAuthMiddleware, async (req: Requ
       newStatus: status,
       comment: agentNotes,
     });
+
+    // Share slip file with the user permanently if provided
+    if (status === 'completed' && slipUrl && request.userId) {
+      const serviceLabels: Record<string, string> = {
+        nin_validation: 'NIN Validation',
+        ipe_clearance: 'IPE Clearance',
+        nin_personalization: 'NIN Personalization',
+      };
+      const serviceLabel = serviceLabels[request.serviceType] || 'Identity Service';
+      db.insert(sharedFiles).values({
+        uploadedByUserId: request.userId,
+        uploaderRole: 'agent',
+        fileKey: slipUrl,
+        fileName: `${serviceLabel} Result - ${request.trackingId}.pdf`,
+        mimeType: 'application/pdf',
+        relatedRequestId: id,
+        relatedRequestType: 'identity',
+        accessibleTo: 'user',
+        description: `${serviceLabel} result slip — delivered by agent (Ref: ${request.trackingId})`,
+      }).catch(e => logger.warn('Failed to sync identity slip to shared_files', { error: e.message }));
+    }
 
     logger.info('Identity request status updated', { requestId: id, status, agentId });
 
