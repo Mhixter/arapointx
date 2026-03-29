@@ -303,7 +303,13 @@ export default function AdminBVNServices() {
                 <span className="text-muted-foreground">Service:</span>
                 <span className="capitalize">{selectedRequest.serviceType}</span>
                 <span className="text-muted-foreground">BVN:</span>
-                <span className="font-mono text-xs">{selectedRequest.bvn ? `${selectedRequest.bvn.slice(0, 4)}****${selectedRequest.bvn.slice(-3)}` : '-'}</span>
+                <span className="font-mono text-xs">{selectedRequest.bvn || '-'}</span>
+                {selectedRequest.serviceType === 'modification' && selectedRequest.responseData?.nin && (
+                  <>
+                    <span className="text-muted-foreground">NIN:</span>
+                    <span className="font-mono text-xs">{selectedRequest.responseData.nin}</span>
+                  </>
+                )}
                 {selectedRequest.phone && (
                   <>
                     <span className="text-muted-foreground">Phone:</span>

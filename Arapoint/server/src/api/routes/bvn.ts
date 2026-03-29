@@ -265,6 +265,7 @@ router.post('/modify', async (req: Request, res: Response) => {
         changeCategory: validation.data.changeCategory,
         oldValue: validation.data.oldValue,
         newValue: validation.data.newValue,
+        nin: validation.data.nin || null,
       },
     });
 

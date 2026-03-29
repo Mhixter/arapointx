@@ -11,6 +11,7 @@ export const bvnDigitalCardSchema = z.object({
 
 export const bvnModifySchema = z.object({
   bvn: z.string().length(11, 'BVN must be exactly 11 digits').regex(/^[0-9]+$/, 'BVN must contain only digits'),
+  nin: z.string().length(11, 'NIN must be exactly 11 digits').regex(/^[0-9]+$/, 'NIN must contain only digits').optional(),
   phone: z.string().regex(/^\+?[0-9]{10,15}$/, 'Invalid phone number').optional(),
   changeCategory: z.enum(['name', 'dob']),
   oldValue: z.string().min(1, 'Old value is required'),

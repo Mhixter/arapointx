@@ -68,6 +68,7 @@ export default function BVNRetrieval() {
   const [newDOB, setNewDOB] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [address, setAddress] = useState("");
+  const [nin, setNin] = useState("");
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [modificationHistory, setModificationHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -142,7 +143,7 @@ export default function BVNRetrieval() {
       const response = await fetch('/api/bvn/modify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ bvn, phone: phoneNumber, changeCategory, oldValue: changeCategory === 'name' ? oldName : oldDOB, newValue: changeCategory === 'name' ? newName : newDOB, address }),
+        body: JSON.stringify({ bvn, nin: nin.trim() || undefined, phone: phoneNumber, changeCategory, oldValue: changeCategory === 'name' ? oldName : oldDOB, newValue: changeCategory === 'name' ? newName : newDOB, address }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'Modification request failed');
@@ -179,7 +180,7 @@ export default function BVNRetrieval() {
   };
 
   const resetAll = () => {
-    setSelectedService(null); setBvn(""); setError(""); setChangeCategory(""); setOldName(""); setNewName(""); setOldDOB(""); setNewDOB(""); setPhoneNumber(""); setAddress(""); setSubmitted(false); setRetrievedData(null); setSlipHtml(null);
+    setSelectedService(null); setBvn(""); setNin(""); setError(""); setChangeCategory(""); setOldName(""); setNewName(""); setOldDOB(""); setNewDOB(""); setPhoneNumber(""); setAddress(""); setSubmitted(false); setRetrievedData(null); setSlipHtml(null);
   };
 
   /* ────────────── Service Selection ────────────── */
@@ -301,17 +302,33 @@ export default function BVNRetrieval() {
             <Card className="border-2">
               <CardContent className="pt-6">
                 <form onSubmit={handleModificationFormSubmit} className="space-y-5">
-                  <div className="space-y-2">
-                    <Label htmlFor="bvn" className="font-medium">BVN (Bank Verification Number)</Label>
-                    <Input
-                      id="bvn"
-                      placeholder="Enter 11-digit BVN"
-                      maxLength={11}
-                      value={bvn}
-                      onChange={(e) => setBvn(e.target.value.replace(/\D/g, ""))}
-                      className="h-12 font-mono text-lg tracking-widest text-center"
-                    />
-                    <p className="text-xs text-muted-foreground">{bvn.length}/11 digits entered</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="bvn" className="font-medium">BVN (Bank Verification Number)</Label>
+                      <Input
+                        id="bvn"
+                        placeholder="Enter 11-digit BVN"
+                        maxLength={11}
+                        value={bvn}
+                        onChange={(e) => setBvn(e.target.value.replace(/\D/g, ""))}
+                        className="h-12 font-mono text-lg tracking-widest text-center"
+                      />
+                      <p className="text-xs text-muted-foreground">{bvn.length}/11 digits</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="nin" className="font-medium">
+                        NIN (National Identification Number) <span className="text-muted-foreground font-normal">(Optional)</span>
+                      </Label>
+                      <Input
+                        id="nin"
+                        placeholder="Enter 11-digit NIN"
+                        maxLength={11}
+                        value={nin}
+                        onChange={(e) => setNin(e.target.value.replace(/\D/g, ""))}
+                        className="h-12 font-mono text-lg tracking-widest text-center"
+                      />
+                      <p className="text-xs text-muted-foreground">{nin.length}/11 digits</p>
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -471,7 +488,7 @@ export default function BVNRetrieval() {
                   </span>
                 </div>
 
-                {/* BVN & Reference */}
+                {/* BVN, NIN & Reference */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 rounded-lg bg-muted/40 border space-y-0.5">
                     <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
@@ -482,6 +499,18 @@ export default function BVNRetrieval() {
                     </p>
                   </div>
                   <div className="p-3 rounded-lg bg-muted/40 border space-y-0.5">
+                    <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                      <User className="h-3 w-3" /> NIN
+                    </p>
+                    {selectedHistoryItem.responseData?.nin ? (
+                      <p className="font-mono font-bold text-sm">
+                        {selectedHistoryItem.responseData.nin.substring(0, 4)}****{selectedHistoryItem.responseData.nin.substring(8)}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">Not provided</p>
+                    )}
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/40 border col-span-2 space-y-0.5">
                     <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
                       <Hash className="h-3 w-3" /> Reference
                     </p>
@@ -585,6 +614,7 @@ export default function BVNRetrieval() {
                   </div>
                   <div className="bg-muted/50 rounded-lg p-3 space-y-2 text-sm">
                     <div className="flex justify-between"><span className="text-muted-foreground">BVN</span><span className="font-mono font-medium">{bvn.substring(0, 4)}****{bvn.substring(8)}</span></div>
+                    {nin.trim() && <div className="flex justify-between"><span className="text-muted-foreground">NIN</span><span className="font-mono font-medium">{nin.substring(0, 4)}****{nin.substring(8)}</span></div>}
                     <div className="flex justify-between"><span className="text-muted-foreground">Change Type</span><span className="font-medium">{changeCategory === 'name' ? 'Name Change' : 'Date of Birth Change'}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Phone</span><span className="font-medium">{phoneNumber}</span></div>
                     <div className="flex justify-between border-t pt-2"><span className="font-semibold">Cost</span><span className="font-bold text-primary">₦2,500</span></div>
