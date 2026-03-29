@@ -12,3 +12,9 @@ id = "uF7zladlxzcpCZup8JGaN"
 uri = "file://attached_assets/generated_images/arapoint_launch_banner_v2.png"
 type = "image"
 title = "Arapoint Launch Banner — Full Version with Contacts & Advertiser"
+
+[[outputs]]
+id = "QgHPMQKgi9w9TyPdjed3u"
+uri = "file://attached_assets/generated_images/arapoint_launch_banner_v3.png"
+type = "image"
+title = "Arapoint Launch Banner — With Circle Logo, Advertiser & Contacts"
