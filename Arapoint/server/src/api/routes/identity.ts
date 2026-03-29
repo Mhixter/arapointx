@@ -1136,9 +1136,55 @@ router.post('/validation', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/personalization', async (req: Request, res: Response) => {
+  try {
+    const { trackingId, customerNotes } = req.body;
+
+    if (!trackingId) {
+      return res.status(400).json(formatErrorResponse(400, 'Tracking ID is required'));
+    }
+
+    const price = await getServicePrice('nin_personalization', 1500);
+
+    const balance = await walletService.getBalance(req.userId!);
+    if (balance.balance < price) {
+      return res.status(402).json(formatErrorResponse(402, 'Insufficient wallet balance'));
+    }
+
+    const requestTrackingId = generateTrackingId();
+
+    await walletService.deductBalance(req.userId!, price, 'NIN Personalization Request', 'nin_personalization');
+
+    await db.insert(identityServiceRequests).values({
+      userId: req.userId!,
+      trackingId: requestTrackingId,
+      serviceType: 'nin_personalization',
+      newTrackingId: trackingId,
+      status: 'pending',
+      fee: price.toFixed(2),
+      isPaid: true,
+      customerNotes,
+    });
+
+    logger.info('NIN Personalization request submitted', { userId: req.userId, trackingId: requestTrackingId });
+
+    res.status(202).json(formatResponse('success', 202, 'NIN Personalization request submitted successfully', {
+      trackingId: requestTrackingId,
+      price,
+      message: 'Your personalization request has been submitted and will be processed within 1–30 minutes.',
+    }));
+  } catch (error: any) {
+    logger.error('NIN Personalization error', { error: error.message, userId: req.userId });
+    if (error.message === 'Insufficient wallet balance') {
+      return res.status(402).json(formatErrorResponse(402, error.message));
+    }
+    res.status(500).json(formatErrorResponse(500, 'Failed to submit NIN Personalization request'));
+  }
+});
+
 router.post('/birth-attestation', async (req: Request, res: Response) => {
   try {
-    const { fullName, dateOfBirth, placeOfBirth, customerNotes } = req.body;
+    const { fullName, dateOfBirth, placeOfBirth, gender, lga, parentName, customerNotes } = req.body;
     
     if (!fullName || !dateOfBirth || !placeOfBirth) {
       return res.status(400).json(formatErrorResponse(400, 'Full name, date of birth, and place of birth are required'));
@@ -1159,7 +1205,7 @@ router.post('/birth-attestation', async (req: Request, res: Response) => {
       userId: req.userId!,
       trackingId: requestTrackingId,
       serviceType: 'birth_attestation',
-      updateFields: { fullName, dateOfBirth, placeOfBirth },
+      updateFields: { fullName, dateOfBirth, placeOfBirth, gender, lga, parentName },
       status: 'pending',
       fee: price.toFixed(2),
       isPaid: true,

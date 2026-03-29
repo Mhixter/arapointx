@@ -300,11 +300,14 @@ function ServiceContent({ service }: { service: any }) {
         endpoint = '/api/identity/personalization';
         body = { trackingId: inputValue };
       } else if (service.id === "birth-attestation") {
-        const fullName    = formData.get("fullName") as string;
-        const dateOfBirth = formData.get("dateOfBirth") as string;
+        const fullName     = formData.get("fullName") as string;
+        const dateOfBirth  = formData.get("dateOfBirth") as string;
         const placeOfBirth = formData.get("placeOfBirth") as string;
+        const gender       = formData.get("gender") as string;
+        const lga          = formData.get("lga") as string;
+        const parentName   = formData.get("parentName") as string;
         endpoint = '/api/identity/birth-attestation';
-        body = { fullName, dateOfBirth, placeOfBirth };
+        body = { fullName, dateOfBirth, placeOfBirth, gender, lga, parentName };
       } else {
         throw new Error("Unknown service type");
       }
@@ -822,13 +825,13 @@ function ServiceContent({ service }: { service: any }) {
                 </p>
                 <div className="space-y-4">
                   <div className="space-y-1.5">
-                    <Label htmlFor="full-name" className="text-sm">Full Name</Label>
-                    <Input id="full-name" name="input" placeholder="Full name as on birth certificate" className="h-12 bg-gray-50 dark:bg-gray-800" required />
+                    <Label htmlFor="fullName" className="text-sm">Full Name</Label>
+                    <Input id="fullName" name="fullName" placeholder="Full name as on birth certificate" className="h-12 bg-gray-50 dark:bg-gray-800" required />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label htmlFor="dob" className="text-sm">Date of Birth</Label>
-                      <Input id="dob" name="dob" type="date" className="h-12 bg-gray-50 dark:bg-gray-800" required />
+                      <Label htmlFor="dateOfBirth" className="text-sm">Date of Birth</Label>
+                      <Input id="dateOfBirth" name="dateOfBirth" type="date" className="h-12 bg-gray-50 dark:bg-gray-800" required />
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="gender" className="text-sm">Gender</Label>
@@ -840,16 +843,16 @@ function ServiceContent({ service }: { service: any }) {
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="state" className="text-sm">State of Registration</Label>
-                    <Input id="state" name="state" placeholder="State where birth was registered" className="h-12 bg-gray-50 dark:bg-gray-800" required />
+                    <Label htmlFor="placeOfBirth" className="text-sm">State of Registration</Label>
+                    <Input id="placeOfBirth" name="placeOfBirth" placeholder="State where birth was registered" className="h-12 bg-gray-50 dark:bg-gray-800" required />
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="lga" className="text-sm">Local Government Area (LGA)</Label>
                     <Input id="lga" name="lga" placeholder="LGA of registration" className="h-12 bg-gray-50 dark:bg-gray-800" required />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="parents" className="text-sm">Parent / Guardian Name</Label>
-                    <Input id="parents" name="parents" placeholder="Name of parent or guardian" className="h-12 bg-gray-50 dark:bg-gray-800" required />
+                    <Label htmlFor="parentName" className="text-sm">Parent / Guardian Name</Label>
+                    <Input id="parentName" name="parentName" placeholder="Name of parent or guardian" className="h-12 bg-gray-50 dark:bg-gray-800" required />
                   </div>
                 </div>
               </div>
@@ -947,21 +950,52 @@ function TransactionsHistory() {
             </div>
           ) : (
             <div className="space-y-3">
-              {requests.map((req: any) => (
-                <div key={req.id} className="flex items-center justify-between p-4 rounded-xl border border-gray-100 dark:border-gray-800 hover:bg-muted/30 transition-colors">
-                  <div>
-                    <p className="font-semibold">{getServiceName(req.serviceType)}</p>
-                    <p className="text-sm text-muted-foreground font-mono">Tracking: {req.trackingId}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(req.createdAt).toLocaleString()}</p>
+              {requests.map((req: any) => {
+                const fields = req.updateFields || {};
+                const details: { label: string; value: string }[] = [];
+                if (req.nin) details.push({ label: 'NIN', value: req.nin });
+                if (req.newTrackingId) details.push({ label: 'Submitted Tracking ID', value: req.newTrackingId });
+                if (fields.validationType) details.push({ label: 'Validation Type', value: fields.validationType });
+                if (fields.statusType) details.push({ label: 'Status Type', value: fields.statusType });
+                if (fields.fullName) details.push({ label: 'Full Name', value: fields.fullName });
+                if (fields.dateOfBirth) details.push({ label: 'Date of Birth', value: fields.dateOfBirth });
+                if (fields.placeOfBirth) details.push({ label: 'Place of Birth', value: fields.placeOfBirth });
+                if (fields.gender) details.push({ label: 'Gender', value: fields.gender });
+                if (fields.lga) details.push({ label: 'LGA', value: fields.lga });
+                if (fields.parentName) details.push({ label: 'Parent/Guardian', value: fields.parentName });
+                if (req.customerNotes) details.push({ label: 'Notes', value: req.customerNotes });
+
+                return (
+                  <div key={req.id} className="rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+                    <div className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
+                      <div>
+                        <p className="font-semibold">{getServiceName(req.serviceType)}</p>
+                        <p className="text-sm text-muted-foreground font-mono">Ref: {req.trackingId}</p>
+                        <p className="text-xs text-muted-foreground">{new Date(req.createdAt).toLocaleString()}</p>
+                      </div>
+                      <div className="text-right space-y-1">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(req.status)}`}>
+                          {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                        </span>
+                        <p className="text-sm font-semibold text-primary">₦{parseFloat(req.fee).toLocaleString()}</p>
+                      </div>
+                    </div>
+                    {details.length > 0 && (
+                      <div className="px-4 pb-4 pt-0 bg-muted/20 border-t border-gray-100 dark:border-gray-800">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 pt-3">Submitted Details</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                          {details.map((d) => (
+                            <div key={d.label} className="flex gap-2 text-xs">
+                              <span className="text-muted-foreground min-w-[90px]">{d.label}:</span>
+                              <span className="font-mono font-medium break-all">{d.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="text-right space-y-1">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(req.status)}`}>
-                      {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
-                    </span>
-                    <p className="text-sm font-semibold text-primary">₦{parseFloat(req.fee).toLocaleString()}</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

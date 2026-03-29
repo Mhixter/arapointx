@@ -6,6 +6,7 @@ import { virtualAccountService } from '../../services/virtualAccountService';
 import { walletFundSchema } from '../validators/payment';
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
+import { loadGatewayCredentials } from '../../config/loadGatewayCredentials';
 
 const router = Router();
 router.use(authMiddleware);
@@ -99,6 +100,8 @@ router.post('/virtual-account/generate', async (req: Request, res: Response) => 
     if (bvn && bvn.length !== 11) {
       return res.status(400).json(formatErrorResponse(400, 'BVN must be exactly 11 digits'));
     }
+
+    await loadGatewayCredentials().catch(() => {});
 
     const result = await virtualAccountService.generateVirtualAccountForUser(req.userId!, nin, bvn);
     
