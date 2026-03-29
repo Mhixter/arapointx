@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Shield, Database, Globe, Save, Mail, Loader2, Send, CreditCard, CheckCircle2, XCircle, Eye, EyeOff } from "lucide-react";
+import { Bell, Shield, Database, Globe, Save, Mail, Loader2, Send, CreditCard, CheckCircle2, XCircle, Eye, EyeOff, Headset, Phone, MessageCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/contexts/SettingsContext";
 
@@ -189,15 +189,20 @@ export default function AdminSettings() {
   const handleSaveGeneral = () => {
     saveTabSettings({
       siteName: settings.siteName,
-      siteEmail: settings.siteEmail,
-      sitePhone: settings.sitePhone,
       siteAddress: settings.siteAddress,
       maintenanceMode: settings.maintenanceMode,
       currency: settings.currency,
       timezone: settings.timezone,
+    }, "General", true);
+  };
+
+  const handleSaveSupport = () => {
+    saveTabSettings({
+      siteEmail: settings.siteEmail,
+      sitePhone: settings.sitePhone,
       supportWhatsappChannel: settings.supportWhatsappChannel,
       supportWhatsappGroup: settings.supportWhatsappGroup,
-    }, "General", true);
+    }, "Support", true);
   };
 
   const handleSaveEmail = () => {
@@ -249,10 +254,14 @@ export default function AdminSettings() {
       </div>
 
       <Tabs defaultValue="general" className="space-y-4 sm:space-y-6">
-        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-7 h-auto p-1 gap-1">
+        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 h-auto p-1 gap-1">
           <TabsTrigger value="general" className="gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm">
             <Globe className="h-3 w-3 sm:h-4 sm:w-4" />
             <span className="hidden xs:inline sm:inline">General</span>
+          </TabsTrigger>
+          <TabsTrigger value="support" className="gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm">
+            <Headset className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden xs:inline sm:inline">Support</span>
           </TabsTrigger>
           <TabsTrigger value="gateways" className="gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm" onClick={() => { if (Object.keys(gateways).length === 0) fetchGateways(); }}>
             <CreditCard className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -298,61 +307,11 @@ export default function AdminSettings() {
                   />
                 </div>
                 <div className="space-y-1.5 sm:space-y-2">
-                  <Label htmlFor="site-email" className="text-xs sm:text-sm">Contact Email</Label>
-                  <Input
-                    id="site-email"
-                    type="email"
-                    value={settings.siteEmail}
-                    onChange={(e) => setSettings(prev => ({ ...prev, siteEmail: e.target.value }))}
-                    className="h-8 sm:h-9 text-sm"
-                  />
-                </div>
-                <div className="space-y-1.5 sm:space-y-2">
-                  <Label htmlFor="site-phone" className="text-xs sm:text-sm">Contact Phone</Label>
-                  <Input
-                    id="site-phone"
-                    value={settings.sitePhone}
-                    onChange={(e) => setSettings(prev => ({ ...prev, sitePhone: e.target.value }))}
-                    className="h-8 sm:h-9 text-sm"
-                  />
-                </div>
-                <div className="space-y-1.5 sm:space-y-2">
                   <Label htmlFor="site-address" className="text-xs sm:text-sm">Address</Label>
                   <Input
                     id="site-address"
                     value={settings.siteAddress}
                     onChange={(e) => setSettings(prev => ({ ...prev, siteAddress: e.target.value }))}
-                    className="h-8 sm:h-9 text-sm"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-base sm:text-lg">Support Contact Links</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">WhatsApp links shown on the user support page</CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 sm:p-6 pt-0 space-y-3 sm:space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div className="space-y-1.5 sm:space-y-2">
-                  <Label htmlFor="wa-channel" className="text-xs sm:text-sm">WhatsApp Channel Link</Label>
-                  <Input
-                    id="wa-channel"
-                    placeholder="https://whatsapp.com/channel/..."
-                    value={settings.supportWhatsappChannel}
-                    onChange={(e) => setSettings(prev => ({ ...prev, supportWhatsappChannel: e.target.value }))}
-                    className="h-8 sm:h-9 text-sm"
-                  />
-                </div>
-                <div className="space-y-1.5 sm:space-y-2">
-                  <Label htmlFor="wa-group" className="text-xs sm:text-sm">WhatsApp Group Link</Label>
-                  <Input
-                    id="wa-group"
-                    placeholder="https://chat.whatsapp.com/..."
-                    value={settings.supportWhatsappGroup}
-                    onChange={(e) => setSettings(prev => ({ ...prev, supportWhatsappGroup: e.target.value }))}
                     className="h-8 sm:h-9 text-sm"
                   />
                 </div>
@@ -406,6 +365,80 @@ export default function AdminSettings() {
             <Button onClick={handleSaveGeneral} size="sm" className="h-9 sm:h-10 text-xs sm:text-sm px-4 sm:px-6">
               <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
               Save General Settings
+            </Button>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="support" className="space-y-4 sm:space-y-6">
+          <Card>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2"><Mail className="h-4 w-4" /> Contact Information</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Email and phone shown on the user support page</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-0 space-y-3 sm:space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label htmlFor="support-email" className="text-xs sm:text-sm">Support Email</Label>
+                  <Input
+                    id="support-email"
+                    type="email"
+                    placeholder="support@example.com"
+                    value={settings.siteEmail}
+                    onChange={(e) => setSettings(prev => ({ ...prev, siteEmail: e.target.value }))}
+                    className="h-8 sm:h-9 text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label htmlFor="support-phone" className="text-xs sm:text-sm">Support Phone</Label>
+                  <Input
+                    id="support-phone"
+                    placeholder="+234 800 000 0000"
+                    value={settings.sitePhone}
+                    onChange={(e) => setSettings(prev => ({ ...prev, sitePhone: e.target.value }))}
+                    className="h-8 sm:h-9 text-sm"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2"><MessageCircle className="h-4 w-4 text-green-500" /> WhatsApp Links</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">WhatsApp channel and group links shown on the user support page</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-0 space-y-3 sm:space-y-4">
+              <div className="grid grid-cols-1 gap-3 sm:gap-4">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label htmlFor="wa-channel" className="text-xs sm:text-sm">WhatsApp Channel Link</Label>
+                  <Input
+                    id="wa-channel"
+                    placeholder="https://whatsapp.com/channel/..."
+                    value={settings.supportWhatsappChannel}
+                    onChange={(e) => setSettings(prev => ({ ...prev, supportWhatsappChannel: e.target.value }))}
+                    className="h-8 sm:h-9 text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">Broadcast channel link — users can follow for announcements</p>
+                </div>
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label htmlFor="wa-group" className="text-xs sm:text-sm">WhatsApp Group Link</Label>
+                  <Input
+                    id="wa-group"
+                    placeholder="https://chat.whatsapp.com/..."
+                    value={settings.supportWhatsappGroup}
+                    onChange={(e) => setSettings(prev => ({ ...prev, supportWhatsappGroup: e.target.value }))}
+                    className="h-8 sm:h-9 text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">Community group link — users can join for peer support</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-end pt-2">
+            <Button onClick={handleSaveSupport} size="sm" className="h-9 sm:h-10 text-xs sm:text-sm px-4 sm:px-6">
+              <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+              Save Support Settings
             </Button>
           </div>
         </TabsContent>

@@ -273,7 +273,7 @@ export default function AdminCRUDLayout({ children, currentRole }: AdminCRUDLayo
             
             <ThemeToggle />
             
-            <Button variant="ghost" size="icon" className="relative h-8 w-8 sm:h-9 sm:w-9">
+            <Button variant="ghost" size="icon" className="relative h-8 w-8 sm:h-9 sm:w-9" onClick={() => setLocation('/admin/notifications')}>
               <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
               <span className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 h-2 w-2 sm:h-2.5 sm:w-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></span>
             </Button>
@@ -302,8 +302,8 @@ export default function AdminCRUDLayout({ children, currentRole }: AdminCRUDLayo
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="cursor-pointer">Profile Settings</DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer">Activity Log</DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer" onClick={() => setLocation('/admin/profile')}>Profile Settings</DropdownMenuItem>
+                <DropdownMenuItem className="cursor-pointer" onClick={() => setLocation('/admin/logs')}>Activity Log</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-red-600 cursor-pointer" onClick={() => {
                   tokenStorage.removeItem('adminToken');

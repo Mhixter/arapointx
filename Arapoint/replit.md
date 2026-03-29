@@ -19,6 +19,14 @@ Arapoint is a production-ready Nigerian Identity Verification and Management Pla
 - **Email**: SendGrid (for OTP delivery)
 - **Identity Verification**: YouVerify API (NIN/BVN)
 
+## Recent Updates (March 2026 — Session 4)
+- **Admin Profile Settings page**: New `AdminProfile.tsx` at `/admin/profile` — view avatar/role badge, update display name, change password (with current-password verification). API endpoints `GET /api/admin/me`, `PUT /api/admin/me`, `PUT /api/admin/me/password` added to admin.ts.
+- **Admin Notifications page**: New `AdminNotifications.tsx` at `/admin/notifications` — shows all notifications (read + unread), per-item "Mark read" button, bulk "Mark all read". New `GET /api/admin/notifications/all` endpoint returns last 100 notifications.
+- **Admin Activity Log page**: New `AdminActivityLog.tsx` at `/admin/logs` — searchable event history using the notifications feed, with type badge coloring (error/warning/success/info) and relative + absolute timestamps.
+- **AdminCRUDLayout wired up**: Bell icon navigates to `/admin/notifications`; "Profile Settings" dropdown item navigates to `/admin/profile`; "Activity Log" dropdown item navigates to `/admin/logs`.
+- **AdminSettings Support tab**: New dedicated "Support" tab (headset icon) groups support email, support phone, WhatsApp channel link, WhatsApp group link all in one place. "Support Contact Links" card removed from General tab; email/phone removed from General's Site Information (now only siteName + siteAddress in General). `handleSaveSupport` saves all 4 support-facing contact fields.
+- **FileStorage redesigned**: Tabs removed entirely; all documents in one unified vertical list sorted by date. Agent-delivered files show a colored service badge (CAC Registration, Education Result, NIN / Identity, JAMB Service) and a Download button. User uploads show "My Upload" label + full dropdown menu (download, share, delete). Upload zone stays at top; search bar appears once files exist.
+
 ## Recent Updates (March 2026 — Session 3)
 - **DOB date parsing fixed (all templates)**: Both `pdfSlipGenerator.ts` and `slipGenerator.ts` now correctly parse Prembly's DD-MM-YYYY format using regex + UTC construction (e.g. "10-11-2001" → "10 NOV 2001" instead of "11 OCT 2001"). ISO YYYY-MM-DD is also handled via UTC to avoid timezone-shift off-by-one errors. A shared `parseDateSafe()` helper was added to `slipGenerator.ts` used by both `formatDateShort` and `formatDateSlash`.
 - **`trackingId` added to NINData**: Interface now includes `trackingId?: string`. All 4 NINData instantiations in `premblyService.ts` (verifyNIN, verifyVNIN, verifyNINWithPhone, retrieveNINByPhone) now map `rawData.trackingId || rawData.tracking_id || rawData.centralID`.

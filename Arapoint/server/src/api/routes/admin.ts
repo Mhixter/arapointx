@@ -517,6 +517,72 @@ router.delete('/bvn-services/:id', async (req: Request, res: Response) => {
   }
 });
 
+// Admin: get own profile
+router.get('/me', async (req: Request, res: Response) => {
+  try {
+    const [admin] = await db.select({
+      id: adminUsers.id,
+      name: adminUsers.name,
+      email: adminUsers.email,
+      createdAt: adminUsers.createdAt,
+    }).from(adminUsers).where(eq(adminUsers.id, req.userId!));
+    if (!admin) return res.status(404).json(formatErrorResponse(404, 'Admin not found'));
+    res.json(formatResponse('success', 200, 'Profile retrieved', { admin: { ...admin, role: req.adminRole } }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to get profile'));
+  }
+});
+
+// Admin: update own profile (name only)
+router.put('/me', async (req: Request, res: Response) => {
+  try {
+    const { name } = req.body;
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json(formatErrorResponse(400, 'Name is required'));
+    }
+    await db.update(adminUsers).set({ name: name.trim(), updatedAt: new Date() }).where(eq(adminUsers.id, req.userId!));
+    res.json(formatResponse('success', 200, 'Profile updated'));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to update profile'));
+  }
+});
+
+// Admin: change own password
+router.put('/me/password', async (req: Request, res: Response) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json(formatErrorResponse(400, 'Both current and new password are required'));
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json(formatErrorResponse(400, 'New password must be at least 8 characters'));
+    }
+    const [admin] = await db.select().from(adminUsers).where(eq(adminUsers.id, req.userId!));
+    if (!admin) return res.status(404).json(formatErrorResponse(404, 'Admin not found'));
+    const valid = await bcrypt.compare(currentPassword, admin.passwordHash);
+    if (!valid) return res.status(401).json(formatErrorResponse(401, 'Current password is incorrect'));
+    const hash = await bcrypt.hash(newPassword, 10);
+    await db.update(adminUsers).set({ passwordHash: hash, updatedAt: new Date() }).where(eq(adminUsers.id, req.userId!));
+    res.json(formatResponse('success', 200, 'Password changed successfully'));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to change password'));
+  }
+});
+
+// Admin: get all notifications (read + unread)
+router.get('/notifications/all', async (req: Request, res: Response) => {
+  try {
+    const notifications = await db.select()
+      .from(adminNotifications)
+      .orderBy(desc(adminNotifications.createdAt))
+      .limit(100);
+    res.json(formatResponse('success', 200, 'Notifications retrieved', { notifications, count: notifications.length }));
+  } catch (error: any) {
+    logger.error('Get all admin notifications error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get notifications'));
+  }
+});
+
 // Admin: get pending (unread) notifications
 router.get('/notifications/pending', async (req: Request, res: Response) => {
   try {

@@ -80,6 +80,9 @@ import AdminJAMBAgents from "@/pages/admin/AdminJAMBAgents";
 import AdminEducationPins from "@/pages/admin/AdminEducationPins";
 import AdminWhatsApp from "@/pages/admin/AdminWhatsApp";
 import AdminTransactions from "@/pages/admin/AdminTransactions";
+import AdminProfile from "@/pages/admin/AdminProfile";
+import AdminNotifications from "@/pages/admin/AdminNotifications";
+import AdminActivityLog from "@/pages/admin/AdminActivityLog";
 import AdminCRUDLayout from "@/components/layout/AdminCRUDLayout";
 
 function Router() {
@@ -198,6 +201,21 @@ function Router() {
       <Route path="/admin/support">
         <AdminCRUDLayout>
           <AdminSupportDashboard />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/profile">
+        <AdminCRUDLayout>
+          <AdminProfile />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/notifications">
+        <AdminCRUDLayout>
+          <AdminNotifications />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/logs">
+        <AdminCRUDLayout>
+          <AdminActivityLog />
         </AdminCRUDLayout>
       </Route>
       

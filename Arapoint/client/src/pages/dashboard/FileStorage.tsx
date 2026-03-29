@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -148,19 +147,12 @@ export default function FileStorage() {
 
   const allFiles: SharedFile[] = data?.data?.files || [];
 
-  const agentFiles = allFiles.filter(f => f.uploaderRole === 'agent');
-  const myFiles = allFiles.filter(f => f.uploaderRole !== 'agent');
-
-  const filterFiles = (list: SharedFile[]) =>
-    !searchQuery
-      ? list
-      : list.filter(f =>
-          f.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (f.description || '').toLowerCase().includes(searchQuery.toLowerCase())
-        );
-
-  const filteredAgentFiles = filterFiles(agentFiles);
-  const filteredMyFiles = filterFiles(myFiles);
+  const filteredFiles = !searchQuery
+    ? allFiles
+    : allFiles.filter(f =>
+        f.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (f.description || '').toLowerCase().includes(searchQuery.toLowerCase())
+      );
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -258,7 +250,6 @@ export default function FileStorage() {
     const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken') || '';
     fetch(`/api/files/${file.id}/download`, { headers: { Authorization: `Bearer ${token}` } })
       .then(res => {
-        // Handle redirects (external URLs like CAC certs)
         if (res.redirected) {
           window.open(res.url, '_blank');
           return;
@@ -275,7 +266,10 @@ export default function FileStorage() {
       .catch(() => toast({ title: 'Download failed', variant: 'destructive' }));
   };
 
-  const FileRow = ({ file, isAgentFile = false }: { file: SharedFile; isAgentFile?: boolean }) => {
+  const isAgentFile = (file: SharedFile) => file.uploaderRole === 'agent';
+
+  const FileRow = ({ file }: { file: SharedFile }) => {
+    const agentFile = isAgentFile(file);
     const Icon = getFileIcon(file.mimeType);
     const iconColor = getFileIconColor(file.mimeType);
     const hasShare = !!file.shareToken;
@@ -285,23 +279,27 @@ export default function FileStorage() {
 
     return (
       <div className="flex items-center gap-3 p-3 rounded-lg border bg-white dark:bg-gray-900 hover:shadow-sm transition-shadow">
-        <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${isAgentFile ? 'bg-green-50 dark:bg-green-900/20' : 'bg-gray-50 dark:bg-gray-800'} ${iconColor}`}>
+        <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${agentFile ? 'bg-green-50 dark:bg-green-900/20' : 'bg-gray-50 dark:bg-gray-800'} ${iconColor}`}>
           <Icon className="h-5 w-5" />
         </div>
 
         <div className="flex-1 min-w-0">
           <p className="font-medium text-sm truncate">{file.fileName}</p>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            {isAgentFile ? (
+            {agentFile ? (
               <span className="inline-flex items-center gap-1 text-xs text-green-700 dark:text-green-400 font-medium">
                 <ServiceIcon className="h-3 w-3" />
                 {getServiceLabel(file.relatedRequestType)}
               </span>
-            ) : null}
+            ) : (
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                My Upload
+              </span>
+            )}
             <span className="text-xs text-muted-foreground">{formatFileSize(file.fileSize)}</span>
             <span className="text-xs text-muted-foreground">·</span>
             <span className="text-xs text-muted-foreground">{formatDate(file.createdAt)}</span>
-            {!isAgentFile && shareActive && (
+            {!agentFile && shareActive && (
               <Badge variant="outline" className="text-xs py-0 h-4 text-green-600 border-green-300">
                 <Link2 className="h-2.5 w-2.5 mr-1" />
                 Shared
@@ -314,13 +312,13 @@ export default function FileStorage() {
         </div>
 
         <div className="flex items-center gap-1 flex-shrink-0">
-          {!isAgentFile && shareActive && (
+          {!agentFile && shareActive && (
             <Button size="icon" variant="ghost" className="h-8 w-8" title="Copy share link" onClick={() => copyShareLink(file)}>
               {copiedId === file.id ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
             </Button>
           )}
 
-          {isAgentFile ? (
+          {agentFile ? (
             <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => handleDownload(file)}>
               <Download className="h-3.5 w-3.5" />
               Download
@@ -363,118 +361,75 @@ export default function FileStorage() {
   return (
     <div className="space-y-6 p-4 md:p-6 max-w-4xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold">File Storage</h1>
-        <p className="text-muted-foreground text-sm mt-1">All your files in one place — documents you upload and results delivered by agents</p>
+        <h1 className="text-2xl font-bold">Documents</h1>
+        <p className="text-muted-foreground text-sm mt-1">All your documents — results delivered by agents and files you upload</p>
       </div>
 
-      <Tabs defaultValue="agent">
-        <TabsList className="grid grid-cols-2 w-full max-w-xs">
-          <TabsTrigger value="agent" className="relative">
-            Agent Results
-            {agentFiles.length > 0 && (
-              <span className="ml-1.5 bg-green-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0">{agentFiles.length}</span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="mine">My Uploads</TabsTrigger>
-        </TabsList>
-
-        {/* ---- Agent Results Tab ---- */}
-        <TabsContent value="agent" className="space-y-4 mt-4">
-          <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-sm text-green-800 dark:text-green-300">
-            <p className="font-semibold">Result files from your agents</p>
-            <p className="text-xs mt-0.5 text-green-700 dark:text-green-400">These files are permanently shared with you. They are automatically added here when an agent completes your CAC, JAMB, Education, or Identity request.</p>
-          </div>
-
-          {/* Search */}
-          {agentFiles.length > 0 && (
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search results…" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9" />
-              {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-          )}
-
-          {isLoading ? (
-            <div className="space-y-3">{[1, 2, 3].map(i => <div key={i} className="h-16 rounded-lg bg-gray-100 dark:bg-gray-800 animate-pulse" />)}</div>
-          ) : filteredAgentFiles.length === 0 ? (
-            <div className="text-center py-14 text-muted-foreground">
-              <FolderOpen className="h-12 w-12 mx-auto mb-3 opacity-40" />
-              <p className="font-medium">{searchQuery ? 'No results match your search' : 'No agent results yet'}</p>
-              <p className="text-sm mt-1 max-w-xs mx-auto">
-                {!searchQuery && 'Files will appear here automatically when an agent completes your request.'}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">{filteredAgentFiles.length} result file{filteredAgentFiles.length !== 1 ? 's' : ''}</p>
-              {filteredAgentFiles.map(file => <FileRow key={file.id} file={file} isAgentFile />)}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* ---- My Uploads Tab ---- */}
-        <TabsContent value="mine" className="space-y-4 mt-4">
-          {/* Upload zone */}
-          <div
-            onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={onDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-xl p-7 text-center cursor-pointer transition-colors select-none
-              ${isDragging
-                ? 'border-primary bg-primary/5'
-                : 'border-gray-200 dark:border-gray-700 hover:border-primary/50 hover:bg-gray-50 dark:hover:bg-gray-800/50'
-              }`}
-          >
-            <input ref={fileInputRef} type="file" multiple className="hidden" onChange={e => handleFiles(e.target.files)} />
-            <CloudUpload className="h-9 w-9 mx-auto text-muted-foreground mb-2" />
-            <p className="font-semibold text-gray-700 dark:text-gray-300">Drop files here or click to upload</p>
-            <p className="text-sm text-muted-foreground mt-1">Any file type · Max 20 MB</p>
-            {uploadingFiles.length > 0 && (
-              <div className="mt-3 space-y-1">
-                {uploadingFiles.map(name => (
-                  <div key={name} className="flex items-center justify-center gap-2 text-sm text-primary animate-pulse">
-                    <Upload className="h-4 w-4" />
-                    <span>Uploading {name}…</span>
-                  </div>
-                ))}
+      {/* Upload zone */}
+      <div
+        onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={onDrop}
+        onClick={() => fileInputRef.current?.click()}
+        className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors select-none
+          ${isDragging
+            ? 'border-primary bg-primary/5'
+            : 'border-gray-200 dark:border-gray-700 hover:border-primary/50 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+          }`}
+      >
+        <input ref={fileInputRef} type="file" multiple className="hidden" onChange={e => handleFiles(e.target.files)} />
+        <CloudUpload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+        <p className="font-semibold text-gray-700 dark:text-gray-300 text-sm">Drop files here or click to upload</p>
+        <p className="text-xs text-muted-foreground mt-1">Any file type · Max 20 MB</p>
+        {uploadingFiles.length > 0 && (
+          <div className="mt-3 space-y-1">
+            {uploadingFiles.map(name => (
+              <div key={name} className="flex items-center justify-center gap-2 text-sm text-primary animate-pulse">
+                <Upload className="h-4 w-4" />
+                <span>Uploading {name}…</span>
               </div>
-            )}
+            ))}
           </div>
+        )}
+      </div>
 
-          {/* Search */}
-          {myFiles.length > 0 && (
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search files…" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9" />
-              {searchQuery && (
-                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
+      {/* Search */}
+      {allFiles.length > 0 && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search documents…"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />
+            </button>
           )}
+        </div>
+      )}
 
-          {isLoading ? (
-            <div className="space-y-3">{[1, 2].map(i => <div key={i} className="h-16 rounded-lg bg-gray-100 dark:bg-gray-800 animate-pulse" />)}</div>
-          ) : filteredMyFiles.length === 0 ? (
-            <div className="text-center py-10 text-muted-foreground">
-              <FolderOpen className="h-10 w-10 mx-auto mb-3 opacity-40" />
-              <p className="font-medium">{searchQuery ? 'No files match your search' : 'No uploads yet'}</p>
-              <p className="text-sm mt-1">{!searchQuery && 'Drop a file above to get started'}</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">{filteredMyFiles.length} file{filteredMyFiles.length !== 1 ? 's' : ''}</p>
-              {filteredMyFiles.map(file => <FileRow key={file.id} file={file} />)}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+      {/* File list */}
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => <div key={i} className="h-16 rounded-lg bg-gray-100 dark:bg-gray-800 animate-pulse" />)}
+        </div>
+      ) : filteredFiles.length === 0 ? (
+        <div className="text-center py-14 text-muted-foreground">
+          <FolderOpen className="h-12 w-12 mx-auto mb-3 opacity-40" />
+          <p className="font-medium">{searchQuery ? 'No documents match your search' : 'No documents yet'}</p>
+          <p className="text-sm mt-1 max-w-xs mx-auto">
+            {!searchQuery && 'Upload a file above, or wait for an agent to complete your request.'}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">{filteredFiles.length} document{filteredFiles.length !== 1 ? 's' : ''}</p>
+          {filteredFiles.map(file => <FileRow key={file.id} file={file} />)}
+        </div>
+      )}
 
       {/* Share dialog */}
       <Dialog open={!!shareDialogFile} onOpenChange={() => setShareDialogFile(null)}>
