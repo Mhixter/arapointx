@@ -361,121 +361,131 @@ export default function IdentityAgentServices() {
             <DialogTitle>Request Details</DialogTitle>
             <DialogDescription>{selectedRequest?.trackingId}</DialogDescription>
           </DialogHeader>
-          {selectedRequest && (
-            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <Label className="text-muted-foreground text-xs">Service</Label>
-                  <p className="font-medium">{getServiceName(selectedRequest.serviceType)}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-xs">Status</Label>
-                  <p>{getStatusBadge(selectedRequest.status)}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-xs">Fee Paid</Label>
-                  <p className="font-medium">₦{parseFloat(selectedRequest.fee || 0).toLocaleString()}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-xs">Submitted</Label>
-                  <p className="text-sm">{new Date(selectedRequest.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                </div>
-              </div>
-
-              <div className="border rounded-lg p-3 bg-gray-50 dark:bg-gray-800/50 space-y-2 text-sm">
-                <p className="font-semibold text-xs text-muted-foreground uppercase tracking-wide">Submitted Information</p>
-                {selectedRequest.nin && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">NIN</span>
-                    <span className="font-mono font-medium">{'*'.repeat(7)}{selectedRequest.nin.slice(-4)}</span>
-                  </div>
-                )}
-                {selectedRequest.updateFields?.validationType && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Validation Issue</span>
-                    <span className="font-medium text-orange-600">
-                      {VALIDATION_TYPES.find(v => v.value === selectedRequest.updateFields.validationType)?.label || selectedRequest.updateFields.validationType}
-                    </span>
-                  </div>
-                )}
-                {selectedRequest.newTrackingId && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">NIMC Tracking ID</span>
-                    <span className="font-mono font-medium">{selectedRequest.newTrackingId}</span>
-                  </div>
-                )}
-                {selectedRequest.updateFields?.slipType && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Slip Type</span>
-                    <span className="font-medium capitalize">{selectedRequest.updateFields.slipType}</span>
-                  </div>
-                )}
-                {selectedRequest.updateFields?.fields && (
+          {selectedRequest && (() => {
+            const r = selectedRequest;
+            const nimcTrackingId = r.newTrackingId || r.new_tracking_id || '';
+            const validatedName = r.validatedFullName || r.validated_full_name || '';
+            const validatedDob = r.validatedDateOfBirth || r.validated_date_of_birth || '';
+            const resolvedTid = r.resolvedTrackingId || r.resolved_tracking_id || '';
+            const validationType = r.updateFields?.validationType || r.update_fields?.validationType || '';
+            const slipType = r.updateFields?.slipType || r.update_fields?.slipType || '';
+            const updateFieldsText = r.updateFields?.fields || r.update_fields?.fields || '';
+            return (
+              <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+                <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <span className="text-muted-foreground block">Fields to Update</span>
-                    <span className="font-medium">{selectedRequest.updateFields.fields}</span>
+                    <Label className="text-muted-foreground text-xs">Service</Label>
+                    <p className="font-medium">{getServiceName(r.serviceType)}</p>
                   </div>
-                )}
-                {selectedRequest.customerNotes && (
                   <div>
-                    <span className="text-muted-foreground block">Your Notes</span>
-                    <span>{selectedRequest.customerNotes}</span>
+                    <Label className="text-muted-foreground text-xs">Status</Label>
+                    <p>{getStatusBadge(r.status)}</p>
                   </div>
-                )}
-              </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Fee Paid</Label>
+                    <p className="font-medium">₦{parseFloat(r.fee || 0).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Submitted</Label>
+                    <p className="text-sm">{new Date(r.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                  </div>
+                </div>
 
-              {selectedRequest.status === 'completed' && (
-                <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 space-y-3">
-                  <p className="font-semibold text-green-700 dark:text-green-400 text-sm">Request Completed</p>
-                  {selectedRequest.agentNotes && (
-                    <div>
-                      <Label className="text-muted-foreground text-xs">Agent Feedback</Label>
-                      <p className="text-sm mt-1">{selectedRequest.agentNotes}</p>
+                <div className="border rounded-lg p-3 bg-gray-50 dark:bg-gray-800/50 space-y-2 text-sm">
+                  <p className="font-semibold text-xs text-muted-foreground uppercase tracking-wide">Submitted Information</p>
+                  {r.nin && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">NIN</span>
+                      <span className="font-mono font-medium">{'*'.repeat(7)}{r.nin.slice(-4)}</span>
                     </div>
                   )}
-                  {selectedRequest.serviceType === 'ipe_clearance' && selectedRequest.resolvedTrackingId && (
-                    <div>
-                      <Label className="text-muted-foreground text-xs">New NIMC Tracking ID</Label>
-                      <p className="text-base font-bold text-green-700 dark:text-green-400 mt-1 font-mono">{selectedRequest.resolvedTrackingId}</p>
-                      <p className="text-xs text-muted-foreground mt-1">This is your updated NIMC tracking ID after IPE clearance.</p>
+                  {nimcTrackingId && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">NIMC Tracking ID</span>
+                      <span className="font-mono font-medium">{nimcTrackingId}</span>
                     </div>
                   )}
-                  {selectedRequest.serviceType === 'nin_validation' && selectedRequest.validatedFullName && (
-                    <div>
-                      <Label className="text-muted-foreground text-xs">Full Name on Record</Label>
-                      <p className="text-sm font-bold text-green-700 dark:text-green-400 mt-1">{selectedRequest.validatedFullName}</p>
+                  {validationType && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Validation Issue</span>
+                      <span className="font-medium text-orange-600">
+                        {VALIDATION_TYPES.find(v => v.value === validationType)?.label || validationType}
+                      </span>
                     </div>
                   )}
-                  {selectedRequest.serviceType === 'nin_validation' && selectedRequest.validatedDateOfBirth && (
-                    <div>
-                      <Label className="text-muted-foreground text-xs">Date of Birth on Record</Label>
-                      <p className="text-sm font-bold text-green-700 dark:text-green-400 mt-1">{selectedRequest.validatedDateOfBirth}</p>
+                  {slipType && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Slip Type</span>
+                      <span className="font-medium capitalize">{slipType}</span>
                     </div>
                   )}
-                  {selectedRequest.slipUrl && (
+                  {updateFieldsText && (
                     <div>
-                      <Label className="text-muted-foreground text-xs">Result Document</Label>
-                      <div className="mt-1">
-                        <a href={selectedRequest.slipUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 underline text-sm font-medium">
-                          <FileText className="h-4 w-4" />
-                          Download Slip
-                        </a>
+                      <span className="text-muted-foreground block">Fields to Update</span>
+                      <span className="font-medium">{updateFieldsText}</span>
+                    </div>
+                  )}
+                  {r.customerNotes && (
+                    <div>
+                      <span className="text-muted-foreground block">Your Notes</span>
+                      <span>{r.customerNotes}</span>
+                    </div>
+                  )}
+                </div>
+
+                {r.status === 'completed' && (
+                  <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800 space-y-3">
+                    <p className="font-semibold text-green-700 dark:text-green-400 text-sm">Request Completed</p>
+                    {r.agentNotes && (
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Agent Feedback</Label>
+                        <p className="text-sm mt-1">{r.agentNotes}</p>
                       </div>
-                    </div>
-                  )}
-                  {!selectedRequest.agentNotes && !selectedRequest.slipUrl && !selectedRequest.resolvedTrackingId && !selectedRequest.validatedFullName && (
-                    <p className="text-sm text-muted-foreground">No additional feedback provided by the agent yet.</p>
-                  )}
-                </div>
-              )}
-              {selectedRequest.status !== 'completed' && selectedRequest.agentNotes && (
-                <div>
-                  <Label className="text-muted-foreground text-xs">Agent Notes</Label>
-                  <p className="text-sm mt-1">{selectedRequest.agentNotes}</p>
-                </div>
-              )}
-            </div>
-          )}
+                    )}
+                    {r.serviceType === 'ipe_clearance' && resolvedTid && (
+                      <div>
+                        <Label className="text-muted-foreground text-xs">New NIMC Tracking ID</Label>
+                        <p className="text-base font-bold text-green-700 dark:text-green-400 mt-1 font-mono">{resolvedTid}</p>
+                        <p className="text-xs text-muted-foreground mt-1">This is your updated NIMC tracking ID after IPE clearance.</p>
+                      </div>
+                    )}
+                    {r.serviceType === 'nin_validation' && validatedName && (
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Full Name on Record</Label>
+                        <p className="text-sm font-bold text-green-700 dark:text-green-400 mt-1">{validatedName}</p>
+                      </div>
+                    )}
+                    {r.serviceType === 'nin_validation' && validatedDob && (
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Date of Birth on Record</Label>
+                        <p className="text-sm font-bold text-green-700 dark:text-green-400 mt-1">{validatedDob}</p>
+                      </div>
+                    )}
+                    {r.slipUrl && (
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Result Document</Label>
+                        <div className="mt-1">
+                          <a href={r.slipUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 underline text-sm font-medium">
+                            <FileText className="h-4 w-4" />
+                            Download Slip
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                    {!r.agentNotes && !r.slipUrl && !resolvedTid && !validatedName && (
+                      <p className="text-sm text-muted-foreground">No additional feedback provided by the agent yet.</p>
+                    )}
+                  </div>
+                )}
+                {r.status !== 'completed' && r.agentNotes && (
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Agent Notes</Label>
+                    <p className="text-sm mt-1">{r.agentNotes}</p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>

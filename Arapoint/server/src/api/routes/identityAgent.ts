@@ -379,7 +379,25 @@ router.get('/manual-services', authMiddleware, async (req: Request, res: Respons
 router.get('/my-requests', authMiddleware, async (req: Request, res: Response) => {
   try {
     const userId = req.userId!;
-    const requests = await db.select()
+    const requests = await db.select({
+      id: identityServiceRequests.id,
+      trackingId: identityServiceRequests.trackingId,
+      serviceType: identityServiceRequests.serviceType,
+      nin: identityServiceRequests.nin,
+      newTrackingId: identityServiceRequests.newTrackingId,
+      updateFields: identityServiceRequests.updateFields,
+      status: identityServiceRequests.status,
+      fee: identityServiceRequests.fee,
+      isPaid: identityServiceRequests.isPaid,
+      customerNotes: identityServiceRequests.customerNotes,
+      agentNotes: identityServiceRequests.agentNotes,
+      slipUrl: identityServiceRequests.slipUrl,
+      resolvedTrackingId: identityServiceRequests.resolvedTrackingId,
+      validatedFullName: identityServiceRequests.validatedFullName,
+      validatedDateOfBirth: identityServiceRequests.validatedDateOfBirth,
+      createdAt: identityServiceRequests.createdAt,
+      updatedAt: identityServiceRequests.updatedAt,
+    })
       .from(identityServiceRequests)
       .where(eq(identityServiceRequests.userId, userId))
       .orderBy(desc(identityServiceRequests.createdAt));
