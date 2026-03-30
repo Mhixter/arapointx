@@ -50,7 +50,21 @@ import {
   fraudAlerts,
   users as usersTable,
   adminUsers as admin_users, 
-  adminRoles as admin_roles 
+  adminRoles as admin_roles,
+  identityRequestActivity,
+  cacRequests,
+  cacRegistrationRequests,
+  cacRequestActivity,
+  cacFiles,
+  jambRequestDocuments,
+  educationRequestDocuments,
+  a2cStatusHistory,
+  birthAttestations,
+  bvnVerifications,
+  ninSlips,
+  sharedFiles,
+  adminActivityLogs,
+  otpVerifications,
 } from '../../db/schema';
 import { fraudService } from '../../services/fraudService';
 import { whatsappService } from '../../services/whatsappService';
@@ -4250,6 +4264,47 @@ router.get('/ai/stats', async (req: Request, res: Response) => {
     res.json(formatResponse('success', 200, 'AI stats', { stats }));
   } catch (error: any) {
     res.status(500).json(formatErrorResponse(500, 'Failed to get AI stats'));
+  }
+});
+
+router.delete('/clear-test-data', async (req: Request, res: Response) => {
+  try {
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`DELETE FROM identity_request_activity`);
+      await tx.execute(sql`DELETE FROM identity_verifications`);
+      await tx.execute(sql`DELETE FROM identity_service_requests`);
+      await tx.execute(sql`DELETE FROM cac_request_activity`);
+      await tx.execute(sql`DELETE FROM cac_files`);
+      await tx.execute(sql`DELETE FROM cac_registration_requests`);
+      await tx.execute(sql`DELETE FROM cac_requests`);
+      await tx.execute(sql`DELETE FROM jamb_request_documents`);
+      await tx.execute(sql`DELETE FROM jamb_service_requests`);
+      await tx.execute(sql`DELETE FROM education_request_documents`);
+      await tx.execute(sql`DELETE FROM education_pin_orders`);
+      await tx.execute(sql`DELETE FROM education_service_requests`);
+      await tx.execute(sql`DELETE FROM a2c_status_history`);
+      await tx.execute(sql`DELETE FROM a2c_requests`);
+      await tx.execute(sql`DELETE FROM birth_attestations`);
+      await tx.execute(sql`DELETE FROM bvn_verifications`);
+      await tx.execute(sql`DELETE FROM nin_slips`);
+      await tx.execute(sql`DELETE FROM shared_files`);
+      await tx.execute(sql`DELETE FROM rpa_jobs`);
+      await tx.execute(sql`DELETE FROM fraud_alerts`);
+      await tx.execute(sql`DELETE FROM transactions`);
+      await tx.execute(sql`DELETE FROM support_internal_notes`);
+      await tx.execute(sql`DELETE FROM support_messages`);
+      await tx.execute(sql`DELETE FROM support_tickets`);
+      await tx.execute(sql`DELETE FROM support_conversations`);
+      await tx.execute(sql`DELETE FROM agent_notifications`);
+      await tx.execute(sql`DELETE FROM admin_notifications`);
+      await tx.execute(sql`DELETE FROM admin_activity_logs`);
+      await tx.execute(sql`UPDATE users SET wallet_balance = 0`);
+    });
+    logger.info('Test data cleared by admin', { adminId: req.adminId });
+    res.json(formatResponse('success', 200, 'All test data cleared successfully'));
+  } catch (error: any) {
+    logger.error('Failed to clear test data', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to clear test data: ' + error.message));
   }
 });
 

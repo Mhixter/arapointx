@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Shield, Database, Globe, Save, Mail, Loader2, Send, CreditCard, CheckCircle2, XCircle, Eye, EyeOff, Headset, Phone, MessageCircle } from "lucide-react";
+import { Bell, Shield, Database, Globe, Save, Mail, Loader2, Send, CreditCard, CheckCircle2, XCircle, Eye, EyeOff, Headset, Phone, MessageCircle, Trash2, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/contexts/SettingsContext";
 
@@ -49,6 +49,8 @@ export default function AdminSettings() {
   const [gatewayForms, setGatewayForms] = useState<Record<string, Record<string, string>>>({});
   const [savingGateway, setSavingGateway] = useState<string | null>(null);
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
+  const [clearingTestData, setClearingTestData] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const settingsMap: Record<string, string> = {
     waecUrl: 'rpa_provider_url_waec',
@@ -244,6 +246,28 @@ export default function AdminSettings() {
     saveTabSettings({
       maintenanceMode: settings.maintenanceMode,
     }, "Advanced");
+  };
+
+  const handleClearTestData = async () => {
+    if (!showClearConfirm) {
+      setShowClearConfirm(true);
+      return;
+    }
+    setClearingTestData(true);
+    setShowClearConfirm(false);
+    try {
+      const token = tokenStorage.getItem('adminToken');
+      const res = await fetch('/api/admin/clear-test-data', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Request failed');
+      toast({ title: "Test Data Cleared", description: "All transactions, orders, and support records have been removed." });
+    } catch {
+      toast({ title: "Error", description: "Failed to clear test data. Please try again.", variant: "destructive" });
+    } finally {
+      setClearingTestData(false);
+    }
   };
 
   return (
@@ -889,6 +913,58 @@ export default function AdminSettings() {
                 </Button>
                 <Button variant="outline" size="sm" className="h-8 sm:h-9 text-xs sm:text-sm">Clear Cache</Button>
                 <Button variant="outline" size="sm" className="h-8 sm:h-9 text-xs sm:text-sm">View Logs</Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-red-200 dark:border-red-900">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-red-600 dark:text-red-400">
+                <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5" />
+                Danger Zone
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Irreversible actions — use with caution</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-0 space-y-3">
+              <div className="rounded-md border border-red-200 dark:border-red-900 p-3 sm:p-4 bg-red-50 dark:bg-red-950/20">
+                <p className="text-xs sm:text-sm font-medium text-red-700 dark:text-red-300 mb-0.5">Clear All Test Data</p>
+                <p className="text-[10px] sm:text-xs text-red-500 dark:text-red-400 mb-3">
+                  Permanently deletes all transactions, service requests (identity, CAC, JAMB, education), support conversations, RPA jobs, shared files, and resets all user wallet balances to ₦0. Admin accounts are preserved.
+                </p>
+                {showClearConfirm ? (
+                  <div className="flex flex-wrap gap-2">
+                    <p className="w-full text-xs font-semibold text-red-700 dark:text-red-300">Are you sure? This cannot be undone.</p>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={handleClearTestData}
+                      disabled={clearingTestData}
+                    >
+                      {clearingTestData ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Trash2 className="h-3 w-3 mr-1" />}
+                      Yes, Clear Everything
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => setShowClearConfirm(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={handleClearTestData}
+                    disabled={clearingTestData}
+                  >
+                    <Trash2 className="h-3 w-3 mr-1.5" />
+                    Clear Test Data
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
