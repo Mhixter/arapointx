@@ -74,6 +74,7 @@ import AdminRoles from "@/pages/admin/AdminRoles";
 import AdminSettings from "@/pages/admin/AdminSettings";
 import AdminCACServices from "@/pages/admin/AdminCACServices";
 import AdminIdentityAgents from "@/pages/admin/AdminIdentityAgents";
+import AdminBirthAttestation from "@/pages/admin/AdminBirthAttestation";
 import AdminEducationAgents from "@/pages/admin/AdminEducationAgents";
 import AdminA2CAgents from "@/pages/admin/AdminA2CAgents";
 import AdminJAMBAgents from "@/pages/admin/AdminJAMBAgents";
@@ -166,6 +167,11 @@ function Router() {
       <Route path="/admin/identity-agents">
         <AdminCRUDLayout>
           <AdminIdentityAgents />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/birth-attestation">
+        <AdminCRUDLayout>
+          <AdminBirthAttestation />
         </AdminCRUDLayout>
       </Route>
       <Route path="/admin/education-agents">

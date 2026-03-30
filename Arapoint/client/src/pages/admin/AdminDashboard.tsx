@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLocation } from "wouter";
-import { Users, DollarSign, AlertTriangle, FileCheck, ShieldCheck, BookOpen, Smartphone, Loader2, MessageSquare, Receipt, Bell, X } from "lucide-react";
+import { Users, DollarSign, AlertTriangle, FileCheck, ShieldCheck, BookOpen, Smartphone, Loader2, MessageSquare, Receipt, Bell, X, Baby } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminApi } from "@/lib/api";
@@ -117,6 +117,15 @@ export default function AdminDashboard() {
       desc: "Retrieval, Card, Modification requests",
       href: "/admin/bvn",
       count: stats?.bvnServices || 0
+    },
+    { 
+      title: "Birth Attestation", 
+      icon: Baby, 
+      color: "text-rose-600",
+      bg: "bg-rose-100 dark:bg-rose-900/20",
+      desc: "NPC Birth Certificate attestation requests",
+      href: "/admin/birth-attestation",
+      count: 0
     },
     { 
       title: "Education Services", 

@@ -232,6 +232,10 @@ router.put('/requests/:id/status', identityAgentAuthMiddleware, async (req: Requ
       return res.status(404).json(formatErrorResponse(404, 'Request not found'));
     }
 
+    if (request.serviceType === 'birth_attestation') {
+      return res.status(403).json(formatErrorResponse(403, 'Birth attestation requests are processed by admin only'));
+    }
+
     const updateData: any = {
       status,
       updatedAt: new Date(),

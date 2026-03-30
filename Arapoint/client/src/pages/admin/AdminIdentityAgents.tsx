@@ -4,12 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { IdCard, Loader2, UserPlus, Trash2, Users, FileText, RefreshCw, CheckCircle, Clock, XCircle, Baby, Eye } from "lucide-react";
+import { IdCard, Loader2, UserPlus, Trash2, Users, FileText, RefreshCw, CheckCircle, XCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -19,48 +17,27 @@ const SERVICE_LABELS: Record<string, string> = {
   'nin_validation': 'NIN Validation',
   'ipe_clearance': 'IPE Clearance',
   'nin_personalization': 'NIN Personalization',
+  'nin_tracking': 'NIN Tracking',
 };
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   pending: { label: 'Pending', color: 'bg-gray-100 text-gray-700' },
-  pickup: { label: 'In Progress', color: 'bg-yellow-100 text-yellow-700' },
+  pickup: { label: 'Picked Up', color: 'bg-yellow-100 text-yellow-700' },
   completed: { label: 'Completed', color: 'bg-green-100 text-green-700' },
   rejected: { label: 'Rejected', color: 'bg-red-100 text-red-700' },
 };
-
-interface BirthAttestationRequest {
-  id: number;
-  trackingId: string;
-  status: string;
-  fee: string;
-  isPaid: boolean;
-  updateFields: Record<string, any> | null;
-  customerNotes: string | null;
-  agentNotes: string | null;
-  createdAt: string;
-  completedAt: string | null;
-  userName: string;
-  userEmail: string;
-  userPhone: string | null;
-}
 
 export default function AdminIdentityAgents() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [agents, setAgents] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
-  const [birthRequests, setBirthRequests] = useState<BirthAttestationRequest[]>([]);
-  const [birthLoading, setBirthLoading] = useState(false);
   const [showAgentModal, setShowAgentModal] = useState(false);
   const [agentForm, setAgentForm] = useState({ name: '', email: '', password: '', employeeId: '' });
-  const [selectedBirthRequest, setSelectedBirthRequest] = useState<BirthAttestationRequest | null>(null);
-  const [processForm, setProcessForm] = useState({ status: '', adminNotes: '' });
-  const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
     fetchAgents();
     fetchRequests();
-    fetchBirthAttestations();
   }, []);
 
   const fetchAgents = async () => {
@@ -90,24 +67,6 @@ export default function AdminIdentityAgents() {
       }
     } catch (error) {
       console.error('Failed to fetch requests:', error);
-    }
-  };
-
-  const fetchBirthAttestations = async () => {
-    setBirthLoading(true);
-    try {
-      const token = getAdminToken();
-      const response = await fetch('/api/admin/identity-requests?limit=100&serviceType=birth_attestation', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
-      if (data.status === 'success') {
-        setBirthRequests(data.data.requests || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch birth attestation requests:', error);
-    } finally {
-      setBirthLoading(false);
     }
   };
 
@@ -180,153 +139,31 @@ export default function AdminIdentityAgents() {
     }
   };
 
-  const handleProcessBirthRequest = async () => {
-    if (!selectedBirthRequest || !processForm.status) {
-      toast({ title: "Error", description: "Please select a status", variant: "destructive" });
-      return;
-    }
-    setProcessing(true);
-    try {
-      const token = getAdminToken();
-      const response = await fetch(`/api/admin/identity-requests/${selectedBirthRequest.id}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ status: processForm.status, adminNotes: processForm.adminNotes })
-      });
-      const data = await response.json();
-      if (data.status === 'success') {
-        toast({ title: "Success", description: "Request updated successfully" });
-        setSelectedBirthRequest(null);
-        setProcessForm({ status: '', adminNotes: '' });
-        fetchBirthAttestations();
-      } else {
-        toast({ title: "Error", description: data.message, variant: "destructive" });
-      }
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to update request", variant: "destructive" });
-    } finally {
-      setProcessing(false);
-    }
-  };
-
   const getStatusBadge = (status: string) => {
     const info = STATUS_LABELS[status] || { label: status, color: 'bg-gray-100 text-gray-700' };
     return <Badge className={info.color}>{info.label}</Badge>;
   };
-
-  const pendingBirthCount = birthRequests.filter(r => r.status === 'pending').length;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Identity Agent Management</h2>
-          <p className="text-muted-foreground">Manage agents for manual identity services and Birth Attestation requests</p>
+          <p className="text-muted-foreground">Manage agents for manual identity services (NIN Validation, IPE Clearance, Personalization)</p>
         </div>
       </div>
 
-      <Tabs defaultValue="birth-attestation" className="space-y-4">
+      <Tabs defaultValue="agents" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="birth-attestation" className="flex items-center gap-2">
-            <Baby className="h-4 w-4" />
-            Birth Attestation
-            {pendingBirthCount > 0 && (
-              <Badge className="ml-1 bg-red-500 text-white text-xs px-1.5 py-0">{pendingBirthCount}</Badge>
-            )}
-          </TabsTrigger>
           <TabsTrigger value="agents" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Agents ({agents.length})
           </TabsTrigger>
           <TabsTrigger value="requests" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
-            Other Requests ({requests.length})
+            Requests ({requests.length})
           </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="birth-attestation">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Baby className="h-5 w-5 text-rose-600" />
-                    Birth Attestation Requests
-                  </CardTitle>
-                  <CardDescription>NPC Birth Certificate attestation requests submitted by users — admin processed only</CardDescription>
-                </div>
-                <Button variant="outline" size="sm" onClick={fetchBirthAttestations} disabled={birthLoading}>
-                  <RefreshCw className={`h-4 w-4 mr-2 ${birthLoading ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {birthLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
-              ) : birthRequests.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Baby className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>No Birth Attestation requests yet</p>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Tracking ID</TableHead>
-                      <TableHead>Full Name</TableHead>
-                      <TableHead>Date of Birth</TableHead>
-                      <TableHead>Place of Birth</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Fee</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {birthRequests.map((request) => {
-                      const fields = request.updateFields || {};
-                      return (
-                        <TableRow key={request.id}>
-                          <TableCell className="font-mono text-sm">{request.trackingId}</TableCell>
-                          <TableCell className="font-medium">{fields.fullName || '—'}</TableCell>
-                          <TableCell>{fields.dateOfBirth || '—'}</TableCell>
-                          <TableCell>{fields.placeOfBirth || '—'}</TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium text-sm">{request.userName || 'N/A'}</p>
-                              <p className="text-xs text-muted-foreground">{request.userEmail}</p>
-                              {request.userPhone && <p className="text-xs text-muted-foreground">{request.userPhone}</p>}
-                            </div>
-                          </TableCell>
-                          <TableCell>{getStatusBadge(request.status)}</TableCell>
-                          <TableCell>₦{Number(request.fee || 0).toLocaleString()}</TableCell>
-                          <TableCell className="text-sm">{new Date(request.createdAt).toLocaleDateString()}</TableCell>
-                          <TableCell>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedBirthRequest(request);
-                                setProcessForm({ status: request.status, adminNotes: request.agentNotes || '' });
-                              }}
-                            >
-                              <Eye className="h-4 w-4 mr-1" />
-                              View
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         <TabsContent value="agents">
           <Card>
@@ -409,8 +246,8 @@ export default function AdminIdentityAgents() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Other Identity Service Requests</CardTitle>
-                  <CardDescription>NIN Validation, IPE Clearance, and Personalization requests processed by identity agents</CardDescription>
+                  <CardTitle>Identity Service Requests</CardTitle>
+                  <CardDescription>NIN Validation, IPE Clearance, and Personalization requests</CardDescription>
                 </div>
                 <Button variant="outline" size="sm" onClick={fetchRequests}>
                   <RefreshCw className="h-4 w-4 mr-2" />
@@ -459,130 +296,6 @@ export default function AdminIdentityAgents() {
           </Card>
         </TabsContent>
       </Tabs>
-
-      {selectedBirthRequest && (
-        <Dialog open={true} onOpenChange={() => { setSelectedBirthRequest(null); setProcessForm({ status: '', adminNotes: '' }); }}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Baby className="h-5 w-5 text-rose-600" />
-                Birth Attestation Request Details
-              </DialogTitle>
-              <DialogDescription>Tracking ID: {selectedBirthRequest.trackingId}</DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Customer Name</p>
-                  <p className="font-medium">{selectedBirthRequest.userName || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Email</p>
-                  <p className="font-medium">{selectedBirthRequest.userEmail || '—'}</p>
-                </div>
-                {selectedBirthRequest.userPhone && (
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Phone</p>
-                    <p className="font-medium">{selectedBirthRequest.userPhone}</p>
-                  </div>
-                )}
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Fee Paid</p>
-                  <p className="font-medium text-green-600">₦{Number(selectedBirthRequest.fee || 0).toLocaleString()}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Submitted</p>
-                  <p className="font-medium">{new Date(selectedBirthRequest.createdAt).toLocaleString()}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Current Status</p>
-                  {getStatusBadge(selectedBirthRequest.status)}
-                </div>
-              </div>
-
-              <div className="p-4 border rounded-lg space-y-3">
-                <h4 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">Request Details</h4>
-                {(() => {
-                  const f = selectedBirthRequest.updateFields || {};
-                  return (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Full Name</p>
-                        <p className="font-medium">{f.fullName || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Date of Birth</p>
-                        <p className="font-medium">{f.dateOfBirth || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Place of Birth</p>
-                        <p className="font-medium">{f.placeOfBirth || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Gender</p>
-                        <p className="font-medium">{f.gender || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">LGA</p>
-                        <p className="font-medium">{f.lga || '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Parent Name</p>
-                        <p className="font-medium">{f.parentName || '—'}</p>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {selectedBirthRequest.customerNotes && (
-                <div className="p-4 border rounded-lg">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Customer Notes</p>
-                  <p className="text-sm">{selectedBirthRequest.customerNotes}</p>
-                </div>
-              )}
-
-              <div className="space-y-3 p-4 border rounded-lg">
-                <h4 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">Process Request</h4>
-                <div className="space-y-2">
-                  <Label>Update Status</Label>
-                  <Select value={processForm.status} onValueChange={(v) => setProcessForm(prev => ({ ...prev, status: v }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select new status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="pickup">In Progress</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Admin Notes</Label>
-                  <Textarea
-                    placeholder="Add processing notes, reference numbers, or rejection reason..."
-                    value={processForm.adminNotes}
-                    onChange={(e) => setProcessForm(prev => ({ ...prev, adminNotes: e.target.value }))}
-                    rows={3}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => { setSelectedBirthRequest(null); setProcessForm({ status: '', adminNotes: '' }); }}>
-                Cancel
-              </Button>
-              <Button onClick={handleProcessBirthRequest} disabled={processing || !processForm.status}>
-                {processing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
-                Update Request
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
 
       <Dialog open={showAgentModal} onOpenChange={setShowAgentModal}>
         <DialogContent>
