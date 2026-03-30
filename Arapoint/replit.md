@@ -19,6 +19,9 @@ Arapoint is a production-ready Nigerian Identity Verification and Management Pla
 - **Email**: SendGrid (for OTP delivery)
 - **Identity Verification**: YouVerify API (NIN/BVN)
 
+## Recent Updates (March 2026 — Session 5)
+- **Object Storage FIXED**: `PRIVATE_OBJECT_DIR` was set to the incorrect name `ARAPOINT_FILES_STORAGE` which caused 401 Unauthorized errors from the Replit Object Storage sidecar, silently falling back to local disk. Updated to the actual Replit-assigned bucket ID `replit-objstore-94a043a2-33d6-4f41-83c0-160a9d5b7085`. Verified: signed PUT and GET URLs now work, files upload to and download from Google Cloud Storage successfully.
+
 ## Recent Updates (March 2026 — Session 4)
 - **Admin Profile Settings page**: New `AdminProfile.tsx` at `/admin/profile` — view avatar/role badge, update display name, change password (with current-password verification). API endpoints `GET /api/admin/me`, `PUT /api/admin/me`, `PUT /api/admin/me/password` added to admin.ts.
 - **Admin Notifications page**: New `AdminNotifications.tsx` at `/admin/notifications` — shows all notifications (read + unread), per-item "Mark read" button, bulk "Mark all read". New `GET /api/admin/notifications/all` endpoint returns last 100 notifications.

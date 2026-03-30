@@ -67,7 +67,7 @@ ADMIN_PASSWORD = "Mhixter664@gmail.com"
 JWT_SECRET = "your_jwt_secret_key_here_at_least_32_chars_long"
 ADMIN_EMAIL = "saidumuhammed664@gmail.com"
 PORT = "5000"
-PRIVATE_OBJECT_DIR = "ARAPOINT_FILES_STORAGE"
+PRIVATE_OBJECT_DIR = "replit-objstore-94a043a2-33d6-4f41-83c0-160a9d5b7085"
 
 [objectStorage]
 defaultBucketID = "replit-objstore-94a043a2-33d6-4f41-83c0-160a9d5b7085"
