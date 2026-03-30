@@ -115,6 +115,18 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
+
+      // Self-ping every 4 minutes to keep the deployment warm
+      if (process.env.NODE_ENV === 'production') {
+        const selfUrl = `http://0.0.0.0:${port}/api/ping`;
+        setInterval(() => {
+          import('http').then(({ default: http }) => {
+            http.get(selfUrl, (res) => {
+              res.resume();
+            }).on('error', () => {});
+          });
+        }, 4 * 60 * 1000);
+      }
     },
   );
 })();
