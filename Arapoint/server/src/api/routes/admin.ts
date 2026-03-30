@@ -4269,37 +4269,39 @@ router.get('/ai/stats', async (req: Request, res: Response) => {
 
 router.delete('/clear-test-data', async (req: Request, res: Response) => {
   try {
-    await db.transaction(async (tx) => {
-      await tx.execute(sql`DELETE FROM identity_request_activity`);
-      await tx.execute(sql`DELETE FROM identity_verifications`);
-      await tx.execute(sql`DELETE FROM identity_service_requests`);
-      await tx.execute(sql`DELETE FROM cac_request_activity`);
-      await tx.execute(sql`DELETE FROM cac_files`);
-      await tx.execute(sql`DELETE FROM cac_registration_requests`);
-      await tx.execute(sql`DELETE FROM cac_requests`);
-      await tx.execute(sql`DELETE FROM jamb_request_documents`);
-      await tx.execute(sql`DELETE FROM jamb_service_requests`);
-      await tx.execute(sql`DELETE FROM education_request_documents`);
-      await tx.execute(sql`DELETE FROM education_pin_orders`);
-      await tx.execute(sql`DELETE FROM education_service_requests`);
-      await tx.execute(sql`DELETE FROM a2c_status_history`);
-      await tx.execute(sql`DELETE FROM a2c_requests`);
-      await tx.execute(sql`DELETE FROM birth_attestations`);
-      await tx.execute(sql`DELETE FROM bvn_verifications`);
-      await tx.execute(sql`DELETE FROM nin_slips`);
-      await tx.execute(sql`DELETE FROM shared_files`);
-      await tx.execute(sql`DELETE FROM rpa_jobs`);
-      await tx.execute(sql`DELETE FROM fraud_alerts`);
-      await tx.execute(sql`DELETE FROM transactions`);
-      await tx.execute(sql`DELETE FROM support_internal_notes`);
-      await tx.execute(sql`DELETE FROM support_messages`);
-      await tx.execute(sql`DELETE FROM support_tickets`);
-      await tx.execute(sql`DELETE FROM support_conversations`);
-      await tx.execute(sql`DELETE FROM agent_notifications`);
-      await tx.execute(sql`DELETE FROM admin_notifications`);
-      await tx.execute(sql`DELETE FROM admin_activity_logs`);
-      await tx.execute(sql`UPDATE users SET wallet_balance = 0`);
-    });
+    await db.execute(sql`
+      TRUNCATE TABLE
+        identity_request_activity,
+        identity_verifications,
+        identity_service_requests,
+        cac_request_activity,
+        cac_files,
+        cac_registration_requests,
+        cac_requests,
+        jamb_request_documents,
+        jamb_service_requests,
+        education_request_documents,
+        education_pin_orders,
+        education_service_requests,
+        a2c_status_history,
+        a2c_requests,
+        birth_attestations,
+        bvn_verifications,
+        nin_slips,
+        shared_files,
+        rpa_jobs,
+        fraud_alerts,
+        transactions,
+        support_internal_notes,
+        support_messages,
+        support_conversations,
+        support_tickets,
+        agent_notifications,
+        admin_notifications,
+        admin_activity_logs
+      CASCADE
+    `);
+    await db.execute(sql`UPDATE users SET wallet_balance = 0`);
     logger.info('Test data cleared by admin', { adminId: req.adminId });
     res.json(formatResponse('success', 200, 'All test data cleared successfully'));
   } catch (error: any) {
