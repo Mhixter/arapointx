@@ -224,6 +224,12 @@ class LocalAiService {
     return AGENT_KEYWORDS.some(kw => lower.includes(kw));
   }
 
+  isAcknowledgement(query: string): boolean {
+    const acks = ['ok', 'okay', 'thanks', 'thank you', 'noted', 'got it', 'understood', 'alright', 'sure', 'fine', 'great', 'cool', 'nice', 'good', 'done', 'yes', 'yep', 'no', 'nope', 'lol', 'haha', 'oh', 'wow'];
+    const lower = query.trim().toLowerCase().replace(/[^a-z\s]/g, '').trim();
+    return acks.includes(lower) || lower.split(/\s+/).length <= 2 && acks.some(a => lower === a || lower.startsWith(a + ' ') || lower.endsWith(' ' + a));
+  }
+
   async processQuery(query: string, conversationId?: string, ticketId?: string): Promise<AiResult> {
     await this.rebuildIndex();
 
@@ -233,6 +239,15 @@ class LocalAiService {
         answer: "I understand you'd like to speak with a human agent. Let me connect you now — please hold on.",
         confidence: 1,
         shouldEscalate: true,
+      };
+    }
+
+    if (this.isAcknowledgement(query)) {
+      return {
+        matched: true,
+        answer: "You're welcome! Is there anything else I can help you with? Feel free to ask anytime.",
+        confidence: 1,
+        shouldEscalate: false,
       };
     }
 
@@ -263,12 +278,12 @@ class LocalAiService {
 
     await this.saveUnresolved(query, conversationId, ticketId);
 
-    const escalate = hasEscalationTrigger || true;
+    const escalate = hasEscalationTrigger;
     return {
       matched: false,
       answer: "I don't have a specific answer for that question yet, but I'm learning! Let me connect you with a human support agent who can help you right away.",
       confidence: match?.confidence || 0,
-      shouldEscalate: escalate,
+      shouldEscalate: true,
     };
   }
 

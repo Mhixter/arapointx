@@ -379,14 +379,10 @@ export default function SupportChat() {
       const data = res.data.data;
       setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, id: data.message.id, createdAt: data.message.createdAt } : m)));
       lastMessageTimestampRef.current = data.message.createdAt;
-      if (data.aiResponse) {
-        const aiMsg: Message = { id: `ai-${Date.now()}`, senderType: "ai", senderName: "Ara AI", content: data.aiResponse, createdAt: new Date().toISOString() };
-        setMessages((prev) => [...prev, aiMsg]); lastMessageTimestampRef.current = aiMsg.createdAt;
-      }
       if (data.escalated) {
-        setMessages((prev) => [...prev, { id: `sys-${Date.now()}`, senderType: "system", content: "Ticket escalated to a human agent. Someone will join shortly.", createdAt: new Date().toISOString() }]);
         setTicketStatus("escalated");
       }
+      await loadMessages(conversationId, data.message.createdAt);
     } catch (error: any) {
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
       setChatError(error.response?.data?.message || "Failed to send. Please try again.");
