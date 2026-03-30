@@ -16,6 +16,15 @@ interface VirtualAccountResult {
   message: string;
 }
 
+function normalizeNigerianPhone(phone: string | null | undefined): string {
+  if (!phone) return '08000000000';
+  const digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('234') && digits.length === 13) return '0' + digits.slice(3);
+  if (digits.startsWith('0') && digits.length === 11) return digits;
+  if (digits.length === 10) return '0' + digits;
+  return digits.length >= 11 ? digits.slice(-11) : '08000000000';
+}
+
 export const virtualAccountService = {
   isConfigured(): boolean {
     return paymentpointService.isConfigured() || palmpayVirtualAccountService.isConfigured() || payvesselService.isConfigured();
@@ -82,7 +91,7 @@ export const virtualAccountService = {
       const result = await paymentpointService.createVirtualAccount({
         email: user.email,
         name: user.name,
-        phoneNumber: user.phone || '08000000000',
+        phoneNumber: normalizeNigerianPhone(user.phone),
         bvn: userBvn || undefined,
         nin: userNin || undefined,
         accountReference: `arapoint_${userId}`,
@@ -198,7 +207,7 @@ export const virtualAccountService = {
       const result = await payvesselService.createVirtualAccount({
         email: user.email,
         name: user.name,
-        phoneNumber: user.phone || '08000000000',
+        phoneNumber: normalizeNigerianPhone(user.phone),
         bvn: userBvn || undefined,
         nin: userNin || undefined,
       });
