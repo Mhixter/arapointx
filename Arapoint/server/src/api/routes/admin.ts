@@ -982,30 +982,32 @@ router.post('/payment-gateways/save', async (req: Request, res: Response) => {
       prembly_public_key: 'PREMBLY_PUBLIC_KEY',
     };
 
+    let savedCount = 0;
     for (const [key, value] of Object.entries(credentials)) {
       if (typeof value === 'string' && value && value !== '••••••••') {
-        await db.insert(adminSettings)
-          .values({
-            settingKey: key,
-            settingValue: value,
-            updatedAt: new Date()
-          })
-          .onConflictDoUpdate({
-            target: adminSettings.settingKey,
-            set: {
-              settingValue: value,
-              updatedAt: new Date()
-            }
-          });
-
-        const envKey = envMapping[key];
-        if (envKey) {
-          process.env[envKey] = value;
+        try {
+          const existing = await db.select().from(adminSettings).where(eq(adminSettings.settingKey, key)).limit(1);
+          if (existing.length > 0) {
+            await db.update(adminSettings)
+              .set({ settingValue: value, updatedAt: new Date() })
+              .where(eq(adminSettings.settingKey, key));
+          } else {
+            await db.insert(adminSettings).values({ settingKey: key, settingValue: value, updatedAt: new Date() });
+          }
+          const envKey = envMapping[key];
+          if (envKey) {
+            process.env[envKey] = value;
+          }
+          savedCount++;
+        } catch (innerErr: any) {
+          console.error(`[GatewaySave] Failed to save key "${key}":`, innerErr.message);
         }
       }
     }
 
-    logger.info('Payment gateway credentials saved', { gateway });
+    const verifyRows = await db.select().from(adminSettings);
+    logger.info('Payment gateway credentials saved', { gateway, savedCount, totalSettingsInDb: verifyRows.length });
+    console.log(`[GatewaySave] Saved ${savedCount} credential(s) for ${gateway}. Total admin_settings rows: ${verifyRows.length}`);
     res.json(formatResponse('success', 200, `${gateway} credentials saved and activated successfully`));
   } catch (error: any) {
     logger.error('Save payment gateway error', { error: error.message });

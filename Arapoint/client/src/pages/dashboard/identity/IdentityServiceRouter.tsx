@@ -1134,10 +1134,10 @@ function VerificationsHistory() {
 
           {selectedVerification && (
             <Dialog open={!!selectedVerification} onOpenChange={() => setSelectedVerification(null)}>
-              <DialogContent>
+              <DialogContent className="max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Request Details</DialogTitle>
-                  <DialogDescription className="font-mono">{selectedVerification.trackingId}</DialogDescription>
+                  <DialogDescription className="font-mono text-xs">{selectedVerification.trackingId}</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4 text-sm">
@@ -1162,6 +1162,43 @@ function VerificationsHistory() {
                       <p>{new Date(selectedVerification.createdAt).toLocaleDateString()}</p>
                     </div>
                   </div>
+
+                  {/* Submitted Details */}
+                  {(() => {
+                    const details: { label: string; value: string }[] = [];
+                    if (selectedVerification.nin) details.push({ label: 'NIN', value: selectedVerification.nin });
+                    if (selectedVerification.submittedTrackingId) details.push({ label: 'Tracking ID', value: selectedVerification.submittedTrackingId });
+                    const uf = selectedVerification.updateFields;
+                    if (uf && typeof uf === 'object') {
+                      const labelMap: Record<string, string> = {
+                        fullName: 'Full Name', dateOfBirth: 'Date of Birth', placeOfBirth: 'Place of Birth',
+                        parentName: 'Parent/Guardian', lga: 'LGA', gender: 'Gender',
+                        validationType: 'Validation Type', slipType: 'Slip Type', statusType: 'Status Type',
+                        trackingId: 'Tracking ID', email: 'Email', phone: 'Phone',
+                        firstName: 'First Name', lastName: 'Last Name', middleName: 'Middle Name',
+                      };
+                      for (const [key, val] of Object.entries(uf)) {
+                        if (val && key !== '__typename') {
+                          details.push({ label: labelMap[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()), value: String(val) });
+                        }
+                      }
+                    }
+                    if (details.length === 0) return null;
+                    return (
+                      <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 bg-muted/30">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Submitted Details</p>
+                        <div className="space-y-1.5">
+                          {details.map((d) => (
+                            <div key={d.label} className="flex gap-2 text-xs">
+                              <span className="text-muted-foreground min-w-[100px] shrink-0">{d.label}:</span>
+                              <span className="font-mono font-medium break-all">{d.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {selectedVerification.status === 'completed' && (
                     <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800 space-y-2">
                       <p className="font-semibold text-green-700 dark:text-green-400 text-sm">Request Completed</p>

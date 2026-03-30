@@ -25,6 +25,7 @@ const ENV_MAPPING: Record<string, string> = {
 
 export async function loadGatewayCredentials(): Promise<void> {
   const settingsList = await db.select().from(adminSettings);
+  console.log(`[GatewayCredentials] Found ${settingsList.length} admin setting(s) in database`);
   let loaded = 0;
 
   for (const setting of settingsList) {
@@ -35,7 +36,5 @@ export async function loadGatewayCredentials(): Promise<void> {
     }
   }
 
-  if (loaded > 0) {
-    console.log(`Loaded ${loaded} payment gateway credential(s) from database`);
-  }
+  console.log(`[GatewayCredentials] Loaded ${loaded} credential(s) into environment`);
 }

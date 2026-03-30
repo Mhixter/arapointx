@@ -76,6 +76,8 @@ export const virtualAccountService = {
       };
     }
 
+    let lastError: string | undefined;
+
     if (paymentpointConfigured) {
       const result = await paymentpointService.createVirtualAccount({
         email: user.email,
@@ -126,6 +128,7 @@ export const virtualAccountService = {
         };
       }
 
+      lastError = result.error || 'PaymentPoint account creation failed';
       logger.warn('PaymentPoint VA creation failed, trying PalmPay fallback', {
         userId,
         error: result.error,
@@ -248,7 +251,7 @@ export const virtualAccountService = {
 
     return {
       success: false,
-      message: 'No payment gateway available for virtual account creation. Please contact support.',
+      message: lastError || 'No payment gateway available for virtual account creation. Please contact support.',
     };
   },
 
