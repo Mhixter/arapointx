@@ -12,7 +12,7 @@ import {
   agentInternalMessages,
   sharedFiles,
 } from '../../db/schema';
-import { eq, desc, count, and, sql, isNull } from 'drizzle-orm';
+import { eq, desc, count, and, sql, isNull, ne } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { authMiddleware } from '../middleware/auth';
@@ -160,7 +160,8 @@ router.get('/stats', identityAgentAuthMiddleware, async (req: Request, res: Resp
       pickup: sql<number>`COUNT(*) FILTER (WHERE status = 'pickup')`,
       completed: sql<number>`COUNT(*) FILTER (WHERE status = 'completed')`,
       total: count(),
-    }).from(identityServiceRequests);
+    }).from(identityServiceRequests)
+    .where(ne(identityServiceRequests.serviceType, 'birth_attestation'));
 
     res.json(formatResponse('success', 200, 'Stats retrieved', { stats }));
   } catch (error: any) {
@@ -197,9 +198,12 @@ router.get('/requests', identityAgentAuthMiddleware, async (req: Request, res: R
 
     let requests;
     if (status && status !== 'all') {
-      requests = await query.where(eq(identityServiceRequests.status, status as string));
+      requests = await query.where(and(
+        ne(identityServiceRequests.serviceType, 'birth_attestation'),
+        eq(identityServiceRequests.status, status as string)
+      ));
     } else {
-      requests = await query;
+      requests = await query.where(ne(identityServiceRequests.serviceType, 'birth_attestation'));
     }
 
     res.json(formatResponse('success', 200, 'Requests retrieved', { requests }));

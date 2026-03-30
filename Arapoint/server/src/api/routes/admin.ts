@@ -2331,7 +2331,7 @@ router.delete('/identity-agents/:id', async (req: Request, res: Response) => {
 
 router.get('/identity-requests', async (req: Request, res: Response) => {
   try {
-    const { limit = '50', status } = req.query;
+    const { limit = '50', status, serviceType } = req.query;
 
     let query = db.select({
       id: identityServiceRequests.id,
@@ -2340,27 +2340,59 @@ router.get('/identity-requests', async (req: Request, res: Response) => {
       status: identityServiceRequests.status,
       fee: identityServiceRequests.fee,
       isPaid: identityServiceRequests.isPaid,
+      nin: identityServiceRequests.nin,
+      updateFields: identityServiceRequests.updateFields,
+      customerNotes: identityServiceRequests.customerNotes,
+      agentNotes: identityServiceRequests.agentNotes,
       createdAt: identityServiceRequests.createdAt,
       completedAt: identityServiceRequests.completedAt,
       userName: users.name,
       userEmail: users.email,
+      userPhone: users.phone,
     })
       .from(identityServiceRequests)
       .leftJoin(users, eq(identityServiceRequests.userId, users.id))
       .orderBy(desc(identityServiceRequests.createdAt))
       .limit(parseInt(limit as string) || 50);
 
-    let requests;
-    if (status && status !== 'all') {
-      requests = await query.where(eq(identityServiceRequests.status, status as string));
-    } else {
-      requests = await query;
-    }
+    const conditions = [];
+    if (status && status !== 'all') conditions.push(eq(identityServiceRequests.status, status as string));
+    if (serviceType && serviceType !== 'all') conditions.push(eq(identityServiceRequests.serviceType, serviceType as string));
+
+    const requests = conditions.length > 0 ? await query.where(and(...conditions)) : await query;
 
     res.json(formatResponse('success', 200, 'Identity requests retrieved', { requests }));
   } catch (error: any) {
     logger.error('Get identity requests error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to get identity requests'));
+  }
+});
+
+router.put('/identity-requests/:id/status', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status, adminNotes } = req.body;
+
+    if (!status || !['pending', 'pickup', 'completed', 'rejected'].includes(status)) {
+      return res.status(400).json(formatErrorResponse(400, 'Valid status is required (pending, pickup, completed, rejected)'));
+    }
+
+    const [existing] = await db.select().from(identityServiceRequests).where(eq(identityServiceRequests.id, id)).limit(1);
+    if (!existing) {
+      return res.status(404).json(formatErrorResponse(404, 'Request not found'));
+    }
+
+    await db.update(identityServiceRequests).set({
+      status,
+      agentNotes: adminNotes || existing.agentNotes,
+      completedAt: status === 'completed' ? new Date() : existing.completedAt,
+    }).where(eq(identityServiceRequests.id, id));
+
+    logger.info('Admin updated identity request status', { id, status, adminId: req.userId });
+    res.json(formatResponse('success', 200, 'Request status updated', { id, status }));
+  } catch (error: any) {
+    logger.error('Update identity request status error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to update request status'));
   }
 });
 
