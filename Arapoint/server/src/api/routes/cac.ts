@@ -18,6 +18,7 @@ import {
 import { eq, desc, count, and } from 'drizzle-orm';
 import { sendEmail } from '../../services/emailService';
 import { agentNewRequestEmailHtml, SERVICE_LABELS } from '../../utils/agentEmailTemplates';
+import { getSiteUrl } from '../../utils/helpers';
 
 const router = Router();
 
@@ -28,7 +29,7 @@ async function notifyCacAgents(serviceType: string, trackingId: string, customer
       .innerJoin(adminUsers, eq(cacAgents.adminUserId, adminUsers.id))
       .where(eq(cacAgents.isAvailable, true));
     const serviceLabel = SERVICE_LABELS[serviceType] || serviceType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    const dashboardUrl = `https://${process.env.REPLIT_DOMAINS || 'app.arapoint.com.ng'}/agent/cac`;
+    const dashboardUrl = `${getSiteUrl()}/agent/cac`;
     for (const agent of agents) {
       sendEmail(
         agent.email,

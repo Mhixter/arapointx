@@ -68,6 +68,7 @@ import {
 } from '../../db/schema';
 import { sendEmail } from '../../services/emailService';
 import { agentWelcomeEmailHtml } from '../../utils/agentEmailTemplates';
+import { getSiteUrl } from '../../utils/helpers';
 import { fraudService } from '../../services/fraudService';
 import { whatsappService } from '../../services/whatsappService';
 import { walletService } from '../../services/walletService';
@@ -1866,7 +1867,7 @@ router.post('/cac/agents', async (req: Request, res: Response) => {
 
     logger.info('CAC agent created', { agentId: agent.id, email, createdBy: req.userId });
 
-    const loginUrl = `https://${process.env.REPLIT_DOMAINS || 'app.arapoint.com.ng'}/admin/login`;
+    const loginUrl = `${getSiteUrl()}/admin/login`;
     sendEmail(
       email.toLowerCase(),
       'Your Arapoint CAC Agent Account Has Been Created',
@@ -2281,7 +2282,7 @@ router.post('/identity-agents', async (req: Request, res: Response) => {
 
     logger.info('Identity agent created', { agentId: agent.id, adminUserId: newAdminUser.id, createdBy: req.userId });
 
-    const loginUrl = `https://${process.env.REPLIT_DOMAINS || 'app.arapoint.com.ng'}/admin/login`;
+    const loginUrl = `${getSiteUrl()}/admin/login`;
     sendEmail(
       newAdminUser.email,
       'Your Arapoint Identity Agent Account Has Been Created',
@@ -2486,7 +2487,7 @@ router.post('/education-agents', async (req: Request, res: Response) => {
 
     logger.info('Education agent created', { agentId: agent.id, adminUserId: newAdminUser.id, createdBy: req.userId });
 
-    const loginUrl = `https://${process.env.REPLIT_DOMAINS || 'app.arapoint.com.ng'}/admin/login`;
+    const loginUrl = `${getSiteUrl()}/admin/login`;
     sendEmail(
       newAdminUser.email,
       'Your Arapoint Education Agent Account Has Been Created',
@@ -2626,7 +2627,7 @@ router.post('/jamb-agents', async (req: Request, res: Response) => {
 
     logger.info('JAMB agent created', { agentId: agent.id, adminUserId: newAdminUser.id, createdBy: req.userId });
 
-    const loginUrl = `https://${process.env.REPLIT_DOMAINS || 'app.arapoint.com.ng'}/admin/login`;
+    const loginUrl = `${getSiteUrl()}/admin/login`;
     sendEmail(
       newAdminUser.email,
       'Your Arapoint JAMB Agent Account Has Been Created',
@@ -3115,7 +3116,7 @@ router.post('/a2c-agents', async (req: Request, res: Response) => {
 
     logger.info('A2C agent created', { agentId: agent.id, adminUserId: newAdminUser.id, createdBy: req.userId });
 
-    const loginUrl = `https://${process.env.REPLIT_DOMAINS || 'app.arapoint.com.ng'}/admin/login`;
+    const loginUrl = `${getSiteUrl()}/admin/login`;
     sendEmail(
       newAdminUser.email,
       'Your Arapoint A2C Agent Account Has Been Created',

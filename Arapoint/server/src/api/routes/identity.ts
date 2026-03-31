@@ -15,6 +15,7 @@ import { identityVerifications, identityServiceRequests, servicePricing, identit
 import { eq, desc, sql, and } from 'drizzle-orm';
 import { sendEmail } from '../../services/emailService';
 import { agentNewRequestEmailHtml, SERVICE_LABELS } from '../../utils/agentEmailTemplates';
+import { getSiteUrl } from '../../utils/helpers';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -25,7 +26,7 @@ async function notifyIdentityAgents(serviceType: string, trackingId: string, cus
       .innerJoin(adminUsers, eq(identityAgents.adminUserId, adminUsers.id))
       .where(eq(identityAgents.isAvailable, true));
     const serviceLabel = SERVICE_LABELS[serviceType] || serviceType;
-    const dashboardUrl = `https://${process.env.REPLIT_DOMAINS || 'app.arapoint.com.ng'}/agent/identity`;
+    const dashboardUrl = `${getSiteUrl()}/agent/identity`;
     for (const agent of agents) {
       sendEmail(
         agent.email,

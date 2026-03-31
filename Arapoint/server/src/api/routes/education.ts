@@ -11,6 +11,7 @@ import { educationServices, servicePricing, educationPins, educationPinOrders, u
 import { eq, desc, and, sql, count, or } from 'drizzle-orm';
 import { sendEmail } from '../../services/emailService';
 import { agentNewRequestEmailHtml, SERVICE_LABELS } from '../../utils/agentEmailTemplates';
+import { getSiteUrl } from '../../utils/helpers';
 import { getSchoolsByState, getSchoolsCount } from '../../rpa/workers/nbaisSchoolScraper';
 import multer from 'multer';
 import path from 'path';
@@ -28,7 +29,7 @@ async function notifyAgents(agentTable: 'education' | 'jamb', serviceType: strin
       .innerJoin(adminUsers, eq((table as any).adminUserId, adminUsers.id))
       .where(eq((table as any).isAvailable, true));
     const serviceLabel = SERVICE_LABELS[serviceType] || serviceType.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    const dashboardUrl = `https://${process.env.REPLIT_DOMAINS || 'app.arapoint.com.ng'}/agent/education`;
+    const dashboardUrl = `${getSiteUrl()}/agent/education`;
     for (const agent of agents) {
       sendEmail(
         agent.email,
