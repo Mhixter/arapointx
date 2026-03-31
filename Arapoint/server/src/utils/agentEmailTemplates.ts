@@ -126,7 +126,7 @@ export function agentNewRequestEmailHtml({
         <tr>
           <td style="padding:32px;">
             <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:14px 18px;margin-bottom:24px;">
-              <p style="margin:0;color:#856404;font-size:14px;font-weight:600;">🔔 New request awaiting your attention</p>
+              <p style="margin:0;color:#856404;font-size:14px;font-weight:600;">New request awaiting your attention</p>
             </div>
 
             <p style="margin:0 0 20px;color:#555;font-size:14px;line-height:1.6;">

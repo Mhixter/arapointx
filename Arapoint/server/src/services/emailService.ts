@@ -95,13 +95,42 @@ export async function sendEmail(
     }
 
     const fromAddress = `${fromName} <${fromEmail}>`;
+    const replyTo = fromEmail || 'support@arapoint.com.ng';
+    const domain = (fromEmail || 'arapoint.com.ng').split('@')[1] || 'arapoint.com.ng';
+    const messageId = `<${Date.now()}.${Math.random().toString(36).substring(2, 11)}@${domain}>`;
+
+    const plainText = text || html
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n\n')
+      .replace(/<\/tr>/gi, '\n')
+      .replace(/<\/td>/gi, '  ')
+      .replace(/<\/th>/gi, '  ')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&#39;/g, "'")
+      .replace(/&quot;/g, '"')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
 
     await transport.sendMail({
       from: fromAddress,
       to,
+      replyTo,
       subject,
       html,
-      text: text || html.replace(/<[^>]*>/g, ''),
+      text: plainText,
+      headers: {
+        'Message-ID': messageId,
+        'X-Mailer': 'Arapoint Digital Platform',
+        'X-Entity-Ref-ID': messageId,
+        'Precedence': 'first-class',
+        'X-Auto-Response-Suppress': 'OOF, DR, RN, NRN, AutoReply',
+      },
       attachments: attachments?.map(a => ({
         filename: a.filename,
         content: a.content,
