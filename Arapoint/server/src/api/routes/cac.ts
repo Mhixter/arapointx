@@ -11,11 +11,36 @@ import {
   cacRequestActivity,
   cacRequestMessages,
   cacBusinessNatures,
+  cacAgents,
+  adminUsers,
   users
 } from '../../db/schema';
 import { eq, desc, count, and } from 'drizzle-orm';
+import { sendEmail } from '../../services/emailService';
+import { agentNewRequestEmailHtml, SERVICE_LABELS } from '../../utils/agentEmailTemplates';
 
 const router = Router();
+
+async function notifyCacAgents(serviceType: string, trackingId: string, customerName: string, details: string, amount: number) {
+  try {
+    const agents = await db.select({ email: adminUsers.email, name: adminUsers.name })
+      .from(cacAgents)
+      .innerJoin(adminUsers, eq(cacAgents.adminUserId, adminUsers.id))
+      .where(eq(cacAgents.isAvailable, true));
+    const serviceLabel = SERVICE_LABELS[serviceType] || serviceType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    const dashboardUrl = `https://${process.env.REPLIT_DOMAINS || 'app.arapoint.com.ng'}/agent/cac`;
+    for (const agent of agents) {
+      sendEmail(
+        agent.email,
+        `New ${serviceLabel} Request — ${trackingId}`,
+        agentNewRequestEmailHtml({ agentName: agent.name || 'Agent', serviceLabel, trackingId, customerName, details, amount, dashboardUrl }),
+      ).catch(() => {});
+    }
+  } catch (err: any) {
+    logger.warn('Failed to notify CAC agents', { error: err.message });
+  }
+}
+
 router.use(authMiddleware);
 
 const CAC_STATUS = {
@@ -136,6 +161,7 @@ router.post('/register', async (req: Request, res: Response) => {
     });
 
     logger.info('CAC registration submitted', { userId: req.userId, requestId: request.id, serviceType });
+    notifyCacAgents(serviceType, `CAC-${request.id}`, businessName, `Proprietor: ${proprietorName}, Type: ${serviceType}`, fee);
 
     res.status(201).json(formatResponse('success', 201, 'CAC registration request submitted successfully', {
       request: {

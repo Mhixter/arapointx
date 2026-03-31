@@ -7,9 +7,10 @@ import { jambSchema, waecSchema, necoSchema, nabtebSchema, nbaisSchema } from '.
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse, generateReferenceId } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { educationServices, servicePricing, educationPins, educationPinOrders, users, nbaisSchools, rpaJobs, educationServiceRequests, jambServiceRequests, jambRequestDocuments } from '../../db/schema';
+import { educationServices, servicePricing, educationPins, educationPinOrders, users, nbaisSchools, rpaJobs, educationServiceRequests, jambServiceRequests, jambRequestDocuments, educationAgents, jambAgents, adminUsers } from '../../db/schema';
 import { eq, desc, and, sql, count, or } from 'drizzle-orm';
 import { sendEmail } from '../../services/emailService';
+import { agentNewRequestEmailHtml, SERVICE_LABELS } from '../../utils/agentEmailTemplates';
 import { getSchoolsByState, getSchoolsCount } from '../../rpa/workers/nbaisSchoolScraper';
 import multer from 'multer';
 import path from 'path';
@@ -18,6 +19,27 @@ import { randomUUID } from 'crypto';
 import { objectStorageService, ObjectNotFoundError } from '../../services/objectStorage';
 
 const UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'jamb-docs');
+
+async function notifyAgents(agentTable: 'education' | 'jamb', serviceType: string, trackingId: string, customerName: string, details: string, amount: number) {
+  try {
+    const table = agentTable === 'jamb' ? jambAgents : educationAgents;
+    const agents = await db.select({ email: adminUsers.email, name: adminUsers.name })
+      .from(table)
+      .innerJoin(adminUsers, eq((table as any).adminUserId, adminUsers.id))
+      .where(eq((table as any).isAvailable, true));
+    const serviceLabel = SERVICE_LABELS[serviceType] || serviceType.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    const dashboardUrl = `https://${process.env.REPLIT_DOMAINS || 'app.arapoint.com.ng'}/agent/education`;
+    for (const agent of agents) {
+      sendEmail(
+        agent.email,
+        `New ${serviceLabel} Request — ${trackingId}`,
+        agentNewRequestEmailHtml({ agentName: agent.name || 'Agent', serviceLabel, trackingId, customerName, details, amount, dashboardUrl }),
+      ).catch(() => {});
+    }
+  } catch (err: any) {
+    logger.warn('Failed to notify education/JAMB agents', { error: err.message });
+  }
+}
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -75,6 +97,7 @@ router.post('/request', async (req: Request, res: Response) => {
     }).returning();
 
     logger.info('Education service request created', { userId: req.userId, trackingId, serviceId });
+    notifyAgents('education', serviceId, trackingId, request.candidateName || 'A customer', `Reg No: ${request.registrationNumber}`, price);
 
     res.status(201).json(formatResponse('success', 201, 'Request submitted successfully', {
       trackingId,
@@ -248,6 +271,7 @@ router.post('/jamb-request', async (req: Request, res: Response) => {
     }).returning();
 
     logger.info('JAMB service request created', { userId: req.userId, trackingId, serviceId });
+    notifyAgents('jamb', serviceId, trackingId, request.candidateName || 'A customer', `Reg No: ${request.registrationNumber}`, price);
 
     res.status(201).json(formatResponse('success', 201, 'Request submitted successfully', {
       requestId: request.id,
@@ -476,6 +500,7 @@ router.post('/jamb', async (req: Request, res: Response) => {
       .where(eq(jambServiceRequests.id, jambRequest.id));
 
     logger.info('JAMB score check routed to agents', { userId: req.userId, trackingId });
+    notifyAgents('jamb', 'jamb', trackingId, `Reg: ${validation.data.registrationNumber}`, `Year: ${validation.data.examYear || 'N/A'}`, price);
 
     res.status(202).json(formatResponse('success', 202, 'JAMB score check request submitted. Our team will process it shortly.', {
       trackingId,

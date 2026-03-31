@@ -66,6 +66,8 @@ import {
   adminActivityLogs,
   otpVerifications,
 } from '../../db/schema';
+import { sendEmail } from '../../services/emailService';
+import { agentWelcomeEmailHtml } from '../../utils/agentEmailTemplates';
 import { fraudService } from '../../services/fraudService';
 import { whatsappService } from '../../services/whatsappService';
 import { walletService } from '../../services/walletService';
@@ -1864,6 +1866,13 @@ router.post('/cac/agents', async (req: Request, res: Response) => {
 
     logger.info('CAC agent created', { agentId: agent.id, email, createdBy: req.userId });
 
+    const loginUrl = `https://${process.env.REPLIT_DOMAINS || 'app.arapoint.com.ng'}/admin/login`;
+    sendEmail(
+      email.toLowerCase(),
+      'Your Arapoint CAC Agent Account Has Been Created',
+      agentWelcomeEmailHtml({ name, email: email.toLowerCase(), password, employeeId: agent.employeeId, role: 'CAC Agent', loginUrl }),
+    ).catch(err => logger.warn('Failed to send CAC agent welcome email', { error: err.message }));
+
     res.status(201).json(formatResponse('success', 201, 'CAC agent created successfully', {
       agent: {
         id: agent.id,
@@ -2272,6 +2281,13 @@ router.post('/identity-agents', async (req: Request, res: Response) => {
 
     logger.info('Identity agent created', { agentId: agent.id, adminUserId: newAdminUser.id, createdBy: req.userId });
 
+    const loginUrl = `https://${process.env.REPLIT_DOMAINS || 'app.arapoint.com.ng'}/admin/login`;
+    sendEmail(
+      newAdminUser.email,
+      'Your Arapoint Identity Agent Account Has Been Created',
+      agentWelcomeEmailHtml({ name, email: newAdminUser.email, password, employeeId: employeeId || null, role: 'Identity Agent', loginUrl }),
+    ).catch(err => logger.warn('Failed to send identity agent welcome email', { error: err.message }));
+
     res.status(201).json(formatResponse('success', 201, 'Identity agent created', {
       agent: {
         id: agent.id,
@@ -2470,6 +2486,13 @@ router.post('/education-agents', async (req: Request, res: Response) => {
 
     logger.info('Education agent created', { agentId: agent.id, adminUserId: newAdminUser.id, createdBy: req.userId });
 
+    const loginUrl = `https://${process.env.REPLIT_DOMAINS || 'app.arapoint.com.ng'}/admin/login`;
+    sendEmail(
+      newAdminUser.email,
+      'Your Arapoint Education Agent Account Has Been Created',
+      agentWelcomeEmailHtml({ name, email: newAdminUser.email, password, employeeId: employeeId || null, role: 'Education Agent', loginUrl }),
+    ).catch(err => logger.warn('Failed to send education agent welcome email', { error: err.message }));
+
     res.status(201).json(formatResponse('success', 201, 'Education agent created', {
       agent: {
         id: agent.id,
@@ -2602,6 +2625,13 @@ router.post('/jamb-agents', async (req: Request, res: Response) => {
     }).returning();
 
     logger.info('JAMB agent created', { agentId: agent.id, adminUserId: newAdminUser.id, createdBy: req.userId });
+
+    const loginUrl = `https://${process.env.REPLIT_DOMAINS || 'app.arapoint.com.ng'}/admin/login`;
+    sendEmail(
+      newAdminUser.email,
+      'Your Arapoint JAMB Agent Account Has Been Created',
+      agentWelcomeEmailHtml({ name, email: newAdminUser.email, password, employeeId: employeeId || null, role: 'JAMB Agent', loginUrl }),
+    ).catch(err => logger.warn('Failed to send JAMB agent welcome email', { error: err.message }));
 
     res.status(201).json(formatResponse('success', 201, 'JAMB agent created', {
       agent: {
@@ -3084,6 +3114,13 @@ router.post('/a2c-agents', async (req: Request, res: Response) => {
     }).returning();
 
     logger.info('A2C agent created', { agentId: agent.id, adminUserId: newAdminUser.id, createdBy: req.userId });
+
+    const loginUrl = `https://${process.env.REPLIT_DOMAINS || 'app.arapoint.com.ng'}/admin/login`;
+    sendEmail(
+      newAdminUser.email,
+      'Your Arapoint A2C Agent Account Has Been Created',
+      agentWelcomeEmailHtml({ name, email: newAdminUser.email, password, employeeId: agent.employeeId || null, role: 'Airtime to Cash (A2C) Agent', loginUrl }),
+    ).catch(err => logger.warn('Failed to send A2C agent welcome email', { error: err.message }));
 
     res.status(201).json(formatResponse('success', 201, 'A2C agent created', {
       agent: {

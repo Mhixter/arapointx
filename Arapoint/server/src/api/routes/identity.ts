@@ -11,10 +11,32 @@ import { ninLookupSchema, ninPhoneSchema, lostNinSchema } from '../validators/id
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse, generateReferenceId } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { identityVerifications, identityServiceRequests, servicePricing } from '../../db/schema';
+import { identityVerifications, identityServiceRequests, servicePricing, identityAgents, adminUsers, users } from '../../db/schema';
 import { eq, desc, sql, and } from 'drizzle-orm';
+import { sendEmail } from '../../services/emailService';
+import { agentNewRequestEmailHtml, SERVICE_LABELS } from '../../utils/agentEmailTemplates';
 import * as fs from 'fs';
 import * as path from 'path';
+
+async function notifyIdentityAgents(serviceType: string, trackingId: string, customerName: string, details: string, amount: number) {
+  try {
+    const agents = await db.select({ email: adminUsers.email, name: adminUsers.name })
+      .from(identityAgents)
+      .innerJoin(adminUsers, eq(identityAgents.adminUserId, adminUsers.id))
+      .where(eq(identityAgents.isAvailable, true));
+    const serviceLabel = SERVICE_LABELS[serviceType] || serviceType;
+    const dashboardUrl = `https://${process.env.REPLIT_DOMAINS || 'app.arapoint.com.ng'}/agent/identity`;
+    for (const agent of agents) {
+      sendEmail(
+        agent.email,
+        `New ${serviceLabel} Request — ${trackingId}`,
+        agentNewRequestEmailHtml({ agentName: agent.name || 'Agent', serviceLabel, trackingId, customerName, details, amount, dashboardUrl }),
+      ).catch(() => {});
+    }
+  } catch (err: any) {
+    logger.warn('Failed to notify identity agents', { error: err.message });
+  }
+}
 
 const getConfiguredProviders = (): ('techhub' | 'prembly' | 'youverify')[] => {
   const providers: ('techhub' | 'prembly' | 'youverify')[] = [];
@@ -1064,6 +1086,9 @@ router.post('/ipe-clearance', async (req: Request, res: Response) => {
     });
 
     logger.info('IPE Clearance request submitted', { userId: req.userId, trackingId: requestTrackingId });
+    db.select({ name: users.name }).from(users).where(eq(users.id, req.userId!)).limit(1)
+      .then(([u]) => notifyIdentityAgents('ipe_clearance', requestTrackingId, u?.name || 'A customer', `Status Type: ${statusType}, Slip: ${slipType}`, totalPrice))
+      .catch(() => {});
 
     res.status(202).json(formatResponse('success', 202, 'IPE Clearance request submitted successfully', {
       trackingId: requestTrackingId,
@@ -1119,6 +1144,9 @@ router.post('/validation', async (req: Request, res: Response) => {
     });
 
     logger.info('NIN Validation request submitted', { userId: req.userId, trackingId: requestTrackingId });
+    db.select({ name: users.name }).from(users).where(eq(users.id, req.userId!)).limit(1)
+      .then(([u]) => notifyIdentityAgents('nin_validation', requestTrackingId, u?.name || 'A customer', `NIN: ${nin}, Type: ${validationType}`, totalPrice))
+      .catch(() => {});
 
     res.status(202).json(formatResponse('success', 202, 'NIN Validation request submitted successfully', {
       trackingId: requestTrackingId,
@@ -1167,6 +1195,9 @@ router.post('/personalization', async (req: Request, res: Response) => {
     });
 
     logger.info('NIN Personalization request submitted', { userId: req.userId, trackingId: requestTrackingId });
+    db.select({ name: users.name }).from(users).where(eq(users.id, req.userId!)).limit(1)
+      .then(([u]) => notifyIdentityAgents('nin_personalization', requestTrackingId, u?.name || 'A customer', `NIN Tracking ID: ${trackingId}`, price))
+      .catch(() => {});
 
     res.status(202).json(formatResponse('success', 202, 'NIN Personalization request submitted successfully', {
       trackingId: requestTrackingId,
@@ -1213,6 +1244,7 @@ router.post('/birth-attestation', async (req: Request, res: Response) => {
     });
 
     logger.info('Birth Attestation request submitted', { userId: req.userId, trackingId: requestTrackingId });
+    notifyIdentityAgents('birth_attestation', requestTrackingId, fullName, `DOB: ${dateOfBirth}, LGA: ${lga || 'N/A'}`, price);
 
     res.status(202).json(formatResponse('success', 202, 'Birth Attestation request submitted successfully', {
       trackingId: requestTrackingId,
@@ -1259,6 +1291,9 @@ router.post('/nin-tracking', async (req: Request, res: Response) => {
     });
 
     logger.info('NIN Tracking request submitted', { userId: req.userId, trackingId: requestTrackingId });
+    db.select({ name: users.name }).from(users).where(eq(users.id, req.userId!)).limit(1)
+      .then(([u]) => notifyIdentityAgents('nin_tracking', requestTrackingId, u?.name || 'A customer', `Tracking ID: ${trackingId}`, price))
+      .catch(() => {});
 
     res.status(202).json(formatResponse('success', 202, 'NIN With Tracking ID request submitted successfully', {
       trackingId: requestTrackingId,
