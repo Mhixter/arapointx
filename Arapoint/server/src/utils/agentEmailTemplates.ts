@@ -101,7 +101,6 @@ export function agentNewRequestEmailHtml({
   trackingId,
   customerName,
   details,
-  amount,
   dashboardUrl,
 }: {
   agentName: string;
@@ -109,7 +108,6 @@ export function agentNewRequestEmailHtml({
   trackingId: string;
   customerName: string;
   details: string;
-  amount: number;
   dashboardUrl: string;
 }): string {
   return `<!DOCTYPE html>
@@ -158,15 +156,9 @@ export function agentNewRequestEmailHtml({
                       </td>
                     </tr>
                     <tr>
-                      <td style="padding:8px 0;border-bottom:1px solid #e9ecef;">
+                      <td style="padding:8px 0;">
                         <span style="color:#888;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Details</span><br>
                         <span style="color:#1a1a1a;font-size:14px;">${details}</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="padding:8px 0;">
-                        <span style="color:#888;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Amount Paid</span><br>
-                        <span style="color:#2e7d32;font-size:15px;font-weight:700;">₦${amount.toLocaleString()}</span>
                       </td>
                     </tr>
                   </table>

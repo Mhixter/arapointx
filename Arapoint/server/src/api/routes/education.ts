@@ -36,7 +36,7 @@ async function notifyAgents(agentTable: 'education' | 'jamb', serviceType: strin
       sendEmail(
         agent.email,
         `New ${serviceLabel} Request — ${trackingId}`,
-        agentNewRequestEmailHtml({ agentName: agent.name || 'Agent', serviceLabel, trackingId, customerName, details, amount, dashboardUrl }),
+        agentNewRequestEmailHtml({ agentName: agent.name || 'Agent', serviceLabel, trackingId, customerName, details, dashboardUrl }),
       ).catch(() => {});
     }
   } catch (err: any) {

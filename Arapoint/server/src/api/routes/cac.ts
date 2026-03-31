@@ -34,7 +34,7 @@ async function notifyCacAgents(serviceType: string, trackingId: string, customer
       sendEmail(
         agent.email,
         `New ${serviceLabel} Request — ${trackingId}`,
-        agentNewRequestEmailHtml({ agentName: agent.name || 'Agent', serviceLabel, trackingId, customerName, details, amount, dashboardUrl }),
+        agentNewRequestEmailHtml({ agentName: agent.name || 'Agent', serviceLabel, trackingId, customerName, details, dashboardUrl }),
       ).catch(() => {});
     }
   } catch (err: any) {

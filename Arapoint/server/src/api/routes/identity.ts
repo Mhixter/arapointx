@@ -31,7 +31,7 @@ async function notifyIdentityAgents(serviceType: string, trackingId: string, cus
       sendEmail(
         agent.email,
         `New ${serviceLabel} Request — ${trackingId}`,
-        agentNewRequestEmailHtml({ agentName: agent.name || 'Agent', serviceLabel, trackingId, customerName, details, amount, dashboardUrl }),
+        agentNewRequestEmailHtml({ agentName: agent.name || 'Agent', serviceLabel, trackingId, customerName, details, dashboardUrl }),
       ).catch(() => {});
     }
   } catch (err: any) {
@@ -59,7 +59,7 @@ async function notifyAdmins(serviceType: string, trackingId: string, customerNam
       sendEmail(
         admin.email,
         `New ${serviceLabel} Request — ${trackingId}`,
-        agentNewRequestEmailHtml({ agentName: admin.name || 'Admin', serviceLabel, trackingId, customerName, details, amount, dashboardUrl }),
+        agentNewRequestEmailHtml({ agentName: admin.name || 'Admin', serviceLabel, trackingId, customerName, details, dashboardUrl }),
       ).catch(() => {});
     }
   } catch (err: any) {
