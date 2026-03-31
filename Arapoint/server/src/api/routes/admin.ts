@@ -141,11 +141,12 @@ async function emailAvailableForAgent(email: string): Promise<boolean> {
 }
 
 async function safeDeleteAdminUser(adminUserId: string): Promise<void> {
-  await db.execute(sql`UPDATE support_tickets SET assigned_agent_id = NULL WHERE assigned_agent_id = ${adminUserId}`);
-  await db.execute(sql`UPDATE admin_activity_logs SET admin_id = NULL WHERE admin_id = ${adminUserId}`);
-  await db.execute(sql`UPDATE ai_knowledge_base SET added_by = NULL WHERE added_by = ${adminUserId}`);
-  await db.execute(sql`UPDATE agent_internal_messages SET resolved_by = NULL WHERE resolved_by = ${adminUserId}`);
-  await db.execute(sql`DELETE FROM support_internal_notes WHERE agent_id = ${adminUserId}`);
+  const tryRun = async (p: Promise<unknown>) => { try { await p; } catch (_) {} };
+  await tryRun(db.execute(sql`UPDATE support_tickets SET assigned_agent_id = NULL WHERE assigned_agent_id = ${adminUserId}`));
+  await tryRun(db.execute(sql`UPDATE admin_activity_logs SET admin_id = NULL WHERE admin_id = ${adminUserId}`));
+  await tryRun(db.execute(sql`UPDATE ai_knowledge_base SET added_by = NULL WHERE added_by = ${adminUserId}`));
+  await tryRun(db.execute(sql`UPDATE agent_internal_messages SET resolved_by = NULL WHERE resolved_by = ${adminUserId}`));
+  await tryRun(db.execute(sql`DELETE FROM support_internal_notes WHERE agent_id = ${adminUserId}`));
   await db.delete(adminUsers).where(eq(adminUsers.id, adminUserId));
 }
 
