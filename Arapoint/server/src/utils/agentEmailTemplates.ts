@@ -79,7 +79,7 @@ export function agentWelcomeEmailHtml({
             </div>
 
             <p style="margin:0;color:#999;font-size:12px;line-height:1.5;border-top:1px solid #f0f0f0;padding-top:16px;">
-              For security, please change your password immediately after your first login. If you did not expect this account, contact your administrator.
+              <strong>Important:</strong> Your password cannot be changed by you directly. If you need a password reset, please contact your administrator. A copy of your Service Level Agreement (SLA) is attached to this email — please read it carefully before you begin work.
             </p>
           </td>
         </tr>

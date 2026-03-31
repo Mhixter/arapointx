@@ -68,7 +68,19 @@ async function getTransporter() {
   return { transport: transporter, fromName: smtpConfig.smtpFromName, fromEmail };
 }
 
-export async function sendEmail(to: string, subject: string, html: string, text?: string): Promise<boolean> {
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType: string;
+}
+
+export async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  text?: string,
+  attachments?: EmailAttachment[],
+): Promise<boolean> {
   try {
     const { transport, fromName, fromEmail } = await getTransporter();
 
@@ -76,6 +88,9 @@ export async function sendEmail(to: string, subject: string, html: string, text?
       logger.warn('SMTP not configured - logging email to console', { to, subject });
       logger.info(`[DEV EMAIL] To: ${to} | Subject: ${subject}`);
       logger.info(`[DEV EMAIL] Body: ${text || html.replace(/<[^>]*>/g, '')}`);
+      if (attachments?.length) {
+        logger.info(`[DEV EMAIL] Attachments: ${attachments.map(a => a.filename).join(', ')}`);
+      }
       return true;
     }
 
@@ -87,6 +102,11 @@ export async function sendEmail(to: string, subject: string, html: string, text?
       subject,
       html,
       text: text || html.replace(/<[^>]*>/g, ''),
+      attachments: attachments?.map(a => ({
+        filename: a.filename,
+        content: a.content,
+        contentType: a.contentType,
+      })),
     });
 
     logger.info('Email sent successfully via SMTP', { to });

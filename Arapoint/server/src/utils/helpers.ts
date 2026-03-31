@@ -1,7 +1,5 @@
 export const getSiteUrl = (): string => {
-  if (process.env.SITE_URL) return process.env.SITE_URL.replace(/\/$/, '');
-  if (process.env.REPLIT_DEPLOYMENT) return `https://${process.env.REPLIT_DEV_DOMAIN}`;
-  return 'https://arapoint.com.ng';
+  return (process.env.SITE_URL || 'https://arapoint.com.ng').replace(/\/$/, '');
 };
 
 export const generateJobId = (): string => {
