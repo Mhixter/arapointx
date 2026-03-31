@@ -1951,11 +1951,9 @@ router.delete('/cac/agents/:id', async (req: Request, res: Response) => {
     }
 
     await db.delete(cacAgents).where(eq(cacAgents.id, id));
-    
+
     if (agent.adminUserId) {
-      await db.update(adminUsers)
-        .set({ isActive: false })
-        .where(eq(adminUsers.id, agent.adminUserId));
+      await db.delete(adminUsers).where(eq(adminUsers.id, agent.adminUserId));
     }
 
     logger.info('CAC agent deleted', { agentId: id, deletedBy: req.userId });
@@ -2360,6 +2358,10 @@ router.delete('/identity-agents/:id', async (req: Request, res: Response) => {
 
     await db.delete(identityAgents).where(eq(identityAgents.id, id));
 
+    if (agent.adminUserId) {
+      await db.delete(adminUsers).where(eq(adminUsers.id, agent.adminUserId));
+    }
+
     logger.info('Identity agent deleted', { agentId: id, deletedBy: req.userId });
 
     res.json(formatResponse('success', 200, 'Identity agent deleted'));
@@ -2569,6 +2571,10 @@ router.delete('/education-agents/:id', async (req: Request, res: Response) => {
 
     await db.delete(educationAgents).where(eq(educationAgents.id, id));
 
+    if (agent.adminUserId) {
+      await db.delete(adminUsers).where(eq(adminUsers.id, agent.adminUserId));
+    }
+
     logger.info('Education agent deleted', { agentId: id, deletedBy: req.userId });
 
     res.json(formatResponse('success', 200, 'Education agent deleted'));
@@ -2712,6 +2718,10 @@ router.delete('/jamb-agents/:id', async (req: Request, res: Response) => {
     }
 
     await db.delete(jambAgents).where(eq(jambAgents.id, id));
+
+    if (agent.adminUserId) {
+      await db.delete(adminUsers).where(eq(adminUsers.id, agent.adminUserId));
+    }
 
     logger.info('JAMB agent deleted', { agentId: id, deletedBy: req.userId });
 
