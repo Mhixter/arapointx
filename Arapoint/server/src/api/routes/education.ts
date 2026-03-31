@@ -29,7 +29,9 @@ async function notifyAgents(agentTable: 'education' | 'jamb', serviceType: strin
       .innerJoin(adminUsers, eq((table as any).adminUserId, adminUsers.id))
       .where(eq((table as any).isAvailable, true));
     const serviceLabel = SERVICE_LABELS[serviceType] || serviceType.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    const dashboardUrl = `${getSiteUrl()}/agent/education`;
+    const dashboardUrl = agentTable === 'jamb'
+      ? `${getSiteUrl()}/agent/jamb`
+      : `${getSiteUrl()}/agent/education`;
     for (const agent of agents) {
       sendEmail(
         agent.email,

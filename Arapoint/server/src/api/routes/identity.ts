@@ -11,7 +11,7 @@ import { ninLookupSchema, ninPhoneSchema, lostNinSchema } from '../validators/id
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse, generateReferenceId } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { identityVerifications, identityServiceRequests, servicePricing, identityAgents, adminUsers, users } from '../../db/schema';
+import { identityVerifications, identityServiceRequests, servicePricing, identityAgents, adminUsers, adminRoles, adminNotifications, users } from '../../db/schema';
 import { eq, desc, sql, and } from 'drizzle-orm';
 import { sendEmail } from '../../services/emailService';
 import { agentNewRequestEmailHtml, SERVICE_LABELS } from '../../utils/agentEmailTemplates';
@@ -36,6 +36,34 @@ async function notifyIdentityAgents(serviceType: string, trackingId: string, cus
     }
   } catch (err: any) {
     logger.warn('Failed to notify identity agents', { error: err.message });
+  }
+}
+
+async function notifyAdmins(serviceType: string, trackingId: string, customerName: string, details: string, amount: number, userId: string) {
+  try {
+    const serviceLabel = SERVICE_LABELS[serviceType] || serviceType;
+    await db.insert(adminNotifications).values({
+      type: serviceType,
+      title: `New ${serviceLabel} Request`,
+      message: `${customerName} submitted a ${serviceLabel} request. ${details}. Amount: ₦${amount.toLocaleString()}. Tracking ID: ${trackingId}`,
+      requestId: trackingId,
+      userId,
+      isRead: false,
+    });
+    const adminList = await db.select({ email: adminUsers.email, name: adminUsers.name })
+      .from(adminUsers)
+      .innerJoin(adminRoles, eq(adminUsers.roleId, adminRoles.id))
+      .where(eq(adminRoles.name, 'admin'));
+    const dashboardUrl = `${getSiteUrl()}/admin/requests`;
+    for (const admin of adminList) {
+      sendEmail(
+        admin.email,
+        `New ${serviceLabel} Request — ${trackingId}`,
+        agentNewRequestEmailHtml({ agentName: admin.name || 'Admin', serviceLabel, trackingId, customerName, details, amount, dashboardUrl }),
+      ).catch(() => {});
+    }
+  } catch (err: any) {
+    logger.warn('Failed to notify admins', { error: err.message });
   }
 }
 
@@ -1245,7 +1273,7 @@ router.post('/birth-attestation', async (req: Request, res: Response) => {
     });
 
     logger.info('Birth Attestation request submitted', { userId: req.userId, trackingId: requestTrackingId });
-    notifyIdentityAgents('birth_attestation', requestTrackingId, fullName, `DOB: ${dateOfBirth}, LGA: ${lga || 'N/A'}`, price);
+    notifyAdmins('birth_attestation', requestTrackingId, fullName, `DOB: ${dateOfBirth}, LGA: ${lga || 'N/A'}`, price, req.userId!);
 
     res.status(202).json(formatResponse('success', 202, 'Birth Attestation request submitted successfully', {
       trackingId: requestTrackingId,

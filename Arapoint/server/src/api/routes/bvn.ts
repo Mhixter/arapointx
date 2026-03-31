@@ -8,10 +8,9 @@ import { bvnRetrieveSchema, bvnDigitalCardSchema, bvnModifySchema } from '../val
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { bvnServices, users, identityAgents, adminNotifications } from '../../db/schema';
+import { bvnServices, users, adminNotifications } from '../../db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { generateReferenceId } from '../../utils/helpers';
-import { whatsappService } from '../../services/whatsappService';
 
 const getConfiguredProviders = (): ('prembly' | 'youverify')[] => {
   const providers: ('prembly' | 'youverify')[] = [];
@@ -269,24 +268,7 @@ router.post('/modify', async (req: Request, res: Response) => {
       },
     });
 
-    const availableAgents = await db.select()
-      .from(identityAgents)
-      .where(eq(identityAgents.isAvailable, true))
-      .limit(1);
-    
-    if (availableAgents.length > 0) {
-      const [user] = await db.select({ name: users.name }).from(users).where(eq(users.id, req.userId!)).limit(1);
-      whatsappService.notifyAgentOfNewRequest('bvn', availableAgents[0].id, {
-        requestId,
-        requestType: 'bvn_modification',
-        customerName: user?.name || 'Customer',
-        amount: price,
-        description: `BVN Modification - ${validation.data.changeCategory === 'name' ? 'Change of Name' : 'Change of Date of Birth'}: ${validation.data.oldValue} → ${validation.data.newValue}`,
-        userId: req.userId,
-      }).catch(err => logger.error('Failed to queue WhatsApp notification', { error: err.message }));
-    }
-
-    // Insert admin dashboard notification (no agent handles BVN — goes directly to admin)
+    // Insert admin dashboard notification (BVN modification goes directly to admin — no agent involvement)
     const [user] = await db.select({ name: users.name }).from(users).where(eq(users.id, req.userId!)).limit(1);
     await db.insert(adminNotifications).values({
       type: 'bvn_modification',

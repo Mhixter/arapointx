@@ -520,7 +520,23 @@ export default function IdentityAgentDashboard() {
                 <div><strong>Agent Notes:</strong> {selectedRequest.agentNotes}</div>
               )}
               {selectedRequest.slipUrl && (
-                <div><strong>Slip:</strong> <a href={selectedRequest.slipUrl} target="_blank" className="text-blue-600 underline">View Slip</a></div>
+                <div><strong>Slip:</strong> <button
+                  className="text-blue-600 underline bg-transparent border-none cursor-pointer p-0"
+                  onClick={async () => {
+                    const token = getAgentToken();
+                    const res = await fetch(`/api/identity-agent/requests/${selectedRequest.id}/slip-download`, {
+                      headers: { Authorization: `Bearer ${token}` },
+                    });
+                    if (!res.ok) return;
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `slip-${selectedRequest.trackingId}.pdf`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                >Download Slip</button></div>
               )}
               {selectedRequest.resolvedTrackingId && (
                 <div><strong>Resolved NIMC Tracking ID:</strong> <span className="font-mono text-green-700 dark:text-green-400">{selectedRequest.resolvedTrackingId}</span></div>

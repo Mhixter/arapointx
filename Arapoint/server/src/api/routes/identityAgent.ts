@@ -19,8 +19,7 @@ import { authMiddleware } from '../middleware/auth';
 import { pricingService } from '../../services/pricingService';
 import { walletService } from '../../services/walletService';
 import { sendEmail } from '../../services/emailService';
-import * as fs from 'fs';
-import * as path from 'path';
+import { ObjectStorageService } from '../../services/objectStorage';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_here';
@@ -336,19 +335,11 @@ router.put('/requests/:id/status', identityAgentAuthMiddleware, async (req: Requ
   }
 });
 
-const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
-if (!fs.existsSync(UPLOADS_DIR)) {
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-}
+const objectStorage = new ObjectStorageService();
 
 router.post('/upload-url', identityAgentAuthMiddleware, async (req: Request, res: Response) => {
   try {
-    const { randomUUID } = await import('crypto');
-    const fileId = randomUUID();
-    const fileName = `identity-slip-${fileId}`;
-    const uploadURL = `/api/identity-agent/upload-local/${fileName}`;
-    const objectPath = `/uploads/${fileName}`;
-
+    const { uploadURL, objectPath } = await objectStorage.getObjectEntityUploadURL('identity-slips');
     res.json({ uploadURL, objectPath });
   } catch (error: any) {
     logger.error('Agent upload URL error', { error: error.message });
@@ -356,26 +347,21 @@ router.post('/upload-url', identityAgentAuthMiddleware, async (req: Request, res
   }
 });
 
-router.put('/upload-local/:fileName', identityAgentAuthMiddleware, async (req: Request, res: Response) => {
+router.get('/requests/:id/slip-download', identityAgentAuthMiddleware, async (req: Request, res: Response) => {
   try {
-    const { fileName } = req.params;
-    const safeName = path.basename(fileName);
-    const filePath = path.join(UPLOADS_DIR, safeName);
-
-    const chunks: Buffer[] = [];
-    req.on('data', (chunk: Buffer) => chunks.push(chunk));
-    req.on('end', () => {
-      const buffer = Buffer.concat(chunks);
-      fs.writeFileSync(filePath, buffer);
-      res.status(200).json({ success: true, path: `/uploads/${safeName}` });
-    });
-    req.on('error', (err) => {
-      logger.error('Upload stream error', { error: err.message });
-      res.status(500).json(formatErrorResponse(500, 'Upload failed'));
-    });
+    const { id } = req.params;
+    const [request] = await db.select({ slipUrl: identityServiceRequests.slipUrl })
+      .from(identityServiceRequests)
+      .where(eq(identityServiceRequests.id, id))
+      .limit(1);
+    if (!request?.slipUrl) {
+      return res.status(404).json(formatErrorResponse(404, 'No slip file available for this request'));
+    }
+    const file = await objectStorage.getObjectEntityFile(request.slipUrl);
+    await objectStorage.downloadObject(file, res);
   } catch (error: any) {
-    logger.error('Agent file upload error', { error: error.message });
-    res.status(500).json(formatErrorResponse(500, 'Failed to upload file'));
+    logger.error('Slip download error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to download slip'));
   }
 });
 

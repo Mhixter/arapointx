@@ -150,13 +150,48 @@ export async function generateAgentSlaPdf(
 
   section('4. Service Turnaround Times',
     'The following maximum turnaround times apply from the moment a request is assigned to the Agent:');
-  bulletList([
-    'Identity Services (NIN Validation, IPE Clearance, Personalization): 1 – 30 minutes',
-    'NIN Tracking / Birth Attestation: 24 – 48 hours',
-    'Education Services (O\'Level Upload, Admission Letter, JAMB Score): 1 – 24 hours',
-    'CAC Registration: 5 – 10 business days',
-    'Airtime to Cash (A2C): Within 2 hours of assignment',
-  ]);
+  const lowerRole = role.toLowerCase();
+  if (lowerRole.includes('identity')) {
+    bulletList([
+      'NIN Validation: 1 – 30 minutes from assignment',
+      'IPE Clearance: 1 – 30 minutes from assignment',
+      'NIN Personalization: 1 – 30 minutes from assignment',
+      'NIN Tracking: 24 – 48 hours from assignment',
+    ]);
+  } else if (lowerRole.includes('jamb')) {
+    bulletList([
+      'O\'Level Upload: 1 – 24 hours from assignment',
+      'Admission Letter: 1 – 24 hours from assignment',
+      'Original Result Processing: 1 – 24 hours from assignment',
+      'CAPS Reprinting: 1 – 24 hours from assignment',
+      'JAMB Score Check: 1 – 24 hours from assignment',
+    ]);
+  } else if (lowerRole.includes('education')) {
+    bulletList([
+      'O\'Level Upload: 1 – 24 hours from assignment',
+      'Admission Letter: 1 – 24 hours from assignment',
+      'Original Result Processing: 1 – 24 hours from assignment',
+      'CAPS Reprinting: 1 – 24 hours from assignment',
+    ]);
+  } else if (lowerRole.includes('cac')) {
+    bulletList([
+      'Business Name Registration: 5 – 7 business days from assignment',
+      'Private Limited Company (LTD) Registration: 7 – 10 business days from assignment',
+      'Public Limited Company Registration: 10 – 14 business days from assignment',
+      'NGO / Association Registration: 7 – 10 business days from assignment',
+    ]);
+  } else if (lowerRole.includes('a2c') || lowerRole.includes('airtime')) {
+    bulletList([
+      'Airtime to Cash — MTN: Within 2 hours of assignment',
+      'Airtime to Cash — Airtel: Within 2 hours of assignment',
+      'Airtime to Cash — Glo: Within 2 hours of assignment',
+      'Airtime to Cash — 9mobile: Within 2 hours of assignment',
+    ]);
+  } else {
+    bulletList([
+      'All assigned requests: Within 24 hours of assignment unless otherwise specified',
+    ]);
+  }
   y = wrapDraw('Failure to meet turnaround times without prior notification to the Administrator may result in reassignment or disciplinary action.', ML, y, TW, 10, reg);
   y -= 10;
 
