@@ -1,172 +1,236 @@
-import PDFDocument from 'pdfkit';
+import { PDFDocument, StandardFonts, rgb, PageSizes } from 'pdf-lib';
 
-export function generateAgentSlaPdf(agentName: string, role: string, employeeId?: string | null): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 60, size: 'A4' });
-    const chunks: Buffer[] = [];
+const PRIMARY = rgb(0.102, 0.235, 0.369);   // #1a3c5e
+const ACCENT  = rgb(0.161, 0.502, 0.725);   // #2980b9
+const DARK    = rgb(0.2,   0.2,   0.2);
+const GRAY    = rgb(0.5,   0.5,   0.5);
+const WHITE   = rgb(1,     1,     1);
+const LIGHT   = rgb(0.957, 0.965, 0.976);   // #f4f6f9
+const BORDER  = rgb(0.816, 0.843, 0.886);   // #d0d7e2
 
-    doc.on('data', chunk => chunks.push(chunk));
-    doc.on('end', () => resolve(Buffer.concat(chunks)));
-    doc.on('error', reject);
+export async function generateAgentSlaPdf(
+  agentName: string,
+  role: string,
+  employeeId?: string | null,
+): Promise<Buffer> {
+  const doc  = await PDFDocument.create();
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const reg  = await doc.embedFont(StandardFonts.Helvetica);
 
-    const primaryColor = '#1a3c5e';
-    const accentColor = '#2980b9';
-    const lightGray = '#f4f6f9';
-    const textColor = '#333333';
-    const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-    const year = new Date().getFullYear();
+  const W = PageSizes.A4[0]; // 595.28
+  const H = PageSizes.A4[1]; // 841.89
+  const ML = 55;
+  const MR = 55;
+  const TW = W - ML - MR;
 
-    // ── Header band ──
-    doc.rect(0, 0, doc.page.width, 90).fill(primaryColor);
-    doc.fillColor('#ffffff').fontSize(22).font('Helvetica-Bold')
-      .text('ARAPOINT SOLUTIONS', 60, 25, { align: 'left' });
-    doc.fontSize(10).font('Helvetica')
-      .text('Digital Services Platform', 60, 52, { align: 'left' });
-    doc.fontSize(10).font('Helvetica-Bold')
-      .text('SERVICE LEVEL AGREEMENT', 60, 68, { align: 'left' });
+  const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+  const year  = new Date().getFullYear();
 
-    doc.fillColor(primaryColor);
-    doc.moveDown(5);
+  /* ── Helpers ─────────────────────────────────────────────── */
+  let page = doc.addPage(PageSizes.A4);
 
-    // ── Title section ──
-    doc.fontSize(14).font('Helvetica-Bold').fillColor(primaryColor)
-      .text('Agent Service Level Agreement (SLA)', { align: 'center' });
-    doc.moveDown(0.3);
-    doc.fontSize(10).font('Helvetica').fillColor('#666666')
-      .text(`Effective Date: ${today}`, { align: 'center' });
+  const newPage = () => {
+    page = doc.addPage(PageSizes.A4);
+    // mini header stripe on continuation pages
+    page.drawRectangle({ x: 0, y: H - 28, width: W, height: 28, color: PRIMARY });
+    page.drawText('ARAPOINT SOLUTIONS  —  Agent Service Level Agreement', {
+      x: ML, y: H - 19, size: 8, font: bold, color: WHITE,
+    });
+    return H - 50;
+  };
 
-    doc.moveDown(1);
+  let y = H;
 
-    // ── Party details box ──
-    const boxTop = doc.y;
-    doc.rect(60, boxTop, doc.page.width - 120, 90).fill(lightGray).stroke('#d0d7e2');
-    doc.fillColor(textColor).fontSize(10).font('Helvetica-Bold')
-      .text('PARTIES TO THIS AGREEMENT', 70, boxTop + 12);
-    doc.font('Helvetica').fontSize(10)
-      .text(`Service Provider:  Arapoint Solutions Ltd`, 70, boxTop + 30)
-      .text(`Agent Name:        ${agentName}`, 70, boxTop + 46)
-      .text(`Role:              ${role}`, 70, boxTop + 62)
-      .text(`Employee ID:       ${employeeId || 'N/A'}`, 70, boxTop + 78);
-    doc.y = boxTop + 100;
+  // wrap a block of text returning how many lines it used
+  const wrapDraw = (
+    text: string,
+    x: number,
+    startY: number,
+    maxW: number,
+    size: number,
+    font: typeof reg,
+    color = DARK,
+    lineH = size * 1.45,
+  ): number => {
+    const words = text.split(' ');
+    let line = '';
+    let cy = startY;
 
-    doc.moveDown(1);
-
-    // ── Section helper ──
-    const section = (title: string, body: string) => {
-      doc.fontSize(11).font('Helvetica-Bold').fillColor(primaryColor)
-        .text(title);
-      doc.moveDown(0.3);
-      doc.fontSize(10).font('Helvetica').fillColor(textColor)
-        .text(body, { align: 'justify', lineGap: 3 });
-      doc.moveDown(0.8);
+    const flush = (l: string) => {
+      if (cy < 60) { cy = newPage() - lineH; }
+      page.drawText(l, { x, y: cy, size, font, color });
+      cy -= lineH;
     };
 
-    const numberedList = (items: string[]) => {
-      items.forEach((item, i) => {
-        doc.fontSize(10).font('Helvetica').fillColor(textColor)
-          .text(`${i + 1}.  ${item}`, { indent: 10, align: 'justify', lineGap: 2 });
-        doc.moveDown(0.2);
-      });
-      doc.moveDown(0.5);
-    };
+    for (const word of words) {
+      const test = line ? `${line} ${word}` : word;
+      if (font.widthOfTextAtSize(test, size) > maxW && line) {
+        flush(line);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    if (line) flush(line);
+    return cy;
+  };
 
-    // ── Sections ──
-    section('1. Purpose',
-      'This Service Level Agreement (SLA) sets out the standards, expectations, and obligations agreed between Arapoint Solutions Ltd ("Arapoint" or "the Company") and the Agent named above. By accepting your account credentials and logging in, you agree to be bound by all terms herein.');
+  /* ── Page 1: Header band ──────────────────────────────────── */
+  page.drawRectangle({ x: 0, y: H - 88, width: W, height: 88, color: PRIMARY });
+  page.drawText('ARAPOINT SOLUTIONS', { x: ML, y: H - 38, size: 22, font: bold, color: WHITE });
+  page.drawText('Digital Services Platform', { x: ML, y: H - 56, size: 10, font: reg, color: rgb(0.659, 0.784, 0.910) });
+  page.drawText('SERVICE LEVEL AGREEMENT', { x: ML, y: H - 74, size: 10, font: bold, color: WHITE });
 
-    section('2. Scope of Service',
-      'The Agent is authorised to process customer requests assigned to them through the Arapoint Agent Dashboard. The specific service categories available to the Agent are determined by their assigned role and will be communicated by the Administrator.');
+  y = H - 120;
 
-    doc.fontSize(11).font('Helvetica-Bold').fillColor(primaryColor).text('3. Agent Obligations');
-    doc.moveDown(0.3);
-    numberedList([
-      'Process all assigned requests promptly and within the turnaround times specified in Section 4.',
-      'Treat all customer information as strictly confidential. No customer data may be shared with third parties.',
-      'Log in to the dashboard at least once every business day and acknowledge newly assigned requests.',
-      'Communicate professionally with customers and team members at all times.',
-      'Report system issues, discrepancies, or suspicious activity to the Administrator immediately.',
-      'Ensure that all uploaded documents and results are accurate before marking a request as complete.',
-      'Not share login credentials with any other person.',
-      'Comply with all applicable Nigerian laws, regulations, and Arapoint internal policies.',
-    ]);
+  /* ── Title ─────────────────────────────────────────────────── */
+  const titleText = 'Agent Service Level Agreement (SLA)';
+  const titleW = bold.widthOfTextAtSize(titleText, 15);
+  page.drawText(titleText, { x: (W - titleW) / 2, y, size: 15, font: bold, color: PRIMARY });
+  y -= 22;
 
-    section('4. Service Turnaround Times',
-      'The following are the maximum expected turnaround times from the moment a request is assigned to the Agent:\n\n' +
-      '• Identity Services (NIN Validation, IPE Clearance, Personalization): 1 – 30 minutes\n' +
-      '• NIN Tracking / Birth Attestation: 24 – 48 hours\n' +
-      '• Education Services (O\'Level Upload, Admission Letter, JAMB Score): 1 – 24 hours\n' +
-      '• CAC Registration: 5 – 10 business days\n' +
-      '• Airtime to Cash (A2C): Within 2 hours of assignment\n\n' +
-      'Failure to meet turnaround times without prior notification to the Administrator may result in reassignment or disciplinary action.');
+  const dateText = `Effective Date: ${today}`;
+  const dateW = reg.widthOfTextAtSize(dateText, 10);
+  page.drawText(dateText, { x: (W - dateW) / 2, y, size: 10, font: reg, color: GRAY });
+  y -= 28;
 
-    section('5. Performance Standards',
-      'Agents are expected to maintain the following minimum performance benchmarks:\n\n' +
-      '• Request completion rate: ≥ 95%\n' +
-      '• Customer satisfaction (where feedback is collected): ≥ 4.0 / 5.0\n' +
-      '• Requests escalated without justification: < 5%\n\n' +
-      'Performance is reviewed monthly. Agents falling below the minimum benchmarks for two consecutive months may have their accounts suspended pending review.');
-
-    section('6. Confidentiality',
-      'The Agent agrees to keep strictly confidential all information relating to Arapoint customers, business processes, pricing structures, system credentials, and any other proprietary information accessed during the course of their duties. This obligation survives the termination of this Agreement.');
-
-    section('7. Account Credentials & Security',
-      'The login credentials issued to the Agent are personal and non-transferable. The Agent must not share their password or allow any other person to use their account. Password resets must be requested through the Administrator — agents do not have the ability to change their own passwords. Arapoint reserves the right to monitor account activity for compliance and security purposes.');
-
-    section('8. Compensation',
-      'Agent compensation, commission structures, and payment schedules will be communicated separately by the Administrator and form part of the overall engagement terms. This SLA does not independently constitute a payment agreement.');
-
-    section('9. Disciplinary & Termination',
-      'Arapoint reserves the right to suspend or permanently deactivate the Agent account for:\n\n' +
-      '• Breach of confidentiality obligations\n' +
-      '• Repeated failure to meet turnaround times\n' +
-      '• Fraud, misrepresentation, or misconduct\n' +
-      '• Sharing credentials or facilitating unauthorised access\n\n' +
-      'Where a breach is remedial, the Agent will be given written notice and a reasonable opportunity to rectify the issue before termination.');
-
-    section('10. Dispute Resolution',
-      'Any dispute arising from this Agreement shall first be addressed through internal escalation to the Administrator. If unresolved, disputes shall be referred to mediation under the Laws of the Federal Republic of Nigeria. The parties agree to the jurisdiction of the Nigerian courts for any matter that cannot be resolved by mediation.');
-
-    section('11. Amendments',
-      'Arapoint reserves the right to update this SLA at any time. Agents will be notified of material changes via their registered email address. Continued use of the Agent Dashboard after notification constitutes acceptance of the revised terms.');
-
-    // ── Signature block ──
-    doc.moveDown(1);
-    doc.rect(60, doc.y, doc.page.width - 120, 1).fill('#d0d7e2');
-    doc.moveDown(0.5);
-
-    doc.fontSize(10).font('Helvetica-Bold').fillColor(primaryColor)
-      .text('ACKNOWLEDGEMENT', { align: 'center' });
-    doc.moveDown(0.4);
-    doc.fontSize(10).font('Helvetica').fillColor(textColor)
-      .text(
-        'By logging into the Arapoint Agent Dashboard for the first time, the Agent named above acknowledges that they have read, understood, and agreed to all terms set out in this Service Level Agreement.',
-        { align: 'center', lineGap: 3 }
-      );
-
-    doc.moveDown(1.5);
-
-    const sigY = doc.y;
-    const leftX = 70;
-    const rightX = doc.page.width / 2 + 20;
-    const lineW = (doc.page.width - 140) / 2 - 20;
-
-    doc.rect(leftX, sigY, lineW, 1).fill('#333');
-    doc.rect(rightX, sigY, lineW, 1).fill('#333');
-
-    doc.moveDown(0.4);
-    doc.fontSize(9).font('Helvetica').fillColor('#666666')
-      .text('Agent Signature & Date', leftX, doc.y)
-      .text('For Arapoint Solutions Ltd', rightX, doc.y, { align: 'left' });
-
-    // ── Footer ──
-    doc.fontSize(8).font('Helvetica').fillColor('#aaaaaa')
-      .text(
-        `© ${year} Arapoint Solutions Ltd  |  support@arapoint.com.ng  |  +234 813 368 8584  |  arapoint.com.ng`,
-        60,
-        doc.page.height - 40,
-        { align: 'center', width: doc.page.width - 120 }
-      );
-
-    doc.end();
+  /* ── Party box ─────────────────────────────────────────────── */
+  const boxH = 98;
+  page.drawRectangle({ x: ML, y: y - boxH, width: TW, height: boxH, color: LIGHT, borderColor: BORDER, borderWidth: 1 });
+  page.drawText('PARTIES TO THIS AGREEMENT', { x: ML + 12, y: y - 18, size: 9, font: bold, color: PRIMARY });
+  const partyLines = [
+    `Service Provider:   Arapoint Solutions Ltd`,
+    `Agent Name:         ${agentName}`,
+    `Role:               ${role}`,
+    `Employee ID:        ${employeeId || 'N/A'}`,
+  ];
+  partyLines.forEach((l, i) => {
+    page.drawText(l, { x: ML + 12, y: y - 34 - i * 16, size: 10, font: reg, color: DARK });
   });
+  y -= boxH + 20;
+
+  /* ── Section helper ─────────────────────────────────────────── */
+  const section = (title: string, body: string) => {
+    if (y < 120) { y = newPage(); }
+    page.drawText(title, { x: ML, y, size: 11, font: bold, color: PRIMARY });
+    y -= 16;
+    y = wrapDraw(body, ML, y, TW, 10, reg);
+    y -= 10;
+  };
+
+  const bulletList = (items: string[]) => {
+    items.forEach(item => {
+      if (y < 80) { y = newPage(); }
+      y = wrapDraw(`•  ${item}`, ML + 8, y, TW - 8, 10, reg);
+      y -= 2;
+    });
+    y -= 8;
+  };
+
+  /* ── Body sections ─────────────────────────────────────────── */
+  section('1. Purpose',
+    'This Service Level Agreement (SLA) sets out the standards, expectations, and obligations agreed between Arapoint Solutions Ltd ("Arapoint" or "the Company") and the Agent named above. By accepting your account credentials and logging in, you agree to be bound by all terms herein.');
+
+  section('2. Scope of Service',
+    'The Agent is authorised to process customer requests assigned to them through the Arapoint Agent Dashboard. The specific service categories available to the Agent are determined by their assigned role and communicated by the Administrator.');
+
+  if (y < 120) { y = newPage(); }
+  page.drawText('3. Agent Obligations', { x: ML, y, size: 11, font: bold, color: PRIMARY });
+  y -= 16;
+  bulletList([
+    'Process all assigned requests promptly and within the turnaround times specified in Section 4.',
+    'Treat all customer information as strictly confidential. No customer data may be shared with third parties.',
+    'Log in to the dashboard at least once every business day and acknowledge newly assigned requests.',
+    'Communicate professionally with customers and team members at all times.',
+    'Report system issues, discrepancies, or suspicious activity to the Administrator immediately.',
+    'Ensure that all uploaded documents and results are accurate before marking a request as complete.',
+    'Not share login credentials with any other person.',
+    'Comply with all applicable Nigerian laws, regulations, and Arapoint internal policies.',
+  ]);
+
+  section('4. Service Turnaround Times',
+    'The following maximum turnaround times apply from the moment a request is assigned to the Agent:');
+  bulletList([
+    'Identity Services (NIN Validation, IPE Clearance, Personalization): 1 – 30 minutes',
+    'NIN Tracking / Birth Attestation: 24 – 48 hours',
+    'Education Services (O\'Level Upload, Admission Letter, JAMB Score): 1 – 24 hours',
+    'CAC Registration: 5 – 10 business days',
+    'Airtime to Cash (A2C): Within 2 hours of assignment',
+  ]);
+  y = wrapDraw('Failure to meet turnaround times without prior notification to the Administrator may result in reassignment or disciplinary action.', ML, y, TW, 10, reg);
+  y -= 10;
+
+  section('5. Performance Standards',
+    'Agents are expected to maintain the following minimum performance benchmarks:');
+  bulletList([
+    'Request completion rate: 95% or above',
+    'Customer satisfaction (where feedback is collected): 4.0 / 5.0 or above',
+    'Requests escalated without justification: less than 5%',
+  ]);
+  y = wrapDraw('Performance is reviewed monthly. Agents falling below benchmarks for two consecutive months may have their accounts suspended pending review.', ML, y, TW, 10, reg);
+  y -= 10;
+
+  section('6. Confidentiality',
+    'The Agent agrees to keep strictly confidential all information relating to Arapoint customers, business processes, pricing structures, system credentials, and any other proprietary information accessed during their duties. This obligation survives the termination of this Agreement.');
+
+  section('7. Account Credentials & Security',
+    'The login credentials issued to the Agent are personal and non-transferable. The Agent must not share their password or allow any other person to use their account. Password resets must be requested through the Administrator — agents do not have the ability to change their own passwords. Arapoint reserves the right to monitor account activity for compliance and security purposes.');
+
+  section('8. Compensation',
+    'Agent compensation, commission structures, and payment schedules will be communicated separately by the Administrator and form part of the overall engagement terms. This SLA does not independently constitute a payment agreement.');
+
+  if (y < 120) { y = newPage(); }
+  page.drawText('9. Disciplinary & Termination', { x: ML, y, size: 11, font: bold, color: PRIMARY });
+  y -= 16;
+  y = wrapDraw('Arapoint reserves the right to suspend or permanently deactivate the Agent account for:', ML, y, TW, 10, reg);
+  y -= 4;
+  bulletList([
+    'Breach of confidentiality obligations',
+    'Repeated failure to meet turnaround times',
+    'Fraud, misrepresentation, or misconduct',
+    'Sharing credentials or facilitating unauthorised access',
+  ]);
+  y = wrapDraw('Where a breach is remedial, the Agent will be given written notice and a reasonable opportunity to rectify the issue before termination.', ML, y, TW, 10, reg);
+  y -= 10;
+
+  section('10. Dispute Resolution',
+    'Any dispute arising from this Agreement shall first be addressed through internal escalation to the Administrator. If unresolved, disputes shall be referred to mediation under the Laws of the Federal Republic of Nigeria. The parties agree to the jurisdiction of the Nigerian courts for any matter that cannot be resolved by mediation.');
+
+  section('11. Amendments',
+    'Arapoint reserves the right to update this SLA at any time. Agents will be notified of material changes via their registered email address. Continued use of the Agent Dashboard after notification constitutes acceptance of the revised terms.');
+
+  /* ── Acknowledgement ─────────────────────────────────────── */
+  if (y < 160) { y = newPage(); }
+  y -= 10;
+  page.drawLine({ start: { x: ML, y }, end: { x: W - MR, y }, thickness: 1, color: BORDER });
+  y -= 20;
+
+  const ackTitle = 'ACKNOWLEDGEMENT';
+  const ackW = bold.widthOfTextAtSize(ackTitle, 11);
+  page.drawText(ackTitle, { x: (W - ackW) / 2, y, size: 11, font: bold, color: PRIMARY });
+  y -= 18;
+  y = wrapDraw(
+    'By logging into the Arapoint Agent Dashboard for the first time, the Agent named above acknowledges that they have read, understood, and agreed to all terms set out in this Service Level Agreement.',
+    ML, y, TW, 10, reg, DARK,
+  );
+  y -= 24;
+
+  const halfW = (TW - 30) / 2;
+  page.drawLine({ start: { x: ML, y }, end: { x: ML + halfW, y }, thickness: 1, color: DARK });
+  page.drawLine({ start: { x: ML + halfW + 30, y }, end: { x: ML + TW, y }, thickness: 1, color: DARK });
+  y -= 14;
+  page.drawText('Agent Signature & Date', { x: ML, y, size: 9, font: reg, color: GRAY });
+  page.drawText('For Arapoint Solutions Ltd', { x: ML + halfW + 30, y, size: 9, font: reg, color: GRAY });
+
+  /* ── Footer on every page ────────────────────────────────── */
+  const pages = doc.getPages();
+  const footerText = `© ${year} Arapoint Solutions Ltd  |  support@arapoint.com.ng  |  +234 813 368 8584  |  arapoint.com.ng`;
+  const footerW = reg.widthOfTextAtSize(footerText, 8);
+  pages.forEach(p => {
+    p.drawText(footerText, { x: (W - footerW) / 2, y: 22, size: 8, font: reg, color: GRAY });
+    p.drawLine({ start: { x: ML, y: 34 }, end: { x: W - MR, y: 34 }, thickness: 0.5, color: BORDER });
+  });
+
+  const bytes = await doc.save();
+  return Buffer.from(bytes);
 }
