@@ -120,6 +120,35 @@ const openai = { chat: { completions: { create: (...args: any[]) => getOpenAI().
 const router = Router();
 router.use(adminAuthMiddleware);
 
+async function emailAvailableForAgent(email: string): Promise<boolean> {
+  const normalised = email.toLowerCase();
+  const [existing] = await db.select({ id: adminUsers.id })
+    .from(adminUsers)
+    .where(eq(adminUsers.email, normalised))
+    .limit(1);
+  if (!existing) return true;
+  const checks = await Promise.all([
+    db.select({ id: cacAgents.id }).from(cacAgents).where(eq(cacAgents.adminUserId, existing.id)).limit(1),
+    db.select({ id: identityAgents.id }).from(identityAgents).where(eq(identityAgents.adminUserId, existing.id)).limit(1),
+    db.select({ id: educationAgents.id }).from(educationAgents).where(eq(educationAgents.adminUserId, existing.id)).limit(1),
+    db.select({ id: jambAgents.id }).from(jambAgents).where(eq(jambAgents.adminUserId, existing.id)).limit(1),
+    db.select({ id: a2cAgents.id }).from(a2cAgents).where(eq(a2cAgents.adminUserId, existing.id)).limit(1),
+  ]);
+  const linkedToAgent = checks.some(r => r.length > 0);
+  if (linkedToAgent) return false;
+  await safeDeleteAdminUser(existing.id);
+  return true;
+}
+
+async function safeDeleteAdminUser(adminUserId: string): Promise<void> {
+  await db.execute(sql`UPDATE support_tickets SET assigned_agent_id = NULL WHERE assigned_agent_id = ${adminUserId}`);
+  await db.execute(sql`UPDATE admin_activity_logs SET admin_id = NULL WHERE admin_id = ${adminUserId}`);
+  await db.execute(sql`UPDATE ai_knowledge_base SET added_by = NULL WHERE added_by = ${adminUserId}`);
+  await db.execute(sql`UPDATE agent_internal_messages SET resolved_by = NULL WHERE resolved_by = ${adminUserId}`);
+  await db.execute(sql`DELETE FROM support_internal_notes WHERE agent_id = ${adminUserId}`);
+  await db.delete(adminUsers).where(eq(adminUsers.id, adminUserId));
+}
+
 const supportAgentGuard = (req: Request, res: Response, next: NextFunction) => {
   if (req.adminRole === 'support_agent' && !req.path.startsWith('/support/') && !req.path.startsWith('/ai/')) {
     return res.status(403).json({
@@ -1824,12 +1853,7 @@ router.post('/cac/agents', async (req: Request, res: Response) => {
       return res.status(400).json(formatErrorResponse(400, 'Name, email, and password are required'));
     }
 
-    const existingUser = await db.select()
-      .from(adminUsers)
-      .where(eq(adminUsers.email, email.toLowerCase()))
-      .limit(1);
-
-    if (existingUser.length > 0) {
+    if (!await emailAvailableForAgent(email)) {
       return res.status(409).json(formatErrorResponse(409, 'Email already exists'));
     }
 
@@ -1953,7 +1977,7 @@ router.delete('/cac/agents/:id', async (req: Request, res: Response) => {
     await db.delete(cacAgents).where(eq(cacAgents.id, id));
 
     if (agent.adminUserId) {
-      await db.delete(adminUsers).where(eq(adminUsers.id, agent.adminUserId));
+      await safeDeleteAdminUser(agent.adminUserId);
     }
 
     logger.info('CAC agent deleted', { agentId: id, deletedBy: req.userId });
@@ -2258,12 +2282,7 @@ router.post('/identity-agents', async (req: Request, res: Response) => {
       return res.status(400).json(formatErrorResponse(400, 'Name, email, and password are required'));
     }
 
-    const [existingEmail] = await db.select()
-      .from(adminUsers)
-      .where(eq(adminUsers.email, email.toLowerCase()))
-      .limit(1);
-
-    if (existingEmail) {
+    if (!await emailAvailableForAgent(email)) {
       return res.status(409).json(formatErrorResponse(409, 'Email already exists'));
     }
 
@@ -2359,7 +2378,7 @@ router.delete('/identity-agents/:id', async (req: Request, res: Response) => {
     await db.delete(identityAgents).where(eq(identityAgents.id, id));
 
     if (agent.adminUserId) {
-      await db.delete(adminUsers).where(eq(adminUsers.id, agent.adminUserId));
+      await safeDeleteAdminUser(agent.adminUserId);
     }
 
     logger.info('Identity agent deleted', { agentId: id, deletedBy: req.userId });
@@ -2471,12 +2490,7 @@ router.post('/education-agents', async (req: Request, res: Response) => {
       return res.status(400).json(formatErrorResponse(400, 'Name, email, and password are required'));
     }
 
-    const [existingEmail] = await db.select()
-      .from(adminUsers)
-      .where(eq(adminUsers.email, email.toLowerCase()))
-      .limit(1);
-
-    if (existingEmail) {
+    if (!await emailAvailableForAgent(email)) {
       return res.status(409).json(formatErrorResponse(409, 'Email already exists'));
     }
 
@@ -2572,7 +2586,7 @@ router.delete('/education-agents/:id', async (req: Request, res: Response) => {
     await db.delete(educationAgents).where(eq(educationAgents.id, id));
 
     if (agent.adminUserId) {
-      await db.delete(adminUsers).where(eq(adminUsers.id, agent.adminUserId));
+      await safeDeleteAdminUser(agent.adminUserId);
     }
 
     logger.info('Education agent deleted', { agentId: id, deletedBy: req.userId });
@@ -2619,12 +2633,7 @@ router.post('/jamb-agents', async (req: Request, res: Response) => {
       return res.status(400).json(formatErrorResponse(400, 'Name, email, and password are required'));
     }
 
-    const [existingEmail] = await db.select()
-      .from(adminUsers)
-      .where(eq(adminUsers.email, email.toLowerCase()))
-      .limit(1);
-
-    if (existingEmail) {
+    if (!await emailAvailableForAgent(email)) {
       return res.status(409).json(formatErrorResponse(409, 'Email already exists'));
     }
 
@@ -2720,7 +2729,7 @@ router.delete('/jamb-agents/:id', async (req: Request, res: Response) => {
     await db.delete(jambAgents).where(eq(jambAgents.id, id));
 
     if (agent.adminUserId) {
-      await db.delete(adminUsers).where(eq(adminUsers.id, agent.adminUserId));
+      await safeDeleteAdminUser(agent.adminUserId);
     }
 
     logger.info('JAMB agent deleted', { agentId: id, deletedBy: req.userId });
@@ -3100,12 +3109,7 @@ router.post('/a2c-agents', async (req: Request, res: Response) => {
       return res.status(400).json(formatErrorResponse(400, 'Name, email, and password are required'));
     }
 
-    const [existingEmail] = await db.select()
-      .from(adminUsers)
-      .where(eq(adminUsers.email, email.toLowerCase()))
-      .limit(1);
-
-    if (existingEmail) {
+    if (!await emailAvailableForAgent(email)) {
       return res.status(409).json(formatErrorResponse(409, 'Email already exists'));
     }
 
@@ -3221,7 +3225,7 @@ router.delete('/a2c-agents/:id', async (req: Request, res: Response) => {
     await db.delete(a2cAgents).where(eq(a2cAgents.id, id));
 
     if (agent.adminUserId) {
-      await db.delete(adminUsers).where(eq(adminUsers.id, agent.adminUserId));
+      await safeDeleteAdminUser(agent.adminUserId);
     }
 
     logger.info('A2C agent deleted', { agentId: id, deletedBy: req.userId });
