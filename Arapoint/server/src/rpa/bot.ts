@@ -5,7 +5,7 @@ import { jambWorker } from './workers/jambWorker';
 import { EducationWorkerFactory } from './workers/educationWorker';
 import { vtpassScraperWorker } from './workers/vtpassScraperWorker';
 import { db } from '../config/database';
-import { rpaJobs, educationServices, servicePricing, adminSettings } from '../db/schema';
+import { rpaJobs, educationServices, servicePricing, adminSettings, transactions } from '../db/schema';
 import { eq, asc, and, lt, sql } from 'drizzle-orm';
 import { browserPool } from './browserPool';
 import { walletService } from '../services/walletService';
@@ -343,6 +343,19 @@ class RPABot {
 
   private async refundFailedJob(userId: string, jobId: string, serviceType: string): Promise<void> {
     try {
+      const refundReference = `refund_failed_${serviceType}_${jobId}`;
+
+      // Check if a refund was already issued for this job (prevents duplicate refunds on retries)
+      const [existing] = await db.select({ id: transactions.id })
+        .from(transactions)
+        .where(eq(transactions.referenceId, refundReference))
+        .limit(1);
+
+      if (existing) {
+        logger.info('Skipping duplicate refund — already refunded for this job', { jobId, refundReference });
+        return;
+      }
+
       const refundAmount = await this.getServicePrice(serviceType);
       if (refundAmount > 0) {
         await walletService.refundBalance(userId, refundAmount, `failed_${serviceType}_${jobId}`);

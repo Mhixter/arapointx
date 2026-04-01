@@ -334,6 +334,18 @@ export class EducationWorker extends BaseWorker {
     }
 
     await this.sleep(500);
+
+    // Read back all text/number input values to confirm what will actually be submitted
+    const fieldReadback = await page.evaluate(() => {
+      return Array.from(document.querySelectorAll('input[type="text"], input[type="number"], input:not([type])'))
+        .map((el) => {
+          const inp = el as HTMLInputElement;
+          return { name: inp.name || inp.id || inp.placeholder?.slice(0, 30), value: inp.value };
+        })
+        .filter(f => f.name);
+    });
+    logger.info(`${this.profile.name} field values before submit`, { fieldReadback });
+
     logger.info(`Submitting ${this.profile.name} form`);
     
     page.on('dialog', async (dialog) => {
@@ -587,11 +599,9 @@ export class EducationWorker extends BaseWorker {
     
     for (const selector of selectorList) {
       try {
-        const input = await page.$(selector);
-        if (input) {
-          await input.click({ clickCount: 3 });
-          await input.type(regNumber);
-          logger.info('Entered registration number', { selector });
+        const filled = await this.setInputValue(page, selector, regNumber);
+        if (filled) {
+          logger.info('Entered registration number', { selector, value: regNumber });
           return;
         }
       } catch { continue; }
@@ -599,11 +609,40 @@ export class EducationWorker extends BaseWorker {
     
     const textInputs = await page.$$('input[type="text"]');
     if (textInputs.length > 0) {
-      await textInputs[0].type(regNumber);
-      logger.info('Used fallback for registration number');
+      await this.setInputValue(page, 'input[type="text"]', regNumber);
+      logger.info('Used fallback for registration number', { value: regNumber });
     } else {
       throw new Error('Could not find registration number input field');
     }
+  }
+
+  // Sets an input's value using native DOM setter (works for React/Vue SPAs) then
+  // falls back to character-by-character typing so both event models are covered.
+  private async setInputValue(page: Page, selector: string, value: string): Promise<boolean> {
+    const set = await page.evaluate((sel: string, val: string) => {
+      const el = document.querySelector(sel) as HTMLInputElement | null;
+      if (!el) return false;
+      // Use the native prototype setter so React/Vue state updates
+      const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
+      if (nativeSetter?.set) nativeSetter.set.call(el, val);
+      else el.value = val;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    }, selector, value);
+
+    if (!set) return false;
+
+    // Also type the value so keystroke-based listeners fire
+    try {
+      const input = await page.$(selector);
+      if (input) {
+        await input.click({ clickCount: 3 });
+        await input.type(value);
+      }
+    } catch { /* ignore typing errors — native setter already ran */ }
+
+    return true;
   }
 
   private async fillField(page: Page, selectorString: string, value: string, fieldName: string): Promise<void> {
@@ -611,11 +650,9 @@ export class EducationWorker extends BaseWorker {
     
     for (const selector of selectorList) {
       try {
-        const input = await page.$(selector);
-        if (input) {
-          await input.click({ clickCount: 3 });
-          await input.type(value);
-          logger.info(`Entered ${fieldName}`, { selector });
+        const filled = await this.setInputValue(page, selector, value);
+        if (filled) {
+          logger.info(`Entered ${fieldName}`, { selector, value });
           return;
         }
       } catch { continue; }
