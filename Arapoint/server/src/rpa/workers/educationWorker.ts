@@ -148,11 +148,6 @@ export class EducationWorker extends BaseWorker {
       provider: this.provider
     });
 
-    // NECO has a public REST API — no browser needed
-    if (this.provider === 'neco') {
-      return this.executeNecoDirectApi(data);
-    }
-
     let pooledResource: { browser: Browser; page: Page; release: () => Promise<void> } | null = null;
     const requestTimeout = config.RPA_REQUEST_TIMEOUT || 28000;
     let timeoutHandle: NodeJS.Timeout | null = null;
