@@ -287,50 +287,25 @@ export class EducationWorker extends BaseWorker {
     data: EducationQueryData,
     selectors: Record<string, string>
   ): Promise<ExamResult> {
-    // Inject request interceptor BEFORE navigation so it catches every XHR/fetch on the portal
-    await page.evaluateOnNewDocument(() => {
-      const origOpen = XMLHttpRequest.prototype.open;
-      const origSend = XMLHttpRequest.prototype.send;
-      XMLHttpRequest.prototype.open = function (method: string, url: string, ...rest: any[]) {
-        (this as any).__logMethod = method;
-        (this as any).__logUrl = url;
-        return origOpen.apply(this, [method, url, ...rest] as any);
-      };
-      XMLHttpRequest.prototype.send = function (body?: any) {
-        if ((this as any).__logMethod?.toUpperCase() === 'POST') {
-          console.log('[__NECO_XHR__]' + JSON.stringify({
-            url: (this as any).__logUrl,
-            body: typeof body === 'string' ? body.slice(0, 800) : String(body).slice(0, 800),
-          }));
-        }
-        return origSend.apply(this, [body] as any);
-      };
-      const origFetch = window.fetch;
-      (window as any).fetch = function (...args: any[]) {
-        const [url, opts] = args;
-        if (opts?.method?.toUpperCase() === 'POST') {
-          const b = opts.body;
-          const bodyStr = (b instanceof FormData)
-            ? JSON.stringify(Object.fromEntries((b as any).entries()))
-            : (typeof b === 'string' ? b : String(b ?? '')).slice(0, 800);
-          console.log('[__NECO_FETCH__]' + JSON.stringify({ url: String(url), body: bodyStr }));
-        }
-        return origFetch.apply(this, args);
-      };
-    });
-
-    // Capture the console logs from the interceptor
-    page.on('console', (msg) => {
-      const text = msg.text();
-      if (text.startsWith('[__NECO_XHR__]') || text.startsWith('[__NECO_FETCH__]')) {
-        try {
-          const payload = JSON.parse(text.replace('[__NECO_XHR__]', '').replace('[__NECO_FETCH__]', ''));
-          logger.info(`${this.profile.name} AJAX request captured`, payload);
-        } catch {
-          logger.info(`${this.profile.name} AJAX request raw`, { text });
-        }
+    // Named handler stored so we can remove it at cleanup time.
+    // This prevents duplicate listeners when the page is reused from the pool.
+    const requestHandler = (request: any) => {
+      const method = request.method();
+      if (method === 'POST') {
+        logger.info(`${this.profile.name} POST request intercepted`, {
+          url: request.url(),
+          postData: request.postData()?.slice(0, 1000),
+          contentType: request.headers()['content-type'],
+        });
       }
-    });
+      request.continue().catch(() => {});
+    };
+
+    // Puppeteer network-layer interception — catches ALL requests including form.submit()
+    await page.setRequestInterception(true);
+    page.on('request', requestHandler);
+
+    try {
 
     logger.info(`Navigating to ${this.profile.name} portal`, { url: portalUrl });
     await page.goto(portalUrl, { waitUntil: 'domcontentloaded', timeout: 12000 });
@@ -563,6 +538,12 @@ export class EducationWorker extends BaseWorker {
       pdfBase64,
       isOfficialPdf: true,
     };
+
+    } finally {
+      // Clean up: remove named handler and disable interception so pooled page is clean
+      page.off('request', requestHandler);
+      await page.setRequestInterception(false).catch(() => {});
+    }
   }
 
   private async selectExamYear(page: Page, examYear: number): Promise<void> {
