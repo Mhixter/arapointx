@@ -148,6 +148,11 @@ export class EducationWorker extends BaseWorker {
       provider: this.provider
     });
 
+    // NECO has a public REST API — no browser needed
+    if (this.provider === 'neco') {
+      return this.executeNecoDirectApi(data);
+    }
+
     let pooledResource: { browser: Browser; page: Page; release: () => Promise<void> } | null = null;
     const requestTimeout = config.RPA_REQUEST_TIMEOUT || 28000;
     let timeoutHandle: NodeJS.Timeout | null = null;
@@ -279,6 +284,199 @@ export class EducationWorker extends BaseWorker {
     } catch (error: any) {
       logger.warn('Error handling popup', { error: error.message });
     }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // NECO direct REST API (no browser needed)
+  // Endpoint discovered: result.api.neco.gov.ng/api/results/check
+  // ─────────────────────────────────────────────────────────────────────────────
+  private async executeNecoDirectApi(data: EducationQueryData): Promise<WorkerResult> {
+    // Map human-friendly examType to NECO API values
+    const examType = (() => {
+      const t = (data.examType || 'school_candidate').toLowerCase();
+      if (t.includes('ssce_ext') || t.includes('gce') || t.includes('external') || t.includes('private')) return 'ssce_ext';
+      if (t.includes('bece')) return 'bece';
+      if (t.includes('ncee')) return 'ncee';
+      if (t.includes('gifted')) return 'gifted';
+      return 'ssce_int'; // default: school candidate
+    })();
+
+    const token = (data.cardPin || '').replace(/\s+/g, ''); // strip any spaces from scratch card PIN
+
+    const params = new URLSearchParams({
+      exam_year: data.examYear.toString(),
+      exam_type: examType,
+      reg_no: data.registrationNumber,
+      token,
+    });
+
+    const apiUrl = `https://result.api.neco.gov.ng/api/results/check?${params.toString()}`;
+    logger.info('NECO Direct API call', { url: apiUrl });
+
+    let response: Response;
+    try {
+      response = await fetch(apiUrl, {
+        headers: {
+          'Accept': 'application/json, text/plain, */*',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Origin': 'https://results.neco.gov.ng',
+          'Referer': 'https://results.neco.gov.ng/',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        },
+        signal: AbortSignal.timeout(15000),
+      });
+    } catch (err: any) {
+      return this.createErrorResult(`NECO API unreachable: ${err.message}`, true);
+    }
+
+    let body: any;
+    try {
+      body = await response.json();
+    } catch {
+      return this.createErrorResult('NECO API returned an unexpected response. Please try again.', true);
+    }
+
+    logger.info('NECO API response', { status: response.status, body: JSON.stringify(body).slice(0, 1000) });
+
+    if (!response.ok) {
+      const msg: string = body?.info || body?.message || 'Result not found. Kindly verify the accuracy of the registration number and exam year combination or token provided';
+      return this.createErrorResult(msg, false);
+    }
+
+    // SUCCESS — log full body to understand structure for future improvements
+    logger.info('NECO API SUCCESS full response', { body: JSON.stringify(body) });
+
+    // Extract candidate info from whatever shape NECO returns
+    const candidateName: string =
+      body?.data?.candidate?.name || body?.candidate?.name || body?.name || body?.candidateName || '';
+
+    const rawSubjects: any[] =
+      body?.data?.results || body?.results || body?.data?.subjects || body?.subjects || [];
+
+    const subjects: ExamSubject[] = rawSubjects.map((r: any) => ({
+      subject: r.subject || r.name || r.subjectName || String(r.subject_name || ''),
+      grade: r.grade || r.score || r.result || String(r.letter_grade || ''),
+    }));
+
+    // Generate a simple PDF using a headless page with static HTML
+    let pdfBase64: string | undefined;
+    let pooledResource: { browser: Browser; page: Page; release: () => Promise<void> } | null = null;
+    try {
+      pooledResource = await browserPool.acquire();
+      if (pooledResource) {
+        const { page } = pooledResource;
+        const html = this.buildNecoResultHtml({
+          candidateName,
+          registrationNumber: data.registrationNumber,
+          examYear: data.examYear,
+          examType,
+          subjects,
+          rawData: body,
+        });
+        await page.setContent(html, { waitUntil: 'domcontentloaded' });
+        const pdfBuffer = await page.pdf({
+          format: 'A4',
+          printBackground: true,
+          margin: { top: '15mm', right: '15mm', bottom: '15mm', left: '15mm' },
+        });
+        pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
+        logger.info('NECO direct-API PDF generated', { size: pdfBuffer.length });
+      }
+    } catch (err: any) {
+      logger.warn('NECO direct-API PDF generation failed', { error: err.message });
+    } finally {
+      if (pooledResource) await pooledResource.release();
+    }
+
+    if (!pdfBase64) {
+      return this.createErrorResult('NECO result found but PDF generation failed. Please retry.');
+    }
+
+    return this.createSuccessResult({
+      registrationNumber: data.registrationNumber,
+      candidateName,
+      examType,
+      examYear: data.examYear,
+      subjects,
+      verificationStatus: 'verified',
+      message: 'NECO result retrieved successfully',
+      pdfBase64,
+      isOfficialPdf: true,
+    });
+  }
+
+  private buildNecoResultHtml(opts: {
+    candidateName: string;
+    registrationNumber: string;
+    examYear: number;
+    examType: string;
+    subjects: ExamSubject[];
+    rawData: any;
+  }): string {
+    const { candidateName, registrationNumber, examYear, examType, subjects, rawData } = opts;
+
+    const subjectRows = subjects.length
+      ? subjects.map((s, i) => `
+          <tr style="background:${i % 2 === 0 ? '#f9f9f9' : '#fff'}">
+            <td style="padding:8px 12px;border:1px solid #ddd">${s.subject}</td>
+            <td style="padding:8px 12px;border:1px solid #ddd;text-align:center;font-weight:600">${s.grade}</td>
+          </tr>`).join('')
+      : `<tr><td colspan="2" style="padding:12px;text-align:center;color:#666">No subject breakdown available</td></tr>`;
+
+    // Fallback: show raw JSON if no structured data parsed
+    const rawBlock = !subjects.length
+      ? `<pre style="background:#f5f5f5;padding:12px;border-radius:4px;font-size:11px;overflow-wrap:break-word;white-space:pre-wrap">${JSON.stringify(rawData, null, 2)}</pre>`
+      : '';
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>NECO Result - ${registrationNumber}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
+    .header { text-align: center; border-bottom: 3px solid #006400; padding-bottom: 16px; margin-bottom: 20px; }
+    .header h1 { color: #006400; margin: 0 0 4px; font-size: 22px; }
+    .header p { margin: 2px 0; font-size: 13px; color: #555; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px; }
+    .info-item { background: #f0f7f0; padding: 8px 12px; border-radius: 4px; }
+    .info-item label { font-size: 11px; color: #666; display: block; text-transform: uppercase; }
+    .info-item span { font-weight: 600; font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    th { background: #006400; color: white; padding: 10px 12px; text-align: left; }
+    .footer { text-align: center; font-size: 11px; color: #999; border-top: 1px solid #eee; padding-top: 12px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>NATIONAL EXAMINATIONS COUNCIL (NECO)</h1>
+    <p>Official Result Slip — Retrieved via Arapoint</p>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-item"><label>Candidate Name</label><span>${candidateName || 'N/A'}</span></div>
+    <div class="info-item"><label>Registration Number</label><span>${registrationNumber}</span></div>
+    <div class="info-item"><label>Examination Year</label><span>${examYear}</span></div>
+    <div class="info-item"><label>Examination Type</label><span>${examType.toUpperCase().replace('_', ' ')}</span></div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Subject</th>
+        <th style="width:100px;text-align:center">Grade</th>
+      </tr>
+    </thead>
+    <tbody>${subjectRows}</tbody>
+  </table>
+
+  ${rawBlock}
+
+  <div class="footer">
+    <p>Result verified via NECO Result Portal (result.api.neco.gov.ng) &bull; Arapoint Digital Services &bull; ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+  </div>
+</body>
+</html>`;
   }
 
   private async performVerification(
