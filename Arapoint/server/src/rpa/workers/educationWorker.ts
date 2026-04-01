@@ -301,7 +301,20 @@ export class EducationWorker extends BaseWorker {
     logger.info(`Filling ${this.profile.name} form fields`);
 
     await this.selectExamYear(page, data.examYear);
+    // Wait for any AJAX-driven exam-type dropdown refresh after year selection
+    await this.sleep(800);
     await this.selectExamType(page, data.examType || this.profile.defaultExamType);
+
+    // Log the current state of all selects for debugging
+    const formState = await page.evaluate(() => {
+      const selects = Array.from(document.querySelectorAll('select'));
+      return selects.map(s => ({
+        name: s.name || s.id,
+        value: s.value,
+        options: Array.from(s.querySelectorAll('option')).map(o => o.value || o.textContent?.trim()),
+      }));
+    });
+    logger.info(`${this.profile.name} form state after year+type selection`, { formState });
     
     if (this.profile.usesToken) {
       if (data.cardPin) {
@@ -328,8 +341,7 @@ export class EducationWorker extends BaseWorker {
       await dialog.accept();
     });
 
-    const urlBeforeSubmit = page.url();
-    const htmlBeforeSubmit = await page.content();
+    const textBeforeSubmit = await page.evaluate(() => document.body.innerText);
     
     await this.submitForm(page);
     
@@ -340,21 +352,23 @@ export class EducationWorker extends BaseWorker {
       logger.info('NECO confirmation dialog handled, clicked Proceed');
     }
     
-    // Wait for either navigation or content change (for SPAs)
+    // Wait for the page to respond — navigation, results, or any error message
     try {
       await Promise.race([
         page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 12000 }),
-        page.waitForFunction(() => {
-          // Check for result content appearing
-          const hasTable = document.querySelector('table');
-          const hasResultText = document.body.innerText.includes('Subject') || 
-                                document.body.innerText.includes('Grade') ||
-                                document.body.innerText.includes('Score');
-          const hasError = document.body.innerText.includes('Invalid') || 
-                           document.body.innerText.includes('Expired') ||
-                           document.body.innerText.includes('Used');
-          return hasTable || hasResultText || hasError;
-        }, { timeout: 12000 })
+        page.waitForFunction((textBefore: string) => {
+          const current = document.body.innerText;
+          // Content changed significantly (more than just timestamps)
+          const lengthDiff = Math.abs(current.length - textBefore.length);
+          const hasTable = !!document.querySelector('table');
+          const hasResultText = current.includes('Subject') || current.includes('Grade') || current.includes('Score');
+          const hasError = current.includes('Invalid') || current.includes('Expired') || 
+                           current.includes('Used') || current.includes('Error') ||
+                           current.includes('Wrong') || current.includes('Not Found') ||
+                           current.includes('Incorrect') || current.includes('already') ||
+                           current.includes('not available') || current.includes('not found');
+          return hasTable || hasResultText || hasError || lengthDiff > 100;
+        }, { timeout: 14000 }, textBeforeSubmit)
       ]);
     } catch {
       logger.info('No navigation or content change detected within timeout');
@@ -362,22 +376,38 @@ export class EducationWorker extends BaseWorker {
     
     await this.sleep(1500);
 
+    // Capture the actual page state for debugging and error reporting
+    const textAfterSubmit = await page.evaluate(() => document.body.innerText);
     const resultUrl = page.url();
-    const htmlAfterSubmit = await page.content();
-    const contentChanged = htmlBeforeSubmit !== htmlAfterSubmit;
+    logger.info(`${this.profile.name} page state after submit`, { 
+      url: resultUrl,
+      textLength: textAfterSubmit.length,
+      preview: textAfterSubmit.substring(0, 300)
+    });
+
+    // Take a screenshot to capture what the portal is actually showing
+    let screenshotBase64: string | undefined;
+    try {
+      const shot = await page.screenshot({ encoding: 'base64', fullPage: false });
+      screenshotBase64 = shot as string;
+    } catch { /* non-critical */ }
     
     // Check for errors first (on any page)
     const pageError = await this.checkForErrors(page);
     if (pageError) {
       throw new Error(pageError);
     }
-    
-    // For SPAs like NECO, check if content changed even if URL stayed the same
-    if (this.isStillOnFormPage(resultUrl, urlBeforeSubmit) && !contentChanged) {
-      throw new Error(`Could not submit form to ${this.profile.name} portal. Please verify your details.`);
+
+    // If the page text hasn't changed meaningfully, report the actual portal text
+    const textChanged = Math.abs(textAfterSubmit.length - textBeforeSubmit.length) > 50 ||
+                        textAfterSubmit !== textBeforeSubmit;
+    if (!textChanged) {
+      const portalText = textAfterSubmit.trim().substring(0, 400) || 
+        `Form submitted but portal did not respond. URL: ${resultUrl}`;
+      throw new Error(`${this.profile.name} portal response: ${portalText}`);
     }
     
-    logger.info('Form submitted, checking for results', { contentChanged, urlChanged: resultUrl !== urlBeforeSubmit });
+    logger.info('Form submitted, checking for results', { textChanged, resultUrl });
 
     // Check if we have results by looking for subject/grade content
     const hasResults = await page.evaluate(() => {
@@ -464,21 +494,31 @@ export class EducationWorker extends BaseWorker {
     
     try {
       const yearStr = examYear.toString();
-      await page.evaluate((year) => {
+      const result = await page.evaluate((year) => {
         const selects = Array.from(document.querySelectorAll('select'));
+        const allYears: string[] = [];
         for (const select of selects) {
           const options = Array.from(select.querySelectorAll('option'));
           for (const option of options) {
+            allYears.push(option.value || option.textContent?.trim() || '');
             if (option.value === year || option.textContent?.includes(year)) {
               (select as HTMLSelectElement).value = option.value;
               select.dispatchEvent(new Event('change', { bubbles: true }));
               select.dispatchEvent(new Event('input', { bubbles: true }));
-              return;
+              return { found: true, selectedValue: option.value, availableYears: allYears };
             }
           }
         }
+        return { found: false, availableYears: allYears };
       }, yearStr);
-      logger.info('Selected exam year', { year: examYear });
+      if (result.found) {
+        logger.info('Selected exam year', { year: examYear, value: result.selectedValue });
+      } else {
+        logger.warn('Exam year not found in dropdown — year may not be released yet', { 
+          year: examYear, 
+          availableYears: result.availableYears.filter(y => y).slice(0, 20)
+        });
+      }
     } catch (e: any) {
       logger.warn('Could not select exam year', { error: e.message });
     }
