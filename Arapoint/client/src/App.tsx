@@ -85,6 +85,7 @@ import AdminTransactions from "@/pages/admin/AdminTransactions";
 import AdminProfile from "@/pages/admin/AdminProfile";
 import AdminNotifications from "@/pages/admin/AdminNotifications";
 import AdminActivityLog from "@/pages/admin/AdminActivityLog";
+import AdminRPAJobs from "@/pages/admin/AdminRPAJobs";
 import AdminCRUDLayout from "@/components/layout/AdminCRUDLayout";
 
 function Router() {
@@ -193,6 +194,11 @@ function Router() {
       <Route path="/admin/jamb-agents">
         <AdminCRUDLayout>
           <AdminJAMBAgents />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/rpa-jobs">
+        <AdminCRUDLayout>
+          <AdminRPAJobs />
         </AdminCRUDLayout>
       </Route>
       <Route path="/admin/whatsapp">

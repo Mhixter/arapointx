@@ -1611,17 +1611,33 @@ router.get('/rpa/jobs', async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
     const offset = (page - 1) * limit;
+    const statusFilter = req.query.status as string | undefined;
 
-    const jobs = await db.select()
-      .from(rpaJobs)
-      .orderBy(desc(rpaJobs.createdAt))
-      .limit(limit)
-      .offset(offset);
+    const whereClause = statusFilter && ['pending', 'processing', 'completed', 'failed'].includes(statusFilter)
+      ? eq(rpaJobs.status, statusFilter as any)
+      : undefined;
 
-    const [totalCount] = await db.select({ count: count() }).from(rpaJobs);
+    const jobs = whereClause
+      ? await db.select().from(rpaJobs).where(whereClause).orderBy(desc(rpaJobs.createdAt)).limit(limit).offset(offset)
+      : await db.select().from(rpaJobs).orderBy(desc(rpaJobs.createdAt)).limit(limit).offset(offset);
+
+    const [totalCount] = whereClause
+      ? await db.select({ count: count() }).from(rpaJobs).where(whereClause)
+      : await db.select({ count: count() }).from(rpaJobs);
+
+    const [pendingCount] = await db.select({ count: count() }).from(rpaJobs).where(eq(rpaJobs.status, 'pending'));
+    const [processingCount] = await db.select({ count: count() }).from(rpaJobs).where(eq(rpaJobs.status, 'processing'));
+    const [completedCount] = await db.select({ count: count() }).from(rpaJobs).where(eq(rpaJobs.status, 'completed'));
+    const [failedCount] = await db.select({ count: count() }).from(rpaJobs).where(eq(rpaJobs.status, 'failed'));
 
     res.json(formatResponse('success', 200, 'RPA jobs retrieved', {
       jobs,
+      stats: {
+        pending: pendingCount?.count || 0,
+        processing: processingCount?.count || 0,
+        completed: completedCount?.count || 0,
+        failed: failedCount?.count || 0,
+      },
       pagination: {
         page,
         limit,
@@ -1639,21 +1655,39 @@ router.post('/rpa/retry/:jobId', async (req: Request, res: Response) => {
   try {
     const { jobId } = req.params;
     const result = await jobService.retryJob(jobId);
-
     logger.info('RPA job retry initiated', { jobId, adminId: req.userId });
-
     res.json(formatResponse('success', 200, 'Job retry scheduled', result));
   } catch (error: any) {
     logger.error('Retry job error', { error: error.message });
-    
     if (error.message === 'Job not found') {
       return res.status(404).json(formatErrorResponse(404, error.message));
     }
     if (error.message === 'Max retries exceeded') {
       return res.status(400).json(formatErrorResponse(400, error.message));
     }
-    
     res.status(500).json(formatErrorResponse(500, 'Failed to retry job'));
+  }
+});
+
+// Admin force-retry: resets retryCount to 0, works on any status including processing/failed
+router.post('/rpa/force-retry/:jobId', async (req: Request, res: Response) => {
+  try {
+    const { jobId } = req.params;
+
+    const [job] = await db.select().from(rpaJobs).where(eq(rpaJobs.id, jobId)).limit(1);
+    if (!job) {
+      return res.status(404).json(formatErrorResponse(404, 'Job not found'));
+    }
+
+    await db.update(rpaJobs)
+      .set({ status: 'pending', retryCount: 0, errorMessage: null, startedAt: null, completedAt: null })
+      .where(eq(rpaJobs.id, jobId));
+
+    logger.info('Admin force-retry RPA job', { jobId, adminId: req.userId, previousStatus: job.status });
+    res.json(formatResponse('success', 200, 'Job force-retried', { jobId, status: 'pending' }));
+  } catch (error: any) {
+    logger.error('Force-retry job error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to force-retry job'));
   }
 });
 

@@ -22,7 +22,8 @@ import {
   IdCard,
   BookOpen,
   MessageSquare,
-  Receipt
+  Receipt,
+  Cpu
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -77,6 +78,7 @@ const ALL_NAV_ITEMS = [
   { href: "/admin/support", label: "Support Chat", icon: Headset, permission: "support" },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3, permission: "analytics" },
   { href: "/admin/transactions", label: "Transactions", icon: Receipt, permission: "transactions" },
+  { href: "/admin/rpa-jobs", label: "RPA Job Monitor", icon: Cpu, permission: "education" },
   { href: "/admin/whatsapp", label: "WhatsApp", icon: MessageSquare, permission: "whatsapp" },
   { href: "/admin/roles", label: "Role Management", icon: Shield, permission: "roles" },
   { href: "/admin/settings", label: "Settings", icon: Settings, permission: "settings" },

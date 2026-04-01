@@ -216,4 +216,8 @@ export const adminApi = {
   retryRpaJob: async (jobId: string): Promise<void> => {
     await adminApiClient.post(`/admin/rpa/retry/${jobId}`);
   },
+
+  forceRetryRpaJob: async (jobId: string): Promise<void> => {
+    await adminApiClient.post(`/admin/rpa/force-retry/${jobId}`);
+  },
 };

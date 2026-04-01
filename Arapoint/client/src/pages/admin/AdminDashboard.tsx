@@ -236,13 +236,20 @@ export default function AdminDashboard() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
         {adminStats.map((stat) => (
-          <Card key={stat.name} className="overflow-hidden">
+          <Card
+            key={stat.name}
+            className={`overflow-hidden ${stat.name === 'Pending' ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+            onClick={stat.name === 'Pending' ? () => navigate('/admin/rpa-jobs') : undefined}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-4 pb-1 sm:pb-2">
               <CardTitle className="text-[10px] sm:text-xs lg:text-sm font-medium text-muted-foreground truncate pr-2">{stat.name}</CardTitle>
               <stat.icon className={`h-3 w-3 sm:h-4 sm:w-4 ${stat.color} flex-shrink-0`} />
             </CardHeader>
             <CardContent className="p-3 sm:p-4 pt-0">
               <div className="text-lg sm:text-xl lg:text-2xl font-bold truncate">{stat.value}</div>
+              {stat.name === 'Pending' && (stats?.pendingJobs || 0) > 0 && (
+                <p className="text-[10px] text-red-500 mt-0.5">Click to view →</p>
+              )}
             </CardContent>
           </Card>
         ))}

@@ -6,7 +6,7 @@ import { EducationWorkerFactory } from './workers/educationWorker';
 import { vtpassScraperWorker } from './workers/vtpassScraperWorker';
 import { db } from '../config/database';
 import { rpaJobs, educationServices, servicePricing, adminSettings } from '../db/schema';
-import { eq, asc, and } from 'drizzle-orm';
+import { eq, asc, and, lt, sql } from 'drizzle-orm';
 import { browserPool } from './browserPool';
 import { walletService } from '../services/walletService';
 
@@ -43,6 +43,20 @@ class RPABot {
         logger.error('Error in processNextJob loop', { error: err.message });
       });
     }, 500);
+
+    // Every 2 minutes: reset jobs stuck in 'processing' for > 6 minutes back to 'pending'
+    setInterval(() => {
+      this.recoverStuckJobs().catch(err => {
+        logger.error('Error in stuck-job recovery', { error: err.message });
+      });
+    }, 2 * 60 * 1000);
+
+    // Run once immediately on startup to recover any jobs stuck from before restart
+    setTimeout(() => {
+      this.recoverStuckJobs().catch(err => {
+        logger.error('Error in initial stuck-job recovery', { error: err.message });
+      });
+    }, 5000);
   }
 
   async stop(): Promise<void> {
@@ -54,6 +68,39 @@ class RPABot {
     }
     await browserPool.cleanup();
     logger.info('RPA Bot stopped');
+  }
+
+  private async recoverStuckJobs(): Promise<void> {
+    const stuckThreshold = new Date(Date.now() - 6 * 60 * 1000); // 6 minutes ago
+    const stuckJobs = await db.select({ id: rpaJobs.id, retryCount: rpaJobs.retryCount, maxRetries: rpaJobs.maxRetries })
+      .from(rpaJobs)
+      .where(and(
+        eq(rpaJobs.status, 'processing'),
+        lt(rpaJobs.startedAt, stuckThreshold)
+      ));
+
+    if (stuckJobs.length > 0) {
+      logger.warn(`Found ${stuckJobs.length} stuck job(s) in processing — resetting to pending`, {
+        jobIds: stuckJobs.map(j => j.id),
+      });
+    }
+
+    for (const job of stuckJobs) {
+      const retryCount = (job.retryCount || 0) + 1;
+      const maxRetries = job.maxRetries || 3;
+      if (retryCount >= maxRetries) {
+        await db.update(rpaJobs)
+          .set({ status: 'failed', retryCount, errorMessage: 'Job timed out and exhausted all retries', completedAt: new Date() })
+          .where(eq(rpaJobs.id, job.id));
+        logger.warn('Stuck job marked as failed (max retries exhausted)', { jobId: job.id });
+      } else {
+        await db.update(rpaJobs)
+          .set({ status: 'pending', retryCount, errorMessage: 'Reset after processing timeout', startedAt: null })
+          .where(eq(rpaJobs.id, job.id));
+        this.processingJobIds.delete(job.id);
+        logger.info('Stuck job reset to pending', { jobId: job.id, retryCount });
+      }
+    }
   }
 
   private async processNextJob(): Promise<void> {
