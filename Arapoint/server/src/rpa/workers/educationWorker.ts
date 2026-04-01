@@ -287,29 +287,29 @@ export class EducationWorker extends BaseWorker {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // NECO direct REST API (no browser needed)
-  // Endpoint discovered: result.api.neco.gov.ng/api/results/check
+  // NECO hybrid: fast API pre-check → browser pool for official print PDF
   // ─────────────────────────────────────────────────────────────────────────────
-  private async executeNecoDirectApi(data: EducationQueryData): Promise<WorkerResult> {
-    // Map human-friendly examType to NECO API values
-    const examType = (() => {
-      const t = (data.examType || 'school_candidate').toLowerCase();
-      if (t.includes('ssce_ext') || t.includes('gce') || t.includes('external') || t.includes('private')) return 'ssce_ext';
-      if (t.includes('bece')) return 'bece';
-      if (t.includes('ncee')) return 'ncee';
-      if (t.includes('gifted')) return 'gifted';
-      return 'ssce_int'; // default: school candidate
-    })();
 
-    const token = (data.cardPin || '').replace(/\s+/g, ''); // strip any spaces from scratch card PIN
+  /** Map user-friendly examType string to NECO API parameter value */
+  private mapNecoExamType(examType?: string): string {
+    const t = (examType || 'school_candidate').toLowerCase();
+    if (t.includes('ssce_ext') || t.includes('gce') || t.includes('external') || t.includes('private')) return 'ssce_ext';
+    if (t.includes('bece')) return 'bece';
+    if (t.includes('ncee')) return 'ncee';
+    if (t.includes('gifted')) return 'gifted';
+    return 'ssce_int';
+  }
 
+  /** Step 1: Verify via NECO REST API (no browser, ~1 second).
+   *  Returns { ok: true, body } on success or { ok: false, error } on failure. */
+  private async verifyNecoApi(data: EducationQueryData, examType: string, token: string)
+    : Promise<{ ok: true; body: any } | { ok: false; error: string; retryable: boolean }> {
     const params = new URLSearchParams({
       exam_year: data.examYear.toString(),
       exam_type: examType,
       reg_no: data.registrationNumber,
       token,
     });
-
     const apiUrl = `https://result.api.neco.gov.ng/api/results/check?${params.toString()}`;
     logger.info('NECO Direct API call', { url: apiUrl });
 
@@ -326,64 +326,113 @@ export class EducationWorker extends BaseWorker {
         signal: AbortSignal.timeout(15000),
       });
     } catch (err: any) {
-      return this.createErrorResult(`NECO API unreachable: ${err.message}`, true);
+      return { ok: false, error: `NECO API unreachable: ${err.message}`, retryable: true };
     }
 
     let body: any;
-    try {
-      body = await response.json();
-    } catch {
-      return this.createErrorResult('NECO API returned an unexpected response. Please try again.', true);
+    try { body = await response.json(); } catch {
+      return { ok: false, error: 'NECO API returned an unexpected response. Please try again.', retryable: true };
     }
 
-    logger.info('NECO API response', { status: response.status, body: JSON.stringify(body).slice(0, 1000) });
+    logger.info('NECO API response', { status: response.status, body: JSON.stringify(body).slice(0, 500) });
 
     if (!response.ok) {
-      const msg: string = body?.info || body?.message || 'Result not found. Kindly verify the accuracy of the registration number and exam year combination or token provided';
-      return this.createErrorResult(msg, false);
+      const msg: string = body?.info || body?.message ||
+        'Result not found. Kindly verify the accuracy of the registration number and exam year combination or token provided';
+      return { ok: false, error: msg, retryable: false };
     }
 
-    // SUCCESS — log full body to understand structure for future improvements
-    logger.info('NECO API SUCCESS full response', { body: JSON.stringify(body) });
+    logger.info('NECO API SUCCESS', { body: JSON.stringify(body).slice(0, 500) });
+    return { ok: true, body };
+  }
 
-    // Extract candidate info from whatever shape NECO returns
+  private async executeNecoDirectApi(data: EducationQueryData): Promise<WorkerResult> {
+    const examType = this.mapNecoExamType(data.examType);
+    const token = (data.cardPin || '').replace(/\s+/g, '');
+
+    // ── Step 1: fast API verification ───────────────────────────────────────
+    const apiResult = await this.verifyNecoApi(data, examType, token);
+    if (!apiResult.ok) {
+      return this.createErrorResult(apiResult.error, apiResult.retryable);
+    }
+
+    const apiBody = apiResult.body;
     const candidateName: string =
-      body?.data?.candidate?.name || body?.candidate?.name || body?.name || body?.candidateName || '';
-
-    const rawSubjects: any[] =
-      body?.data?.results || body?.results || body?.data?.subjects || body?.subjects || [];
-
+      apiBody?.data?.candidate?.name || apiBody?.candidate?.name || apiBody?.name || apiBody?.candidateName || '';
+    const rawSubjects: any[] = apiBody?.data?.results || apiBody?.results || apiBody?.data?.subjects || apiBody?.subjects || [];
     const subjects: ExamSubject[] = rawSubjects.map((r: any) => ({
       subject: r.subject || r.name || r.subjectName || String(r.subject_name || ''),
       grade: r.grade || r.score || r.result || String(r.letter_grade || ''),
     }));
 
-    // Generate a simple PDF using a headless page with static HTML
+    // ── Step 2: browser pool → NECO portal → official print PDF ─────────────
+    logger.info('NECO API verified result. Acquiring browser for official PDF...');
+
+    const portalUrl = await this.getPortalUrl() || 'https://results.neco.gov.ng/';
+    const selectors = { ...this.profile.selectors };
+
+    let pooledResource: { browser: Browser; page: Page; release: () => Promise<void> } | null = null;
+    const requestTimeout = config.RPA_REQUEST_TIMEOUT || 28000;
+    let timeoutHandle: NodeJS.Timeout | null = null;
+
+    try {
+      pooledResource = await browserPool.acquire();
+
+      if (!pooledResource) {
+        logger.warn('No browser available for NECO official PDF — using custom PDF fallback');
+        return this.buildNecoCustomPdfResult(data, examType, subjects, candidateName, apiBody);
+      }
+
+      const { page } = pooledResource;
+
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(() => reject(new Error('Browser timeout for NECO PDF')), requestTimeout);
+      });
+
+      const result = await Promise.race([
+        this.performVerification(page, portalUrl, data, selectors),
+        timeoutPromise,
+      ]);
+
+      if (result.verificationStatus === 'verified') {
+        return this.createSuccessResult(result as unknown as Record<string, unknown>);
+      }
+
+      // Browser succeeded but no result detected — use fallback PDF
+      logger.warn('NECO browser returned non-verified status despite API success; using fallback PDF');
+      return this.buildNecoCustomPdfResult(data, examType, subjects, candidateName, apiBody);
+
+    } catch (err: any) {
+      logger.warn('NECO browser PDF failed — API confirmed result exists, returning custom PDF fallback', { error: err.message });
+      return this.buildNecoCustomPdfResult(data, examType, subjects, candidateName, apiBody);
+    } finally {
+      if (timeoutHandle) clearTimeout(timeoutHandle);
+      if (pooledResource) await pooledResource.release();
+    }
+  }
+
+  /** Fallback: generate a custom HTML → PDF when browser cannot reach NECO portal */
+  private async buildNecoCustomPdfResult(
+    data: EducationQueryData,
+    examType: string,
+    subjects: ExamSubject[],
+    candidateName: string,
+    apiBody?: any,
+  ): Promise<WorkerResult> {
     let pdfBase64: string | undefined;
     let pooledResource: { browser: Browser; page: Page; release: () => Promise<void> } | null = null;
     try {
       pooledResource = await browserPool.acquire();
       if (pooledResource) {
         const { page } = pooledResource;
-        const html = this.buildNecoResultHtml({
-          candidateName,
-          registrationNumber: data.registrationNumber,
-          examYear: data.examYear,
-          examType,
-          subjects,
-          rawData: body,
-        });
+        const html = this.buildNecoResultHtml({ candidateName, registrationNumber: data.registrationNumber, examYear: data.examYear, examType, subjects, rawData: apiBody });
         await page.setContent(html, { waitUntil: 'domcontentloaded' });
-        const pdfBuffer = await page.pdf({
-          format: 'A4',
-          printBackground: true,
-          margin: { top: '15mm', right: '15mm', bottom: '15mm', left: '15mm' },
-        });
+        const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '15mm', right: '15mm', bottom: '15mm', left: '15mm' } });
         pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
-        logger.info('NECO direct-API PDF generated', { size: pdfBuffer.length });
+        logger.info('NECO fallback custom PDF generated', { size: pdfBuffer.length });
       }
     } catch (err: any) {
-      logger.warn('NECO direct-API PDF generation failed', { error: err.message });
+      logger.warn('NECO fallback PDF generation failed', { error: err.message });
     } finally {
       if (pooledResource) await pooledResource.release();
     }
@@ -401,7 +450,7 @@ export class EducationWorker extends BaseWorker {
       verificationStatus: 'verified',
       message: 'NECO result retrieved successfully',
       pdfBase64,
-      isOfficialPdf: true,
+      isOfficialPdf: false,
     });
   }
 
