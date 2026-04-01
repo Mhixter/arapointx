@@ -6,6 +6,7 @@ import { createServer } from "http";
 import { seedPricing } from "./src/db/seed-pricing";
 import { seedAdmin } from "./src/db/seed-admin";
 import { loadGatewayCredentials } from "./src/config/loadGatewayCredentials";
+import { rpaBot } from "./src/rpa/bot";
 
 const app = express();
 const httpServer = createServer(app);
@@ -115,6 +116,13 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
+
+      // In production the RPA Worker is not a separate process, so start the bot inline
+      if (process.env.NODE_ENV === 'production' || process.env.ENABLE_EMBEDDED_RPA === 'true') {
+        rpaBot.start().catch((err: Error) => {
+          console.error('[RPA Bot] Failed to start:', err.message);
+        });
+      }
 
       // Self-ping every 3 minutes via the public URL to keep Autoscale from sleeping
       if (process.env.NODE_ENV === 'production') {

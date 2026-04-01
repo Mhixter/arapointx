@@ -149,7 +149,7 @@ export class EducationWorker extends BaseWorker {
     });
 
     let pooledResource: { browser: Browser; page: Page; release: () => Promise<void> } | null = null;
-    const requestTimeout = config.RPA_REQUEST_TIMEOUT || 45000;
+    const requestTimeout = config.RPA_REQUEST_TIMEOUT || 28000;
     let timeoutHandle: NodeJS.Timeout | null = null;
 
     try {
@@ -243,7 +243,7 @@ export class EducationWorker extends BaseWorker {
     logger.info(`Checking for ${this.profile.name} privacy popup`);
     
     try {
-      await this.sleep(1000);
+      await this.sleep(400);
 
       const closed = await page.evaluate(() => {
         const modals = document.querySelectorAll('.modal, .popup, .overlay, [role="dialog"], .swal2-container');
@@ -288,8 +288,8 @@ export class EducationWorker extends BaseWorker {
     selectors: Record<string, string>
   ): Promise<ExamResult> {
     logger.info(`Navigating to ${this.profile.name} portal`, { url: portalUrl });
-    await page.goto(portalUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
-    await this.sleep(2000);
+    await page.goto(portalUrl, { waitUntil: 'domcontentloaded', timeout: 12000 });
+    await this.sleep(800);
     await this.closePrivacyPopup(page);
 
     try {
@@ -320,7 +320,7 @@ export class EducationWorker extends BaseWorker {
       }
     }
 
-    await this.sleep(1000);
+    await this.sleep(500);
     logger.info(`Submitting ${this.profile.name} form`);
     
     page.on('dialog', async (dialog) => {
@@ -334,7 +334,7 @@ export class EducationWorker extends BaseWorker {
     await this.submitForm(page);
     
     // NECO shows a confirmation dialog - need to click "Proceed"
-    await this.sleep(1000);
+    await this.sleep(600);
     const hasConfirmation = await this.handleNecoConfirmation(page);
     if (hasConfirmation) {
       logger.info('NECO confirmation dialog handled, clicked Proceed');
@@ -343,7 +343,7 @@ export class EducationWorker extends BaseWorker {
     // Wait for either navigation or content change (for SPAs)
     try {
       await Promise.race([
-        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 }),
+        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 12000 }),
         page.waitForFunction(() => {
           // Check for result content appearing
           const hasTable = document.querySelector('table');
@@ -354,13 +354,13 @@ export class EducationWorker extends BaseWorker {
                            document.body.innerText.includes('Expired') ||
                            document.body.innerText.includes('Used');
           return hasTable || hasResultText || hasError;
-        }, { timeout: 15000 })
+        }, { timeout: 12000 })
       ]);
     } catch {
       logger.info('No navigation or content change detected within timeout');
     }
     
-    await this.sleep(3000);
+    await this.sleep(1500);
 
     const resultUrl = page.url();
     const htmlAfterSubmit = await page.content();
@@ -415,7 +415,7 @@ export class EducationWorker extends BaseWorker {
 
       if (printClicked) {
         logger.info('Clicked NECO print button');
-        await this.sleep(2000); // Wait for print view to load
+        await this.sleep(1000);
       }
     } catch (e) {
       logger.warn('Could not click print button', { error: (e as Error).message });
@@ -531,7 +531,7 @@ export class EducationWorker extends BaseWorker {
         return { success: false };
       }, normalized.isInternal, this.provider);
       
-      await this.sleep(500);
+      await this.sleep(200);
     } catch (e: any) {
       logger.warn('Error selecting exam type', { error: e.message });
     }
@@ -614,7 +614,7 @@ export class EducationWorker extends BaseWorker {
       });
       
       if (clicked) {
-        await this.sleep(2000); // Wait for dialog to process
+        await this.sleep(800);
         return true;
       }
       return false;
