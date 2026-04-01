@@ -26,6 +26,16 @@ const STATUS_OPTIONS = [
 
 const getAgentToken = () => tokenStorage.getItem('cacAgentToken');
 
+function getDownloadUrl(fileUrl: string | null | undefined): string {
+  if (!fileUrl) return '';
+  if (fileUrl.startsWith('/objects/') || fileUrl.startsWith('/uploads/') || fileUrl.startsWith('http')) return fileUrl;
+  if (/^\/replit-objstore-/.test(fileUrl)) {
+    const firstSlash = fileUrl.indexOf('/', 1);
+    return `/objects${fileUrl.slice(firstSlash)}`;
+  }
+  return fileUrl;
+}
+
 export default function CACAgentDashboard() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -810,26 +820,53 @@ export default function CACAgentDashboard() {
               </div>
 
               <div className="border-t pt-4">
-                <h4 className="font-semibold mb-2">Customer Details</h4>
+                <h4 className="font-semibold mb-2">Account Holder</h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground">Name</p>
-                    <p>{selectedRequest.customer?.name || selectedRequest.proprietorName}</p>
+                    <p>{selectedRequest.customer?.name || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Email</p>
-                    <p>{selectedRequest.customer?.email || selectedRequest.proprietorEmail}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Phone</p>
-                    <p>{selectedRequest.customer?.phone || selectedRequest.proprietorPhone}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">NIN</p>
-                    <p>{selectedRequest.proprietorNin || 'Not provided'}</p>
+                    <p>{selectedRequest.customer?.email || 'N/A'}</p>
                   </div>
                 </div>
               </div>
+
+              {(selectedRequest.proprietorName || selectedRequest.proprietorEmail || selectedRequest.proprietorPhone || selectedRequest.proprietorNin) && (
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold mb-2">Proprietor Details</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    {selectedRequest.proprietorName && (
+                      <div>
+                        <p className="text-muted-foreground">Name</p>
+                        <p>{selectedRequest.proprietorName}</p>
+                      </div>
+                    )}
+                    {selectedRequest.proprietorNin && (
+                      <div>
+                        <p className="text-muted-foreground">NIN</p>
+                        <p>{selectedRequest.proprietorNin}</p>
+                      </div>
+                    )}
+                    {selectedRequest.proprietorEmail && (
+                      <div>
+                        <p className="text-muted-foreground">Email</p>
+                        <p>{selectedRequest.proprietorEmail}</p>
+                      </div>
+                    )}
+                    {selectedRequest.proprietorPhone && (
+                      <div>
+                        <p className="text-muted-foreground">Phone</p>
+                        <p>{selectedRequest.proprietorPhone}</p>
+                      </div>
+                    )}
+                  </div>
+                  {selectedRequest.additionalProprietors && selectedRequest.additionalProprietors.length > 0 && (
+                    <p className="text-sm text-muted-foreground mt-2">+ {selectedRequest.additionalProprietors.length} additional proprietor(s)</p>
+                  )}
+                </div>
+              )}
 
               <div className="border-t pt-4">
                 <h4 className="font-semibold mb-2">Business Details</h4>
@@ -842,13 +879,33 @@ export default function CACAgentDashboard() {
                 </div>
               </div>
 
+              {selectedRequest.certificateUrl && (
+                <div className="border-t pt-4">
+                  <h4 className="font-semibold mb-2">CAC Certificate</h4>
+                  <div className="text-sm space-y-1">
+                    {selectedRequest.cacRegistrationNumber && (
+                      <p><span className="text-muted-foreground">Registration No:</span> {selectedRequest.cacRegistrationNumber}</p>
+                    )}
+                    <a
+                      href={getDownloadUrl(selectedRequest.certificateUrl)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-primary hover:underline"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download Certificate
+                    </a>
+                  </div>
+                </div>
+              )}
+
               {(selectedRequest.passportPhotoUrl || selectedRequest.signatureUrl || selectedRequest.ninSlipUrl) && (
                 <div className="border-t pt-4">
                   <h4 className="font-semibold mb-2">Customer Uploaded Files</h4>
                   <div className="grid grid-cols-3 gap-2">
                     {selectedRequest.passportPhotoUrl && (
                       <a 
-                        href={selectedRequest.passportPhotoUrl} 
+                        href={getDownloadUrl(selectedRequest.passportPhotoUrl)} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="flex flex-col items-center p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors"
@@ -859,7 +916,7 @@ export default function CACAgentDashboard() {
                     )}
                     {selectedRequest.signatureUrl && (
                       <a 
-                        href={selectedRequest.signatureUrl} 
+                        href={getDownloadUrl(selectedRequest.signatureUrl)} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="flex flex-col items-center p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors"
@@ -870,7 +927,7 @@ export default function CACAgentDashboard() {
                     )}
                     {selectedRequest.ninSlipUrl && (
                       <a 
-                        href={selectedRequest.ninSlipUrl} 
+                        href={getDownloadUrl(selectedRequest.ninSlipUrl)} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="flex flex-col items-center p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors"
@@ -890,7 +947,7 @@ export default function CACAgentDashboard() {
                     {selectedRequest.documents.map((doc: any) => (
                       <div key={doc.id} className="flex items-center justify-between p-2 bg-muted rounded">
                         <span className="text-sm">{doc.documentType}: {doc.fileName}</span>
-                        <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="text-primary text-sm">View</a>
+                        <a href={getDownloadUrl(doc.fileUrl)} target="_blank" rel="noopener noreferrer" className="text-primary text-sm">View</a>
                       </div>
                     ))}
                   </div>

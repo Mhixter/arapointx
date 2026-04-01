@@ -643,13 +643,14 @@ router.post('/requests/:id/upload-document', cacAgentAuthMiddleware, async (req:
       return res.status(400).json(formatErrorResponse(400, 'File name and URL are required'));
     }
 
-    try {
-      const url = new URL(fileUrl);
-      if (!['http:', 'https:'].includes(url.protocol)) {
-        return res.status(400).json(formatErrorResponse(400, 'Invalid URL protocol - only http/https allowed'));
-      }
-    } catch {
-      return res.status(400).json(formatErrorResponse(400, 'Invalid URL format'));
+    const isValidUrl = fileUrl.startsWith('/objects/') || fileUrl.startsWith('/uploads/') || (() => {
+      try {
+        const u = new URL(fileUrl);
+        return ['http:', 'https:'].includes(u.protocol);
+      } catch { return false; }
+    })();
+    if (!isValidUrl) {
+      return res.status(400).json(formatErrorResponse(400, 'Invalid file URL format'));
     }
 
     const [request] = await db.select()

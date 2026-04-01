@@ -45,7 +45,11 @@ export function registerObjectStorageRoutes(app: Express): void {
       if (useCloudStorage && objectStorageService) {
         // Use cloud storage
         const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-        const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
+        // Extract the UUID from the signed URL path and build the canonical /objects/ path
+        const urlObj = new URL(uploadURL);
+        const pathSegments = urlObj.pathname.split('/');
+        const objectId = pathSegments[pathSegments.length - 1];
+        const objectPath = `/objects/uploads/${objectId}`;
 
         res.json({
           uploadURL,

@@ -1893,7 +1893,7 @@ router.post('/cac/agents', async (req: Request, res: Response) => {
 
     logger.info('CAC agent created', { agentId: agent.id, email, createdBy: req.userId });
 
-    const loginUrl = `${getSiteUrl()}/admin/login`;
+    const loginUrl = `${getSiteUrl()}/agent/login`;
     generateAgentSlaPdf(name, 'CAC Agent', agent.employeeId).then(slaPdf =>
       sendEmail(
         email.toLowerCase(),
@@ -2305,7 +2305,7 @@ router.post('/identity-agents', async (req: Request, res: Response) => {
 
     logger.info('Identity agent created', { agentId: agent.id, adminUserId: newAdminUser.id, createdBy: req.userId });
 
-    const loginUrl = `${getSiteUrl()}/admin/login`;
+    const loginUrl = `${getSiteUrl()}/agent/identity`;
     generateAgentSlaPdf(name, 'Identity Agent', employeeId || null).then(slaPdf =>
       sendEmail(
         newAdminUser.email,
@@ -2513,7 +2513,7 @@ router.post('/education-agents', async (req: Request, res: Response) => {
 
     logger.info('Education agent created', { agentId: agent.id, adminUserId: newAdminUser.id, createdBy: req.userId });
 
-    const loginUrl = `${getSiteUrl()}/admin/login`;
+    const loginUrl = `${getSiteUrl()}/agent/education`;
     generateAgentSlaPdf(name, 'Education Agent', employeeId || null).then(slaPdf =>
       sendEmail(
         newAdminUser.email,
@@ -2656,7 +2656,7 @@ router.post('/jamb-agents', async (req: Request, res: Response) => {
 
     logger.info('JAMB agent created', { agentId: agent.id, adminUserId: newAdminUser.id, createdBy: req.userId });
 
-    const loginUrl = `${getSiteUrl()}/admin/login`;
+    const loginUrl = `${getSiteUrl()}/jamb/agent/login`;
     generateAgentSlaPdf(name, 'JAMB Agent', employeeId || null).then(slaPdf =>
       sendEmail(
         newAdminUser.email,
@@ -3148,7 +3148,7 @@ router.post('/a2c-agents', async (req: Request, res: Response) => {
 
     logger.info('A2C agent created', { agentId: agent.id, adminUserId: newAdminUser.id, createdBy: req.userId });
 
-    const loginUrl = `${getSiteUrl()}/admin/login`;
+    const loginUrl = `${getSiteUrl()}/agent/a2c/login`;
     generateAgentSlaPdf(name, 'Airtime to Cash (A2C) Agent', agent.employeeId || null).then(slaPdf =>
       sendEmail(
         newAdminUser.email,
