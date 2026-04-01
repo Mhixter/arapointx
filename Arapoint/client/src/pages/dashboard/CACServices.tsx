@@ -165,6 +165,16 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; icon: any }> = {
 
 const getAuthToken = () => tokenStorage.getItem('accessToken');
 
+function getDownloadUrl(fileUrl: string | null | undefined): string {
+  if (!fileUrl) return '';
+  if (fileUrl.startsWith('/objects/') || fileUrl.startsWith('/uploads/') || fileUrl.startsWith('http')) return fileUrl;
+  if (/^\/replit-objstore-/.test(fileUrl)) {
+    const firstSlash = fileUrl.indexOf('/', 1);
+    return `/objects${fileUrl.slice(firstSlash)}`;
+  }
+  return fileUrl;
+}
+
 export default function CACServices() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -815,7 +825,7 @@ export default function CACServices() {
                           )}
                           {req.status === 'completed' && req.certificateUrl && (
                             <Button variant="default" size="sm" className="h-8 bg-green-600 hover:bg-green-700" asChild>
-                              <a href={req.certificateUrl} target="_blank" rel="noopener noreferrer"><Download className="h-4 w-4 mr-1.5" />Certificate</a>
+                              <a href={getDownloadUrl(req.certificateUrl)} target="_blank" rel="noopener noreferrer"><Download className="h-4 w-4 mr-1.5" />Certificate</a>
                             </Button>
                           )}
                         </div>
@@ -899,9 +909,9 @@ export default function CACServices() {
                         {msg.fileUrl ? (
                           <div className="flex flex-col gap-2">
                             {msg.fileType?.startsWith('image/') ? (
-                              <img src={msg.fileUrl} alt={msg.fileName} className="max-w-full rounded-lg cursor-pointer" onClick={() => window.open(msg.fileUrl, '_blank')} />
+                              <img src={getDownloadUrl(msg.fileUrl)} alt={msg.fileName} className="max-w-full rounded-lg cursor-pointer" onClick={() => window.open(getDownloadUrl(msg.fileUrl), '_blank')} />
                             ) : (
-                              <a href={msg.fileUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 p-2 rounded bg-background/10 hover:bg-background/20">
+                              <a href={getDownloadUrl(msg.fileUrl)} target="_blank" rel="noreferrer" className="flex items-center gap-2 p-2 rounded bg-background/10 hover:bg-background/20">
                                 <FileIcon className="h-4 w-4" />
                                 <span className="underline truncate max-w-[150px]">{msg.fileName || 'Download File'}</span>
                               </a>
