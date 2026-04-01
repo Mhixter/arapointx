@@ -335,14 +335,33 @@ export class EducationWorker extends BaseWorker {
 
     await this.sleep(500);
 
-    // Read back all text/number input values to confirm what will actually be submitted
+    // Read back ALL inputs (any type) to confirm exact values being submitted
     const fieldReadback = await page.evaluate(() => {
-      return Array.from(document.querySelectorAll('input[type="text"], input[type="number"], input:not([type])'))
-        .map((el) => {
-          const inp = el as HTMLInputElement;
-          return { name: inp.name || inp.id || inp.placeholder?.slice(0, 30), value: inp.value };
-        })
-        .filter(f => f.name);
+      const tokenEl = document.querySelector('input[name="token"]') as HTMLInputElement | null;
+      const regEl = (
+        document.querySelector('input[name="CandNo"]') ||
+        document.querySelector('input[name="ExamNumber"]') ||
+        document.querySelector('input[placeholder*="Registration"]') ||
+        document.querySelector('input[placeholder*="registration"]')
+      ) as HTMLInputElement | null;
+
+      const allInputs = Array.from(document.querySelectorAll('input')).map(el => {
+        const inp = el as HTMLInputElement;
+        return {
+          type: inp.type,
+          name: inp.name,
+          id: inp.id,
+          placeholder: inp.placeholder?.slice(0, 40),
+          value: inp.value,
+          maxLength: inp.maxLength,
+        };
+      });
+
+      return {
+        tokenField: tokenEl ? { type: tokenEl.type, value: tokenEl.value, maxLength: tokenEl.maxLength } : null,
+        regField: regEl ? { type: regEl.type, value: regEl.value, name: regEl.name, placeholder: regEl.placeholder } : null,
+        allInputs,
+      };
     });
     logger.info(`${this.profile.name} field values before submit`, { fieldReadback });
 
@@ -607,40 +626,66 @@ export class EducationWorker extends BaseWorker {
       } catch { continue; }
     }
     
-    const textInputs = await page.$$('input[type="text"]');
-    if (textInputs.length > 0) {
-      await this.setInputValue(page, 'input[type="text"]', regNumber);
-      logger.info('Used fallback for registration number', { value: regNumber });
+    // Last-resort fallback: pick the last visible input on the page (usually the reg number field)
+    const lastInput = await page.evaluate(() => {
+      const inputs = Array.from(document.querySelectorAll('input'));
+      const visible = inputs.filter(el => {
+        const style = window.getComputedStyle(el);
+        return style.display !== 'none' && style.visibility !== 'hidden' && (el as HTMLInputElement).type !== 'hidden';
+      });
+      const last = visible[visible.length - 1];
+      return last ? (last.name || last.id || last.placeholder || '__last__') : null;
+    });
+    if (lastInput) {
+      const fallbackSel = lastInput === '__last__'
+        ? 'input:not([type="hidden"]):last-of-type'
+        : `input[name="${lastInput}"], input[id="${lastInput}"]`;
+      await this.setInputValue(page, fallbackSel, regNumber);
+      logger.info('Used fallback for registration number', { value: regNumber, fallback: lastInput });
     } else {
       throw new Error('Could not find registration number input field');
     }
   }
 
-  // Sets an input's value using native DOM setter (works for React/Vue SPAs) then
-  // falls back to character-by-character typing so both event models are covered.
+  // Sets an input's value reliably: focus, clear, type with delay, then verify.
+  // If the typed value doesn't stick (portal overrides it), falls back to native
+  // DOM setter + synthetic events so React/Vue state is also updated.
   private async setInputValue(page: Page, selector: string, value: string): Promise<boolean> {
-    const set = await page.evaluate((sel: string, val: string) => {
+    const input = await page.$(selector);
+    if (!input) return false;
+
+    // Focus the field and select all existing content
+    await input.focus();
+    await this.sleep(100);
+    await page.keyboard.down('Control');
+    await page.keyboard.press('a');
+    await page.keyboard.up('Control');
+    await page.keyboard.press('Backspace');
+    await this.sleep(100);
+
+    // Type character-by-character at 40ms/char so portal JS handlers fire naturally
+    await input.type(value, { delay: 40 });
+    await this.sleep(150);
+
+    // Read back to verify the value stuck
+    const actual = await page.evaluate((sel: string) => {
       const el = document.querySelector(sel) as HTMLInputElement | null;
-      if (!el) return false;
-      // Use the native prototype setter so React/Vue state updates
+      return el ? el.value : null;
+    }, selector);
+
+    if (actual === value) return true;
+
+    // Value didn't stick — use native prototype setter as fallback (React/Vue compatible)
+    logger.warn(`Physical typing did not stick for ${selector}`, { expected: value, actual });
+    await page.evaluate((sel: string, val: string) => {
+      const el = document.querySelector(sel) as HTMLInputElement | null;
+      if (!el) return;
       const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
       if (nativeSetter?.set) nativeSetter.set.call(el, val);
       else el.value = val;
       el.dispatchEvent(new Event('input', { bubbles: true }));
       el.dispatchEvent(new Event('change', { bubbles: true }));
-      return true;
     }, selector, value);
-
-    if (!set) return false;
-
-    // Also type the value so keystroke-based listeners fire
-    try {
-      const input = await page.$(selector);
-      if (input) {
-        await input.click({ clickCount: 3 });
-        await input.type(value);
-      }
-    } catch { /* ignore typing errors — native setter already ran */ }
 
     return true;
   }
