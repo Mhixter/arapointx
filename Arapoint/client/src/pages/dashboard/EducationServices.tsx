@@ -1252,7 +1252,7 @@ export default function EducationServices() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="neco-year">Exam Year</Label>
-                      <Select name="neco-year" defaultValue={new Date().getFullYear().toString()}>
+                      <Select name="neco-year" defaultValue={(new Date().getFullYear() - 1).toString()}>
                         <SelectTrigger id="neco-year">
                           <SelectValue placeholder="Select Year" />
                         </SelectTrigger>
