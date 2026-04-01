@@ -287,23 +287,28 @@ export class EducationWorker extends BaseWorker {
     data: EducationQueryData,
     selectors: Record<string, string>
   ): Promise<ExamResult> {
-    // Named handler stored so we can remove it at cleanup time.
-    // This prevents duplicate listeners when the page is reused from the pool.
-    const requestHandler = (request: any) => {
-      const method = request.method();
-      if (method === 'POST') {
-        logger.info(`${this.profile.name} POST request intercepted`, {
-          url: request.url(),
-          postData: request.postData()?.slice(0, 1000),
-          contentType: request.headers()['content-type'],
+    // Response listener — purely observational, fires for every response from NECO's domain.
+    // Does NOT require setRequestInterception so it can't break the page flow.
+    const responseHandler = async (response: any) => {
+      const url: string = response.url();
+      if (url.includes('neco.gov.ng') || url.includes('results.neco')) {
+        const method: string = response.request().method();
+        const status: number = response.status();
+        // Also log the initiating request URL (shows GET query params)
+        const reqUrl: string = response.request().url();
+        let body = '';
+        try { body = await response.text(); } catch {}
+        logger.info(`${this.profile.name} network response`, {
+          method,
+          reqUrl: reqUrl.slice(0, 800),
+          status,
+          bodyLength: body.length,
+          bodyPreview: body.slice(0, 600),
         });
       }
-      request.continue().catch(() => {});
     };
 
-    // Puppeteer network-layer interception — catches ALL requests including form.submit()
-    await page.setRequestInterception(true);
-    page.on('request', requestHandler);
+    page.on('response', responseHandler);
 
     try {
 
@@ -540,9 +545,8 @@ export class EducationWorker extends BaseWorker {
     };
 
     } finally {
-      // Clean up: remove named handler and disable interception so pooled page is clean
-      page.off('request', requestHandler);
-      await page.setRequestInterception(false).catch(() => {});
+      // Clean up: remove named response handler so the pooled page is clean for the next job
+      page.off('response', responseHandler);
     }
   }
 
