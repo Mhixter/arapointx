@@ -108,7 +108,7 @@ export default function AdminEducationServices() {
           userId: s.userId,
           userName: s.userName || 'Unknown',
           userEmail: s.userEmail,
-          serviceType: s.serviceType?.toLowerCase() || 'jamb',
+          serviceType: (s.serviceType?.toLowerCase() || 'jamb').replace(/_result$|_check$/, ''),
           registrationNumber: s.registrationNumber || '',
           examYear: s.examYear,
           status: s.status === 'completed' ? 'completed' : s.status === 'rejected' ? 'rejected' : 'pending',
