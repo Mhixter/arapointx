@@ -313,6 +313,7 @@ export default function CACAgentDashboard() {
           cacRegistrationNumber: updateData.cacRegistrationNumber,
           rejectionReason: updateData.rejectionReason,
           certificateUrl: updateData.certificateUrl,
+          statusReportUrl: updateData.statusReportUrl,
         })
       });
       const data = await response.json();

@@ -18,7 +18,18 @@ import {
 import { eq, desc, count, and } from 'drizzle-orm';
 import { sendEmail } from '../../services/emailService';
 import { agentNewRequestEmailHtml, SERVICE_LABELS } from '../../utils/agentEmailTemplates';
+
 import { getSiteUrl } from '../../utils/helpers';
+
+function normalizeFileUrl(fileUrl: string): string {
+  if (!fileUrl) return fileUrl;
+  if (fileUrl.startsWith('/objects/') || fileUrl.startsWith('/uploads/') || fileUrl.startsWith('http')) return fileUrl;
+  if (/^\/replit-objstore-/.test(fileUrl)) {
+    const firstSlash = fileUrl.indexOf('/', 1);
+    return `/objects${fileUrl.slice(firstSlash)}`;
+  }
+  return fileUrl;
+}
 
 const router = Router();
 
@@ -344,7 +355,7 @@ router.get('/requests/:id/documents/:docId/download', async (req: Request, res: 
     logger.info('User downloading CAC document', { userId: req.userId, requestId: id, documentId: docId, documentType: document.documentType });
 
     res.json(formatResponse('success', 200, 'Document URL retrieved', { 
-      fileUrl: document.fileUrl, 
+      fileUrl: normalizeFileUrl(document.fileUrl), 
       fileName: document.fileName,
       documentType: document.documentType,
       mimeType: document.mimeType
@@ -524,7 +535,7 @@ router.get('/documents/:docId/download', async (req: Request, res: Response) => 
     }
 
     if (document.fileUrl) {
-      return res.redirect(document.fileUrl);
+      return res.redirect(normalizeFileUrl(document.fileUrl));
     }
 
     res.status(404).json(formatErrorResponse(404, 'File URL not available'));

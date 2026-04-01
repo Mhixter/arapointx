@@ -12,6 +12,16 @@ import { randomBytes } from 'crypto';
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
+function normalizeFileKey(fileKey: string): string {
+  if (!fileKey) return fileKey;
+  if (fileKey.startsWith('/objects/') || fileKey.startsWith('/uploads/')) return fileKey;
+  if (/^\/replit-objstore-/.test(fileKey)) {
+    const firstSlash = fileKey.indexOf('/', 1);
+    return `/objects${fileKey.slice(firstSlash)}`;
+  }
+  return fileKey;
+}
+
 // POST /api/files/upload — upload a file to object storage and record it in the DB
 router.post('/upload', authMiddleware, upload.single('file'), async (req: Request, res: Response) => {
   try {
@@ -133,7 +143,7 @@ router.get('/:id/download', authMiddleware, async (req: Request, res: Response) 
       return res.redirect(302, file.fileKey);
     }
 
-    const objectFile = await objectStorageService.getObjectEntityFile(file.fileKey);
+    const objectFile = await objectStorageService.getObjectEntityFile(normalizeFileKey(file.fileKey));
     const stream = objectFile.createReadStream();
 
     res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
@@ -239,7 +249,7 @@ router.get('/shared/:token', async (req: Request, res: Response) => {
       return res.status(410).json(formatErrorResponse(410, 'This share link has expired'));
     }
 
-    const objectFile = await objectStorageService.getObjectEntityFile(file.fileKey);
+    const objectFile = await objectStorageService.getObjectEntityFile(normalizeFileKey(file.fileKey));
     const stream = objectFile.createReadStream();
 
     res.setHeader('Content-Disposition', `attachment; filename="${file.fileName}"`);
