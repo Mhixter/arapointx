@@ -136,6 +136,8 @@ export default function EducationServices() {
   
   const [waecYear, setWaecYear] = useState(new Date().getFullYear().toString());
   const [waecType, setWaecType] = useState('WASSCE');
+  const [necoYear, setNecoYear] = useState((new Date().getFullYear() - 1).toString());
+  const [necoType, setNecoType] = useState('school_candidate');
   const [nabtebYear, setNabtebYear] = useState(new Date().getFullYear().toString());
   const [nabtebType, setNabtebType] = useState('may');
   const [nbaisYear, setNbaisYear] = useState(new Date().getFullYear().toString());
@@ -371,14 +373,12 @@ export default function EducationServices() {
         }
         case 'neco-result': {
           const regNumber = (form.querySelector('#neco-reg') as HTMLInputElement)?.value;
-          const examYear = (form.querySelector('#neco-year') as HTMLSelectElement)?.value;
-          const examType = (form.querySelector('#neco-type') as HTMLSelectElement)?.value;
           const token = (form.querySelector('#neco-token') as HTMLInputElement)?.value;
           
           jobResponse = await servicesApi.education.checkNECO({
             registrationNumber: regNumber,
-            examYear: parseInt(examYear || new Date().getFullYear().toString()),
-            examType: examType || 'school_candidate',
+            examYear: parseInt(necoYear),
+            examType: necoType,
             cardPin: token,
           });
           break;
@@ -1252,7 +1252,7 @@ export default function EducationServices() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="neco-year">Exam Year</Label>
-                      <Select name="neco-year" defaultValue={(new Date().getFullYear() - 1).toString()}>
+                      <Select value={necoYear} onValueChange={setNecoYear}>
                         <SelectTrigger id="neco-year">
                           <SelectValue placeholder="Select Year" />
                         </SelectTrigger>
@@ -1265,7 +1265,7 @@ export default function EducationServices() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="neco-type">Exam Type</Label>
-                      <Select name="neco-type" defaultValue="school_candidate">
+                      <Select value={necoType} onValueChange={setNecoType}>
                         <SelectTrigger id="neco-type">
                           <SelectValue placeholder="Select Type" />
                         </SelectTrigger>
