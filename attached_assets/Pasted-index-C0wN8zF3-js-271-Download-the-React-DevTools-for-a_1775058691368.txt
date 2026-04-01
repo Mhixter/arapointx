@@ -1,0 +1,42 @@
+index-C0wN8zF3.js:271 Download the React DevTools for a better development experience: https://react.dev/link/react-devtools
+login:1 [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) <input data-replit-metadata=​"client/​src/​pages/​admin/​AdminLogin.tsx:​106:​16" data-component-name=​"Input" class=​"flex w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:​border-0 file:​bg-transparent file:​text-sm file:​font-medium file:​text-foreground placeholder:​text-muted-foreground focus-visible:​outline-none focus-visible:​ring-1 focus-visible:​ring-ring disabled:​cursor-not-allowed disabled:​opacity-50 md:​text-sm h-11 pr-10" id=​"admin-password" required data-testid=​"input-admin-password" type=​"password" value=​"Mhixter664@gmail.com">​
+index-C0wN8zF3.js:1005 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ index-C0wN8zF3.js:1005
+index-C0wN8zF3.js:1005 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ index-C0wN8zF3.js:1005
+index-C0wN8zF3.js:1005 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ index-C0wN8zF3.js:1005
+index-C0wN8zF3.js:1005 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ index-C0wN8zF3.js:1005
+index-C0wN8zF3.js:1005 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ index-C0wN8zF3.js:1005
+index-C0wN8zF3.js:1005 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ index-C0wN8zF3.js:1005
+index-C0wN8zF3.js:1005 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ index-C0wN8zF3.js:1005
+index-C0wN8zF3.js:1005 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ index-C0wN8zF3.js:1005
+index-C0wN8zF3.js:1005 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ index-C0wN8zF3.js:1005
+/api/admin/rpa/jobs?page=1&limit=20:1  Failed to load resource: the server responded with a status of 500 ()
+/api/admin/users?page=1&limit=100:1  Failed to load resource: the server responded with a status of 500 ()
+/api/admin/notifications/pending:1  Failed to load resource: the server responded with a status of 500 ()
+/api/admin/stats:1  Failed to load resource: the server responded with a status of 500 ()
+/favicon.svg:1  Failed to load resource: the server responded with a status of 500 ()
+/favicon-32.png:1  Failed to load resource: the server responded with a status of 500 ()
+/favicon.svg:1  Failed to load resource: the server responded with a status of 500 ()
+/favicon-32.png:1  Failed to load resource: the server responded with a status of 500 ()
+/api/admin/rpa/retry/f325066c-671e-49b4-8fd9-cd0684597ef0:1  Failed to load resource: the server responded with a status of 500 ()
+/favicon.png:1  Failed to load resource: the server responded with a status of 500 ()
+/favicon.png:1  Failed to load resource: the server responded with a status of 500 ()
+index-C0wN8zF3.js:1005 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ index-C0wN8zF3.js:1005
+rpa-jobs:1  Failed to load resource: the server responded with a status of 500 ()
+[Violation] 'setTimeout' handler took <N>ms
+[Violation] 'setTimeout' handler took <N>ms
+[Violation] 'setTimeout' handler took <N>ms
+[Violation] 'setTimeout' handler took <N>ms
+[Violation] 'setTimeout' handler took <N>ms
+[Violation] 'setTimeout' handler took <N>ms
+[Violation] 'setTimeout' handler took <N>ms
+[Violation] 'setTimeout' handler took <N>ms
