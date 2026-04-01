@@ -107,9 +107,20 @@ export default function FileStorage() {
     queryFn: () => apiRequest('GET', '/api/files').then(r => r.json()),
   });
 
-  const allFiles: SharedFile[] = (data?.data?.files || []).filter(
-    (f: SharedFile) => f.uploaderRole === 'agent'
-  );
+  // Deduplicate: keep only the latest entry per (relatedRequestId + description) pair
+  // The API returns files newest-first, so first occurrence is always the latest
+  const allFiles: SharedFile[] = (() => {
+    const raw: SharedFile[] = (data?.data?.files || []).filter(
+      (f: SharedFile) => f.uploaderRole === 'agent'
+    );
+    const seen = new Set<string>();
+    return raw.filter(f => {
+      const key = `${f.relatedRequestId ?? ''}::${f.description ?? f.fileName}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  })();
 
   const filteredFiles = !searchQuery
     ? allFiles

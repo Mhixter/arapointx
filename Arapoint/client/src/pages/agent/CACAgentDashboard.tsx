@@ -467,7 +467,7 @@ export default function CACAgentDashboard() {
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-green-600">{stats.totalCompleted || 0}</p>
+              <p className="text-2xl font-bold text-green-600">{stats.completed || 0}</p>
               <p className="text-xs text-muted-foreground">Completed</p>
             </CardContent>
           </Card>
