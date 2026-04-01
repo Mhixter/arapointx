@@ -726,15 +726,21 @@ export class EducationWorker extends BaseWorker {
 
     let pdfBase64: string | undefined;
     
-    // Click NECO's "Print result" or "Print" button to get the official print view
+    // Click NECO's "Print result" button to navigate to the official print view
     try {
       const printClicked = await page.evaluate(() => {
         const buttons = Array.from(document.querySelectorAll('button, a'));
         for (const btn of buttons) {
           const text = (btn.textContent || '').trim().toLowerCase();
-          if (text.includes('print')) {
+          if (text === 'print' || text === 'print result') {
             (btn as HTMLElement).click();
-            console.log('Clicked print button:', btn.textContent);
+            return true;
+          }
+        }
+        // Fallback: any button containing "print"
+        for (const btn of buttons) {
+          if ((btn.textContent || '').toLowerCase().includes('print')) {
+            (btn as HTMLElement).click();
             return true;
           }
         }
@@ -742,30 +748,56 @@ export class EducationWorker extends BaseWorker {
       });
 
       if (printClicked) {
-        logger.info('Clicked NECO print button');
-        await this.sleep(1000);
+        logger.info('Clicked NECO print button — waiting for print view to load');
+        // Wait for navigation to the print view page, or content change
+        try {
+          await Promise.race([
+            page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 8000 }),
+            this.sleep(3000),
+          ]);
+        } catch { /* navigation may not fire if it's SPA */ }
+        await this.sleep(800);
       }
     } catch (e) {
       logger.warn('Could not click print button', { error: (e as Error).message });
     }
 
-    // Generate PDF of the official NECO result page
+    // Generate single-page A4 PDF of the official NECO print view
     try {
-      // Use emulateMediaType to ensure we get print styles
+      // Set viewport to A4 portrait width so the content renders at the right width
+      await page.setViewport({ width: 794, height: 1123, deviceScaleFactor: 1 });
+      await this.sleep(400);
+
       await page.emulateMediaType('print');
-      
+
+      // Inject CSS to prevent accidental page breaks and remove print-only navigation buttons
+      await page.evaluate(() => {
+        const style = document.createElement('style');
+        style.textContent = `
+          @media print {
+            button, .no-print, [onclick*="back"], [onclick*="Back"] { display: none !important; }
+            * { page-break-inside: avoid !important; }
+            body { margin: 0 !important; }
+          }
+          button, .btn, .back-btn { display: none !important; }
+        `;
+        document.head.appendChild(style);
+      });
+
       const pdfBuffer = await page.pdf({
         format: 'A4',
         printBackground: true,
-        margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' },
-        preferCSSPageSize: true
+        margin: { top: '6mm', right: '6mm', bottom: '6mm', left: '6mm' },
+        preferCSSPageSize: false,
+        scale: 0.78,
       });
-      // Convert Uint8Array to proper base64 string using Buffer
+
       pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
-      logger.info('Official NECO PDF generated successfully', { size: pdfBuffer.length });
-      
-      // Reset media type
+      logger.info('Official NECO PDF generated (single-page A4)', { size: pdfBuffer.length });
+
+      // Reset for next use
       await page.emulateMediaType('screen');
+      await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 1 });
     } catch (e) {
       logger.warn('Failed to generate PDF', { error: (e as Error).message });
     }
