@@ -1,0 +1,267 @@
+Build a full-stack scalable Developer API Platform for my existing service platform "Arapoint".
+
+## 🎯 GOAL
+
+Transform Arapoint into a B2B verification infrastructure that provides APIs for:
+
+* NIN Verification
+* BVN Verification
+* Education Verification (WAEC, NECO, NABTEB, NBAIS)
+* Employment Verification (NYSC)
+* Unified Verification (NIN + BVN + Education + NYSC in one request)
+
+---
+
+## 🏗️ SYSTEM ARCHITECTURE
+
+Create 3 separate services:
+
+1. API Server (api.arapoint.com.ng)
+2. Developer Dashboard (dev.arapoint.com.ng)
+3. Existing Main Platform (already built)
+
+Ensure the API server can be used by BOTH:
+
+* External developers
+* Internal Arapoint dashboard
+
+---
+
+## ⚙️ BACKEND REQUIREMENTS
+
+Use:
+
+* Node.js (Express) OR FastAPI (Python)
+* PostgreSQL database
+* Redis for queue system
+* Background jobs (Bull for Node OR Celery for Python)
+
+---
+
+## 🔐 AUTHENTICATION
+
+Implement:
+
+* User registration/login (JWT)
+* API Key system:
+
+  * Generate API key
+  * Revoke API key
+  * Attach API key to each request
+
+---
+
+## 🧩 API ENDPOINTS
+
+### 1. Individual APIs
+
+POST /api/v1/nin/verify
+POST /api/v1/bvn/verify
+POST /api/v1/education/verify
+POST /api/v1/employment/verify
+
+---
+
+### 2. Unified API (MAIN PRODUCT)
+
+POST /api/v1/verify-person
+
+Request Example:
+{
+"nin": "12345678901",
+"bvn": "12345678901",
+"education": true,
+"employment": true
+}
+
+---
+
+Response Example:
+{
+"status": "success",
+"identity": {...},
+"bvn": {...},
+"education": {
+"waec": {...},
+"neco": {...}
+},
+"nysc": {...}
+}
+
+---
+
+## 🤖 JOB QUEUE SYSTEM
+
+Implement a queue system:
+
+Flow:
+
+* API request → stored in DB
+* Sent to queue
+* Worker processes via mock RPA functions
+* Save result
+* Return response or webhook
+
+---
+
+## 🔁 MOCK RPA SERVICES
+
+Create placeholder/mock functions for:
+
+* NIN verification
+* BVN verification
+* WAEC/NECO checks
+* NYSC verification
+
+These should simulate:
+
+* Success/failure
+* Delay (like real systems)
+
+---
+
+## 💰 BILLING SYSTEM
+
+Implement pay-per-request billing:
+
+* Deduct from user wallet per API call
+* Different pricing per service:
+
+  * NIN: 50
+  * BVN: 100
+  * Education: 150
+  * Full verification: 300
+
+---
+
+## 🗄️ DATABASE STRUCTURE
+
+Create tables:
+
+users:
+
+* id
+* email
+* password
+* role (user/developer/admin)
+* wallet_balance
+
+api_keys:
+
+* id
+* user_id
+* api_key
+* is_active
+
+api_logs:
+
+* id
+* api_key
+* endpoint
+* request
+* response
+* status
+* cost
+
+transactions:
+
+* id
+* user_id
+* amount
+* type (debit/credit)
+* description
+
+jobs:
+
+* id
+* type (nin/bvn/education)
+* status (pending/processing/completed/failed)
+* result
+
+---
+
+## 👨‍💻 DEVELOPER DASHBOARD (FRONTEND)
+
+Use React + Tailwind
+
+Pages:
+
+1. Dashboard
+
+* Total requests
+* Wallet balance
+* Success rate
+
+2. API Keys
+
+* Generate/revoke keys
+
+3. Billing
+
+* Fund wallet (mock)
+* Transaction history
+
+4. API Docs
+
+* Show endpoints
+* Provide example requests
+
+5. Logs
+
+* Show API usage
+
+---
+
+## 🔗 WEBHOOK SYSTEM
+
+Allow developers to register webhook URL:
+
+* Send result when job completes
+* Retry webhook if failed
+
+---
+
+## 🛡️ SECURITY
+
+Implement:
+
+* Rate limiting
+* API key validation middleware
+* Input validation
+* Error handling
+
+---
+
+## 🚀 DEPLOYMENT SETUP
+
+Prepare project for deployment:
+
+* Environment variables
+* Dockerfile (optional)
+* Ready for Replit hosting
+
+---
+
+## 🎯 EXTRA FEATURES
+
+* Bulk verification endpoint (CSV upload)
+* Admin panel (basic)
+* API usage limits per user
+
+---
+
+## IMPORTANT
+
+* Code must be clean and modular
+* Separate routes, controllers, services
+* Add comments for clarity
+* Make system scalable
+
+---
+
+## FINAL OUTPUT
+
+* Fully working backend API
+* Developer dashboard UI
+* Mock RPA working
+* Ready for integration with my existing Arapoint platform
