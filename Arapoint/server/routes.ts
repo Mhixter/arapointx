@@ -32,6 +32,7 @@ import slipsRoutes from "./src/api/routes/slips";
 import supportRoutes from "./src/api/routes/support";
 import webhookRoutes from "./src/api/routes/webhooks";
 import filesRoutes from "./src/api/routes/files";
+import developerRoutes from "./src/api/routes/developer";
 
 import { publicRateLimiter, authenticatedRateLimiter } from "./src/api/middleware/rateLimit";
 import { errorHandler } from "./src/api/middleware/errorHandler";
@@ -293,6 +294,7 @@ export async function registerRoutes(
   app.use('/api/support', authenticatedRateLimiter, supportRoutes);
   app.use('/api/webhooks', webhookRoutes);
   app.use('/api/files', authenticatedRateLimiter, filesRoutes);
+  app.use('/api/v1/developer', developerRoutes);
   
   // Public verification page route (no /api prefix)
   app.get('/verify-slip/:reference', (req, res) => {

@@ -88,6 +88,15 @@ import AdminActivityLog from "@/pages/admin/AdminActivityLog";
 import AdminRPAJobs from "@/pages/admin/AdminRPAJobs";
 import AdminCRUDLayout from "@/components/layout/AdminCRUDLayout";
 
+// Developer Portal Imports
+import DevLogin from "@/pages/developer/DevLogin";
+import DevDashboard from "@/pages/developer/DevDashboard";
+import DevApiKeys from "@/pages/developer/DevApiKeys";
+import DevBilling from "@/pages/developer/DevBilling";
+import DevLogs from "@/pages/developer/DevLogs";
+import DevDocs from "@/pages/developer/DevDocs";
+import DevAccount from "@/pages/developer/DevAccount";
+
 function Router() {
   return (
     <Switch>
@@ -231,6 +240,15 @@ function Router() {
           <AdminActivityLog />
         </AdminCRUDLayout>
       </Route>
+
+      {/* Developer Portal Routes */}
+      <Route path="/developer/login" component={DevLogin} />
+      <Route path="/developer/dashboard" component={DevDashboard} />
+      <Route path="/developer/api-keys" component={DevApiKeys} />
+      <Route path="/developer/billing" component={DevBilling} />
+      <Route path="/developer/logs" component={DevLogs} />
+      <Route path="/developer/docs" component={DevDocs} />
+      <Route path="/developer/account" component={DevAccount} />
       
       {/* Main routes with header/footer */}
       <Route>

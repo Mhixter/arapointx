@@ -19,6 +19,20 @@ Arapoint is a production-ready Nigerian Identity Verification and Management Pla
 - **Email**: SendGrid (for OTP delivery)
 - **Identity Verification**: YouVerify API (NIN/BVN)
 
+## Recent Updates (April 2026 — Developer API Platform)
+- **Developer API Platform built** — full B2B API portal at `/developer/*` with separate login, dashboard, API keys, billing, logs, docs, and account pages. Dark themed (gray-950 + indigo).
+- **New DB tables**: `developer_users`, `developer_api_keys`, `developer_api_logs`, `developer_transactions` (created via raw SQL; not in Drizzle schema.ts).
+- **API endpoints** at `POST /api/v1/developer/...`:
+  - Auth: `/auth/register`, `/auth/login`
+  - Dashboard: `/dashboard/stats`, `/profile`, `/profile/password`
+  - API Keys: `GET/POST /api-keys`, `DELETE /api-keys/:id`
+  - Billing: `/wallet/fund`, `/transactions`
+  - Logs: `/logs`
+  - Verification (API key auth via `X-API-Key` header): `/verify/nin`, `/verify/bvn`, `/verify/education`, `/verify/unified`
+- **Pay-per-request pricing**: NIN=₦130, BVN=₦80, Education=₦250, Unified=₦400
+- **Developer wallet**: atomic balance deduction per API call; prevents negative balance
+- **API key generation**: `ara_` prefix + 48 hex chars; max 10 keys per developer; masked in UI
+
 ## Recent Updates (March 2026 — Session 5)
 - **Object Storage FIXED**: `PRIVATE_OBJECT_DIR` was set to the incorrect name `ARAPOINT_FILES_STORAGE` which caused 401 Unauthorized errors from the Replit Object Storage sidecar, silently falling back to local disk. Updated to the actual Replit-assigned bucket ID `replit-objstore-94a043a2-33d6-4f41-83c0-160a9d5b7085`. Verified: signed PUT and GET URLs now work, files upload to and download from Google Cloud Storage successfully.
 
