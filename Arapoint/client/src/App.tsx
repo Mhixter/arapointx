@@ -86,6 +86,7 @@ import AdminProfile from "@/pages/admin/AdminProfile";
 import AdminNotifications from "@/pages/admin/AdminNotifications";
 import AdminActivityLog from "@/pages/admin/AdminActivityLog";
 import AdminRPAJobs from "@/pages/admin/AdminRPAJobs";
+import AdminDeveloperPortal from "@/pages/admin/AdminDeveloperPortal";
 import AdminCRUDLayout from "@/components/layout/AdminCRUDLayout";
 
 // Developer Portal Imports
@@ -238,6 +239,11 @@ function Router() {
       <Route path="/admin/logs">
         <AdminCRUDLayout>
           <AdminActivityLog />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/developer-portal">
+        <AdminCRUDLayout>
+          <AdminDeveloperPortal />
         </AdminCRUDLayout>
       </Route>
 

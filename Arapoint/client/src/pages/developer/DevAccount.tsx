@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { User, RefreshCw, Save, Lock } from "lucide-react";
+import { User, RefreshCw, Save, Lock, ShieldCheck, CheckCircle, Clock, XCircle, AlertCircle, Upload } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 function devFetch(path: string, options?: RequestInit) {
   const token = localStorage.getItem("dev_token");
@@ -22,15 +23,24 @@ export default function DevAccount() {
   const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
   const [saving, setSaving] = useState(false);
   const [savingPw, setSavingPw] = useState(false);
+  const [kycData, setKycData] = useState<any>(null);
+  const [kycForm, setKycForm] = useState({ accountType: "individual", documents: "" });
+  const [savingKyc, setSavingKyc] = useState(false);
 
-  useEffect(() => {
+  const loadProfile = () => {
     devFetch("/profile").then(r => r.json()).then(data => {
       if (data.status === "success") {
         setProfile(data.data);
         setForm({ name: data.data.name, company: data.data.company || "", webhookUrl: data.data.webhookUrl || "" });
+        setKycForm(f => ({ ...f, accountType: data.data.accountType || "individual" }));
       }
     });
-  }, []);
+    devFetch("/kyc/status").then(r => r.json()).then(data => {
+      if (data.status === "success") setKycData(data.data);
+    });
+  };
+
+  useEffect(() => { loadProfile(); }, []);
 
   const saveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,6 +92,46 @@ export default function DevAccount() {
       toast({ title: "Error", description: "Network error", variant: "destructive" });
     } finally {
       setSavingPw(false);
+    }
+  };
+
+  const submitKyc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingKyc(true);
+    try {
+      let documents: any[] = [];
+      if (kycForm.accountType !== "individual" && kycForm.documents.trim()) {
+        try {
+          documents = JSON.parse(kycForm.documents);
+          if (!Array.isArray(documents)) documents = [documents];
+        } catch {
+          documents = [{ description: kycForm.documents }];
+        }
+      }
+      const res = await devFetch("/kyc/submit", {
+        method: "POST",
+        body: JSON.stringify({ accountType: kycForm.accountType, documents }),
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        toast({ title: "KYC Updated", description: data.message });
+        loadProfile();
+      } else {
+        toast({ title: "Failed", description: data.message, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error", variant: "destructive" });
+    } finally {
+      setSavingKyc(false);
+    }
+  };
+
+  const kycStatusDisplay = (status: string) => {
+    switch (status) {
+      case "approved": return { icon: CheckCircle, color: "text-green-400", label: "Approved" };
+      case "submitted": return { icon: Clock, color: "text-yellow-400", label: "Under Review" };
+      case "rejected": return { icon: XCircle, color: "text-red-400", label: "Rejected" };
+      default: return { icon: AlertCircle, color: "text-gray-400", label: "Not Required" };
     }
   };
 
@@ -199,11 +249,83 @@ export default function DevAccount() {
 
         <Card className="bg-gray-900 border-gray-800">
           <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-gray-400" />
+              <CardTitle className="text-white text-sm font-semibold">Account Type & KYC</CardTitle>
+            </div>
+            {kycData && (() => {
+              const { icon: Icon, color, label } = kycStatusDisplay(kycData.kycStatus);
+              return (
+                <div className={`flex items-center gap-1.5 text-sm mt-1 ${color}`}>
+                  <Icon className="w-4 h-4" />
+                  <span>KYC Status: {label}</span>
+                </div>
+              );
+            })()}
+          </CardHeader>
+          <CardContent>
+            {kycData?.kycStatus === "submitted" ? (
+              <div className="bg-yellow-900/30 border border-yellow-700/50 rounded-lg p-3 text-sm text-yellow-300">
+                Your KYC documents are currently under review. We'll notify you once reviewed.
+              </div>
+            ) : kycData?.kycStatus === "approved" ? (
+              <div className="bg-green-900/30 border border-green-700/50 rounded-lg p-3 text-sm text-green-300">
+                Your KYC has been approved. You have full access to all API features.
+              </div>
+            ) : kycData?.kycStatus === "rejected" ? (
+              <div className="space-y-3">
+                <div className="bg-red-900/30 border border-red-700/50 rounded-lg p-3 text-sm text-red-300">
+                  Your KYC was rejected. {kycData.kycReviewNote && <span>Reason: {kycData.kycReviewNote}</span>}
+                </div>
+                <form onSubmit={submitKyc} className="space-y-3">
+                  <KycForm kycForm={kycForm} setKycForm={setKycForm} saving={savingKyc} label="Resubmit KYC" />
+                </form>
+              </div>
+            ) : (
+              <form onSubmit={submitKyc} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label className="text-gray-300 text-sm">Account Type</Label>
+                  <select
+                    value={kycForm.accountType}
+                    onChange={e => setKycForm(f => ({ ...f, accountType: e.target.value }))}
+                    className="w-full bg-gray-800 border border-gray-700 text-white rounded-md px-3 py-2 text-sm"
+                  >
+                    <option value="individual">Individual Developer</option>
+                    <option value="business">Business</option>
+                    <option value="enterprise">Enterprise</option>
+                  </select>
+                  <p className="text-xs text-gray-500">Business and Enterprise accounts require KYC verification for higher API limits</p>
+                </div>
+                {kycForm.accountType !== "individual" && (
+                  <div className="space-y-1.5">
+                    <Label className="text-gray-300 text-sm">KYC Documents</Label>
+                    <Textarea
+                      required
+                      value={kycForm.documents}
+                      onChange={e => setKycForm(f => ({ ...f, documents: e.target.value }))}
+                      placeholder={`Provide your business documents. Include:\n- Business Registration Number (CAC)\n- Tax ID\n- Director's NIN/BVN\n- Utility Bill (address verification)\n- Business Address`}
+                      className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 min-h-[120px]"
+                    />
+                    <p className="text-xs text-gray-500">Describe your documents or paste document details. Admin will review within 24-48 hours.</p>
+                  </div>
+                )}
+                <Button type="submit" disabled={savingKyc} className="bg-indigo-600 hover:bg-indigo-700">
+                  {savingKyc ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-2" /> : <Upload className="w-3.5 h-3.5 mr-2" />}
+                  {kycForm.accountType === "individual" ? "Save Account Type" : "Submit for KYC Review"}
+                </Button>
+              </form>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gray-900 border-gray-800">
+          <CardHeader className="pb-3">
             <CardTitle className="text-white text-sm font-semibold">Account Info</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {[
               { label: "Account ID", value: profile?.id },
+              { label: "Account Type", value: (profile?.accountType || "individual").charAt(0).toUpperCase() + (profile?.accountType || "individual").slice(1) },
               { label: "Member Since", value: profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : "—" },
             ].map(item => (
               <div key={item.label} className="flex justify-between py-2 border-b border-gray-800 last:border-0">
@@ -215,5 +337,37 @@ export default function DevAccount() {
         </Card>
       </div>
     </DevLayout>
+  );
+}
+
+function KycForm({ kycForm, setKycForm, saving, label }: { kycForm: any; setKycForm: any; saving: boolean; label: string }) {
+  return (
+    <>
+      <div className="space-y-1.5">
+        <Label className="text-gray-300 text-sm">Account Type</Label>
+        <select
+          value={kycForm.accountType}
+          onChange={e => setKycForm((f: any) => ({ ...f, accountType: e.target.value }))}
+          className="w-full bg-gray-800 border border-gray-700 text-white rounded-md px-3 py-2 text-sm"
+        >
+          <option value="business">Business</option>
+          <option value="enterprise">Enterprise</option>
+        </select>
+      </div>
+      <div className="space-y-1.5">
+        <Label className="text-gray-300 text-sm">KYC Documents</Label>
+        <Textarea
+          required
+          value={kycForm.documents}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setKycForm((f: any) => ({ ...f, documents: e.target.value }))}
+          placeholder="Provide updated business documents..."
+          className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 min-h-[100px]"
+        />
+      </div>
+      <Button type="submit" disabled={saving} className="bg-indigo-600 hover:bg-indigo-700 w-full">
+        {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-2" /> : <Upload className="w-3.5 h-3.5 mr-2" />}
+        {label}
+      </Button>
+    </>
   );
 }

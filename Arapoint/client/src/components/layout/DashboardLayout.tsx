@@ -34,7 +34,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from 
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { authApi } from "@/lib/api/auth";
 import { useIdleTimeout } from "@/hooks/useIdleTimeout";
@@ -46,6 +46,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const { toast } = useToast();
+
+  const accessToken = tokenStorage.getItem('accessToken');
+
+  useEffect(() => {
+    if (!accessToken) {
+      setLocation('/auth/login');
+    }
+  }, []);
 
   useIdleTimeout({
     timeoutMs: 300000,
@@ -62,7 +70,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     },
   });
 
-  const accessToken = tokenStorage.getItem('accessToken');
+  if (!accessToken) return null;
   
   const { data: user, isLoading } = useQuery({
     queryKey: ['user-profile'],

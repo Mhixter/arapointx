@@ -57,7 +57,8 @@ export async function registerRoutes(
       res.header('Access-Control-Allow-Origin', allowedOrigins.includes('*') ? '*' : origin);
     }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, x-api-key');
+    res.header('Access-Control-Allow-Credentials', 'true');
     if (req.method === 'OPTIONS') {
       return res.sendStatus(200);
     }

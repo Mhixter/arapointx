@@ -5,10 +5,12 @@ import crypto from 'crypto';
 import { db } from '../../config/database';
 import { config } from '../../config/env';
 import { logger } from '../../utils/logger';
-import { sql, eq, desc, and } from 'drizzle-orm';
+import { sql, eq, desc, and, count } from 'drizzle-orm';
 import {
   pgTable, uuid, varchar, text, timestamp, boolean, jsonb, integer, decimal
 } from 'drizzle-orm/pg-core';
+import { otpService } from '../../services/otpService';
+import { rpaJobs } from '../../db/schema';
 
 const router = Router();
 
@@ -22,6 +24,12 @@ const developerUsers = pgTable('developer_users', {
   walletBalance: decimal('wallet_balance', { precision: 15, scale: 2 }).default('0'),
   isActive: boolean('is_active').default(true),
   emailVerified: boolean('email_verified').default(false),
+  accountType: varchar('account_type', { length: 50 }).default('individual'),
+  kycStatus: varchar('kyc_status', { length: 50 }).default('not_required'),
+  kycDocuments: jsonb('kyc_documents'),
+  kycSubmittedAt: timestamp('kyc_submitted_at'),
+  kycReviewedAt: timestamp('kyc_reviewed_at'),
+  kycReviewNote: text('kyc_review_note'),
   webhookUrl: varchar('webhook_url', { length: 500 }),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
@@ -190,11 +198,33 @@ async function deductDeveloperBalance(developerId: string, amount: number, descr
 // AUTH ROUTES
 // ─────────────────────────────────────────────────────────────────────────────
 
+router.post('/auth/send-otp', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'Email required' });
+    }
+    const existing = await db.select({ id: developerUsers.id }).from(developerUsers)
+      .where(eq(developerUsers.email, email.toLowerCase())).limit(1);
+    if (existing.length) {
+      return res.status(409).json({ status: 'error', code: 409, message: 'Email already registered' });
+    }
+    await otpService.sendOTP(email.toLowerCase(), 'dev_registration');
+    res.json({ status: 'success', code: 200, message: 'OTP sent to your email. Valid for 10 minutes.' });
+  } catch (e: any) {
+    logger.error('Dev send-otp error', { error: e.message });
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to send OTP' });
+  }
+});
+
 router.post('/auth/register', async (req: Request, res: Response) => {
   try {
-    const { email, name, company, password } = req.body;
+    const { email, name, company, password, otpCode } = req.body;
     if (!email || !name || !password) {
       return res.status(400).json({ status: 'error', code: 400, message: 'Email, name and password required' });
+    }
+    if (!otpCode) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'OTP verification code required' });
     }
     if (password.length < 8) {
       return res.status(400).json({ status: 'error', code: 400, message: 'Password must be at least 8 characters' });
@@ -204,12 +234,17 @@ router.post('/auth/register', async (req: Request, res: Response) => {
     if (existing.length) {
       return res.status(409).json({ status: 'error', code: 409, message: 'Email already registered' });
     }
+    const otpValid = await otpService.verifyOTP(email.toLowerCase(), otpCode, 'dev_registration');
+    if (!otpValid) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'Invalid or expired OTP code' });
+    }
     const passwordHash = await bcrypt.hash(password, 10);
     const [dev] = await db.insert(developerUsers).values({
       email: email.toLowerCase(),
       name,
       company: company || null,
       passwordHash,
+      emailVerified: true,
     }).returning();
 
     const token = jwt.sign({ developerId: dev.id }, config.JWT_SECRET, { expiresIn: '7d' });
@@ -268,6 +303,9 @@ router.get('/profile', devJwtAuth, async (req: Request, res: Response) => {
       id: dev.id, email: dev.email, name: dev.name,
       company: dev.company, walletBalance: parseFloat(dev.walletBalance || '0'),
       webhookUrl: dev.webhookUrl, createdAt: dev.createdAt,
+      accountType: dev.accountType || 'individual',
+      kycStatus: dev.kycStatus || 'not_required',
+      emailVerified: dev.emailVerified,
     }
   });
 });
@@ -613,15 +651,37 @@ router.post('/verify/education', apiKeyAuth, async (req: Request, res: Response)
     await deductDeveloperBalance(dev.id, API_PRICES.education,
       `Education verification - ${provider.toUpperCase()} ${registrationNumber}`);
 
+    const serviceTypeMap: Record<string, string> = {
+      waec: 'waec_result',
+      neco: 'neco_result',
+      nabteb: 'nabteb_result',
+      nbais: 'nbais_result',
+      jamb: 'jamb_score',
+    };
+    const serviceType = serviceTypeMap[provider.toLowerCase()] || `${provider.toLowerCase()}_result`;
+
+    const [job] = await db.insert(rpaJobs).values({
+      serviceType,
+      queryData: {
+        registrationNumber,
+        examYear: examYear.toString(),
+        examType: examType || provider.toUpperCase(),
+        source: 'developer_api',
+        developerId: dev.id,
+      },
+      status: 'pending',
+      priority: 0,
+    }).returning({ id: rpaJobs.id });
+
     responseData = {
-      status: 'success', code: 200, message: 'Education verification request accepted',
+      status: 'success', code: 200, message: 'Education verification queued via RPA',
       data: {
         provider: provider.toUpperCase(),
         examYear,
         registrationNumber,
         status: 'processing',
-        note: 'Education verification is processed via our RPA system. Results may take 1-3 minutes.',
-        requestId: 'EDU-' + crypto.randomBytes(8).toString('hex'),
+        jobId: job.id,
+        note: 'Results will be available in 1-3 minutes. Poll GET /verify/education/result?jobId=<jobId>',
       }
     };
     res.json(responseData);
@@ -639,6 +699,33 @@ router.post('/verify/education', apiKeyAuth, async (req: Request, res: Response)
       { provider, examYear, registrationNumber, examType },
       responseData, statusCode, statusCode === 200 ? API_PRICES.education : 0,
       Date.now() - start, req.ip || '');
+  }
+});
+
+router.get('/verify/education/result', apiKeyAuth, async (req: Request, res: Response) => {
+  const { jobId } = req.query;
+  if (!jobId) {
+    return res.status(400).json({ status: 'error', code: 400, message: 'jobId required' });
+  }
+  try {
+    const [job] = await db.select().from(rpaJobs)
+      .where(eq(rpaJobs.id, jobId as string)).limit(1);
+    if (!job) {
+      return res.status(404).json({ status: 'error', code: 404, message: 'Job not found' });
+    }
+    res.json({
+      status: 'success', code: 200, message: 'Job status retrieved',
+      data: {
+        jobId: job.id,
+        status: job.status,
+        result: job.result || null,
+        error: job.errorMessage || null,
+        createdAt: job.createdAt,
+        completedAt: job.completedAt,
+      }
+    });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to get result' });
   }
 });
 
@@ -700,6 +787,204 @@ router.post('/verify/unified', apiKeyAuth, async (req: Request, res: Response) =
     await logApiCall(dev.id, apiKeyId, '/verify/unified', 'POST', { nin, bvn, education },
       responseData, statusCode, statusCode === 200 ? API_PRICES.unified : 0,
       Date.now() - start, req.ip || '');
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// KYC ROUTES (JWT protected)
+// ─────────────────────────────────────────────────────────────────────────────
+
+router.get('/kyc/status', devJwtAuth, async (req: Request, res: Response) => {
+  const dev = (req as any).developer;
+  res.json({
+    status: 'success', code: 200, message: 'KYC status retrieved',
+    data: {
+      accountType: dev.accountType || 'individual',
+      kycStatus: dev.kycStatus || 'not_required',
+      kycDocuments: dev.kycDocuments || null,
+      kycSubmittedAt: dev.kycSubmittedAt,
+      kycReviewedAt: dev.kycReviewedAt,
+      kycReviewNote: dev.kycReviewNote,
+    }
+  });
+});
+
+router.post('/kyc/submit', devJwtAuth, async (req: Request, res: Response) => {
+  try {
+    const dev = (req as any).developer;
+    const { accountType, documents } = req.body;
+
+    const validTypes = ['individual', 'business', 'enterprise'];
+    if (!accountType || !validTypes.includes(accountType)) {
+      return res.status(400).json({ status: 'error', code: 400, message: `Account type required. Valid: ${validTypes.join(', ')}` });
+    }
+    if (accountType !== 'individual' && (!documents || !documents.length)) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'KYC documents required for business/enterprise accounts' });
+    }
+
+    const kycStatus = accountType === 'individual' ? 'not_required' : 'submitted';
+
+    await db.update(developerUsers).set({
+      accountType,
+      kycStatus,
+      kycDocuments: documents || null,
+      kycSubmittedAt: accountType !== 'individual' ? new Date() : null,
+      updatedAt: new Date(),
+    }).where(eq(developerUsers.id, dev.id));
+
+    res.json({
+      status: 'success', code: 200,
+      message: accountType === 'individual' ? 'Account type updated' : 'KYC documents submitted for review',
+      data: { accountType, kycStatus }
+    });
+  } catch (e: any) {
+    logger.error('KYC submit error', { error: e.message });
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to submit KYC' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN MONITORING ROUTES (requires admin JWT - uses same config.JWT_SECRET)
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function adminAuth(req: Request, res: Response, next: Function) {
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith('Bearer ')) {
+    return res.status(401).json({ status: 'error', code: 401, message: 'Admin auth required' });
+  }
+  try {
+    const decoded = jwt.verify(auth.slice(7), config.JWT_SECRET) as any;
+    if (!decoded.adminId && !decoded.id) {
+      return res.status(401).json({ status: 'error', code: 401, message: 'Invalid admin token' });
+    }
+    next();
+  } catch {
+    res.status(401).json({ status: 'error', code: 401, message: 'Invalid token' });
+  }
+}
+
+router.get('/admin/developers', adminAuth, async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = 20;
+    const offset = (page - 1) * limit;
+
+    const devs = await db.select({
+      id: developerUsers.id,
+      email: developerUsers.email,
+      name: developerUsers.name,
+      company: developerUsers.company,
+      walletBalance: developerUsers.walletBalance,
+      isActive: developerUsers.isActive,
+      emailVerified: developerUsers.emailVerified,
+      accountType: developerUsers.accountType,
+      kycStatus: developerUsers.kycStatus,
+      kycSubmittedAt: developerUsers.kycSubmittedAt,
+      createdAt: developerUsers.createdAt,
+    }).from(developerUsers)
+      .orderBy(desc(developerUsers.createdAt))
+      .limit(limit).offset(offset);
+
+    const [totalRow] = await db.execute(sql`SELECT COUNT(*)::int as total FROM developer_users`);
+    const total = totalRow.rows[0]?.total || 0;
+
+    res.json({
+      status: 'success', code: 200, message: 'Developers retrieved',
+      data: { developers: devs, page, limit, total }
+    });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to get developers' });
+  }
+});
+
+router.get('/admin/stats', adminAuth, async (req: Request, res: Response) => {
+  try {
+    const [stats] = await db.execute(sql`
+      SELECT
+        COUNT(DISTINCT developer_id)::int AS active_developers,
+        COUNT(*)::int AS total_api_calls,
+        COALESCE(SUM(cost), 0)::numeric AS total_revenue,
+        COUNT(*) FILTER (WHERE status_code >= 200 AND status_code < 300)::int AS success_calls,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours')::int AS calls_today
+      FROM developer_api_logs
+    `);
+    const [devStats] = await db.execute(sql`
+      SELECT
+        COUNT(*)::int AS total_developers,
+        COUNT(*) FILTER (WHERE is_active = true)::int AS active_developers,
+        COUNT(*) FILTER (WHERE kyc_status = 'submitted')::int AS pending_kyc
+      FROM developer_users
+    `);
+
+    res.json({
+      status: 'success', code: 200, message: 'Admin stats retrieved',
+      data: {
+        apiCalls: stats.rows[0] || {},
+        developerStats: devStats.rows[0] || {},
+      }
+    });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to get stats' });
+  }
+});
+
+router.get('/admin/logs', adminAuth, async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = 50;
+    const offset = (page - 1) * limit;
+
+    const logs = await db.select().from(developerApiLogs)
+      .orderBy(desc(developerApiLogs.createdAt))
+      .limit(limit).offset(offset);
+
+    res.json({ status: 'success', code: 200, message: 'Logs retrieved', data: { logs, page, limit } });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to get logs' });
+  }
+});
+
+router.get('/admin/kyc', adminAuth, async (req: Request, res: Response) => {
+  try {
+    const status = (req.query.status as string) || 'submitted';
+    const devs = await db.select().from(developerUsers)
+      .where(eq(developerUsers.kycStatus, status))
+      .orderBy(desc(developerUsers.kycSubmittedAt));
+
+    res.json({ status: 'success', code: 200, message: 'KYC queue retrieved', data: { developers: devs } });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to get KYC queue' });
+  }
+});
+
+router.patch('/admin/kyc/:id', adminAuth, async (req: Request, res: Response) => {
+  try {
+    const { action, note } = req.body;
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'Action must be approve or reject' });
+    }
+    const kycStatus = action === 'approve' ? 'approved' : 'rejected';
+    await db.update(developerUsers).set({
+      kycStatus,
+      kycReviewNote: note || null,
+      kycReviewedAt: new Date(),
+      updatedAt: new Date(),
+    }).where(eq(developerUsers.id, req.params.id));
+
+    res.json({ status: 'success', code: 200, message: `KYC ${kycStatus}` });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to update KYC' });
+  }
+});
+
+router.patch('/admin/developers/:id/status', adminAuth, async (req: Request, res: Response) => {
+  try {
+    const { isActive } = req.body;
+    await db.update(developerUsers).set({ isActive, updatedAt: new Date() })
+      .where(eq(developerUsers.id, req.params.id));
+    res.json({ status: 'success', code: 200, message: `Developer ${isActive ? 'activated' : 'deactivated'}` });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to update developer' });
   }
 });
 
