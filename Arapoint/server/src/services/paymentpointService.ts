@@ -85,14 +85,6 @@ export const paymentpointService = {
     if (config.businessId) requestBody.businessId = config.businessId;
 
     try {
-      logger.info('Creating PaymentPoint virtual account', {
-        email: data.email,
-        name: data.name,
-        apiKeyPrefix: config.apiKey ? config.apiKey.substring(0, 8) + '...' : 'MISSING',
-        businessIdPresent: !!config.businessId,
-        endpoint: `${BASE_URL}/api/v1/createVirtualAccount`,
-      });
-
       const response = await axios.post(
         `${BASE_URL}/api/v1/createVirtualAccount`,
         requestBody,
