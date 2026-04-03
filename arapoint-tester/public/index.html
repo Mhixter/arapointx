@@ -490,8 +490,11 @@
       <input type="text" id="cfgJwt" placeholder="eyJhbGci...">
     </div>
 
+    <div class="warn-box" id="cfgUrlWarn" style="display:none"></div>
+
     <div class="warn-box">
-      <strong>Tip:</strong> Use the <em>Login</em> endpoint first — the JWT token will be auto-saved here so you can test JWT-protected endpoints immediately.
+      <strong>Base URL must be the root origin only</strong> — e.g. <code style="background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:3px">https://arapoint.com.ng</code> with no path after the domain. The endpoint path is appended automatically.<br><br>
+      <strong>Tip:</strong> Use the <em>Login</em> endpoint first — the JWT token will be auto-saved so you can test JWT-protected endpoints immediately.
     </div>
 
     <div class="modal-actions">
@@ -728,20 +731,65 @@ function loadConfig() {
     if (saved) config = { ...config, ...JSON.parse(saved) };
   } catch(e) {}
 }
+/**
+ * Normalise a URL to just its origin (strips path, query, fragment).
+ * Returns null if the value is blank, or the raw value if it can't be parsed.
+ */
+function normaliseBaseUrl(raw) {
+  raw = raw.trim().replace(/\/+$/, '');
+  if (!raw) return '';
+  try {
+    const parsed = new URL(raw);
+    // origin = scheme + "://" + host (+ optional port)
+    return parsed.origin; // always strips path
+  } catch (e) {
+    return raw; // keep as-is; sendRequest will surface the error
+  }
+}
+
 function saveConfig() {
-  config.sandboxUrl = document.getElementById('cfgSandboxUrl').value.trim().replace(/\/$/, '');
-  config.liveUrl    = document.getElementById('cfgLiveUrl').value.trim().replace(/\/$/, '');
+  const warnEl = document.getElementById('cfgUrlWarn');
+  const rawSandbox = document.getElementById('cfgSandboxUrl').value;
+  const rawLive    = document.getElementById('cfgLiveUrl').value;
+
+  const sandboxNorm = normaliseBaseUrl(rawSandbox);
+  const liveNorm    = normaliseBaseUrl(rawLive);
+
+  const warnings = [];
+  if (rawSandbox.trim() && sandboxNorm !== rawSandbox.trim().replace(/\/+$/, '')) {
+    warnings.push(`Sandbox URL was auto-corrected to: <strong>${sandboxNorm}</strong>`);
+  }
+  if (rawLive.trim() && liveNorm !== rawLive.trim().replace(/\/+$/, '')) {
+    warnings.push(`Live URL was auto-corrected to: <strong>${liveNorm}</strong>`);
+  }
+
+  config.sandboxUrl = sandboxNorm;
+  config.liveUrl    = liveNorm;
   config.apiKey     = document.getElementById('cfgApiKey').value.trim();
   config.jwt        = document.getElementById('cfgJwt').value.trim();
   localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+
+  if (warnings.length) {
+    warnEl.innerHTML = '⚠ ' + warnings.join('<br>');
+    warnEl.style.display = 'block';
+    // update input fields to show the corrected values
+    document.getElementById('cfgSandboxUrl').value = config.sandboxUrl;
+    document.getElementById('cfgLiveUrl').value    = config.liveUrl;
+    showToast('URL corrected and saved ✓');
+    return; // keep modal open so user can see the correction
+  }
+
+  warnEl.style.display = 'none';
   closeConfig();
   showToast('Configuration saved ✓');
 }
+
 function openConfig() {
   document.getElementById('cfgSandboxUrl').value = config.sandboxUrl || '';
   document.getElementById('cfgLiveUrl').value    = config.liveUrl    || '';
   document.getElementById('cfgApiKey').value     = config.apiKey     || '';
   document.getElementById('cfgJwt').value        = config.jwt        || '';
+  document.getElementById('cfgUrlWarn').style.display = 'none';
   document.getElementById('configModal').classList.remove('hidden');
 }
 function closeConfig() {
@@ -758,12 +806,20 @@ function setEnv(env) {
 }
 
 function baseUrl() {
-  const url = ENV === 'sandbox' ? config.sandboxUrl : config.liveUrl;
-  if (!url) {
+  const raw = ENV === 'sandbox' ? config.sandboxUrl : config.liveUrl;
+  if (!raw) {
     openConfig();
-    throw new Error('Please set the Base URL in configuration first.');
+    throw new Error('Please set the Base URL in ⚙ Configure first.');
   }
-  return url;
+  // Always strip any accidental path components at call-time
+  const clean = normaliseBaseUrl(raw);
+  if (clean !== raw) {
+    // Update saved config silently
+    if (ENV === 'sandbox') config.sandboxUrl = clean;
+    else config.liveUrl = clean;
+    localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+  }
+  return clean;
 }
 
 // ═══════════════════════════════════════════════════════════════

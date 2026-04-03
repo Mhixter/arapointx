@@ -15,7 +15,7 @@ export default function NotFound() {
     }, 3500);
 
     const questionInterval = setInterval(() => {
-      setQuestionIdx(i => i + 1);
+      setQuestionIdx((i) => i + 1);
     }, 2000);
 
     return () => {
@@ -68,7 +68,6 @@ export default function NotFound() {
       `}</style>
 
       <div className="relative flex flex-col items-center gap-10 max-w-md w-full">
-
         {/* Floating question marks */}
         <div className="absolute inset-0 pointer-events-none">
           {[...Array(6)].map((_, i) => (
@@ -99,7 +98,10 @@ export default function NotFound() {
           {/* Circular clipped photo */}
           <div
             className="relative w-52 h-52 rounded-full overflow-hidden border-4 border-white shadow-2xl"
-            style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.10)" }}
+            style={{
+              boxShadow:
+                "0 20px 60px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.10)",
+            }}
           >
             <img
               src={gorillaImg}
@@ -117,16 +119,23 @@ export default function NotFound() {
         </div>
 
         {/* 404 display */}
-        <div className="text-center space-y-5 slide-up" style={{ animationDelay: "0.15s", opacity: 0 }}>
+        <div
+          className="text-center space-y-5 slide-up"
+          style={{ animationDelay: "0.15s", opacity: 0 }}
+        >
           <div className="flex items-center justify-center gap-1">
-            <span className="text-8xl sm:text-9xl font-black text-gray-900 tracking-tighter leading-none select-none">4</span>
+            <span className="text-8xl sm:text-9xl font-black text-gray-900 tracking-tighter leading-none select-none">
+              4
+            </span>
             <div
               className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-primary flex items-center justify-center text-4xl sm:text-5xl font-black text-white bounce-in flex-shrink-0"
               style={{ animationDelay: "0.3s" }}
             >
               0
             </div>
-            <span className="text-8xl sm:text-9xl font-black text-gray-900 tracking-tighter leading-none select-none">4</span>
+            <span className="text-8xl sm:text-9xl font-black text-gray-900 tracking-tighter leading-none select-none">
+              4
+            </span>
           </div>
 
           <div className="space-y-2 px-4">
@@ -134,13 +143,17 @@ export default function NotFound() {
               This page doesn't exist
             </h1>
             <p className="text-gray-500 text-sm sm:text-base max-w-xs mx-auto leading-relaxed">
-              Even our gorilla is confused. The page you're looking for may have moved, been deleted, or never existed at all.
+              Even our gorilla is confused. The page you're looking for may have
+              moved, been deleted, or never existed at all.
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-1">
             <Link href="/">
-              <Button size="lg" className="h-11 px-7 gap-2 shadow-md shadow-primary/20 hover:shadow-primary/30 transition-all">
+              <Button
+                size="lg"
+                className="h-11 px-7 gap-2 shadow-md shadow-primary/20 hover:shadow-primary/30 transition-all"
+              >
                 <Home className="w-4 h-4" /> Go Home
               </Button>
             </Link>
@@ -162,7 +175,9 @@ export default function NotFound() {
         >
           Lost? Visit the{" "}
           <Link href="/">
-            <span className="text-primary hover:underline cursor-pointer font-medium">homepage</span>
+            <span className="text-primary hover:underline cursor-pointer font-medium">
+              homepage
+            </span>
           </Link>{" "}
           or contact support.
         </p>
