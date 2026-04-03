@@ -46,6 +46,7 @@ interface Developer {
   accountType: string;
   kycStatus: string;
   kycSubmittedAt?: string;
+  kycDocuments?: any;
   createdAt: string;
 }
 
@@ -69,7 +70,7 @@ export default function AdminDeveloperPortal() {
   const [kycQueue, setKycQueue] = useState<Developer[]>([]);
   const [loading, setLoading] = useState(true);
   const [reviewId, setReviewId] = useState<string | null>(null);
-  const [reviewAction, setReviewAction] = useState<"approve" | "reject">("approve");
+  const [reviewAction, setReviewAction] = useState<"approve" | "conditional" | "reject">("approve");
   const [reviewNote, setReviewNote] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [logsPage, setLogsPage] = useState(1);
@@ -147,6 +148,7 @@ export default function AdminDeveloperPortal() {
     switch (status) {
       case "approved": return "bg-green-100 text-green-800";
       case "submitted": return "bg-yellow-100 text-yellow-800";
+      case "conditional": return "bg-orange-100 text-orange-800";
       case "rejected": return "bg-red-100 text-red-800";
       default: return "bg-gray-100 text-gray-600";
     }
@@ -369,89 +371,172 @@ export default function AdminDeveloperPortal() {
             <Card>
               <CardContent className="pt-8 pb-8 text-center">
                 <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
-                <p className="font-medium">No pending KYC reviews</p>
-                <p className="text-sm text-muted-foreground">All KYC submissions have been reviewed</p>
+                <p className="font-medium">No pending KYB reviews</p>
+                <p className="text-sm text-muted-foreground">All business verification submissions have been reviewed</p>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-4">
-              {kycQueue.map(dev => (
-                <Card key={dev.id}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-base">{dev.name}</CardTitle>
-                        <p className="text-sm text-muted-foreground">{dev.email} {dev.company && `· ${dev.company}`}</p>
-                        <div className="flex gap-2 mt-2">
-                          <Badge variant="outline" className="capitalize">{dev.accountType}</Badge>
-                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${kycStatusColor(dev.kycStatus)}`}>
-                            {dev.kycStatus?.replace(/_/g, " ")}
-                          </span>
+              {kycQueue.map(dev => {
+                const kyb = dev.kycDocuments as any;
+                const isStructured = kyb && kyb.companyInfo;
+                return (
+                  <Card key={dev.id}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="text-base">{dev.name}</CardTitle>
+                          <p className="text-sm text-muted-foreground">{dev.email} {dev.company && `· ${dev.company}`}</p>
+                          <div className="flex gap-2 mt-2">
+                            <Badge variant="outline" className="capitalize">{dev.accountType}</Badge>
+                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${kycStatusColor(dev.kycStatus)}`}>
+                              {dev.kycStatus?.replace(/_/g, " ")}
+                            </span>
+                          </div>
                         </div>
+                        <p className="text-xs text-muted-foreground">
+                          Submitted: {dev.kycSubmittedAt ? new Date(dev.kycSubmittedAt).toLocaleDateString() : "N/A"}
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Submitted: {dev.kycSubmittedAt ? new Date(dev.kycSubmittedAt).toLocaleDateString() : "N/A"}
-                      </p>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {dev.kycDocuments && (
-                      <div>
-                        <p className="text-sm font-medium mb-2 flex items-center gap-1"><FileText className="h-4 w-4" /> Submitted Documents</p>
-                        <div className="bg-muted rounded-lg p-3 text-xs font-mono whitespace-pre-wrap max-h-40 overflow-y-auto">
-                          {JSON.stringify(dev.kycDocuments, null, 2)}
-                        </div>
-                      </div>
-                    )}
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {isStructured ? (
+                        <div className="space-y-3">
+                          <KybSection title="Company Information" icon={<ShieldCheck className="h-3.5 w-3.5" />}>
+                            <KybRow label="Legal Name" value={kyb.companyInfo.legalName} />
+                            <KybRow label="CAC Number" value={kyb.companyInfo.cacNumber} />
+                            <KybRow label="Business Type" value={kyb.companyInfo.businessType} />
+                            <KybRow label="Address" value={kyb.companyInfo.businessAddress} />
+                            <KybRow label="Phone" value={kyb.companyInfo.phone} />
+                            {kyb.companyInfo.tin && <KybRow label="TIN" value={kyb.companyInfo.tin} />}
+                            {kyb.companyInfo.website && <KybRow label="Website" value={kyb.companyInfo.website} />}
+                          </KybSection>
 
-                    {reviewId === dev.id ? (
-                      <div className="space-y-3 border-t pt-3">
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant={reviewAction === "approve" ? "default" : "outline"}
-                            onClick={() => setReviewAction("approve")}
-                            className="flex-1"
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1" /> Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant={reviewAction === "reject" ? "destructive" : "outline"}
-                            onClick={() => setReviewAction("reject")}
-                            className="flex-1"
-                          >
-                            <XCircle className="h-4 w-4 mr-1" /> Reject
-                          </Button>
+                          {kyb.directors?.length > 0 && (
+                            <KybSection title="Directors / UBO" icon={<Eye className="h-3.5 w-3.5" />}>
+                              {kyb.directors.map((d: any, i: number) => (
+                                <div key={i} className={i > 0 ? "border-t pt-2 mt-1" : ""}>
+                                  <KybRow label={`Director ${i + 1}`} value={d.fullName} />
+                                  <KybRow label="ID" value={`${(d.idType || "").toUpperCase()}: ${d.idNumber}`} />
+                                  {d.ownershipPercent && <KybRow label="Ownership" value={`${d.ownershipPercent}%`} />}
+                                  {d.nationality && <KybRow label="Nationality" value={d.nationality} />}
+                                </div>
+                              ))}
+                            </KybSection>
+                          )}
+
+                          {kyb.apiUseCase && (
+                            <KybSection title="API Use Case" icon={<FileText className="h-3.5 w-3.5" />}>
+                              <KybRow label="Purpose" value={kyb.apiUseCase.purpose} />
+                              <KybRow label="Volume" value={kyb.apiUseCase.expectedVolume} />
+                              <KybRow label="Customers" value={kyb.apiUseCase.targetCustomers} />
+                              <KybRow label="Services" value={(kyb.apiUseCase.dataTypesNeeded || []).join(", ")} />
+                              {kyb.apiUseCase.revenueModel && <KybRow label="Revenue Model" value={kyb.apiUseCase.revenueModel} />}
+                              {kyb.apiUseCase.appName && <KybRow label="App Name" value={kyb.apiUseCase.appName} />}
+                            </KybSection>
+                          )}
+
+                          {kyb.compliance && (
+                            <KybSection title="Compliance Declarations" icon={<AlertCircle className="h-3.5 w-3.5" />}>
+                              <KybRow label="PEP" value={kyb.compliance.isPEP ? "Yes — declared PEP" : "No PEPs declared"} />
+                              <KybRow label="AML" value={kyb.compliance.amlDeclaration ? "Declared" : "Not declared"} />
+                              <KybRow label="Data Agreement" value={kyb.compliance.dataAgreement ? "Agreed" : "Not agreed"} />
+                              <KybRow label="Terms" value={kyb.compliance.termsAccepted ? "Accepted" : "Not accepted"} />
+                            </KybSection>
+                          )}
                         </div>
-                        <Textarea
-                          placeholder="Review note (optional for approval, recommended for rejection)"
-                          value={reviewNote}
-                          onChange={e => setReviewNote(e.target.value)}
-                          className="text-sm"
-                          rows={2}
-                        />
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={handleKycReview} className="flex-1">
-                            Submit Review
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => setReviewId(null)}>
-                            Cancel
-                          </Button>
+                      ) : dev.kycDocuments ? (
+                        <div>
+                          <p className="text-sm font-medium mb-2 flex items-center gap-1"><FileText className="h-4 w-4" /> Submitted Documents</p>
+                          <div className="bg-muted rounded-lg p-3 text-xs font-mono whitespace-pre-wrap max-h-40 overflow-y-auto">
+                            {JSON.stringify(dev.kycDocuments, null, 2)}
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <Button size="sm" variant="outline" onClick={() => { setReviewId(dev.id); setReviewAction("approve"); setReviewNote(""); }}>
-                        <Eye className="h-4 w-4 mr-2" /> Review KYC
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+                      ) : null}
+
+                      {reviewId === dev.id ? (
+                        <div className="space-y-3 border-t pt-3">
+                          <p className="text-sm font-medium">Decision</p>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant={reviewAction === "approve" ? "default" : "outline"}
+                              onClick={() => setReviewAction("approve")}
+                              className="flex-1 bg-green-600 hover:bg-green-700 text-white border-0"
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" /> Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={reviewAction === "conditional" ? "default" : "outline"}
+                              onClick={() => setReviewAction("conditional" as any)}
+                              className={`flex-1 ${reviewAction === "conditional" ? "bg-orange-600 hover:bg-orange-700 text-white border-0" : ""}`}
+                            >
+                              <AlertCircle className="h-4 w-4 mr-1" /> Conditional
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={reviewAction === "reject" ? "destructive" : "outline"}
+                              onClick={() => setReviewAction("reject")}
+                              className="flex-1"
+                            >
+                              <XCircle className="h-4 w-4 mr-1" /> Reject
+                            </Button>
+                          </div>
+                          <Textarea
+                            placeholder={
+                              reviewAction === "approve" ? "Optional note for the developer..." :
+                              reviewAction === "conditional" ? "Explain the conditions and limitations..." :
+                              "Reason for rejection (required)..."
+                            }
+                            value={reviewNote}
+                            onChange={e => setReviewNote(e.target.value)}
+                            className="text-sm"
+                            rows={3}
+                          />
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={handleKycReview} className="flex-1">
+                              Submit Decision
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => setReviewId(null)}>
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <Button size="sm" variant="outline" onClick={() => { setReviewId(dev.id); setReviewAction("approve"); setReviewNote(""); }}>
+                          <Eye className="h-4 w-4 mr-2" /> Review Application
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function KybSection({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="border rounded-lg overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 bg-muted border-b text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {icon}
+        {title}
+      </div>
+      <div className="px-3 py-2.5 space-y-1.5">{children}</div>
+    </div>
+  );
+}
+
+function KybRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <span className="text-xs text-muted-foreground shrink-0">{label}</span>
+      <span className="text-xs font-medium text-right break-words">{value || "—"}</span>
     </div>
   );
 }

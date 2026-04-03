@@ -105,6 +105,7 @@ import DevBilling from "@/pages/developer/DevBilling";
 import DevLogs from "@/pages/developer/DevLogs";
 import DevDocs from "@/pages/developer/DevDocs";
 import DevAccount from "@/pages/developer/DevAccount";
+import DevKyb from "@/pages/developer/DevKyb";
 
 function Router() {
   return (
@@ -263,6 +264,7 @@ function Router() {
       <Route path="/developer/logs" component={DevLogs} />
       <Route path="/developer/docs" component={DevDocs} />
       <Route path="/developer/account" component={DevAccount} />
+      <Route path="/developer/kyb" component={DevKyb} />
       
       {/* Main routes with header/footer */}
       <Route>

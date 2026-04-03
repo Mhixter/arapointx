@@ -812,29 +812,52 @@ router.get('/kyc/status', devJwtAuth, async (req: Request, res: Response) => {
 router.post('/kyc/submit', devJwtAuth, async (req: Request, res: Response) => {
   try {
     const dev = (req as any).developer;
-    const { accountType, documents } = req.body;
+    const { accountType, documents, kybData } = req.body;
 
     const validTypes = ['individual', 'business', 'enterprise'];
     if (!accountType || !validTypes.includes(accountType)) {
       return res.status(400).json({ status: 'error', code: 400, message: `Account type required. Valid: ${validTypes.join(', ')}` });
     }
-    if (accountType !== 'individual' && (!documents || !documents.length)) {
-      return res.status(400).json({ status: 'error', code: 400, message: 'KYC documents required for business/enterprise accounts' });
-    }
 
-    const kycStatus = accountType === 'individual' ? 'not_required' : 'submitted';
+    let kycStatus: string;
+    let kycDocumentsPayload: any = null;
+
+    if (accountType === 'individual') {
+      kycStatus = 'not_required';
+    } else if (kybData) {
+      // Structured KYB submission from the new form
+      const { companyInfo, directors, apiUseCase, compliance } = kybData;
+      if (!companyInfo?.legalName || !companyInfo?.cacNumber) {
+        return res.status(400).json({ status: 'error', code: 400, message: 'Company legal name and CAC number are required' });
+      }
+      if (!directors || !directors.length || !directors[0].fullName) {
+        return res.status(400).json({ status: 'error', code: 400, message: 'At least one director is required' });
+      }
+      if (!apiUseCase?.purpose || !apiUseCase?.expectedVolume) {
+        return res.status(400).json({ status: 'error', code: 400, message: 'API use case and expected volume are required' });
+      }
+      kycStatus = 'submitted';
+      kycDocumentsPayload = { companyInfo, directors, apiUseCase, compliance, submittedAt: new Date().toISOString() };
+    } else {
+      // Legacy path: raw document text
+      if (!documents || !documents.length) {
+        return res.status(400).json({ status: 'error', code: 400, message: 'KYC documents required for business/enterprise accounts' });
+      }
+      kycStatus = 'submitted';
+      kycDocumentsPayload = Array.isArray(documents) ? documents : [{ description: documents }];
+    }
 
     await db.update(developerUsers).set({
       accountType,
       kycStatus,
-      kycDocuments: documents || null,
-      kycSubmittedAt: accountType !== 'individual' ? new Date() : null,
+      kycDocuments: kycDocumentsPayload,
+      kycSubmittedAt: kycStatus === 'submitted' ? new Date() : null,
       updatedAt: new Date(),
     }).where(eq(developerUsers.id, dev.id));
 
     res.json({
       status: 'success', code: 200,
-      message: accountType === 'individual' ? 'Account type updated' : 'KYC documents submitted for review',
+      message: accountType === 'individual' ? 'Account type updated' : 'Business verification submitted for review. We will notify you within 24–72 hours.',
       data: { accountType, kycStatus }
     });
   } catch (e: any) {
@@ -960,10 +983,10 @@ router.get('/admin/kyc', adminAuth, async (req: Request, res: Response) => {
 router.patch('/admin/kyc/:id', adminAuth, async (req: Request, res: Response) => {
   try {
     const { action, note } = req.body;
-    if (!['approve', 'reject'].includes(action)) {
-      return res.status(400).json({ status: 'error', code: 400, message: 'Action must be approve or reject' });
+    if (!['approve', 'conditional', 'reject'].includes(action)) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'Action must be approve, conditional, or reject' });
     }
-    const kycStatus = action === 'approve' ? 'approved' : 'rejected';
+    const kycStatus = action === 'approve' ? 'approved' : action === 'conditional' ? 'conditional' : 'rejected';
     await db.update(developerUsers).set({
       kycStatus,
       kycReviewNote: note || null,
@@ -971,9 +994,9 @@ router.patch('/admin/kyc/:id', adminAuth, async (req: Request, res: Response) =>
       updatedAt: new Date(),
     }).where(eq(developerUsers.id, req.params.id));
 
-    res.json({ status: 'success', code: 200, message: `KYC ${kycStatus}` });
+    res.json({ status: 'success', code: 200, message: `KYB application ${kycStatus}` });
   } catch (e: any) {
-    res.status(500).json({ status: 'error', code: 500, message: 'Failed to update KYC' });
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to update KYB review' });
   }
 });
 
