@@ -278,6 +278,11 @@ function Router() {
       {/* Developer 404 - catches any unmatched /developer/* path before main layout */}
       <Route path="/developer/:rest*" component={DevNotFound} />
 
+      {/* Subdomain catch-all: any unrecognised path on developer.arapoint.com.ng */}
+      {window.location.hostname.includes("developer.arapoint") && (
+        <Route component={DevNotFound} />
+      )}
+
       {/* Main routes with header/footer */}
       <Route>
         <MainLayout>

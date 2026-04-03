@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Mail, Phone, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import arapointLogo from "@assets/generated_images/arapoint_solution_logo.png";
@@ -155,29 +155,33 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             {/* Contact */}
             <div className="space-y-4">
               <h4 className="font-semibold text-foreground text-sm">Contact</h4>
-              <ul className="space-y-2.5">
-                {settings.siteEmail && (
-                  <li>
-                    <a href={`mailto:${settings.siteEmail}`} className="text-sm text-muted-foreground hover:text-primary transition-colors break-all">
-                      {settings.siteEmail}
-                    </a>
-                  </li>
-                )}
+              <ul className="space-y-3">
+                <li className="flex items-start gap-2.5">
+                  <Mail className="w-4 h-4 mt-0.5 flex-shrink-0 text-muted-foreground/60" />
+                  <a
+                    href={`mailto:${settings.siteEmail || "support@arapoint.com.ng"}`}
+                    className="text-sm text-muted-foreground hover:text-primary transition-colors break-all leading-snug"
+                  >
+                    {settings.siteEmail || "support@arapoint.com.ng"}
+                  </a>
+                </li>
                 {settings.sitePhone && (
-                  <li>
-                    <a href={`tel:${settings.sitePhone}`} className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                  <li className="flex items-start gap-2.5">
+                    <Phone className="w-4 h-4 mt-0.5 flex-shrink-0 text-muted-foreground/60" />
+                    <a
+                      href={`tel:${settings.sitePhone}`}
+                      className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                    >
                       {settings.sitePhone}
                     </a>
                   </li>
                 )}
                 {settings.siteAddress && (
-                  <li className="text-sm text-muted-foreground leading-relaxed">{settings.siteAddress}</li>
+                  <li className="flex items-start gap-2.5">
+                    <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0 text-muted-foreground/60" />
+                    <span className="text-sm text-muted-foreground leading-snug">{settings.siteAddress}</span>
+                  </li>
                 )}
-                <li>
-                  <a href="mailto:support@arapoint.com.ng" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                    support@arapoint.com.ng
-                  </a>
-                </li>
               </ul>
             </div>
           </div>
