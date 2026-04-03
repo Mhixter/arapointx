@@ -326,6 +326,29 @@ router.put('/requests/:id/status', identityAgentAuthMiddleware, async (req: Requ
       } catch (emailErr: any) {
         logger.warn('Failed to send identity completion email', { error: emailErr.message });
       }
+    } else if (status === 'rejected') {
+      try {
+        const [user] = await db.select({ name: users.name, email: users.email })
+          .from(users).where(eq(users.id, request.userId)).limit(1);
+        if (user?.email) {
+          const serviceLabels: Record<string, string> = {
+            nin_validation: 'NIN Validation',
+            ipe_clearance: 'IPE Clearance',
+            nin_personalization: 'NIN Personalization',
+          };
+          const serviceName = serviceLabels[request.serviceType] || request.serviceType;
+          const { userServiceRejectedEmail } = await import('../../utils/userEmailTemplates');
+          await sendEmail(
+            user.email,
+            `Update on Your ${serviceName} Request — Arapoint`,
+            userServiceRejectedEmail(user.name, serviceName, request.trackingId, agentNotes),
+            undefined, undefined,
+            { name: 'Arapoint', email: 'hello@arapoint.com.ng' },
+          );
+        }
+      } catch (emailErr: any) {
+        logger.warn('Failed to send identity rejection email', { error: emailErr.message });
+      }
     }
 
     res.json(formatResponse('success', 200, 'Request updated'));

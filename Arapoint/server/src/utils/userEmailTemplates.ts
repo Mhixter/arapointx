@@ -279,6 +279,34 @@ export function userPasswordResetEmail(name: string, otp: string): string {
   );
 }
 
+export function userServiceRejectedEmail(name: string, serviceType: string, trackingId: string, reason?: string): string {
+  const body = `
+    <h1 style="margin:0 0 6px;color:#111827;font-size:22px;font-weight:800;font-family:Arial,sans-serif;">Request Update</h1>
+    <p style="margin:0 0 24px;color:#6B7280;font-size:14px;line-height:1.7;font-family:Arial,sans-serif;">
+      Hi ${name}, we have an update regarding your <strong style="color:#111827;">${serviceType}</strong> request.
+    </p>
+
+    ${userInfoCard([
+      { label: "Service", value: serviceType },
+      { label: "Tracking ID", value: trackingId },
+      { label: "Status", value: "✗ Rejected / Unable to Process" },
+      { label: "Date", value: new Date().toLocaleDateString("en-NG", { dateStyle: "long" }) },
+    ])}
+
+    ${reason ? userNoteBox(`<strong>Reason:</strong> ${reason}`, "#EF4444", "#FEF2F2") : userNoteBox("Unfortunately, we were unable to process your request at this time. Please contact our support team for further assistance.", "#EF4444", "#FEF2F2")}
+
+    ${userCTA("Contact Support", `${PLATFORM_URL}/contact`, "#EF4444")}
+
+    <p style="margin:0;color:#9CA3AF;font-size:12px;font-family:Arial,sans-serif;">
+      Questions? Reach us at <a href="mailto:support@arapoint.com.ng" style="color:${G.link};text-decoration:none;">support@arapoint.com.ng</a>
+    </p>`;
+
+  return userBase(
+    `Update on your ${serviceType} request (${trackingId}): unable to process.`,
+    "#EF4444", body
+  );
+}
+
 export function userBvnCompletedEmail(name: string, maskedBvn: string, serviceType: string): string {
   const body = `
     <h1 style="margin:0 0 6px;color:#111827;font-size:22px;font-weight:800;font-family:Arial,sans-serif;">BVN Service Completed</h1>

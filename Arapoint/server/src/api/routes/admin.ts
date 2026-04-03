@@ -518,7 +518,7 @@ router.put('/bvn-services/:id/status', async (req: Request, res: Response) => {
         .catch(() => {});
     }
 
-    // Send completion email to user
+    // Send notification email to user
     if (status === 'completed' && record.userEmail) {
       const { sendEmail } = await import('../../services/emailService');
       const { userBvnCompletedEmail } = await import('../../utils/userEmailTemplates');
@@ -531,6 +531,17 @@ router.put('/bvn-services/:id/status', async (req: Request, res: Response) => {
         undefined, undefined,
         { name: 'Arapoint', email: 'hello@arapoint.com.ng' },
       ).catch(err => logger.error('BVN completion email failed', { error: err.message }));
+    } else if (status === 'rejected' && record.userEmail) {
+      const { sendEmail } = await import('../../services/emailService');
+      const { userServiceRejectedEmail } = await import('../../utils/userEmailTemplates');
+      const serviceLabel = record.serviceType === 'modification' ? 'BVN Modification' : 'BVN Service';
+      await sendEmail(
+        record.userEmail,
+        'Update on Your BVN Request — Arapoint',
+        userServiceRejectedEmail(record.userName || 'Valued Customer', serviceLabel, record.requestId || id),
+        undefined, undefined,
+        { name: 'Arapoint', email: 'hello@arapoint.com.ng' },
+      ).catch(err => logger.error('BVN rejection email failed', { error: err.message }));
     }
 
     logger.info('BVN service status updated by admin', { id, status, adminId: req.userId });
@@ -2471,6 +2482,51 @@ router.put('/identity-requests/:id/status', async (req: Request, res: Response) 
       agentNotes: adminNotes || existing.agentNotes,
       completedAt: status === 'completed' ? new Date() : existing.completedAt,
     }).where(eq(identityServiceRequests.id, id));
+
+    if ((status === 'completed' || status === 'rejected') && existing.userId) {
+      try {
+        const [user] = await db.select({ name: users.name, email: users.email })
+          .from(users).where(eq(users.id, existing.userId)).limit(1);
+        if (user?.email) {
+          const { sendEmail } = await import('../../services/emailService');
+          const serviceLabels: Record<string, string> = {
+            nin_validation: 'NIN Validation',
+            ipe_clearance: 'IPE Clearance',
+            nin_personalization: 'NIN Personalization',
+            birth_attestation: 'Birth Attestation',
+          };
+          const serviceName = serviceLabels[existing.serviceType] || existing.serviceType;
+          if (status === 'completed') {
+            await sendEmail(
+              user.email,
+              `Your ${serviceName} Request Has Been Completed — Arapoint`,
+              `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+                <h2 style="color:#1a7a4a;">Request Completed ✓</h2>
+                <p>Dear ${user.name},</p>
+                <p>Your <strong>${serviceName}</strong> request (Tracking ID: <strong>${existing.trackingId}</strong>) has been completed by our team.</p>
+                ${adminNotes ? `<p><strong>Notes:</strong> ${adminNotes}</p>` : ''}
+                <p>Log in to <a href="https://arapoint.com.ng/dashboard/identity">your account</a> to view the full details.</p>
+                <p style="color:#666;font-size:12px;">This is an automated notification from Arapoint.</p>
+              </div>`,
+              `Your ${serviceName} request (${existing.trackingId}) has been completed. Log in to view details.`,
+              undefined,
+              { name: 'Arapoint', email: 'hello@arapoint.com.ng' },
+            );
+          } else {
+            const { userServiceRejectedEmail } = await import('../../utils/userEmailTemplates');
+            await sendEmail(
+              user.email,
+              `Update on Your ${serviceName} Request — Arapoint`,
+              userServiceRejectedEmail(user.name, serviceName, existing.trackingId, adminNotes),
+              undefined, undefined,
+              { name: 'Arapoint', email: 'hello@arapoint.com.ng' },
+            );
+          }
+        }
+      } catch (emailErr: any) {
+        logger.warn('Failed to send identity request status email', { error: emailErr.message });
+      }
+    }
 
     logger.info('Admin updated identity request status', { id, status, adminId: req.userId });
     res.json(formatResponse('success', 200, 'Request status updated', { id, status }));

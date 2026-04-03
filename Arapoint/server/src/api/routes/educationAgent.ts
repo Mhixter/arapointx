@@ -249,6 +249,41 @@ router.put('/requests/:id/status', educationAgentAuthMiddleware, async (req: Req
 
     logger.info('Education request status updated', { requestId: id, status, agentId });
 
+    if (status === 'completed' && request.userId) {
+      try {
+        const [user] = await db.select({ name: users.name, email: users.email })
+          .from(users).where(eq(users.id, request.userId)).limit(1);
+        if (user?.email) {
+          const { sendEmail } = await import('../../services/emailService');
+          const serviceLabels: Record<string, string> = {
+            waec_scratch_card: 'WAEC Scratch Card',
+            neco_scratch_card: 'NECO Scratch Card',
+            nabteb_scratch_card: 'NABTEB Scratch Card',
+            university_transcript: 'University Transcript',
+            nysc_certificate: 'NYSC Certificate',
+          };
+          const serviceName = serviceLabels[request.serviceType] || request.serviceType;
+          await sendEmail(
+            user.email,
+            `Your ${serviceName} Request Has Been Completed — Arapoint`,
+            `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+              <h2 style="color:#1a7a4a;">Request Completed ✓</h2>
+              <p>Dear ${user.name},</p>
+              <p>Your <strong>${serviceName}</strong> request (Tracking ID: <strong>${request.trackingId}</strong>) has been completed by our team.</p>
+              ${agentNotes ? `<p><strong>Agent Feedback:</strong> ${agentNotes}</p>` : ''}
+              <p>Log in to <a href="https://arapoint.com.ng/dashboard/education">your account</a> to view the full details and any uploaded documents.</p>
+              <p style="color:#666;font-size:12px;">This is an automated notification from Arapoint.</p>
+            </div>`,
+            `Your ${serviceName} request (${request.trackingId}) has been completed. Log in to view details.`,
+            undefined,
+            { name: 'Arapoint', email: 'hello@arapoint.com.ng' },
+          );
+        }
+      } catch (emailErr: any) {
+        logger.warn('Failed to send education completion email', { error: emailErr.message });
+      }
+    }
+
     res.json(formatResponse('success', 200, 'Request updated'));
   } catch (error: any) {
     logger.error('Update education request error', { error: error.message });

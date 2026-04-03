@@ -320,6 +320,33 @@ router.put('/requests/:id/status', a2cAgentAuthMiddleware, async (req: Request, 
 
     logger.info('A2C request status updated', { requestId: id, status, agentId: req.agentId });
 
+    if (status === 'completed' && request.userId) {
+      try {
+        const [user] = await db.select({ name: users.name, email: users.email })
+          .from(users).where(eq(users.id, request.userId)).limit(1);
+        if (user?.email) {
+          const { sendEmail } = await import('../../services/emailService');
+          await sendEmail(
+            user.email,
+            'Your Airtime to Cash Request Has Been Completed — Arapoint',
+            `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+              <h2 style="color:#1a7a4a;">Airtime to Cash Completed ✓</h2>
+              <p>Dear ${user.name},</p>
+              <p>Your airtime to cash request (Tracking ID: <strong>${request.trackingId}</strong>) has been completed and your cash has been paid out.</p>
+              ${agentNotes ? `<p><strong>Notes:</strong> ${agentNotes}</p>` : ''}
+              <p>Log in to <a href="https://arapoint.com.ng/dashboard">your account</a> to view the details.</p>
+              <p style="color:#666;font-size:12px;">This is an automated notification from Arapoint.</p>
+            </div>`,
+            `Your airtime to cash request (${request.trackingId}) is complete. Log in to view details.`,
+            undefined,
+            { name: 'Arapoint', email: 'hello@arapoint.com.ng' },
+          );
+        }
+      } catch (emailErr: any) {
+        logger.warn('Failed to send A2C completion email', { error: emailErr.message });
+      }
+    }
+
     res.json(formatResponse('success', 200, 'Request status updated'));
   } catch (error: any) {
     logger.error('Update A2C request status error', { error: error.message });
@@ -677,6 +704,47 @@ router.patch('/requests/:id/update-status', a2cAgentAuthMiddleware, async (req: 
     });
 
     logger.info('A2C request status updated', { requestId: id, previousStatus: request.status, newStatus: status, agentId: req.agentId });
+
+    if (['completed', 'completed_and_paid', 'rejected', 'not_received_contact_support'].includes(status) && request.userId) {
+      try {
+        const [user] = await db.select({ name: users.name, email: users.email })
+          .from(users).where(eq(users.id, request.userId)).limit(1);
+        if (user?.email) {
+          const { sendEmail } = await import('../../services/emailService');
+          if (status === 'completed' || status === 'completed_and_paid') {
+            await sendEmail(
+              user.email,
+              'Your Airtime to Cash Request Has Been Completed — Arapoint',
+              `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+                <h2 style="color:#1a7a4a;">Airtime to Cash Completed ✓</h2>
+                <p>Dear ${user.name},</p>
+                <p>Your airtime to cash request (Tracking ID: <strong>${request.trackingId}</strong>) has been completed and your cash has been paid out successfully.</p>
+                ${agentNotes ? `<p><strong>Notes:</strong> ${agentNotes}</p>` : ''}
+                <p>Log in to <a href="https://arapoint.com.ng/dashboard">your account</a> to view the details.</p>
+                <p style="color:#666;font-size:12px;">This is an automated notification from Arapoint.</p>
+              </div>`,
+              `Your airtime to cash request (${request.trackingId}) is complete. Log in to view details.`,
+              undefined,
+              { name: 'Arapoint', email: 'hello@arapoint.com.ng' },
+            );
+          } else {
+            const { userServiceRejectedEmail } = await import('../../utils/userEmailTemplates');
+            const reason = status === 'not_received_contact_support'
+              ? (rejectionReason || 'We did not receive the airtime transfer. Please contact support for assistance.')
+              : (rejectionReason || agentNotes);
+            await sendEmail(
+              user.email,
+              'Update on Your Airtime to Cash Request — Arapoint',
+              userServiceRejectedEmail(user.name, 'Airtime to Cash', request.trackingId, reason),
+              undefined, undefined,
+              { name: 'Arapoint', email: 'hello@arapoint.com.ng' },
+            );
+          }
+        }
+      } catch (emailErr: any) {
+        logger.warn('Failed to send A2C status email', { error: emailErr.message });
+      }
+    }
 
     res.json(formatResponse('success', 200, 'Request status updated'));
   } catch (error: any) {

@@ -332,6 +332,31 @@ router.put('/requests/:id/status', jambAgentAuthMiddleware, async (req: Request,
       } catch (emailErr: any) {
         logger.warn('Failed to send JAMB completion email', { error: emailErr.message });
       }
+    } else if (status === 'rejected') {
+      try {
+        const [user] = await db.select({ name: users.name, email: users.email })
+          .from(users).where(eq(users.id, request.userId)).limit(1);
+        if (user?.email) {
+          const serviceLabels: Record<string, string> = {
+            'olevel-upload': 'O-Level Result Upload',
+            'admission-letter': 'Admission Letter',
+            'original-result': 'Original JAMB Result',
+            'reprinting-caps': 'CAPS Reprinting',
+            'check-result': 'JAMB Score Check',
+          };
+          const serviceName = serviceLabels[request.serviceType] || request.serviceType;
+          const { userServiceRejectedEmail } = await import('../../utils/userEmailTemplates');
+          await sendEmail(
+            user.email,
+            `Update on Your ${serviceName} Request — Arapoint`,
+            userServiceRejectedEmail(user.name, serviceName, request.trackingId, agentNotes),
+            undefined, undefined,
+            { name: 'Arapoint', email: 'hello@arapoint.com.ng' },
+          );
+        }
+      } catch (emailErr: any) {
+        logger.warn('Failed to send JAMB rejection email', { error: emailErr.message });
+      }
     }
 
     res.json(formatResponse('success', 200, 'Request updated'));

@@ -493,6 +493,31 @@ router.put('/requests/:id/status', cacAgentAuthMiddleware, async (req: Request, 
       comment: comment || `Status changed to ${status}`,
     });
 
+    if (status === CAC_STATUS.REJECTED && request.userId) {
+      try {
+        const [userRow] = await db.select({ name: users.name, email: users.email })
+          .from(users).where(eq(users.id, request.userId)).limit(1);
+        if (userRow?.email) {
+          const { sendEmail } = await import('../../services/emailService');
+          const { userServiceRejectedEmail } = await import('../../utils/userEmailTemplates');
+          await sendEmail(
+            userRow.email,
+            'Update on Your CAC Registration Request — Arapoint',
+            userServiceRejectedEmail(
+              userRow.name || 'Valued Customer',
+              `CAC ${request.serviceType || 'Registration'}`,
+              request.id,
+              rejectionReason,
+            ),
+            undefined, undefined,
+            { name: 'Arapoint', email: 'hello@arapoint.com.ng' },
+          );
+        }
+      } catch (emailErr: any) {
+        logger.error('CAC rejection email failed', { error: emailErr.message });
+      }
+    }
+
     logger.info('Request status updated', { requestId: id, agentId, previousStatus, newStatus: status });
 
     res.json(formatResponse('success', 200, 'Status updated successfully'));
