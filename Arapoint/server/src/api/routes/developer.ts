@@ -78,6 +78,8 @@ const API_PRICES: Record<string, number> = {
   'bvn': 80,
   'education': 250,
   'unified': 400,
+  'employment_standard': 350,
+  'employment_higher': 450,
 };
 
 // ─── Helper: generate API key ─────────────────────────────────────────────────
@@ -786,6 +788,276 @@ router.post('/verify/unified', apiKeyAuth, async (req: Request, res: Response) =
   } finally {
     await logApiCall(dev.id, apiKeyId, '/verify/unified', 'POST', { nin, bvn, education },
       responseData, statusCode, statusCode === 200 ? API_PRICES.unified : 0,
+      Date.now() - start, req.ip || '');
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EMPLOYMENT VERIFICATION
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Helpers for name / DOB similarity ────────────────────────────────────────
+function normaliseName(s: string = '') {
+  return s.toLowerCase().replace(/[^a-z\s]/g, '').replace(/\s+/g, ' ').trim();
+}
+function namesMatch(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  const na = normaliseName(a);
+  const nb = normaliseName(b);
+  if (na === nb) return true;
+  // any word overlap (first name, last name order differences)
+  const aw = new Set(na.split(' ').filter(Boolean));
+  const bw = new Set(nb.split(' ').filter(Boolean));
+  const common = [...aw].filter(w => bw.has(w) && w.length > 1);
+  return common.length >= 2;
+}
+function dobsMatch(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  const clean = (d: string) => d.replace(/[^0-9]/g, '');
+  return clean(a).includes(clean(b).substring(0, 6)) || clean(b).includes(clean(a).substring(0, 6));
+}
+function labelScore(score: number): { label: string; level: string } {
+  if (score >= 90) return { label: 'Very High Confidence', level: 'A' };
+  if (score >= 75) return { label: 'High Confidence', level: 'B' };
+  if (score >= 55) return { label: 'Moderate Confidence', level: 'C' };
+  if (score >= 35) return { label: 'Low Confidence', level: 'D' };
+  return { label: 'Very Low Confidence', level: 'F' };
+}
+
+/**
+ * POST /verify/employment
+ *
+ * Body:
+ *   nin              - National ID number (required)
+ *   bvn              - Bank Verification Number (required)
+ *   ssce             - { provider, examYear, registrationNumber } (optional)
+ *   level            - "standard" | "higher" (default: "standard")
+ *
+ * Our server calls Prembly for NIN + BVN in parallel, queues an RPA job for
+ * the SSCE check, then computes a weighted accuracy / confidence score.
+ *
+ * Scoring weights:
+ *   NIN verified          35 pts
+ *   BVN verified          30 pts
+ *   NIN ↔ BVN name match  10 pts
+ *   NIN ↔ BVN DOB  match  10 pts
+ *   SSCE verified         15 pts  (pending while RPA processes)
+ *   ─────────────────────────────
+ *   Total possible        100 pts
+ */
+router.post('/verify/employment', apiKeyAuth, async (req: Request, res: Response) => {
+  const start = Date.now();
+  const dev = (req as any).developer;
+  const apiKeyId = (req as any).apiKeyId;
+  const { nin, bvn, ssce, level = 'standard' } = req.body;
+  let statusCode = 200;
+  let responseData: any;
+
+  try {
+    // ── Validate inputs ──────────────────────────────────────────────────────
+    if (!nin || !bvn) {
+      statusCode = 400;
+      responseData = { status: 'error', code: 400, message: 'Both nin and bvn are required for employment verification' };
+      return res.status(400).json(responseData);
+    }
+    if (!/^\d{11}$/.test(nin)) {
+      statusCode = 400;
+      responseData = { status: 'error', code: 400, message: 'NIN must be exactly 11 digits' };
+      return res.status(400).json(responseData);
+    }
+    if (!/^\d{11}$/.test(bvn)) {
+      statusCode = 400;
+      responseData = { status: 'error', code: 400, message: 'BVN must be exactly 11 digits' };
+      return res.status(400).json(responseData);
+    }
+    if (ssce) {
+      const validProviders = ['waec', 'neco', 'nabteb', 'nbais', 'jamb'];
+      if (!ssce.provider || !validProviders.includes(ssce.provider.toLowerCase())) {
+        statusCode = 400;
+        responseData = { status: 'error', code: 400, message: `ssce.provider must be one of: ${validProviders.join(', ')}` };
+        return res.status(400).json(responseData);
+      }
+      if (!ssce.examYear || !ssce.registrationNumber) {
+        statusCode = 400;
+        responseData = { status: 'error', code: 400, message: 'ssce.examYear and ssce.registrationNumber are required when providing ssce' };
+        return res.status(400).json(responseData);
+      }
+    }
+
+    const priceKey = level === 'higher' ? 'employment_higher' : 'employment_standard';
+    await deductDeveloperBalance(dev.id, API_PRICES[priceKey],
+      `Employment verification (${level}) — NIN ${nin.substring(0, 4)}***`);
+
+    const requestId = 'EMP-' + crypto.randomBytes(8).toString('hex').toUpperCase();
+
+    // ── Call Prembly for NIN + BVN in parallel ───────────────────────────────
+    const { premblyService } = await import('../../services/premblyService');
+
+    const [ninResult, bvnResult] = await Promise.allSettled([
+      premblyService.verifyNIN(nin),
+      premblyService.verifyBVN(bvn),
+    ]);
+
+    const ninRes = ninResult.status === 'fulfilled' ? ninResult.value : { success: false, error: (ninResult.reason as Error)?.message || 'NIN lookup failed' };
+    const bvnRes = bvnResult.status === 'fulfilled' ? bvnResult.value : { success: false, error: (bvnResult.reason as Error)?.message || 'BVN lookup failed' };
+
+    const ninOk  = ninRes.success === true;
+    const bvnOk  = bvnRes.success === true;
+    const ninData = (ninRes as any).data || null;
+    const bvnData = (bvnRes as any).data || null;
+
+    // ── Cross-reference name / DOB ────────────────────────────────────────────
+    const ninFullName = `${ninData?.firstName || ''} ${ninData?.lastName || ''}`.trim();
+    const bvnFullName = `${bvnData?.firstName || ''} ${bvnData?.lastName || ''}`.trim();
+    const nameMatch = ninOk && bvnOk ? namesMatch(ninFullName, bvnFullName) : false;
+    const dobMatch  = ninOk && bvnOk ? dobsMatch(ninData?.dateOfBirth || '', bvnData?.dateOfBirth || '') : false;
+
+    // ── Queue RPA job for SSCE (if provided) ─────────────────────────────────
+    let ssceCheck: any = null;
+    if (ssce) {
+      const serviceTypeMap: Record<string, string> = {
+        waec: 'waec_result', neco: 'neco_result',
+        nabteb: 'nabteb_result', nbais: 'nbais_result', jamb: 'jamb_score',
+      };
+      const svcType = serviceTypeMap[ssce.provider.toLowerCase()] || `${ssce.provider.toLowerCase()}_result`;
+      try {
+        const [job] = await db.insert(rpaJobs).values({
+          serviceType: svcType,
+          queryData: {
+            registrationNumber: ssce.registrationNumber,
+            examYear: ssce.examYear.toString(),
+            examType: ssce.provider.toUpperCase(),
+            source: 'developer_api_employment',
+            employmentRequestId: requestId,
+          },
+          status: 'pending',
+          priority: 5,
+        }).returning();
+        ssceCheck = {
+          status: 'processing',
+          provider: ssce.provider.toUpperCase(),
+          examYear: ssce.examYear,
+          registrationNumber: ssce.registrationNumber,
+          jobId: job.id,
+          pollUrl: `GET /verify/education/result?jobId=${job.id}`,
+          maxScore: 15,
+          earnedScore: 0,
+          note: 'SSCE result is being retrieved via automated lookup. Poll the jobId above for updates.',
+        };
+      } catch (rpaErr: any) {
+        ssceCheck = { status: 'error', error: rpaErr.message, maxScore: 15, earnedScore: 0 };
+      }
+    }
+
+    // ── Compute confidence score ──────────────────────────────────────────────
+    const WEIGHTS = { nin: 35, bvn: 30, nameMatch: 10, dobMatch: 10, ssce: 15 };
+    const maxPossible = ssce ? 100 : 85; // SSCE not requested → scale against 85
+
+    let earned = 0;
+    if (ninOk)     earned += WEIGHTS.nin;
+    if (bvnOk)     earned += WEIGHTS.bvn;
+    if (nameMatch) earned += WEIGHTS.nameMatch;
+    if (dobMatch)  earned += WEIGHTS.dobMatch;
+    // SSCE always 0 now (pending); once resolved the caller can recompute
+
+    const scorePercent = Math.round((earned / maxPossible) * 100);
+    const { label: confidenceLabel, level: confidenceLevel } = labelScore(scorePercent);
+
+    // ── Assemble checkpoint result ────────────────────────────────────────────
+    const checkpoints: Record<string, any> = {
+      nin: {
+        checkpoint: 'NIN Verification',
+        status: ninOk ? 'verified' : 'failed',
+        weight: `${WEIGHTS.nin} pts`,
+        earned: ninOk ? WEIGHTS.nin : 0,
+        data: ninOk ? {
+          firstName: ninData?.firstName,
+          lastName: ninData?.lastName,
+          dateOfBirth: ninData?.dateOfBirth,
+          gender: ninData?.gender,
+          phone: ninData?.phone,
+        } : null,
+        error: ninOk ? null : (ninRes as any).error,
+      },
+      bvn: {
+        checkpoint: 'BVN Verification',
+        status: bvnOk ? 'verified' : 'failed',
+        weight: `${WEIGHTS.bvn} pts`,
+        earned: bvnOk ? WEIGHTS.bvn : 0,
+        data: bvnOk ? {
+          firstName: bvnData?.firstName,
+          lastName: bvnData?.lastName,
+          dateOfBirth: bvnData?.dateOfBirth,
+          gender: bvnData?.gender,
+          phone: bvnData?.phone,
+        } : null,
+        error: bvnOk ? null : (bvnRes as any).error,
+      },
+      crossMatch: {
+        checkpoint: 'Identity Cross-Reference (NIN ↔ BVN)',
+        status: (ninOk && bvnOk) ? 'completed' : 'skipped',
+        nameMatch: {
+          result: nameMatch,
+          earned: nameMatch ? WEIGHTS.nameMatch : 0,
+          weight: `${WEIGHTS.nameMatch} pts`,
+          ninName: ninFullName || null,
+          bvnName: bvnFullName || null,
+        },
+        dobMatch: {
+          result: dobMatch,
+          earned: dobMatch ? WEIGHTS.dobMatch : 0,
+          weight: `${WEIGHTS.dobMatch} pts`,
+          ninDob: ninData?.dateOfBirth || null,
+          bvnDob: bvnData?.dateOfBirth || null,
+        },
+      },
+    };
+
+    if (ssce && ssceCheck) {
+      checkpoints.ssce = {
+        checkpoint: 'SSCE / Qualifications Check',
+        status: ssceCheck.status,
+        weight: `${WEIGHTS.ssce} pts`,
+        earned: 0,
+        ...ssceCheck,
+      };
+    }
+
+    responseData = {
+      status: 'success',
+      code: 200,
+      message: 'Employment verification initiated',
+      data: {
+        requestId,
+        level,
+        processedAt: new Date().toISOString(),
+        confidence: {
+          score: scorePercent,
+          label: confidenceLabel,
+          grade: confidenceLevel,
+          earned,
+          maxPossible,
+          note: ssce ? 'Score will increase once SSCE result is retrieved. Poll the ssce jobId for completion.' : undefined,
+        },
+        checkpoints,
+      },
+    };
+
+    res.json(responseData);
+  } catch (e: any) {
+    if (e.message?.includes('Insufficient')) {
+      statusCode = 402;
+      responseData = { status: 'error', code: 402, message: 'Insufficient wallet balance. Please fund your developer wallet.' };
+      return res.status(402).json(responseData);
+    }
+    statusCode = 500;
+    responseData = { status: 'error', code: 500, message: 'Employment verification failed', error: e.message };
+    res.status(500).json(responseData);
+  } finally {
+    await logApiCall(dev.id, apiKeyId, '/verify/employment', 'POST',
+      { nin: nin ? nin.substring(0, 4) + '***' : null, bvn: bvn ? bvn.substring(0, 4) + '***' : null, ssce, level },
+      responseData, statusCode,
+      statusCode === 200 ? API_PRICES[`employment_${level === 'higher' ? 'higher' : 'standard'}`] : 0,
       Date.now() - start, req.ip || '');
   }
 });
