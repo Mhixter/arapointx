@@ -19,6 +19,10 @@ import AboutUs from "@/pages/AboutUs";
 import Careers from "@/pages/Careers";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import TermsOfService from "@/pages/TermsOfService";
+import FeaturesPage from "@/pages/Features";
+import ServicesPage from "@/pages/Services";
+import PricingPage from "@/pages/Pricing";
+import ContactPage from "@/pages/Contact";
 
 // Dashboard Imports
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -265,6 +269,10 @@ function Router() {
         <MainLayout>
           <Switch>
             <Route path="/" component={Home} />
+            <Route path="/features" component={FeaturesPage} />
+            <Route path="/services" component={ServicesPage} />
+            <Route path="/pricing" component={PricingPage} />
+            <Route path="/contact" component={ContactPage} />
             <Route path="/about" component={AboutUs} />
             <Route path="/careers" component={Careers} />
             <Route path="/privacy" component={PrivacyPolicy} />

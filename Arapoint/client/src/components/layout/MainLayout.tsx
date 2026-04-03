@@ -31,11 +31,11 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
-            <a href="#features" className="text-muted-foreground hover:text-primary transition-colors">Features</a>
-            <a href="#services" className="text-muted-foreground hover:text-primary transition-colors">Services</a>
-            <a href="#pricing" className="text-muted-foreground hover:text-primary transition-colors">Pricing</a>
+            <Link href="/features" className={`transition-colors hover:text-primary ${location === "/features" ? "text-primary font-semibold" : "text-muted-foreground"}`}>Features</Link>
+            <Link href="/services" className={`transition-colors hover:text-primary ${location === "/services" ? "text-primary font-semibold" : "text-muted-foreground"}`}>Services</Link>
+            <Link href="/pricing" className={`transition-colors hover:text-primary ${location === "/pricing" ? "text-primary font-semibold" : "text-muted-foreground"}`}>Pricing</Link>
             <a href="https://developer.arapoint.com.ng" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">Developers</a>
-            <a href="#contact" className="text-muted-foreground hover:text-primary transition-colors">Contact</a>
+            <Link href="/contact" className={`transition-colors hover:text-primary ${location === "/contact" ? "text-primary font-semibold" : "text-muted-foreground"}`}>Contact</Link>
           </nav>
 
           <div className="hidden md:flex items-center gap-4">
@@ -60,10 +60,11 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             </SheetTrigger>
             <SheetContent side="right">
               <div className="flex flex-col gap-6 mt-8">
-                <a href="#features" className="text-lg font-medium">Features</a>
-                <a href="#services" className="text-lg font-medium">Services</a>
-                <a href="#pricing" className="text-lg font-medium">Pricing</a>
+                <Link href="/features" className="text-lg font-medium hover:text-primary transition-colors">Features</Link>
+                <Link href="/services" className="text-lg font-medium hover:text-primary transition-colors">Services</Link>
+                <Link href="/pricing" className="text-lg font-medium hover:text-primary transition-colors">Pricing</Link>
                 <a href="https://developer.arapoint.com.ng" target="_blank" rel="noopener noreferrer" className="text-lg font-medium text-primary">Developers</a>
+                <Link href="/contact" className="text-lg font-medium hover:text-primary transition-colors">Contact</Link>
                 <Link href="/auth/login">
                   <span className="inline-flex w-full items-center justify-start gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 cursor-pointer">
                     Sign In
@@ -111,10 +112,10 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
               <h4 className="font-semibold text-foreground text-sm">Platform</h4>
               <ul className="space-y-2.5">
                 {[
-                  { label: "Identity Verification", href: "#features" },
-                  { label: "Education Checks", href: "#features" },
-                  { label: "Business Lookup", href: "#features" },
-                  { label: "VTU Services", href: "#features" },
+                  { label: "Identity Verification", href: "/features#identity" },
+                  { label: "Education Checks", href: "/features#education" },
+                  { label: "Business Lookup", href: "/features#business" },
+                  { label: "VTU Services", href: "/features#vtu" },
                   { label: "Developer API", href: "https://developer.arapoint.com.ng", external: true },
                 ].map(item => (
                   <li key={item.label}>
@@ -123,9 +124,9 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                         {item.label}
                       </a>
                     ) : (
-                      <a href={item.href} className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                      <Link href={item.href} className="text-sm text-muted-foreground hover:text-primary transition-colors">
                         {item.label}
-                      </a>
+                      </Link>
                     )}
                   </li>
                 ))}
