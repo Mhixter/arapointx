@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  LayoutDashboard, Key, CreditCard, FileText, Book, User, LogOut, Menu, X, Code2, ChevronRight, ShieldCheck
+  LayoutDashboard, Key, CreditCard, FileText, Book, User, LogOut, Menu, X, Code2, ChevronRight, ShieldCheck, Webhook
 } from "lucide-react";
 
 interface DevUser {
@@ -19,6 +19,7 @@ const navItems = [
   { path: "/developer/api-keys", label: "API Keys", icon: Key },
   { path: "/developer/billing", label: "Billing", icon: CreditCard },
   { path: "/developer/logs", label: "API Logs", icon: FileText },
+  { path: "/developer/webhooks", label: "Webhooks & Security", icon: Webhook },
   { path: "/developer/docs", label: "Documentation", icon: Book },
   { path: "/developer/kyb", label: "Business Verification", icon: ShieldCheck },
   { path: "/developer/account", label: "Account", icon: User },

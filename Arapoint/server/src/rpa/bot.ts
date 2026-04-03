@@ -9,6 +9,7 @@ import { rpaJobs, educationServices, servicePricing, adminSettings, transactions
 import { eq, asc, and, lt, sql } from 'drizzle-orm';
 import { browserPool } from './browserPool';
 import { walletService } from '../services/walletService';
+import { fireWebhookIfEnabled } from '../services/webhookService';
 
 const DEFAULT_PRICES: Record<string, number> = {
   jamb: 1000,
@@ -169,6 +170,12 @@ class RPABot {
           job.service_type.includes('nbais')) {
         const errorMsg = hasError ? (result.error || (result.data as any)?.errorMessage || 'Verification failed') : undefined;
         await this.updateEducationService(job, { ...result, success: !hasError }, errorMsg);
+      }
+
+      // ── Fire developer webhook if this was a developer API job ────────────
+      const queryData = job.query_data || {};
+      if (queryData.source === 'developer_api' && queryData.developerId) {
+        this.fireDeveloperWebhook(queryData.developerId as string, job.id, finalStatus, result).catch(() => {});
       }
 
       if (hasError) {
@@ -363,6 +370,30 @@ class RPABot {
       }
     } catch (error: any) {
       logger.error('Failed to process auto-refund', { jobId, error: error.message });
+    }
+  }
+
+  private async fireDeveloperWebhook(
+    developerId: string,
+    jobId: string,
+    status: string,
+    result: { success: boolean; data?: Record<string, unknown>; error?: string }
+  ): Promise<void> {
+    try {
+      const devRow = await db.execute(sql`
+        SELECT id, webhook_url, webhook_secret, webhook_enabled
+        FROM developer_users WHERE id = ${developerId}
+      `);
+      const dev = devRow.rows[0] as any;
+      if (!dev) return;
+
+      await fireWebhookIfEnabled(
+        { id: dev.id, webhookUrl: dev.webhook_url, webhookSecret: dev.webhook_secret, webhookEnabled: dev.webhook_enabled },
+        status === 'completed' ? 'verification.completed' : 'verification.failed',
+        { jobId, status, result: result.data || {}, error: result.error || null }
+      );
+    } catch (e: any) {
+      logger.warn('Failed to fire developer webhook', { developerId, jobId, error: e.message });
     }
   }
 

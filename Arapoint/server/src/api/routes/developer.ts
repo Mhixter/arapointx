@@ -11,6 +11,8 @@ import {
 } from 'drizzle-orm/pg-core';
 import { otpService } from '../../services/otpService';
 import { rpaJobs } from '../../db/schema';
+import { runWebhookMigrations, developerWebhookLogs, fireWebhookIfEnabled } from '../../services/webhookService';
+import * as paystackService from '../../services/paystackService';
 
 const router = Router();
 
@@ -89,6 +91,51 @@ const developerTransactions = pgTable('developer_transactions', {
       ALTER TABLE developer_users
         ADD COLUMN IF NOT EXISTS environment_mode varchar(20) DEFAULT 'sandbox'
     `);
+    await db.execute(sql`
+      ALTER TABLE developer_users
+        ADD COLUMN IF NOT EXISTS webhook_secret varchar(255),
+        ADD COLUMN IF NOT EXISTS webhook_enabled boolean DEFAULT false,
+        ADD COLUMN IF NOT EXISTS ip_allowlist jsonb DEFAULT '[]'::jsonb
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS developer_webhook_logs (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        developer_id uuid NOT NULL,
+        event_type varchar(100),
+        payload jsonb,
+        webhook_url varchar(500),
+        response_status integer,
+        response_body text,
+        attempt integer DEFAULT 1,
+        success boolean DEFAULT false,
+        error_message text,
+        created_at timestamp DEFAULT now()
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS developer_paystack_transactions (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        developer_id uuid NOT NULL,
+        reference varchar(100) UNIQUE NOT NULL,
+        amount_ngn numeric(15,2) NOT NULL,
+        status varchar(50) DEFAULT 'pending',
+        paystack_status varchar(50),
+        authorization_url text,
+        paid_at timestamp,
+        created_at timestamp DEFAULT now()
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS developer_audit_logs (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        admin_id varchar(255),
+        action varchar(100) NOT NULL,
+        target_developer_id uuid,
+        details jsonb,
+        ip_address varchar(50),
+        created_at timestamp DEFAULT now()
+      )
+    `);
   } catch (e: any) {
     // Column already exists or minor error — safe to ignore
   }
@@ -102,7 +149,93 @@ const API_PRICES: Record<string, number> = {
   'unified': 400,
   'employment_standard': 350,
   'employment_higher': 450,
+  'fraud_score': 50,
 };
+
+// ─── In-Memory Rate Limiter (sliding 24-hour window) ─────────────────────────
+const rateLimitStore = new Map<string, { count: number; windowStart: number }>();
+const RATE_LIMITS: Record<string, number> = { sandbox: 100, live: 10000 };
+
+function checkRateLimit(apiKey: string, environment: string): { allowed: boolean; remaining: number; resetAt: number } {
+  const windowMs = 24 * 60 * 60 * 1000;
+  const limit = RATE_LIMITS[environment] || 100;
+  const now = Date.now();
+  const entry = rateLimitStore.get(apiKey);
+
+  if (!entry || now - entry.windowStart > windowMs) {
+    rateLimitStore.set(apiKey, { count: 1, windowStart: now });
+    return { allowed: true, remaining: limit - 1, resetAt: now + windowMs };
+  }
+
+  if (entry.count >= limit) {
+    return { allowed: false, remaining: 0, resetAt: entry.windowStart + windowMs };
+  }
+
+  entry.count++;
+  return { allowed: true, remaining: limit - entry.count, resetAt: entry.windowStart + windowMs };
+}
+
+// ─── In-Memory NIN/BVN Cache (TTL-based) ──────────────────────────────────────
+const verificationCache = new Map<string, { data: any; expiresAt: number }>();
+const CACHE_TTL: Record<string, number> = { nin: 24 * 3600_000, bvn: 24 * 3600_000 };
+
+function getCached(key: string): any | null {
+  const entry = verificationCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) { verificationCache.delete(key); return null; }
+  return entry.data;
+}
+function setCache(key: string, data: any, ttlMs: number) {
+  verificationCache.set(key, { data, expiresAt: Date.now() + ttlMs });
+}
+
+// ─── Sandbox Mock Responses ───────────────────────────────────────────────────
+function sandboxNIN(nin: string) {
+  return {
+    success: true,
+    source: 'sandbox',
+    data: {
+      nin, firstName: 'Arapoint', lastName: 'Test', middleName: 'Sandbox',
+      dateOfBirth: '1990-06-15', gender: 'Male',
+      phone: '08012345678', address: '12 Sandbox Street, Lagos', state: 'Lagos',
+    }
+  };
+}
+function sandboxBVN(bvn: string) {
+  return {
+    success: true,
+    source: 'sandbox',
+    data: {
+      bvn, firstName: 'Arapoint', lastName: 'Test', middleName: 'Sandbox',
+      dateOfBirth: '1990-06-15', phone: '08012345678',
+      enrollmentBank: 'First Bank', enrollmentBranch: 'Victoria Island',
+    }
+  };
+}
+function sandboxEducation(provider: string, registrationNumber: string, examYear: string) {
+  return {
+    success: true, source: 'sandbox',
+    data: {
+      provider: provider.toUpperCase(), registrationNumber, examYear,
+      candidateName: 'Arapoint Test',
+      subjects: [
+        { name: 'Mathematics', grade: 'A1', score: 95 },
+        { name: 'English Language', grade: 'B2', score: 82 },
+        { name: 'Physics', grade: 'B3', score: 76 },
+        { name: 'Chemistry', grade: 'C4', score: 68 },
+        { name: 'Biology', grade: 'C5', score: 65 },
+      ],
+      overallResult: 'PASSED',
+    }
+  };
+}
+function sandboxFraudScore(nin: string) {
+  return {
+    success: true, source: 'sandbox',
+    nin, riskScore: 12, riskLevel: 'Low',
+    signals: { multipleAccounts: false, flaggedDevice: false, recentFraudReport: false },
+  };
+}
 
 // ─── Helper: generate API key / Secret key ───────────────────────────────────
 function generateApiKey(env: 'sandbox' | 'live' = 'sandbox'): string {
@@ -168,6 +301,29 @@ async function apiKeyAuth(req: Request, res: Response, next: Function) {
     return res.status(401).json({ status: 'error', code: 401, message: 'Developer account not found or inactive.' });
   }
 
+  // ── IP Allowlist check ───────────────────────────────────────────────────
+  const allowlist: string[] = (dev as any).ipAllowlist || [];
+  if (allowlist.length > 0) {
+    const clientIp = req.ip || req.headers['x-forwarded-for'] as string || '';
+    const ipOk = allowlist.some(ip => clientIp.includes(ip));
+    if (!ipOk) {
+      return res.status(403).json({ status: 'error', code: 403, message: 'IP address not on allowlist.' });
+    }
+  }
+
+  // ── Rate limiting ────────────────────────────────────────────────────────
+  const env = keyRecord.environment || 'sandbox';
+  const rateCheck = checkRateLimit(apiKey, env);
+  res.setHeader('X-RateLimit-Limit', RATE_LIMITS[env] || 100);
+  res.setHeader('X-RateLimit-Remaining', rateCheck.remaining);
+  res.setHeader('X-RateLimit-Reset', Math.floor(rateCheck.resetAt / 1000));
+  if (!rateCheck.allowed) {
+    return res.status(429).json({
+      status: 'error', code: 429, message: 'Rate limit exceeded',
+      retry_after: Math.ceil((rateCheck.resetAt - Date.now()) / 1000),
+    });
+  }
+
   // Update last used
   await db.update(developerApiKeys)
     .set({ lastUsedAt: new Date(), totalRequests: sql`${developerApiKeys.totalRequests} + 1` })
@@ -175,6 +331,7 @@ async function apiKeyAuth(req: Request, res: Response, next: Function) {
 
   (req as any).developer = dev;
   (req as any).apiKeyId = keyRecord.id;
+  (req as any).apiKeyEnv = env;
   next();
 }
 
@@ -407,18 +564,18 @@ router.put('/profile/password', devJwtAuth, async (req: Request, res: Response) 
 router.get('/dashboard/stats', devJwtAuth, async (req: Request, res: Response) => {
   try {
     const dev = (req as any).developer;
-    const [logStats] = await db.execute(sql`
+    const logStats = ((await db.execute(sql`
       SELECT
         COUNT(*)::int AS total_requests,
         COUNT(*) FILTER (WHERE status_code >= 200 AND status_code < 300)::int AS success_count,
         COALESCE(SUM(cost), 0)::numeric AS total_spent,
         COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int AS requests_this_month
       FROM developer_api_logs WHERE developer_id = ${dev.id}
-    `);
-    const [keyCount] = await db.execute(sql`
+    `)).rows[0] || {}) as any;
+    const keyCount = ((await db.execute(sql`
       SELECT COUNT(*)::int AS active_keys FROM developer_api_keys
       WHERE developer_id = ${dev.id} AND is_active = true
-    `);
+    `)).rows[0] || {}) as any;
     const recentLogs = await db.select().from(developerApiLogs)
       .where(eq(developerApiLogs.developerId, dev.id))
       .orderBy(desc(developerApiLogs.createdAt))
@@ -428,14 +585,14 @@ router.get('/dashboard/stats', devJwtAuth, async (req: Request, res: Response) =
       status: 'success', code: 200, message: 'Stats retrieved',
       data: {
         walletBalance: parseFloat(dev.walletBalance || '0'),
-        totalRequests: logStats.rows[0]?.total_requests || 0,
-        successCount: logStats.rows[0]?.success_count || 0,
-        totalSpent: parseFloat(logStats.rows[0]?.total_spent || '0'),
-        requestsThisMonth: logStats.rows[0]?.requests_this_month || 0,
-        successRate: logStats.rows[0]?.total_requests > 0
-          ? Math.round((logStats.rows[0]?.success_count / logStats.rows[0]?.total_requests) * 100)
+        totalRequests: logStats.total_requests || 0,
+        successCount: logStats.success_count || 0,
+        totalSpent: parseFloat(logStats.total_spent || '0'),
+        requestsThisMonth: logStats.requests_this_month || 0,
+        successRate: logStats.total_requests > 0
+          ? Math.round((logStats.success_count / logStats.total_requests) * 100)
           : 0,
-        activeApiKeys: keyCount.rows[0]?.active_keys || 0,
+        activeApiKeys: keyCount.active_keys || 0,
         recentLogs,
       }
     });
@@ -609,6 +766,23 @@ router.post('/verify/nin', apiKeyAuth, async (req: Request, res: Response) => {
 
     await deductDeveloperBalance(dev.id, API_PRICES.nin, `NIN verification - ${nin || phone}`);
 
+    // ── Sandbox mock ────────────────────────────────────────────────────────
+    if ((dev as any).environmentMode === 'sandbox') {
+      responseData = {
+        status: 'success', code: 200, message: 'NIN verification completed (sandbox)',
+        data: { verification: sandboxNIN(nin || phone) }
+      };
+      return res.json(responseData);
+    }
+
+    // ── Cache check ─────────────────────────────────────────────────────────
+    const cacheKey = `nin:${nin || phone}`;
+    const cached = getCached(cacheKey);
+    if (cached) {
+      responseData = { status: 'success', code: 200, message: 'NIN verification completed (cached)', data: { verification: cached } };
+      return res.json(responseData);
+    }
+
     // Call internal NIN service
     const { premblyService } = await import('../../services/premblyService');
     let result;
@@ -616,8 +790,9 @@ router.post('/verify/nin', apiKeyAuth, async (req: Request, res: Response) => {
       if (nin) {
         result = await premblyService.verifyNIN(nin);
       } else {
-        result = await premblyService.verifyNINByPhone(phone);
+        result = await premblyService.verifyNINWithPhone(phone);
       }
+      if (result && !result.error) setCache(cacheKey, result, CACHE_TTL.nin);
     } catch (serviceErr: any) {
       result = { error: serviceErr.message };
     }
@@ -665,10 +840,28 @@ router.post('/verify/bvn', apiKeyAuth, async (req: Request, res: Response) => {
 
     await deductDeveloperBalance(dev.id, API_PRICES.bvn, `BVN verification - ${bvn}`);
 
+    // ── Sandbox mock ────────────────────────────────────────────────────────
+    if ((dev as any).environmentMode === 'sandbox') {
+      responseData = {
+        status: 'success', code: 200, message: 'BVN verification completed (sandbox)',
+        data: { verification: sandboxBVN(bvn) }
+      };
+      return res.json(responseData);
+    }
+
+    // ── Cache check ─────────────────────────────────────────────────────────
+    const bvnCacheKey = `bvn:${bvn}`;
+    const bvnCached = getCached(bvnCacheKey);
+    if (bvnCached) {
+      responseData = { status: 'success', code: 200, message: 'BVN verification completed (cached)', data: { verification: bvnCached } };
+      return res.json(responseData);
+    }
+
     const { premblyService } = await import('../../services/premblyService');
     let result;
     try {
       result = await premblyService.verifyBVN(bvn);
+      if (result && !result.error) setCache(bvnCacheKey, result, CACHE_TTL.bvn);
     } catch (serviceErr: any) {
       result = { error: serviceErr.message };
     }
@@ -722,6 +915,19 @@ router.post('/verify/education', apiKeyAuth, async (req: Request, res: Response)
 
     await deductDeveloperBalance(dev.id, API_PRICES.education,
       `Education verification - ${provider.toUpperCase()} ${registrationNumber}`);
+
+    // ── Sandbox mock ────────────────────────────────────────────────────────
+    if ((dev as any).environmentMode === 'sandbox') {
+      responseData = {
+        status: 'success', code: 200, message: 'Education verification completed (sandbox)',
+        data: {
+          provider: provider.toUpperCase(), examYear, registrationNumber,
+          status: 'completed', source: 'sandbox',
+          result: sandboxEducation(provider, registrationNumber, examYear?.toString()),
+        }
+      };
+      return res.json(responseData);
+    }
 
     const serviceTypeMap: Record<string, string> = {
       waec: 'waec_result',
@@ -878,7 +1084,7 @@ function namesMatch(a: string, b: string): boolean {
   // any word overlap (first name, last name order differences)
   const aw = new Set(na.split(' ').filter(Boolean));
   const bw = new Set(nb.split(' ').filter(Boolean));
-  const common = [...aw].filter(w => bw.has(w) && w.length > 1);
+  const common = Array.from(aw).filter(w => bw.has(w) && w.length > 1);
   return common.length >= 2;
 }
 function dobsMatch(a: string, b: string): boolean {
@@ -1250,8 +1456,8 @@ router.get('/admin/developers', adminAuth, async (req: Request, res: Response) =
       .orderBy(desc(developerUsers.createdAt))
       .limit(limit).offset(offset);
 
-    const [totalRow] = await db.execute(sql`SELECT COUNT(*)::int as total FROM developer_users`);
-    const total = totalRow.rows[0]?.total || 0;
+    const totalRow = ((await db.execute(sql`SELECT COUNT(*)::int as total FROM developer_users`)).rows[0] || {}) as any;
+    const total = totalRow.total || 0;
 
     res.json({
       status: 'success', code: 200, message: 'Developers retrieved',
@@ -1264,7 +1470,7 @@ router.get('/admin/developers', adminAuth, async (req: Request, res: Response) =
 
 router.get('/admin/stats', adminAuth, async (req: Request, res: Response) => {
   try {
-    const [stats] = await db.execute(sql`
+    const stats = ((await db.execute(sql`
       SELECT
         COUNT(DISTINCT developer_id)::int AS active_developers,
         COUNT(*)::int AS total_api_calls,
@@ -1272,20 +1478,20 @@ router.get('/admin/stats', adminAuth, async (req: Request, res: Response) => {
         COUNT(*) FILTER (WHERE status_code >= 200 AND status_code < 300)::int AS success_calls,
         COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours')::int AS calls_today
       FROM developer_api_logs
-    `);
-    const [devStats] = await db.execute(sql`
+    `)).rows[0] || {}) as any;
+    const devStats = ((await db.execute(sql`
       SELECT
         COUNT(*)::int AS total_developers,
         COUNT(*) FILTER (WHERE is_active = true)::int AS active_developers,
         COUNT(*) FILTER (WHERE kyc_status = 'submitted')::int AS pending_kyc
       FROM developer_users
-    `);
+    `)).rows[0] || {}) as any;
 
     res.json({
       status: 'success', code: 200, message: 'Admin stats retrieved',
       data: {
-        apiCalls: stats.rows[0] || {},
-        developerStats: devStats.rows[0] || {},
+        apiCalls: stats,
+        developerStats: devStats,
       }
     });
   } catch (e: any) {
@@ -1369,14 +1575,14 @@ router.get('/admin/developers/:id', adminAuth, async (req: Request, res: Respons
       .orderBy(desc(developerApiLogs.createdAt))
       .limit(20);
 
-    const [txSummary] = await db.execute(sql`
+    const txSummary = ((await db.execute(sql`
       SELECT
         COUNT(*)::int AS total_calls,
         COALESCE(SUM(cost), 0)::numeric AS total_spent,
         COUNT(*) FILTER (WHERE status_code >= 200 AND status_code < 300)::int AS success_calls,
         COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int AS calls_30d
       FROM developer_api_logs WHERE developer_id = ${dev.id}
-    `);
+    `)).rows[0] || {}) as any;
 
     res.json({
       status: 'success', code: 200, message: 'Developer detail retrieved',
@@ -1387,7 +1593,7 @@ router.get('/admin/developers/:id', adminAuth, async (req: Request, res: Respons
           secretKeyHash: undefined, // never expose hash
         })),
         recentLogs,
-        summary: txSummary.rows[0] || {},
+        summary: txSummary,
       }
     });
   } catch (e: any) {
@@ -1440,6 +1646,463 @@ router.get('/admin/logs/all', adminAuth, async (req: Request, res: Response) => 
       data: { logs: logsWithDev.rows, page, limit } });
   } catch (e: any) {
     res.status(500).json({ status: 'error', code: 500, message: 'Failed to get logs' });
+  }
+});
+
+// ─── GET /admin/audit-logs ────────────────────────────────────────────────────
+router.get('/admin/audit-logs', adminAuth, async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = 50;
+    const offset = (page - 1) * limit;
+    const result = await db.execute(sql`
+      SELECT a.*, u.name AS developer_name, u.email AS developer_email
+      FROM developer_audit_logs a
+      LEFT JOIN developer_users u ON u.id = a.target_developer_id
+      ORDER BY a.created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `);
+    res.json({ status: 'success', code: 200, data: { logs: result.rows, page, limit } });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to get audit logs' });
+  }
+});
+
+// ─── Helper: write admin audit log ───────────────────────────────────────────
+async function writeAuditLog(adminId: string, action: string, targetDeveloperId: string | null, details: object, ipAddress: string) {
+  try {
+    await db.execute(sql`
+      INSERT INTO developer_audit_logs (admin_id, action, target_developer_id, details, ip_address)
+      VALUES (${adminId}, ${action}, ${targetDeveloperId || null}, ${JSON.stringify(details)}, ${ipAddress})
+    `);
+  } catch {}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WEBHOOK MANAGEMENT (JWT auth)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /webhook — get current webhook config
+router.get('/webhook', devJwtAuth, async (req: Request, res: Response) => {
+  const dev = (req as any).developer;
+  res.json({
+    status: 'success', code: 200, message: 'Webhook configuration retrieved',
+    data: {
+      webhookUrl: dev.webhookUrl || null,
+      webhookEnabled: (dev as any).webhookEnabled || false,
+      hasSecret: !!(dev as any).webhookSecret,
+    }
+  });
+});
+
+// POST /webhook — set or update webhook config
+router.post('/webhook', devJwtAuth, async (req: Request, res: Response) => {
+  const dev = (req as any).developer;
+  const { webhookUrl, enabled } = req.body;
+
+  if (webhookUrl && !webhookUrl.startsWith('https://')) {
+    return res.status(400).json({ status: 'error', code: 400, message: 'Webhook URL must use HTTPS' });
+  }
+
+  try {
+    const webhookSecret = `ara_wh_${crypto.randomBytes(32).toString('hex')}`;
+    await db.execute(sql`
+      UPDATE developer_users
+      SET webhook_url = ${webhookUrl || dev.webhookUrl},
+          webhook_secret = ${webhookSecret},
+          webhook_enabled = ${enabled !== undefined ? enabled : true},
+          updated_at = now()
+      WHERE id = ${dev.id}
+    `);
+
+    res.json({
+      status: 'success', code: 200, message: 'Webhook configured. Save your new secret — it will not be shown again.',
+      data: {
+        webhookUrl: webhookUrl || dev.webhookUrl,
+        webhookSecret,
+        webhookEnabled: enabled !== undefined ? enabled : true,
+      }
+    });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to configure webhook' });
+  }
+});
+
+// DELETE /webhook — disable webhook
+router.delete('/webhook', devJwtAuth, async (req: Request, res: Response) => {
+  const dev = (req as any).developer;
+  try {
+    await db.execute(sql`
+      UPDATE developer_users SET webhook_url = NULL, webhook_secret = NULL, webhook_enabled = false, updated_at = now()
+      WHERE id = ${dev.id}
+    `);
+    res.json({ status: 'success', code: 200, message: 'Webhook disabled and removed' });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to remove webhook' });
+  }
+});
+
+// GET /webhook/logs — delivery history
+router.get('/webhook/logs', devJwtAuth, async (req: Request, res: Response) => {
+  const dev = (req as any).developer;
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = 20;
+  const offset = (page - 1) * limit;
+  try {
+    const result = await db.execute(sql`
+      SELECT id, event_type, webhook_url, response_status, attempt, success, error_message, created_at
+      FROM developer_webhook_logs
+      WHERE developer_id = ${dev.id}
+      ORDER BY created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `);
+    const countRow = ((await db.execute(sql`SELECT COUNT(*)::int AS total FROM developer_webhook_logs WHERE developer_id = ${dev.id}`)).rows[0] || {}) as any;
+    res.json({ status: 'success', code: 200, data: { logs: result.rows, page, limit, total: countRow.total || 0 } });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to get webhook logs' });
+  }
+});
+
+// POST /webhook/test — send a test event to the developer's webhook
+router.post('/webhook/test', devJwtAuth, async (req: Request, res: Response) => {
+  const dev = (req as any).developer;
+  if (!dev.webhookUrl || !(dev as any).webhookSecret || !(dev as any).webhookEnabled) {
+    return res.status(400).json({ status: 'error', code: 400, message: 'Webhook not configured or not enabled' });
+  }
+  try {
+    const { deliverWebhook } = await import('../../services/webhookService');
+    deliverWebhook(dev.id, dev.webhookUrl, (dev as any).webhookSecret, 'verification.test', {
+      message: 'This is a test webhook from Arapoint',
+      timestamp: new Date().toISOString(),
+    });
+    res.json({ status: 'success', code: 200, message: 'Test webhook queued for delivery' });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to send test webhook' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PAYSTACK WALLET FUNDING
+// ─────────────────────────────────────────────────────────────────────────────
+
+// POST /billing/initiate — start a Paystack payment
+router.post('/billing/initiate', devJwtAuth, async (req: Request, res: Response) => {
+  const dev = (req as any).developer;
+  const { amount } = req.body;
+  const amtNgn = parseFloat(amount);
+  if (!amtNgn || amtNgn < 100) {
+    return res.status(400).json({ status: 'error', code: 400, message: 'Minimum amount is ₦100' });
+  }
+
+  if (!process.env.PAYSTACK_SECRET_KEY) {
+    return res.status(503).json({ status: 'error', code: 503, message: 'Payment gateway not configured. Contact support.' });
+  }
+
+  try {
+    const reference = `ara_${dev.id.slice(0, 8)}_${Date.now()}`;
+    const callbackUrl = `${process.env.APP_BASE_URL || 'https://arapoint.com.ng'}/developer/billing?ref=${reference}`;
+
+    const txData = await paystackService.initializeTransaction({
+      email: dev.email,
+      amountKobo: Math.round(amtNgn * 100),
+      reference,
+      callbackUrl,
+      metadata: { developerId: dev.id, purpose: 'wallet_funding' },
+    });
+
+    // Record pending transaction
+    await db.execute(sql`
+      INSERT INTO developer_paystack_transactions (developer_id, reference, amount_ngn, status, authorization_url)
+      VALUES (${dev.id}, ${reference}, ${amtNgn}, 'pending', ${txData.authorization_url})
+    `);
+
+    res.json({
+      status: 'success', code: 200, message: 'Payment initiated',
+      data: {
+        authorizationUrl: txData.authorization_url,
+        reference,
+        amount: amtNgn,
+      }
+    });
+  } catch (e: any) {
+    logger.error('Paystack initiate error', { error: e.message });
+    res.status(500).json({ status: 'error', code: 500, message: e.message || 'Failed to initiate payment' });
+  }
+});
+
+// POST /billing/paystack-webhook — Paystack calls this on payment events (public, no JWT)
+router.post('/billing/paystack-webhook', async (req: Request, res: Response) => {
+  const signature = req.headers['x-paystack-signature'] as string;
+  const rawBody = JSON.stringify(req.body);
+
+  if (!paystackService.verifyWebhookSignature(rawBody, signature)) {
+    return res.status(401).json({ status: 'error', message: 'Invalid Paystack signature' });
+  }
+
+  const { event, data } = req.body;
+  res.sendStatus(200); // Acknowledge immediately
+
+  if (event !== 'charge.success') return;
+
+  try {
+    const { reference, metadata, amount } = data;
+    const developerId = metadata?.developerId;
+    if (!developerId || !reference) return;
+
+    // Verify with Paystack directly
+    const verified = await paystackService.verifyTransaction(reference);
+    if (verified.status !== 'success') return;
+
+    const amtNgn = Math.round(verified.amount) / 100;
+
+    // Check already processed
+    const existing = ((await db.execute(sql`
+      SELECT status FROM developer_paystack_transactions WHERE reference = ${reference}
+    `)).rows[0] || {}) as any;
+    if (existing.status === 'successful') return;
+
+    // Credit wallet
+    await db.execute(sql`
+      UPDATE developer_users SET wallet_balance = wallet_balance + ${amtNgn}, updated_at = now()
+      WHERE id = ${developerId}
+    `);
+
+    await db.insert(developerTransactions).values({
+      developerId,
+      transactionType: 'wallet_funding',
+      amount: amtNgn.toFixed(2),
+      description: `Wallet funded via Paystack — ref: ${reference}`,
+      referenceId: reference,
+      status: 'successful',
+    });
+
+    await db.execute(sql`
+      UPDATE developer_paystack_transactions
+      SET status = 'successful', paystack_status = 'success', paid_at = now()
+      WHERE reference = ${reference}
+    `);
+
+    logger.info('Developer wallet funded via Paystack', { developerId, amtNgn, reference });
+  } catch (e: any) {
+    logger.error('Paystack webhook processing error', { error: e.message });
+  }
+});
+
+// GET /billing/verify/:reference — developer polls after Paystack redirect
+router.get('/billing/verify/:reference', devJwtAuth, async (req: Request, res: Response) => {
+  const dev = (req as any).developer;
+  const { reference } = req.params;
+  try {
+    const result = await db.execute(sql`
+      SELECT * FROM developer_paystack_transactions
+      WHERE reference = ${reference} AND developer_id = ${dev.id}
+    `);
+    const tx = result.rows[0] as any;
+    if (!tx) return res.status(404).json({ status: 'error', code: 404, message: 'Transaction not found' });
+    res.json({ status: 'success', code: 200, data: tx });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to verify payment' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ANALYTICS
+// ─────────────────────────────────────────────────────────────────────────────
+
+router.get('/analytics', devJwtAuth, async (req: Request, res: Response) => {
+  const dev = (req as any).developer;
+  const days = parseInt(req.query.days as string) || 30;
+  try {
+    const summary = await db.execute(sql`
+      SELECT
+        COUNT(*)::int AS total_calls,
+        COUNT(*) FILTER (WHERE status_code >= 200 AND status_code < 300)::int AS success_calls,
+        COUNT(*) FILTER (WHERE status_code >= 400)::int AS error_calls,
+        COALESCE(SUM(cost), 0)::numeric AS total_spent,
+        COALESCE(AVG(duration_ms), 0)::numeric AS avg_duration_ms
+      FROM developer_api_logs
+      WHERE developer_id = ${dev.id} AND created_at >= NOW() - INTERVAL '${sql.raw(days.toString())} days'
+    `);
+
+    const dailyData = await db.execute(sql`
+      SELECT
+        DATE(created_at) AS day,
+        COUNT(*)::int AS calls,
+        COUNT(*) FILTER (WHERE status_code >= 200 AND status_code < 300)::int AS success,
+        COALESCE(SUM(cost), 0)::numeric AS spent
+      FROM developer_api_logs
+      WHERE developer_id = ${dev.id} AND created_at >= NOW() - INTERVAL '${sql.raw(days.toString())} days'
+      GROUP BY DATE(created_at)
+      ORDER BY day ASC
+    `);
+
+    const endpointData = await db.execute(sql`
+      SELECT endpoint, COUNT(*)::int AS calls, COALESCE(SUM(cost), 0)::numeric AS spent
+      FROM developer_api_logs
+      WHERE developer_id = ${dev.id} AND created_at >= NOW() - INTERVAL '${sql.raw(days.toString())} days'
+      GROUP BY endpoint
+      ORDER BY calls DESC
+      LIMIT 10
+    `);
+
+    const s = summary.rows[0] as any;
+    res.json({
+      status: 'success', code: 200, message: 'Analytics retrieved',
+      data: {
+        period: `${days} days`,
+        summary: {
+          totalCalls: s?.total_calls || 0,
+          successCalls: s?.success_calls || 0,
+          errorCalls: s?.error_calls || 0,
+          successRate: s?.total_calls ? Math.round((s.success_calls / s.total_calls) * 100) : 0,
+          totalSpent: parseFloat(s?.total_spent || '0').toFixed(2),
+          avgDurationMs: Math.round(parseFloat(s?.avg_duration_ms || '0')),
+        },
+        daily: dailyData.rows,
+        endpoints: endpointData.rows,
+      }
+    });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to retrieve analytics' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FRAUD SCORE API
+// ─────────────────────────────────────────────────────────────────────────────
+
+router.post('/verify/fraud-score', apiKeyAuth, async (req: Request, res: Response) => {
+  const start = Date.now();
+  const dev = (req as any).developer;
+  const apiKeyId = (req as any).apiKeyId;
+  const { nin, bvn, phone } = req.body;
+  let statusCode = 200;
+  let responseData: any;
+
+  try {
+    if (!nin && !bvn && !phone) {
+      statusCode = 400;
+      responseData = { status: 'error', code: 400, message: 'At least one of nin, bvn, or phone required' };
+      return res.status(400).json(responseData);
+    }
+
+    await deductDeveloperBalance(dev.id, API_PRICES.fraud_score, `Fraud score - ${nin || bvn || phone}`);
+
+    // Sandbox mock
+    if ((dev as any).environmentMode === 'sandbox') {
+      responseData = {
+        status: 'success', code: 200, message: 'Fraud score computed (sandbox)',
+        data: { fraudScore: sandboxFraudScore(nin || bvn || phone) }
+      };
+      return res.json(responseData);
+    }
+
+    // Real fraud scoring: cross-reference NIN+BVN name/DOB consistency,
+    // check frequency of verification requests, known bad identifiers
+    let riskScore = 0;
+    const signals: Record<string, boolean> = {};
+
+    if (nin && bvn) {
+      const { premblyService } = await import('../../services/premblyService');
+      const [ninRes, bvnRes] = await Promise.allSettled([
+        premblyService.verifyNIN(nin),
+        premblyService.verifyBVN(bvn),
+      ]);
+
+      const ninData = ninRes.status === 'fulfilled' ? ninRes.value : null;
+      const bvnData = bvnRes.status === 'fulfilled' ? bvnRes.value : null;
+
+      if (!ninData || ninData.error) { riskScore += 30; signals.ninUnverified = true; }
+      if (!bvnData || bvnData.error) { riskScore += 30; signals.bvnUnverified = true; }
+
+      if (ninData && bvnData && !ninData.error && !bvnData.error) {
+        const ninName = `${ninData.data?.firstName || ''} ${ninData.data?.lastName || ''}`.trim().toLowerCase();
+        const bvnName = `${bvnData.data?.firstName || ''} ${bvnData.data?.lastName || ''}`.trim().toLowerCase();
+        if (ninName && bvnName && ninName !== bvnName) {
+          riskScore += 25;
+          signals.nameMismatch = true;
+        }
+        if (ninData.data?.dateOfBirth !== bvnData.data?.dateOfBirth) {
+          riskScore += 15;
+          signals.dobMismatch = true;
+        }
+      }
+    }
+
+    const riskLevel = riskScore >= 70 ? 'High' : riskScore >= 40 ? 'Medium' : 'Low';
+
+    responseData = {
+      status: 'success', code: 200, message: 'Fraud score computed',
+      data: {
+        fraudScore: {
+          nin: nin || undefined, bvn: bvn || undefined,
+          riskScore: Math.min(riskScore, 100),
+          riskLevel,
+          signals,
+        }
+      }
+    };
+    res.json(responseData);
+  } catch (e: any) {
+    if (e.message?.includes('Insufficient')) {
+      statusCode = 402;
+      responseData = { status: 'error', code: 402, message: 'Insufficient wallet balance.' };
+      return res.status(402).json(responseData);
+    }
+    statusCode = 500;
+    responseData = { status: 'error', code: 500, message: 'Fraud score failed', error: e.message };
+    res.status(500).json(responseData);
+  } finally {
+    await logApiCall(dev.id, apiKeyId, '/verify/fraud-score', 'POST', { nin, bvn, phone },
+      responseData, statusCode, statusCode === 200 ? API_PRICES.fraud_score : 0,
+      Date.now() - start, req.ip || '');
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IP ALLOWLIST MANAGEMENT (JWT auth)
+// ─────────────────────────────────────────────────────────────────────────────
+
+router.get('/security/ip-allowlist', devJwtAuth, async (req: Request, res: Response) => {
+  const dev = (req as any).developer;
+  const list: string[] = (dev as any).ipAllowlist || [];
+  res.json({ status: 'success', code: 200, data: { ipAllowlist: list, count: list.length } });
+});
+
+router.post('/security/ip-allowlist', devJwtAuth, async (req: Request, res: Response) => {
+  const dev = (req as any).developer;
+  const { ip } = req.body;
+  if (!ip || typeof ip !== 'string') {
+    return res.status(400).json({ status: 'error', code: 400, message: 'IP address required' });
+  }
+  const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
+  if (!ipPattern.test(ip)) {
+    return res.status(400).json({ status: 'error', code: 400, message: 'Invalid IP address format' });
+  }
+  try {
+    const current: string[] = (dev as any).ipAllowlist || [];
+    if (current.includes(ip)) {
+      return res.status(409).json({ status: 'error', code: 409, message: 'IP already on allowlist' });
+    }
+    const updated = [...current, ip];
+    await db.execute(sql`UPDATE developer_users SET ip_allowlist = ${JSON.stringify(updated)}::jsonb, updated_at = now() WHERE id = ${dev.id}`);
+    res.json({ status: 'success', code: 200, message: 'IP added to allowlist', data: { ipAllowlist: updated } });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to update allowlist' });
+  }
+});
+
+router.delete('/security/ip-allowlist', devJwtAuth, async (req: Request, res: Response) => {
+  const dev = (req as any).developer;
+  const { ip } = req.body;
+  if (!ip) return res.status(400).json({ status: 'error', code: 400, message: 'IP address required' });
+  try {
+    const current: string[] = (dev as any).ipAllowlist || [];
+    const updated = current.filter((i: string) => i !== ip);
+    await db.execute(sql`UPDATE developer_users SET ip_allowlist = ${JSON.stringify(updated)}::jsonb, updated_at = now() WHERE id = ${dev.id}`);
+    res.json({ status: 'success', code: 200, message: 'IP removed from allowlist', data: { ipAllowlist: updated } });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to update allowlist' });
   }
 });
 
