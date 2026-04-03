@@ -119,43 +119,37 @@ export default function TransactionHistory() {
         <p className="text-sm text-muted-foreground mt-0.5">View and track all your wallet transactions</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <Card className="border-0 shadow-sm ring-1 ring-border/50">
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                <Receipt className="h-4 w-4 text-muted-foreground" />
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex flex-col gap-1.5">
+              <div className="h-7 w-7 rounded-md bg-muted flex items-center justify-center">
+                <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Total</p>
-                <p className="text-lg font-bold">{total}</p>
-              </div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Total</p>
+              <p className="text-sm sm:text-base font-bold tabular-nums">{total}</p>
             </div>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-sm ring-1 ring-border/50 bg-green-50/50 dark:bg-green-950/20">
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-green-100 dark:bg-green-900/40 flex items-center justify-center flex-shrink-0">
-                <TrendingUp className="h-4 w-4 text-green-600" />
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex flex-col gap-1.5">
+              <div className="h-7 w-7 rounded-md bg-green-100 dark:bg-green-900/40 flex items-center justify-center">
+                <TrendingUp className="h-3.5 w-3.5 text-green-600" />
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Credits</p>
-                <p className="text-lg font-bold text-green-600">₦{totalCredits.toLocaleString()}</p>
-              </div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Credits</p>
+              <p className="text-sm sm:text-base font-bold text-green-600 tabular-nums truncate">₦{totalCredits.toLocaleString()}</p>
             </div>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-sm ring-1 ring-border/50 bg-red-50/50 dark:bg-red-950/20">
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-red-100 dark:bg-red-900/40 flex items-center justify-center flex-shrink-0">
-                <TrendingDown className="h-4 w-4 text-red-600" />
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex flex-col gap-1.5">
+              <div className="h-7 w-7 rounded-md bg-red-100 dark:bg-red-900/40 flex items-center justify-center">
+                <TrendingDown className="h-3.5 w-3.5 text-red-600" />
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Debits</p>
-                <p className="text-lg font-bold text-red-600">₦{totalDebits.toLocaleString()}</p>
-              </div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Debits</p>
+              <p className="text-sm sm:text-base font-bold text-red-600 tabular-nums truncate">₦{totalDebits.toLocaleString()}</p>
             </div>
           </CardContent>
         </Card>

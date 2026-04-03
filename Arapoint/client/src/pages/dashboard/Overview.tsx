@@ -380,17 +380,17 @@ export default function Overview() {
             ) : (
               <div className="space-y-3">
                 {verifications.map((ver) => (
-                  <div key={ver.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${
+                  <div key={ver.id} className="flex items-center justify-between gap-2 p-3 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`h-9 w-9 flex-shrink-0 rounded-lg flex items-center justify-center ${
                         ver.type === 'NIN' ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400' :
                         ver.type === 'BVN' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400' :
                         'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-400'
                       }`}>
                         <span className="font-bold text-xs">{ver.type}</span>
                       </div>
-                      <div>
-                        <p className="font-medium text-sm">{ver.reference}</p>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{ver.reference}</p>
                         <p className="text-xs text-muted-foreground">{new Date(ver.date).toLocaleDateString()}</p>
                       </div>
                     </div>
@@ -428,17 +428,17 @@ export default function Overview() {
             ) : (
               <div className="space-y-3">
                 {transactions.map((tx) => (
-                  <div key={tx.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-slate-800">
-                    <div className="flex items-center gap-3">
-                      <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${tx.type === 'credit' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                  <div key={tx.id} className="flex items-center justify-between gap-2 p-3 rounded-lg bg-slate-50 dark:bg-slate-800">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`h-9 w-9 flex-shrink-0 rounded-lg flex items-center justify-center ${tx.type === 'credit' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                         {tx.type === 'credit' ? <ArrowDownRight className="h-4 w-4" /> : <ArrowUpRight className="h-4 w-4" />}
                       </div>
-                      <div>
-                        <p className="font-medium text-sm truncate max-w-[150px]">{tx.description}</p>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{tx.description}</p>
                         <p className="text-xs text-muted-foreground">{new Date(tx.date).toLocaleDateString()}</p>
                       </div>
                     </div>
-                    <span className={`font-semibold ${tx.type === 'credit' ? 'text-green-600' : 'text-slate-800 dark:text-white'}`}>
+                    <span className={`font-semibold flex-shrink-0 text-sm tabular-nums ${tx.type === 'credit' ? 'text-green-600' : 'text-slate-800 dark:text-white'}`}>
                       {tx.type === 'credit' ? '+' : '-'}₦{tx.amount.toLocaleString()}
                     </span>
                   </div>

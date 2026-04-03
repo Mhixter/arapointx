@@ -437,17 +437,17 @@ function KeyRow({ apiKey, visible, onToggleVisible, onCopy, onRevoke, maskFn }: 
 }) {
   return (
     <div className="bg-gray-800/60 border border-gray-700/50 rounded-lg p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Key className="w-4 h-4 text-[#0B5FFF]" />
-          <span className="text-sm font-medium text-white">{apiKey.keyName}</span>
-          <Badge className={apiKey.environment === "live"
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Key className="w-4 h-4 text-[#0B5FFF] flex-shrink-0" />
+          <span className="text-sm font-medium text-white truncate">{apiKey.keyName}</span>
+          <Badge className={`flex-shrink-0 ${apiKey.environment === "live"
             ? "bg-emerald-950 text-[#12B76A] border-[#12B76A30] text-xs"
-            : "bg-amber-950 text-amber-400 border-amber-800/60 text-xs"}>
+            : "bg-amber-950 text-amber-400 border-amber-800/60 text-xs"}`}>
             {apiKey.environment}
           </Badge>
         </div>
-        <button onClick={onRevoke} className="text-gray-600 hover:text-red-400 transition-colors">
+        <button onClick={onRevoke} className="text-gray-600 hover:text-red-400 transition-colors flex-shrink-0">
           <Trash2 className="w-4 h-4" />
         </button>
       </div>

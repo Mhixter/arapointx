@@ -50,12 +50,12 @@ const ChartTooltip = ({ active, payload, label }: any) => {
 
 function StatCard({ label, value, icon: Icon, accent }: { label: string; value: string; icon: any; accent: string }) {
   return (
-    <div className="rounded-xl p-5" style={{ background: C.card, border: `1px solid ${C.border}` }}>
-      <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-4" style={{ background: `${accent}1A`, border: `1px solid ${accent}33` }}>
-        <Icon className="w-5 h-5" style={{ color: accent }} />
+    <div className="rounded-xl p-4 sm:p-5" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center mb-3 sm:mb-4" style={{ background: `${accent}1A`, border: `1px solid ${accent}33` }}>
+        <Icon className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: accent }} />
       </div>
-      <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: C.muted }}>{label}</p>
-      <p className="text-2xl font-bold text-white">{value}</p>
+      <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: C.muted }}>{label}</p>
+      <p className="text-base sm:text-xl font-bold text-white tabular-nums truncate">{value}</p>
     </div>
   );
 }
