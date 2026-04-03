@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
 import { DevLayout } from "./DevLayout";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -61,7 +60,6 @@ function StatCard({ label, value, icon: Icon, accent }: { label: string; value: 
 }
 
 export default function DevDashboard() {
-  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [stats, setStats] = useState<any>(null);
   const [analytics, setAnalytics] = useState<any>(null);
@@ -212,7 +210,7 @@ export default function DevDashboard() {
                 <p className="text-sm" style={{ color: C.muted }}>
                   Complete business verification (KYB) to access real identity data, higher rate limits, and production API keys.
                 </p>
-                <button onClick={() => setLocation("/developer/kyb")}
+                <button onClick={() => { window.location.href = "/developer/kyb"; }}
                   className="mt-4 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90"
                   style={{ background: C.blue }}>
                   Apply for Verification <ArrowRight className="w-4 h-4" />

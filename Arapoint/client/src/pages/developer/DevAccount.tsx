@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
 import { DevLayout } from "./DevLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +20,6 @@ function devFetch(path: string, options?: RequestInit) {
 
 export default function DevAccount() {
   const { toast } = useToast();
-  const [, setLocation] = useLocation();
   const [profile, setProfile] = useState<any>(null);
   const [form, setForm] = useState({ name: "", company: "", webhookUrl: "" });
   const [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
@@ -229,7 +227,7 @@ export default function DevAccount() {
               </div>
               {kycData.kycStatus !== "approved" && (
                 <div className="mt-3">
-                  <Button size="sm" onClick={() => setLocation("/developer/kyb")}
+                  <Button size="sm" onClick={() => { window.location.href = "/developer/kyb"; }}
                     className="bg-[#0B5FFF] hover:opacity-90 h-9 px-5 text-sm">
                     {kycData.kycStatus === "not_required" ? "Begin Business Verification" :
                      kycData.kycStatus === "submitted" ? "View Application Status" : "Update & Resubmit"}

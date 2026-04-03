@@ -4,6 +4,8 @@ import {
   LayoutDashboard, Key, CreditCard, FileText, Book, User, LogOut, Menu, X, Code2, ShieldCheck, Webhook
 } from "lucide-react";
 
+const navigate = (path: string) => { window.location.href = path; };
+
 interface DevUser {
   id: string;
   email: string;
@@ -24,7 +26,7 @@ const navItems = [
 ];
 
 export function DevLayout({ children }: { children: React.ReactNode }) {
-  const [location, setLocation] = useLocation();
+  const [location] = useLocation();
   const [developer, setDeveloper] = useState<DevUser | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -32,20 +34,20 @@ export function DevLayout({ children }: { children: React.ReactNode }) {
     const stored = localStorage.getItem("dev_token");
     const devData = localStorage.getItem("dev_user");
     if (!stored || !devData) {
-      setLocation("/developer/login");
+      navigate("/developer/login");
       return;
     }
     try {
       setDeveloper(JSON.parse(devData));
     } catch {
-      setLocation("/developer/login");
+      navigate("/developer/login");
     }
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("dev_token");
     localStorage.removeItem("dev_user");
-    setLocation("/developer/login");
+    navigate("/developer/login");
   };
 
   if (!developer) return null;
@@ -92,7 +94,7 @@ export function DevLayout({ children }: { children: React.ReactNode }) {
             return (
               <button
                 key={item.path}
-                onClick={() => { setLocation(item.path); setSidebarOpen(false); }}
+                onClick={() => { setSidebarOpen(false); navigate(item.path); }}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all"
                 style={{
                   background: active ? "#0B5FFF1A" : "transparent",

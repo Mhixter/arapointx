@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { Code2, Loader2, Mail, ArrowLeft, CheckCircle, Eye, EyeOff } from "lucide-react";
 
@@ -42,7 +41,6 @@ function StyledInput({ type = "text", ...props }: React.InputHTMLAttributes<HTML
 type RegisterStep = "form" | "otp" | "done";
 
 export default function DevLogin() {
-  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [tab, setTab] = useState<"login" | "register">("login");
   const [loading, setLoading] = useState(false);
@@ -67,7 +65,7 @@ export default function DevLogin() {
         localStorage.setItem("dev_token", data.data.token);
         localStorage.setItem("dev_user", JSON.stringify(data.data.developer));
         toast({ title: "Welcome back!", description: `Logged in as ${data.data.developer.name}` });
-        setLocation("/developer/dashboard");
+        window.location.href = "/developer/dashboard";
       } else {
         toast({ title: "Login failed", description: data.message, variant: "destructive" });
       }
@@ -167,7 +165,7 @@ export default function DevLogin() {
         localStorage.setItem("dev_token", data.data.token);
         localStorage.setItem("dev_user", JSON.stringify(data.data.developer));
         setRegisterStep("done");
-        setTimeout(() => setLocation("/developer/dashboard"), 1500);
+        setTimeout(() => { window.location.href = "/developer/dashboard"; }, 1500);
       } else {
         toast({ title: "Verification failed", description: data.message, variant: "destructive" });
       }

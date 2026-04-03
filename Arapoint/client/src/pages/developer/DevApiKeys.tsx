@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
 import { DevLayout } from "./DevLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,7 +38,6 @@ interface ApiKey {
 
 export default function DevApiKeys() {
   const { toast } = useToast();
-  const [, setLocation] = useLocation();
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -244,7 +242,7 @@ export default function DevApiKeys() {
                 <p className="text-sm text-gray-300 font-medium">Business verification required</p>
                 <p className="text-xs text-gray-500 mt-0.5">Complete and get your KYB (Know Your Business) approved to unlock live API access.</p>
               </div>
-              <Button size="sm" onClick={() => setLocation("/developer/kyb")}
+              <Button size="sm" onClick={() => { window.location.href = "/developer/kyb"; }}
                 className="bg-[#0B5FFF] hover:opacity-90 h-8 px-3 text-xs shrink-0">
                 Apply <ChevronRight className="w-3 h-3 ml-0.5" />
               </Button>

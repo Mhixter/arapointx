@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { useLocation } from "wouter";
 import { DevLayout } from "./DevLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -87,7 +86,6 @@ type KybStatus = "not_required" | "submitted" | "approved" | "conditional" | "re
 
 export default function DevKyb() {
   const { toast } = useToast();
-  const [, setLocation] = useLocation();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -154,7 +152,7 @@ export default function DevKyb() {
   });
 
   useEffect(() => {
-    if (kybStatus === "approved") setLocation("/developer/dashboard");
+    if (kybStatus === "approved") { window.location.href = "/developer/dashboard"; }
   }, [kybStatus]);
 
   useEffect(() => {
