@@ -133,7 +133,7 @@ export default function DevBilling() {
               className="border-gray-700 text-gray-300 hover:bg-gray-800">
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
             </Button>
-            <Button size="sm" onClick={() => setShowFund(true)} className="bg-indigo-600 hover:bg-indigo-700">
+            <Button size="sm" onClick={() => setShowFund(true)} className="bg-[#0B5FFF] hover:opacity-90">
               <Plus className="w-3.5 h-3.5 mr-1.5" /> Fund Wallet
             </Button>
           </div>
@@ -141,27 +141,27 @@ export default function DevBilling() {
 
         {/* Pending verification notice */}
         {verifying && (
-          <div className="flex items-center gap-3 p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-xl">
-            <RefreshCw className="w-4 h-4 text-indigo-400 animate-spin flex-shrink-0" />
-            <p className="text-sm text-indigo-300">Verifying your payment... please wait</p>
+          <div className="flex items-center gap-3 p-4 bg-[#0B5FFF1A] border border-[#0B5FFF]/30 rounded-xl">
+            <RefreshCw className="w-4 h-4 text-[#0B5FFF] animate-spin flex-shrink-0" />
+            <p className="text-sm text-[#0B5FFF]">Verifying your payment... please wait</p>
           </div>
         )}
 
         {/* Balance cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="bg-gray-900 border-gray-800">
+          <Card className="bg-[#111827] border border-[#1F2937]">
             <CardContent className="p-5">
-              <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center mb-3">
-                <Wallet className="w-5 h-5 text-green-400" />
+              <div className="w-10 h-10 rounded-xl bg-[#12B76A1A] flex items-center justify-center mb-3">
+                <Wallet className="w-5 h-5 text-[#12B76A]" />
               </div>
               <p className="text-xs text-gray-400">Available Balance</p>
-              <p className="text-2xl font-bold text-green-400 mt-1">
+              <p className="text-2xl font-bold text-[#12B76A] mt-1">
                 ₦{(profile?.walletBalance || 0).toLocaleString("en-NG", { minimumFractionDigits: 2 })}
               </p>
             </CardContent>
           </Card>
 
-          <Card className="bg-gray-900 border-gray-800">
+          <Card className="bg-[#111827] border border-[#1F2937]">
             <CardContent className="p-5">
               <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center mb-3">
                 <ArrowDownLeft className="w-5 h-5 text-blue-400" />
@@ -173,7 +173,7 @@ export default function DevBilling() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gray-900 border-gray-800">
+          <Card className="bg-[#111827] border border-[#1F2937]">
             <CardContent className="p-5">
               <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center mb-3">
                 <ArrowUpRight className="w-5 h-5 text-red-400" />
@@ -187,10 +187,10 @@ export default function DevBilling() {
         </div>
 
         {/* Paystack info banner */}
-        <Card className="bg-green-950/20 border-green-800/40">
+        <Card className="bg-[#12B76A0D] border-[#12B76A30]">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center flex-shrink-0">
-              <CreditCard className="w-5 h-5 text-green-400" />
+            <div className="w-10 h-10 rounded-xl bg-[#12B76A1A] flex items-center justify-center flex-shrink-0">
+              <CreditCard className="w-5 h-5 text-[#12B76A]" />
             </div>
             <div className="flex-1">
               <p className="text-sm font-semibold text-white">Secure payments via Paystack</p>
@@ -198,12 +198,12 @@ export default function DevBilling() {
                 Fund your wallet using debit/credit cards, bank transfer, or USSD. Powered by Paystack — Nigeria's leading payment processor.
               </p>
             </div>
-            <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+            <CheckCircle className="w-5 h-5 text-[#12B76A] flex-shrink-0" />
           </CardContent>
         </Card>
 
         {/* Transaction History */}
-        <Card className="bg-gray-900 border-gray-800">
+        <Card className="bg-[#111827] border border-[#1F2937]">
           <CardHeader className="pb-3">
             <CardTitle className="text-white text-sm font-semibold">Transaction History</CardTitle>
             <CardDescription className="text-xs text-gray-500">All wallet credits and API charges</CardDescription>
@@ -226,9 +226,9 @@ export default function DevBilling() {
                   const amt = Math.abs(parseFloat(tx.amount || "0"));
                   return (
                     <div key={tx.id} className="flex items-center gap-3 py-2.5 border-b border-gray-800 last:border-0">
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${isCredit ? "bg-green-500/10" : "bg-red-500/10"}`}>
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${isCredit ? "bg-[#12B76A1A]" : "bg-red-500/10"}`}>
                         {isCredit
-                          ? <ArrowDownLeft className="w-3.5 h-3.5 text-green-400" />
+                          ? <ArrowDownLeft className="w-3.5 h-3.5 text-[#12B76A]" />
                           : <ArrowUpRight className="w-3.5 h-3.5 text-red-400" />}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -236,7 +236,7 @@ export default function DevBilling() {
                         <p className="text-xs text-gray-500">{new Date(tx.created_at).toLocaleString()}</p>
                       </div>
                       <div className="text-right">
-                        <p className={`text-sm font-semibold ${isCredit ? "text-green-400" : "text-red-400"}`}>
+                        <p className={`text-sm font-semibold ${isCredit ? "text-[#12B76A]" : "text-red-400"}`}>
                           {isCredit ? "+" : "-"}₦{amt.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
                         </p>
                         <Badge variant="outline" className="text-xs border-gray-700 text-gray-500">
@@ -254,10 +254,10 @@ export default function DevBilling() {
 
       {/* Fund Wallet Dialog */}
       <Dialog open={showFund} onOpenChange={setShowFund}>
-        <DialogContent className="bg-gray-900 border-gray-800 text-white">
+        <DialogContent className="bg-[#111827] border border-[#1F2937] text-white">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-indigo-400" />
+              <CreditCard className="w-5 h-5 text-[#0B5FFF]" />
               Fund Developer Wallet
             </DialogTitle>
             <DialogDescription className="text-gray-400">
@@ -270,7 +270,7 @@ export default function DevBilling() {
               <div className="grid grid-cols-3 gap-2">
                 {QUICK_AMOUNTS.map(a => (
                   <Button key={a} size="sm" variant="outline"
-                    className={`border-gray-700 text-sm ${amount === a.toString() ? "border-indigo-500 bg-indigo-950/40 text-indigo-300" : "text-gray-300 hover:bg-gray-800"}`}
+                    className={`border-gray-700 text-sm ${amount === a.toString() ? "border-[#0B5FFF] bg-[#0B5FFF0D] text-[#0B5FFF]" : "text-gray-300 hover:bg-gray-800"}`}
                     onClick={() => setAmount(a.toString())}>
                     ₦{a.toLocaleString()}
                   </Button>
@@ -294,7 +294,7 @@ export default function DevBilling() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShowFund(false)} className="text-gray-400">Cancel</Button>
-            <Button onClick={initiateFunding} disabled={funding || !amount} className="bg-indigo-600 hover:bg-indigo-700">
+            <Button onClick={initiateFunding} disabled={funding || !amount} className="bg-[#0B5FFF] hover:opacity-90">
               {funding ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-2" /> : <ExternalLink className="w-3.5 h-3.5 mr-2" />}
               Pay ₦{parseFloat(amount || "0").toLocaleString("en-NG")} via Paystack
             </Button>

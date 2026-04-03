@@ -137,7 +137,7 @@ export default function DevApiKeys() {
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             </Button>
             <Button size="sm" onClick={() => { setCreateEnv("sandbox"); setShowCreate(true); }}
-              className="bg-indigo-600 hover:bg-indigo-700 h-9 px-4">
+              className="bg-[#0B5FFF] hover:opacity-90 h-9 px-4">
               <Plus className="w-3.5 h-3.5 mr-1.5" /> New Key
             </Button>
           </div>
@@ -154,7 +154,7 @@ export default function DevApiKeys() {
             <div className="flex items-center gap-2 mt-3">
               <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border
                 ${profile.environmentMode === "live"
-                  ? "bg-emerald-950/50 border-emerald-800/60 text-emerald-400"
+                  ? "bg-[#12B76A0D] border-[#12B76A30] text-[#12B76A]"
                   : "bg-amber-950/50 border-amber-800/60 text-amber-400"}`}>
                 {profile.environmentMode === "live"
                   ? <><Unlock className="w-3 h-3" /> Live Mode</>
@@ -173,12 +173,12 @@ export default function DevApiKeys() {
         {newCreds && (
           <div className="bg-emerald-950 border border-emerald-800 rounded-xl p-5 mt-4">
             <div className="flex items-start gap-3 mb-4">
-              <AlertCircle className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-[#12B76A] shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold text-emerald-300 text-sm">Save these credentials now</p>
                 <p className="text-xs text-emerald-500 mt-0.5">Your Secret Key is only shown once and cannot be retrieved again.</p>
               </div>
-              <button onClick={() => setNewCreds(null)} className="ml-auto text-emerald-600 hover:text-emerald-400 text-xs">Dismiss</button>
+              <button onClick={() => setNewCreds(null)} className="ml-auto text-emerald-600 hover:text-[#12B76A] text-xs">Dismiss</button>
             </div>
             <div className="space-y-3">
               <CopyField label="API Key" value={newCreds.apiKey} mono dark
@@ -224,7 +224,7 @@ export default function DevApiKeys() {
           )}
           <div className="mt-3 pt-3 border-t border-gray-800/60">
             <Button size="sm" variant="ghost" onClick={() => { setCreateEnv("sandbox"); setShowCreate(true); }}
-              className="text-gray-400 hover:text-indigo-400 text-xs h-7 px-2">
+              className="text-gray-400 hover:text-[#0B5FFF] text-xs h-7 px-2">
               <Plus className="w-3.5 h-3.5 mr-1" /> Add Sandbox Key
             </Button>
           </div>
@@ -235,7 +235,7 @@ export default function DevApiKeys() {
           title="Live Keys"
           icon={<ShieldCheck className="w-4 h-4" />}
           subtitle="Production credentials — real identity verification"
-          badge={<Badge className="bg-emerald-950/80 text-emerald-300 border-emerald-800/60 text-xs ml-auto">Production</Badge>}
+          badge={<Badge className="bg-[#12B76A0D] text-emerald-300 border-[#12B76A30] text-xs ml-auto">Production</Badge>}
         >
           {!kycApproved ? (
             <div className="flex items-start gap-3 p-4 bg-gray-800/50 rounded-lg border border-gray-700/50">
@@ -245,7 +245,7 @@ export default function DevApiKeys() {
                 <p className="text-xs text-gray-500 mt-0.5">Complete and get your KYB (Know Your Business) approved to unlock live API access.</p>
               </div>
               <Button size="sm" onClick={() => setLocation("/developer/kyb")}
-                className="bg-indigo-600 hover:bg-indigo-700 h-8 px-3 text-xs shrink-0">
+                className="bg-[#0B5FFF] hover:opacity-90 h-8 px-3 text-xs shrink-0">
                 Apply <ChevronRight className="w-3 h-3 ml-0.5" />
               </Button>
             </div>
@@ -271,7 +271,7 @@ export default function DevApiKeys() {
           {kycApproved && (
             <div className="mt-3 pt-3 border-t border-gray-800/60">
               <Button size="sm" variant="ghost" onClick={() => { setCreateEnv("live"); setShowCreate(true); }}
-                className="text-gray-400 hover:text-emerald-400 text-xs h-7 px-2">
+                className="text-gray-400 hover:text-[#12B76A] text-xs h-7 px-2">
                 <Plus className="w-3.5 h-3.5 mr-1" /> Add Live Key
               </Button>
             </div>
@@ -337,7 +337,7 @@ export default function DevApiKeys() {
                   className={`flex items-center gap-2 p-3 rounded-lg border text-sm font-medium transition-colors ${
                     !kycApproved ? "border-gray-800 text-gray-700 cursor-not-allowed" :
                     createEnv === "live"
-                      ? "border-emerald-600 bg-emerald-950/50 text-emerald-300"
+                      ? "border-[#12B76A] bg-[#12B76A0D] text-emerald-300"
                       : "border-gray-700 text-gray-400 hover:border-gray-600"}`}>
                   {kycApproved ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />} Live
                 </button>
@@ -357,7 +357,7 @@ export default function DevApiKeys() {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShowCreate(false)} className="text-gray-400">Cancel</Button>
             <Button onClick={createKey} disabled={creating || !keyName.trim()}
-              className="bg-indigo-600 hover:bg-indigo-700">
+              className="bg-[#0B5FFF] hover:opacity-90">
               {creating ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-2" /> : <Key className="w-3.5 h-3.5 mr-2" />}
               Generate Keys
             </Button>
@@ -439,10 +439,10 @@ function KeyRow({ apiKey, visible, onToggleVisible, onCopy, onRevoke, maskFn }: 
     <div className="bg-gray-800/60 border border-gray-700/50 rounded-lg p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Key className="w-4 h-4 text-indigo-400" />
+          <Key className="w-4 h-4 text-[#0B5FFF]" />
           <span className="text-sm font-medium text-white">{apiKey.keyName}</span>
           <Badge className={apiKey.environment === "live"
-            ? "bg-emerald-950 text-emerald-400 border-emerald-800/60 text-xs"
+            ? "bg-emerald-950 text-[#12B76A] border-[#12B76A30] text-xs"
             : "bg-amber-950 text-amber-400 border-amber-800/60 text-xs"}>
             {apiKey.environment}
           </Badge>
@@ -495,7 +495,7 @@ function EmptyKeys({ env, onCreate }: { env: "sandbox" | "live"; onCreate: () =>
       <p className="text-sm text-gray-500">No {env} keys yet</p>
       <p className="text-xs text-gray-600 mt-0.5">Create a {env} keypair to start making API calls</p>
       <Button size="sm" onClick={onCreate}
-        className="mt-4 bg-indigo-600 hover:bg-indigo-700 h-8 px-4 text-xs">
+        className="mt-4 bg-[#0B5FFF] hover:opacity-90 h-8 px-4 text-xs">
         <Plus className="w-3.5 h-3.5 mr-1.5" /> Create {env === "live" ? "Live" : "Sandbox"} Key
       </Button>
     </div>

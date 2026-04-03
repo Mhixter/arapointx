@@ -95,6 +95,13 @@ const developerTransactions = pgTable('developer_transactions', {
       ALTER TABLE developer_users
         ADD COLUMN IF NOT EXISTS environment_mode varchar(20) DEFAULT 'sandbox'
     `);
+    // Patch any null is_active rows — these should default to active
+    await db.execute(sql`
+      UPDATE developer_users SET is_active = true WHERE is_active IS NULL
+    `);
+    await db.execute(sql`
+      UPDATE developer_api_keys SET is_active = true WHERE is_active IS NULL
+    `);
     await db.execute(sql`
       ALTER TABLE developer_users
         ADD COLUMN IF NOT EXISTS webhook_secret varchar(255),
@@ -353,7 +360,7 @@ async function devJwtAuth(req: Request, res: Response, next: Function) {
     const [dev] = await db.select().from(developerUsers)
       .where(eq(developerUsers.id, decoded.developerId))
       .limit(1);
-    if (!dev || !dev.isActive) {
+    if (!dev || dev.isActive === false) {
       return res.status(401).json({ status: 'error', code: 401, message: 'Account not found' });
     }
     (req as any).developer = dev;

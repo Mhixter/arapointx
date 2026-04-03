@@ -94,7 +94,7 @@ export default function DevAccount() {
   };
 
   const kybDisplay = (status: string) => ({
-    "approved":    { icon: CheckCircle,    color: "text-emerald-400", ring: "border-emerald-800/60 bg-emerald-950/40", label: "Verified",           desc: "Full API access granted." },
+    "approved":    { icon: CheckCircle,    color: "text-[#12B76A]", ring: "border-emerald-800/60 bg-emerald-950/40", label: "Verified",           desc: "Full API access granted." },
     "submitted":   { icon: Clock,          color: "text-amber-400",   ring: "border-amber-800/60 bg-amber-950/40",   label: "Under Review",       desc: "Expect a decision within 24–72 hours." },
     "conditional": { icon: AlertTriangle,  color: "text-orange-400",  ring: "border-orange-800/60 bg-orange-950/40", label: "Conditional",         desc: "Limited access. Review note and resubmit." },
     "rejected":    { icon: XCircle,        color: "text-red-400",     ring: "border-red-800/60 bg-red-950/40",       label: "Rejected",           desc: "Update information and resubmit." },
@@ -166,7 +166,7 @@ export default function DevAccount() {
               </Field>
             </div>
             <div className="pt-1">
-              <Button type="submit" disabled={saving} size="sm" className="bg-indigo-600 hover:bg-indigo-700 h-9 px-5">
+              <Button type="submit" disabled={saving} size="sm" className="bg-[#0B5FFF] hover:opacity-90 h-9 px-5">
                 {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-2" /> : <Save className="w-3.5 h-3.5 mr-2" />}
                 Save Profile
               </Button>
@@ -230,7 +230,7 @@ export default function DevAccount() {
               {kycData.kycStatus !== "approved" && (
                 <div className="mt-3">
                   <Button size="sm" onClick={() => setLocation("/developer/kyb")}
-                    className="bg-indigo-600 hover:bg-indigo-700 h-9 px-5 text-sm">
+                    className="bg-[#0B5FFF] hover:opacity-90 h-9 px-5 text-sm">
                     {kycData.kycStatus === "not_required" ? "Begin Business Verification" :
                      kycData.kycStatus === "submitted" ? "View Application Status" : "Update & Resubmit"}
                     <ChevronRight className="w-3.5 h-3.5 ml-1" />

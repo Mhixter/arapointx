@@ -169,8 +169,8 @@ export default function DevWebhooks() {
         <Card className="bg-gray-900 border-gray-800">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center">
-                <Webhook className="w-4 h-4 text-indigo-400" />
+              <div className="w-8 h-8 rounded-lg bg-[#0B5FFF1A] flex items-center justify-center">
+                <Webhook className="w-4 h-4 text-[#0B5FFF]" />
               </div>
               <div>
                 <CardTitle className="text-white text-sm font-semibold">Webhook Endpoint</CardTitle>
@@ -201,7 +201,7 @@ export default function DevWebhooks() {
                 {config?.webhookEnabled ? "Active" : "Inactive"}
               </Badge>
               {config?.hasSecret && (
-                <Badge variant="outline" className="text-indigo-400 border-indigo-500/50">
+                <Badge variant="outline" className="text-[#0B5FFF] border-[#0B5FFF]/50">
                   <ShieldCheck className="w-3 h-3 mr-1" />
                   Signed
                 </Badge>
@@ -217,7 +217,7 @@ export default function DevWebhooks() {
                   placeholder="https://yourserver.com/webhooks/arapoint"
                   className="bg-gray-950 border-gray-700 text-white font-mono text-xs"
                 />
-                <Button onClick={saveWebhook} disabled={saving} size="sm" className="bg-indigo-600 hover:bg-indigo-700 flex-shrink-0">
+                <Button onClick={saveWebhook} disabled={saving} size="sm" className="bg-[#0B5FFF] hover:opacity-90 flex-shrink-0">
                   {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : "Save"}
                 </Button>
               </div>

@@ -1,20 +1,53 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Code2, Loader2, Mail, ArrowLeft, CheckCircle } from "lucide-react";
+import { Code2, Loader2, Mail, ArrowLeft, CheckCircle, Eye, EyeOff } from "lucide-react";
+
+const C = {
+  bg: "#0A0A0A",
+  card: "#111827",
+  border: "#1F2937",
+  text: "#E5E7EB",
+  muted: "#6B7280",
+  blue: "#0B5FFF",
+  green: "#12B76A",
+};
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: C.muted }}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function StyledInput({ type = "text", ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      type={type}
+      {...props}
+      className="w-full px-3 py-2.5 rounded-lg text-sm outline-none transition-all"
+      style={{
+        background: "#0A0A0A",
+        border: `1px solid ${C.border}`,
+        color: C.text,
+      }}
+      onFocus={e => (e.currentTarget.style.borderColor = C.blue)}
+      onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+    />
+  );
+}
 
 type RegisterStep = "form" | "otp" | "done";
 
 export default function DevLogin() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [tab, setTab] = useState<"login" | "register">("login");
   const [loading, setLoading] = useState(false);
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
+  const [showPw, setShowPw] = useState(false);
   const [registerForm, setRegisterForm] = useState({ email: "", name: "", company: "", password: "", confirmPassword: "" });
   const [registerStep, setRegisterStep] = useState<RegisterStep>("form");
   const [otpCode, setOtpCode] = useState("");
@@ -145,187 +178,168 @@ export default function DevLogin() {
     }
   };
 
+  const submitBtn = (label: string) => (
+    <button type="submit" disabled={loading}
+      className="w-full py-2.5 rounded-lg text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+      style={{ background: C.blue }}>
+      {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+      {label}
+    </button>
+  );
+
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: C.bg }}>
       <div className="w-full max-w-md">
+
+        {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-indigo-600 flex items-center justify-center mx-auto mb-4">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: "linear-gradient(135deg,#0B5FFF,#12B76A)", boxShadow: `0 8px 32px ${C.blue}40` }}>
             <Code2 className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Arapoint Developer Portal</h1>
-          <p className="text-gray-400 text-sm mt-1">Build with Nigeria's verification infrastructure</p>
+          <h1 className="text-2xl font-extrabold text-white">Arapoint Developer Portal</h1>
+          <p className="text-sm mt-1" style={{ color: C.muted }}>Build with Nigeria's verification infrastructure</p>
         </div>
 
-        <Tabs defaultValue="login" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-gray-800 mb-6">
-            <TabsTrigger value="login" className="data-[state=active]:bg-indigo-600 text-white">Sign In</TabsTrigger>
-            <TabsTrigger value="register" className="data-[state=active]:bg-indigo-600 text-white">Create Account</TabsTrigger>
-          </TabsList>
+        {/* Tabs */}
+        <div className="flex rounded-xl p-1 mb-6" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+          {(["login", "register"] as const).map(t => (
+            <button key={t} onClick={() => { setTab(t); setRegisterStep("form"); }}
+              className="flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all"
+              style={tab === t
+                ? { background: C.blue, color: "#fff" }
+                : { color: C.muted }}>
+              {t === "login" ? "Sign In" : "Create Account"}
+            </button>
+          ))}
+        </div>
 
-          <TabsContent value="login">
-            <Card className="bg-gray-900 border-gray-800">
-              <CardHeader>
-                <CardTitle className="text-white">Welcome back</CardTitle>
-                <CardDescription className="text-gray-400">Sign in to your developer account</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-gray-300 text-sm">Email</Label>
-                    <Input
-                      type="email" required
-                      value={loginForm.email}
-                      onChange={e => setLoginForm(f => ({ ...f, email: e.target.value }))}
-                      className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
-                      placeholder="dev@company.com"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-gray-300 text-sm">Password</Label>
-                    <Input
-                      type="password" required
+        {/* Card */}
+        <div className="rounded-2xl p-6" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+
+          {/* ── Login ── */}
+          {tab === "login" && (
+            <>
+              <h2 className="text-lg font-bold text-white mb-0.5">Welcome back</h2>
+              <p className="text-sm mb-5" style={{ color: C.muted }}>Sign in to your developer account</p>
+              <form onSubmit={handleLogin} className="space-y-4">
+                <Field label="Email">
+                  <StyledInput type="email" required placeholder="dev@company.com"
+                    value={loginForm.email}
+                    onChange={e => setLoginForm(f => ({ ...f, email: e.target.value }))} />
+                </Field>
+                <Field label="Password">
+                  <div className="relative">
+                    <StyledInput type={showPw ? "text" : "password"} required placeholder="••••••••"
                       value={loginForm.password}
                       onChange={e => setLoginForm(f => ({ ...f, password: e.target.value }))}
-                      className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
-                      placeholder="••••••••"
-                    />
+                      style={{ paddingRight: "2.5rem" }} />
+                    <button type="button" onClick={() => setShowPw(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: C.muted }}>
+                      {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
-                  <Button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700">
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                    Sign In
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                </Field>
+                {submitBtn("Sign In")}
+              </form>
+            </>
+          )}
 
-          <TabsContent value="register">
-            {registerStep === "done" ? (
-              <Card className="bg-gray-900 border-gray-800">
-                <CardContent className="pt-8 pb-8 text-center">
-                  <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                  <h3 className="text-white text-xl font-bold mb-2">Account Created!</h3>
-                  <p className="text-gray-400 text-sm">Redirecting to your dashboard...</p>
-                </CardContent>
-              </Card>
-            ) : registerStep === "otp" ? (
-              <Card className="bg-gray-900 border-gray-800">
-                <CardHeader>
-                  <button onClick={() => setRegisterStep("form")} className="flex items-center gap-1 text-gray-400 hover:text-white text-sm mb-2">
-                    <ArrowLeft className="w-4 h-4" /> Back
+          {/* ── Register ── */}
+          {tab === "register" && registerStep === "done" && (
+            <div className="py-8 text-center">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: `${C.green}1A` }}>
+                <CheckCircle className="w-10 h-10" style={{ color: C.green }} />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Account Created!</h3>
+              <p className="text-sm" style={{ color: C.muted }}>Redirecting to your dashboard...</p>
+            </div>
+          )}
+
+          {tab === "register" && registerStep === "otp" && (
+            <>
+              <button onClick={() => setRegisterStep("form")} className="flex items-center gap-1 text-sm mb-4" style={{ color: C.muted }}>
+                <ArrowLeft className="w-4 h-4" /> Back
+              </button>
+              <div className="text-center mb-5">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: `${C.blue}1A` }}>
+                  <Mail className="w-6 h-6" style={{ color: C.blue }} />
+                </div>
+                <h2 className="text-lg font-bold text-white">Verify your email</h2>
+                <p className="text-sm mt-1" style={{ color: C.muted }}>
+                  Enter the 6-digit code sent to{" "}
+                  <span className="font-semibold" style={{ color: C.blue }}>{registerForm.email}</span>
+                </p>
+              </div>
+              <form onSubmit={handleVerifyOtp} className="space-y-4">
+                <Field label="Verification Code">
+                  <input
+                    required maxLength={6}
+                    value={otpCode}
+                    onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className="w-full px-3 py-3 rounded-lg text-center text-2xl tracking-[0.5em] font-mono outline-none"
+                    placeholder="000000"
+                    style={{ background: "#0A0A0A", border: `1px solid ${C.border}`, color: C.text }}
+                    onFocus={e => (e.currentTarget.style.borderColor = C.blue)}
+                    onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+                  />
+                </Field>
+                <button type="submit" disabled={loading || otpCode.length !== 6}
+                  className="w-full py-2.5 rounded-lg text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{ background: C.blue }}>
+                  {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Create Account
+                </button>
+                <p className="text-center text-sm" style={{ color: C.muted }}>
+                  Didn't receive the code?{" "}
+                  <button type="button" onClick={handleResendOtp}
+                    disabled={resendCooldown > 0 || loading}
+                    className="font-semibold disabled:opacity-50"
+                    style={{ color: C.blue }}>
+                    {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend OTP"}
                   </button>
-                  <div className="flex justify-center mb-2">
-                    <div className="w-12 h-12 rounded-full bg-indigo-900 flex items-center justify-center">
-                      <Mail className="w-6 h-6 text-indigo-400" />
-                    </div>
-                  </div>
-                  <CardTitle className="text-white text-center">Verify Your Email</CardTitle>
-                  <CardDescription className="text-gray-400 text-center">
-                    Enter the 6-digit code sent to<br />
-                    <span className="text-indigo-400 font-medium">{registerForm.email}</span>
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleVerifyOtp} className="space-y-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-gray-300 text-sm">Verification Code</Label>
-                      <Input
-                        required
-                        maxLength={6}
-                        value={otpCode}
-                        onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        className="bg-gray-800 border-gray-700 text-white text-center text-2xl tracking-[0.5em] placeholder:text-gray-600 placeholder:text-base placeholder:tracking-normal"
-                        placeholder="000000"
-                      />
-                    </div>
-                    <Button type="submit" disabled={loading || otpCode.length !== 6} className="w-full bg-indigo-600 hover:bg-indigo-700">
-                      {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                      Create Account
-                    </Button>
-                    <p className="text-center text-sm text-gray-500">
-                      Didn't receive the code?{" "}
-                      <button
-                        type="button"
-                        onClick={handleResendOtp}
-                        disabled={resendCooldown > 0 || loading}
-                        className="text-indigo-400 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend OTP"}
-                      </button>
-                    </p>
-                  </form>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card className="bg-gray-900 border-gray-800">
-                <CardHeader>
-                  <CardTitle className="text-white">Create developer account</CardTitle>
-                  <CardDescription className="text-gray-400">Start integrating Arapoint APIs</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleSendOtp} className="space-y-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-gray-300 text-sm">Full Name</Label>
-                      <Input
-                        required
-                        value={registerForm.name}
-                        onChange={e => setRegisterForm(f => ({ ...f, name: e.target.value }))}
-                        className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
-                        placeholder="John Doe"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-gray-300 text-sm">Email</Label>
-                      <Input
-                        type="email" required
-                        value={registerForm.email}
-                        onChange={e => setRegisterForm(f => ({ ...f, email: e.target.value }))}
-                        className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
-                        placeholder="dev@company.com"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-gray-300 text-sm">Company (optional)</Label>
-                      <Input
-                        value={registerForm.company}
-                        onChange={e => setRegisterForm(f => ({ ...f, company: e.target.value }))}
-                        className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
-                        placeholder="Acme Ltd"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-gray-300 text-sm">Password</Label>
-                      <Input
-                        type="password" required minLength={8}
-                        value={registerForm.password}
-                        onChange={e => setRegisterForm(f => ({ ...f, password: e.target.value }))}
-                        className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
-                        placeholder="Min 8 characters"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-gray-300 text-sm">Confirm Password</Label>
-                      <Input
-                        type="password" required minLength={8}
-                        value={registerForm.confirmPassword}
-                        onChange={e => setRegisterForm(f => ({ ...f, confirmPassword: e.target.value }))}
-                        className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
-                        placeholder="••••••••"
-                      />
-                    </div>
-                    <Button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700">
-                      {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                      Send Verification Code
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
+                </p>
+              </form>
+            </>
+          )}
 
-        <p className="text-center text-xs text-gray-600 mt-4">
-          <a href="/" className="text-indigo-400 hover:underline">← Back to Arapoint</a>
+          {tab === "register" && registerStep === "form" && (
+            <>
+              <h2 className="text-lg font-bold text-white mb-0.5">Create developer account</h2>
+              <p className="text-sm mb-5" style={{ color: C.muted }}>Start integrating Arapoint APIs</p>
+              <form onSubmit={handleSendOtp} className="space-y-4">
+                <Field label="Full Name">
+                  <StyledInput required placeholder="John Doe"
+                    value={registerForm.name}
+                    onChange={e => setRegisterForm(f => ({ ...f, name: e.target.value }))} />
+                </Field>
+                <Field label="Email">
+                  <StyledInput type="email" required placeholder="dev@company.com"
+                    value={registerForm.email}
+                    onChange={e => setRegisterForm(f => ({ ...f, email: e.target.value }))} />
+                </Field>
+                <Field label="Company (optional)">
+                  <StyledInput placeholder="Acme Ltd"
+                    value={registerForm.company}
+                    onChange={e => setRegisterForm(f => ({ ...f, company: e.target.value }))} />
+                </Field>
+                <Field label="Password">
+                  <StyledInput type="password" required minLength={8} placeholder="Min 8 characters"
+                    value={registerForm.password}
+                    onChange={e => setRegisterForm(f => ({ ...f, password: e.target.value }))} />
+                </Field>
+                <Field label="Confirm Password">
+                  <StyledInput type="password" required minLength={8} placeholder="••••••••"
+                    value={registerForm.confirmPassword}
+                    onChange={e => setRegisterForm(f => ({ ...f, confirmPassword: e.target.value }))} />
+                </Field>
+                {submitBtn("Send Verification Code")}
+              </form>
+            </>
+          )}
+        </div>
+
+        <p className="text-center text-xs mt-4" style={{ color: C.muted }}>
+          <a href="/" style={{ color: C.blue }} className="hover:underline">← Back to Arapoint</a>
         </p>
       </div>
     </div>
