@@ -498,20 +498,20 @@ export default function DevDocs() {
 
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
           {/* Sidebar nav */}
-          <div className="xl:col-span-1 space-y-1 xl:sticky xl:top-4 xl:self-start">
+          <div className="xl:col-span-1 space-y-0.5 xl:sticky xl:top-4 xl:self-start">
             <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-3 px-2">Contents</p>
             {docSections.map(s => (
               <button
                 key={s.id}
                 onClick={() => scrollTo(s.id)}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-sm transition-all ${
+                className={`w-full flex items-start gap-2.5 px-3 py-2 rounded-lg text-left transition-all ${
                   activeSection === s.id
                     ? "bg-indigo-950/60 border border-indigo-700 text-white"
                     : "text-gray-400 hover:bg-gray-800 hover:text-white"
                 }`}
               >
-                <s.icon className="w-3.5 h-3.5 flex-shrink-0" />
-                <span className="text-xs">{s.label}</span>
+                <s.icon className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                <span className="text-xs leading-snug whitespace-normal">{s.label}</span>
               </button>
             ))}
           </div>

@@ -715,12 +715,51 @@ router.post('/wallet/fund', devJwtAuth, async (req: Request, res: Response) => {
       status: 'successful',
     });
 
+    // Email notification for wallet funding
+    try {
+      const { sendEmail } = await import('../../services/emailService');
+      const newBal = parseFloat(updated.walletBalance || '0');
+      await sendEmail(dev.email,
+        `Wallet Funded — ₦${parseFloat(amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })} Added`,
+        `<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:32px 24px;background:#0f1117;color:#e2e8f0;border-radius:12px">
+          <div style="margin-bottom:20px"><span style="background:#059669;color:#fff;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600">Wallet Funded</span></div>
+          <h1 style="font-size:20px;font-weight:700;color:#fff;margin:0 0 12px">Hi ${dev.name}, your wallet has been topped up!</h1>
+          <div style="background:#111827;border:1px solid #1f2937;border-radius:8px;padding:16px;margin-bottom:20px">
+            <p style="margin:0 0 8px;color:#6b7280;font-size:12px">AMOUNT ADDED</p>
+            <p style="margin:0;font-size:28px;font-weight:700;color:#34d399">₦${parseFloat(amount).toLocaleString('en-NG', { minimumFractionDigits: 2 })}</p>
+            <p style="margin:8px 0 0;color:#94a3b8;font-size:13px">New balance: <strong style="color:#fff">₦${newBal.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</strong></p>
+          </div>
+          <a href="https://arapoint.com.ng/developer/billing" style="display:inline-block;background:#4f46e5;color:#fff;padding:10px 22px;border-radius:8px;text-decoration:none;font-weight:600;font-size:13px">View Billing</a>
+          <p style="margin-top:24px;color:#475569;font-size:12px">Arapoint Developer Portal · arapoint.com.ng</p>
+        </div>`
+      );
+    } catch {}
+
     res.json({
       status: 'success', code: 200, message: 'Wallet funded successfully',
       data: { newBalance: parseFloat(updated.walletBalance || '0'), amount }
     });
   } catch (e: any) {
     res.status(500).json({ status: 'error', code: 500, message: 'Failed to fund wallet' });
+  }
+});
+
+// ─── Switch environment mode (sandbox / live) ─────────────────────────────────
+router.patch('/mode', devJwtAuth, async (req: Request, res: Response) => {
+  try {
+    const dev = (req as any).developer;
+    const { mode } = req.body;
+    if (!['sandbox', 'live'].includes(mode)) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'Mode must be sandbox or live' });
+    }
+    if (mode === 'live' && dev.kycStatus !== 'approved') {
+      return res.status(403).json({ status: 'error', code: 403, message: 'KYB approval required to switch to live mode' });
+    }
+    await db.update(developerUsers).set({ environmentMode: mode, updatedAt: new Date() })
+      .where(eq(developerUsers.id, dev.id));
+    res.json({ status: 'success', code: 200, message: `Switched to ${mode} mode`, data: { mode } });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to switch mode' });
   }
 });
 
@@ -1625,6 +1664,64 @@ router.patch('/admin/kyc/:id', adminAuth, async (req: Request, res: Response) =>
       kycReviewedAt: new Date(),
       updatedAt: new Date(),
     }).where(eq(developerUsers.id, req.params.id));
+
+    // Send email notification to developer
+    try {
+      const [devRecord] = await db.select().from(developerUsers)
+        .where(eq(developerUsers.id, req.params.id)).limit(1);
+      if (devRecord) {
+        const { sendEmail } = await import('../../services/emailService');
+        const portalUrl = 'https://arapoint.com.ng/developer/dashboard';
+        if (kycStatus === 'approved') {
+          await sendEmail(devRecord.email,
+            'KYB Approved — Welcome to Arapoint Live API',
+            `<div style="font-family:sans-serif;max-width:560px;margin:auto;padding:32px 24px;background:#0f1117;color:#e2e8f0;border-radius:12px">
+              <div style="margin-bottom:24px"><span style="background:#16a34a;color:#fff;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600">Approved</span></div>
+              <h1 style="font-size:22px;font-weight:700;color:#fff;margin:0 0 8px">Congratulations, ${devRecord.name}!</h1>
+              <p style="color:#94a3b8;margin:0 0 20px">Your business verification (KYB) has been <strong style="color:#4ade80">approved</strong>. You now have full access to the Arapoint Live API.</p>
+              <div style="background:#111827;border:1px solid #1f2937;border-radius:8px;padding:16px;margin-bottom:24px">
+                <p style="margin:0 0 8px;font-size:13px;color:#6b7280">What you can do now:</p>
+                <ul style="margin:0;padding-left:18px;color:#cbd5e1;font-size:13px;line-height:1.8">
+                  <li>Switch your dashboard to <strong>Live Mode</strong></li>
+                  <li>Create live API keys</li>
+                  <li>Access real identity verification data</li>
+                  <li>Use higher rate limits</li>
+                </ul>
+              </div>
+              ${note ? `<p style="background:#1e293b;border-left:3px solid #6366f1;padding:12px 16px;border-radius:4px;color:#94a3b8;font-size:13px;margin-bottom:20px"><strong>Admin note:</strong> ${note}</p>` : ''}
+              <a href="${portalUrl}" style="display:inline-block;background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">Open Developer Dashboard</a>
+              <p style="margin-top:24px;color:#475569;font-size:12px">Arapoint Developer Portal · arapoint.com.ng</p>
+            </div>`
+          );
+        } else if (kycStatus === 'conditional') {
+          await sendEmail(devRecord.email,
+            'KYB Update — Conditional Approval',
+            `<div style="font-family:sans-serif;max-width:560px;margin:auto;padding:32px 24px;background:#0f1117;color:#e2e8f0;border-radius:12px">
+              <div style="margin-bottom:24px"><span style="background:#d97706;color:#fff;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600">Conditional</span></div>
+              <h1 style="font-size:22px;font-weight:700;color:#fff;margin:0 0 8px">Conditional Approval, ${devRecord.name}</h1>
+              <p style="color:#94a3b8;margin:0 0 20px">Your KYB application has been <strong style="color:#fbbf24">conditionally approved</strong>. You have limited API access while we complete the review.</p>
+              ${note ? `<div style="background:#1e293b;border-left:3px solid #d97706;padding:12px 16px;border-radius:4px;margin-bottom:24px"><p style="margin:0;color:#94a3b8;font-size:13px"><strong>Compliance note:</strong> ${note}</p></div>` : ''}
+              <a href="${portalUrl}/kyb" style="display:inline-block;background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">Review & Resubmit</a>
+              <p style="margin-top:24px;color:#475569;font-size:12px">Arapoint Developer Portal · arapoint.com.ng</p>
+            </div>`
+          );
+        } else if (kycStatus === 'rejected') {
+          await sendEmail(devRecord.email,
+            'KYB Application — Not Approved',
+            `<div style="font-family:sans-serif;max-width:560px;margin:auto;padding:32px 24px;background:#0f1117;color:#e2e8f0;border-radius:12px">
+              <div style="margin-bottom:24px"><span style="background:#dc2626;color:#fff;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600">Rejected</span></div>
+              <h1 style="font-size:22px;font-weight:700;color:#fff;margin:0 0 8px">KYB Application Update</h1>
+              <p style="color:#94a3b8;margin:0 0 20px">Hi ${devRecord.name}, unfortunately your KYB application was <strong style="color:#f87171">not approved</strong> at this time. You may resubmit with updated information.</p>
+              ${note ? `<div style="background:#1e293b;border-left:3px solid #dc2626;padding:12px 16px;border-radius:4px;margin-bottom:24px"><p style="margin:0;color:#94a3b8;font-size:13px"><strong>Reason:</strong> ${note}</p></div>` : ''}
+              <a href="${portalUrl}/kyb" style="display:inline-block;background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">Resubmit Application</a>
+              <p style="margin-top:24px;color:#475569;font-size:12px">Arapoint Developer Portal · arapoint.com.ng</p>
+            </div>`
+          );
+        }
+      }
+    } catch (emailErr: any) {
+      logger.warn('[KYB Email] Failed to send notification', { error: emailErr.message });
+    }
 
     res.json({ status: 'success', code: 200, message: `KYB application ${kycStatus}` });
   } catch (e: any) {

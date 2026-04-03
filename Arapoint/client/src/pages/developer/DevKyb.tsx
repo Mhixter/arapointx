@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useLocation } from "wouter";
 import { DevLayout } from "./DevLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -86,6 +87,7 @@ type KybStatus = "not_required" | "submitted" | "approved" | "conditional" | "re
 
 export default function DevKyb() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -150,6 +152,10 @@ export default function DevKyb() {
     dataAgreement: false,
     termsAccepted: false,
   });
+
+  useEffect(() => {
+    if (kybStatus === "approved") setLocation("/developer/dashboard");
+  }, [kybStatus]);
 
   useEffect(() => {
     devFetch("/kyc/status")
@@ -258,21 +264,7 @@ export default function DevKyb() {
     );
   }
 
-  if (kybStatus === "approved") {
-    return (
-      <DevLayout>
-        <StatusView
-          icon={<CheckCircle className="w-12 h-12 text-green-400" />}
-          title="Business Verification Approved"
-          description="Your account has been fully verified. You have complete access to all Arapoint API services."
-          badge={<Badge className="bg-green-900/50 text-green-300 border-green-700">Approved</Badge>}
-          submittedAt={kybSubmittedAt}
-          note={kybReviewNote}
-          canResubmit={false}
-        />
-      </DevLayout>
-    );
-  }
+  if (kybStatus === "approved") return null;
 
   if (kybStatus === "conditional") {
     return (
