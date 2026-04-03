@@ -1678,51 +1678,28 @@ router.patch('/admin/kyc/:id', adminAuth, async (req: Request, res: Response) =>
         .where(eq(developerUsers.id, req.params.id)).limit(1);
       if (devRecord) {
         const { sendEmail } = await import('../../services/emailService');
-        const portalUrl = 'https://arapoint.com.ng/developer/dashboard';
+        const { devKybApprovedEmail, devKybConditionalEmail, devKybRejectedEmail } = await import('../../utils/devEmailTemplates');
+        const devFrom = { name: 'Arapoint Developers', email: 'developers@arapoint.com.ng' };
         if (kycStatus === 'approved') {
-          await sendEmail(devRecord.email,
+          await sendEmail(
+            devRecord.email,
             'KYB Approved — Welcome to Arapoint Live API',
-            `<div style="font-family:sans-serif;max-width:560px;margin:auto;padding:32px 24px;background:#0f1117;color:#e2e8f0;border-radius:12px">
-              <div style="margin-bottom:24px"><span style="background:#16a34a;color:#fff;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600">Approved</span></div>
-              <h1 style="font-size:22px;font-weight:700;color:#fff;margin:0 0 8px">Congratulations, ${devRecord.name}!</h1>
-              <p style="color:#94a3b8;margin:0 0 20px">Your business verification (KYB) has been <strong style="color:#4ade80">approved</strong>. You now have full access to the Arapoint Live API.</p>
-              <div style="background:#111827;border:1px solid #1f2937;border-radius:8px;padding:16px;margin-bottom:24px">
-                <p style="margin:0 0 8px;font-size:13px;color:#6b7280">What you can do now:</p>
-                <ul style="margin:0;padding-left:18px;color:#cbd5e1;font-size:13px;line-height:1.8">
-                  <li>Switch your dashboard to <strong>Live Mode</strong></li>
-                  <li>Create live API keys</li>
-                  <li>Access real identity verification data</li>
-                  <li>Use higher rate limits</li>
-                </ul>
-              </div>
-              ${note ? `<p style="background:#1e293b;border-left:3px solid #6366f1;padding:12px 16px;border-radius:4px;color:#94a3b8;font-size:13px;margin-bottom:20px"><strong>Admin note:</strong> ${note}</p>` : ''}
-              <a href="${portalUrl}" style="display:inline-block;background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">Open Developer Dashboard</a>
-              <p style="margin-top:24px;color:#475569;font-size:12px">Arapoint Developer Portal · arapoint.com.ng</p>
-            </div>`
+            devKybApprovedEmail(devRecord.name, note),
+            undefined, undefined, devFrom,
           );
         } else if (kycStatus === 'conditional') {
-          await sendEmail(devRecord.email,
+          await sendEmail(
+            devRecord.email,
             'KYB Update — Conditional Approval',
-            `<div style="font-family:sans-serif;max-width:560px;margin:auto;padding:32px 24px;background:#0f1117;color:#e2e8f0;border-radius:12px">
-              <div style="margin-bottom:24px"><span style="background:#d97706;color:#fff;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600">Conditional</span></div>
-              <h1 style="font-size:22px;font-weight:700;color:#fff;margin:0 0 8px">Conditional Approval, ${devRecord.name}</h1>
-              <p style="color:#94a3b8;margin:0 0 20px">Your KYB application has been <strong style="color:#fbbf24">conditionally approved</strong>. You have limited API access while we complete the review.</p>
-              ${note ? `<div style="background:#1e293b;border-left:3px solid #d97706;padding:12px 16px;border-radius:4px;margin-bottom:24px"><p style="margin:0;color:#94a3b8;font-size:13px"><strong>Compliance note:</strong> ${note}</p></div>` : ''}
-              <a href="${portalUrl}/kyb" style="display:inline-block;background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">Review & Resubmit</a>
-              <p style="margin-top:24px;color:#475569;font-size:12px">Arapoint Developer Portal · arapoint.com.ng</p>
-            </div>`
+            devKybConditionalEmail(devRecord.name, note),
+            undefined, undefined, devFrom,
           );
         } else if (kycStatus === 'rejected') {
-          await sendEmail(devRecord.email,
+          await sendEmail(
+            devRecord.email,
             'KYB Application — Not Approved',
-            `<div style="font-family:sans-serif;max-width:560px;margin:auto;padding:32px 24px;background:#0f1117;color:#e2e8f0;border-radius:12px">
-              <div style="margin-bottom:24px"><span style="background:#dc2626;color:#fff;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600">Rejected</span></div>
-              <h1 style="font-size:22px;font-weight:700;color:#fff;margin:0 0 8px">KYB Application Update</h1>
-              <p style="color:#94a3b8;margin:0 0 20px">Hi ${devRecord.name}, unfortunately your KYB application was <strong style="color:#f87171">not approved</strong> at this time. You may resubmit with updated information.</p>
-              ${note ? `<div style="background:#1e293b;border-left:3px solid #dc2626;padding:12px 16px;border-radius:4px;margin-bottom:24px"><p style="margin:0;color:#94a3b8;font-size:13px"><strong>Reason:</strong> ${note}</p></div>` : ''}
-              <a href="${portalUrl}/kyb" style="display:inline-block;background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">Resubmit Application</a>
-              <p style="margin-top:24px;color:#475569;font-size:12px">Arapoint Developer Portal · arapoint.com.ng</p>
-            </div>`
+            devKybRejectedEmail(devRecord.name, note),
+            undefined, undefined, devFrom,
           );
         }
       }

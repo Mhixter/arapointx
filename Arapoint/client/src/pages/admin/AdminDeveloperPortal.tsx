@@ -10,7 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Users, Activity, DollarSign, CheckCircle, XCircle, Clock, Eye,
   Search, RefreshCw, ShieldCheck, FileText, AlertCircle, ChevronRight,
-  X, Key, Lock, Unlock, BarChart3, Globe, Download, FileCheck
+  X, Key, Lock, Unlock, BarChart3, Globe, Download, FileCheck,
+  Building2, UserCheck, Layers, ChevronDown, ChevronUp, FileIcon,
+  Calendar, Mail, Hash
 } from "lucide-react";
 
 function adminFetch(path: string, options?: RequestInit) {
@@ -41,10 +43,22 @@ interface DevDetail {
   summary: { total_calls: number; total_spent: string; success_calls: number; calls_30d: number };
 }
 
-const kycColor = (s: string) => ({
-  approved: "bg-green-100 text-green-800", submitted: "bg-yellow-100 text-yellow-800",
-  conditional: "bg-orange-100 text-orange-800", rejected: "bg-red-100 text-red-800",
-}[s] ?? "bg-gray-100 text-gray-600");
+const KYB_STATUS = {
+  approved:    { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200", dot: "bg-emerald-500", label: "Approved" },
+  submitted:   { bg: "bg-amber-50",   text: "text-amber-700",   border: "border-amber-200",   dot: "bg-amber-500",   label: "Pending Review" },
+  conditional: { bg: "bg-orange-50",  text: "text-orange-700",  border: "border-orange-200",  dot: "bg-orange-500",  label: "Conditional" },
+  rejected:    { bg: "bg-red-50",     text: "text-red-700",     border: "border-red-200",     dot: "bg-red-500",     label: "Rejected" },
+} as Record<string, { bg: string; text: string; border: string; dot: string; label: string }>;
+
+function KybStatusBadge({ status }: { status: string }) {
+  const s = KYB_STATUS[status] ?? { bg: "bg-gray-50", text: "text-gray-600", border: "border-gray-200", dot: "bg-gray-400", label: status };
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${s.bg} ${s.text} ${s.border}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+      {s.label}
+    </span>
+  );
+}
 
 const envColor = (m: string) => m === "live"
   ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700";
@@ -60,12 +74,14 @@ export default function AdminDeveloperPortal() {
   const [reviewId, setReviewId] = useState<string | null>(null);
   const [reviewAction, setReviewAction] = useState<"approve" | "conditional" | "reject">("approve");
   const [reviewNote, setReviewNote] = useState("");
+  const [reviewLoading, setReviewLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [logsPage, setLogsPage] = useState(1);
   const [devsPage, setDevsPage] = useState(1);
   const [selectedDev, setSelectedDev] = useState<DevDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [promotingId, setPromotingId] = useState<string | null>(null);
+  const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
 
   const loadKyc = async (filter: string = kycFilter) => {
     try {
@@ -98,70 +114,80 @@ export default function AdminDeveloperPortal() {
     }
   };
 
-  const loadDevDetail = async (id: string) => {
-    setDetailLoading(true);
-    setSelectedDev(null);
-    try {
-      const res = await adminFetch(`/admin/developers/${id}`);
-      const data = await res.json();
-      if (data.status === "success") setSelectedDev(data.data);
-    } catch {}
-    setDetailLoading(false);
-  };
-
-  useEffect(() => { loadAll(); }, [devsPage, logsPage]);
+  useEffect(() => { loadAll(); }, []);
   useEffect(() => { loadKyc(kycFilter); }, [kycFilter]);
 
   const handleKycReview = async () => {
     if (!reviewId) return;
+    if (reviewAction === "reject" && !reviewNote.trim()) {
+      toast({ title: "Rejection reason required", description: "Please provide a reason for rejection.", variant: "destructive" });
+      return;
+    }
+    setReviewLoading(true);
     try {
       const res = await adminFetch(`/admin/kyc/${reviewId}`, {
-        method: "PATCH", body: JSON.stringify({ action: reviewAction, note: reviewNote }),
+        method: "PATCH",
+        body: JSON.stringify({ action: reviewAction, note: reviewNote }),
       });
       const data = await res.json();
       if (data.status === "success") {
-        toast({ title: `KYB ${reviewAction}d`, variant: "success" });
+        toast({ title: reviewAction === "approve" ? "KYB Approved" : reviewAction === "conditional" ? "Conditional Approval Set" : "Application Rejected", variant: reviewAction === "approve" ? "success" : reviewAction === "reject" ? "destructive" : "default" });
         setReviewId(null); setReviewNote("");
-        loadAll();
+        loadKyc(kycFilter);
       } else {
-        toast({ title: "Error", description: data.message, variant: "destructive" });
+        toast({ title: data.message || "Review failed", variant: "destructive" });
       }
     } catch {
       toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setReviewLoading(false);
     }
   };
 
-  const handleToggleStatus = async (id: string, current: boolean) => {
+  const handleToggleStatus = async (devId: string, current: boolean) => {
     try {
-      const res = await adminFetch(`/admin/developers/${id}/status`, {
-        method: "PATCH", body: JSON.stringify({ isActive: !current }),
-      });
-      const data = await res.json();
-      if (data.status === "success") { toast({ title: "Updated", variant: "success" }); loadAll(); }
-    } catch {}
-  };
-
-  const handlePromote = async (id: string, action: "live" | "sandbox") => {
-    setPromotingId(id);
-    try {
-      const res = await adminFetch(`/admin/developers/${id}/promote`, {
-        method: "PATCH", body: JSON.stringify({ action }),
+      const res = await adminFetch(`/admin/developers/${devId}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ isActive: !current }),
       });
       const data = await res.json();
       if (data.status === "success") {
-        toast({ title: `Developer moved to ${action} mode`, variant: "success" });
+        toast({ title: current ? "Account deactivated" : "Account activated", variant: current ? "default" : "success" });
         loadAll();
-        if (selectedDev?.developer.id === id) loadDevDetail(id);
-      } else {
-        toast({ title: "Failed", description: data.message, variant: "destructive" });
       }
-    } catch {}
-    setPromotingId(null);
+    } catch { toast({ title: "Failed to update", variant: "destructive" }); }
+  };
+
+  const handlePromote = async (devId: string, mode: string) => {
+    setPromotingId(devId);
+    try {
+      const res = await adminFetch(`/admin/developers/${devId}/environment`, {
+        method: "PATCH",
+        body: JSON.stringify({ environmentMode: mode }),
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        toast({ title: `Moved to ${mode} mode`, variant: "success" });
+        loadDevDetail(devId);
+      } else {
+        toast({ title: data.message || "Failed", variant: "destructive" });
+      }
+    } catch { toast({ title: "Network error", variant: "destructive" }); }
+    finally { setPromotingId(null); }
+  };
+
+  const loadDevDetail = async (devId: string) => {
+    setDetailLoading(true);
+    try {
+      const res = await adminFetch(`/admin/developers/${devId}`);
+      const data = await res.json();
+      if (data.status === "success") setSelectedDev(data.data);
+    } catch {} finally { setDetailLoading(false); }
   };
 
   const downloadKybDoc = async (fileKey: string, fileName: string) => {
     try {
-      const res = await adminFetch(`/kyc/document/${encodeURIComponent(fileKey)}`);
+      const res = await adminFetch(`/admin/kyc/document/${encodeURIComponent(fileKey)}`);
       if (!res.ok) { toast({ title: "Document not found", variant: "destructive" }); return; }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -177,6 +203,8 @@ export default function AdminDeveloperPortal() {
   const filteredDevs = developers.filter(d =>
     [d.name, d.email, d.company || ""].join(" ").toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const toggleCard = (id: string) => setExpandedCards(prev => ({ ...prev, [id]: !prev[id] }));
 
   return (
     <div className="space-y-6">
@@ -208,8 +236,8 @@ export default function AdminDeveloperPortal() {
                     <item.icon className={`h-4 w-4 text-${item.color}-600`} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground truncate">{item.label}</p>
-                    <p className="text-xl font-bold">{item.value}</p>
+                    <p className="text-lg font-bold leading-none">{item.value}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{item.label}</p>
                   </div>
                 </div>
               </CardContent>
@@ -218,313 +246,449 @@ export default function AdminDeveloperPortal() {
         </div>
       )}
 
-      <div className="flex gap-6">
+      <div className="flex gap-4">
         {/* Main content */}
         <div className="flex-1 min-w-0">
-          <Tabs defaultValue="developers">
-            <TabsList>
+          <Tabs defaultValue="kyc">
+            <TabsList className="mb-4">
+              <TabsTrigger value="kyc">
+                <ShieldCheck className="h-4 w-4 mr-1.5" />
+                KYB Reviews
+                {kycQueue.filter(d => d.kycStatus === "submitted").length > 0 && (
+                  <span className="ml-1.5 bg-amber-500 text-white text-xs rounded-full px-1.5 py-0.5 leading-none font-bold">
+                    {kycQueue.filter(d => d.kycStatus === "submitted").length}
+                  </span>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="developers">
-                <Users className="h-4 w-4 mr-1.5" /> Developers ({developers.length})
+                <Users className="h-4 w-4 mr-1.5" />Developers
               </TabsTrigger>
               <TabsTrigger value="logs">
-                <Activity className="h-4 w-4 mr-1.5" /> API Logs
-              </TabsTrigger>
-              <TabsTrigger value="kyc">
-                <ShieldCheck className="h-4 w-4 mr-1.5" /> KYB Review
-                {kycQueue.length > 0 && (
-                  <Badge variant="destructive" className="ml-1.5 h-4 w-4 p-0 text-[10px] flex items-center justify-center">
-                    {kycQueue.length}
-                  </Badge>
-                )}
+                <Activity className="h-4 w-4 mr-1.5" />API Logs
               </TabsTrigger>
             </TabsList>
 
-            {/* ── Developers tab ── */}
-            <TabsContent value="developers" className="space-y-3 mt-4">
-              <Input placeholder="Search name, email, company..."
-                value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                className="max-w-sm" />
-              <div className="rounded-lg border overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted">
-                    <tr>
-                      <th className="text-left p-3 font-medium">Developer</th>
-                      <th className="text-left p-3 font-medium hidden lg:table-cell">Mode</th>
-                      <th className="text-left p-3 font-medium hidden md:table-cell">KYB</th>
-                      <th className="text-right p-3 font-medium hidden md:table-cell">Wallet</th>
-                      <th className="text-left p-3 font-medium">Status</th>
-                      <th className="text-right p-3 font-medium">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredDevs.map(dev => (
-                      <tr key={dev.id} className="border-t hover:bg-muted/40 cursor-pointer"
-                        onClick={() => loadDevDetail(dev.id)}>
-                        <td className="p-3">
-                          <p className="font-medium text-sm">{dev.name}</p>
-                          <p className="text-xs text-muted-foreground">{dev.email}</p>
-                          {dev.company && <p className="text-xs text-muted-foreground">{dev.company}</p>}
-                        </td>
-                        <td className="p-3 hidden lg:table-cell">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${envColor(dev.environmentMode || "sandbox")}`}>
-                            {dev.environmentMode === "live" ? "Live" : "Sandbox"}
-                          </span>
-                        </td>
-                        <td className="p-3 hidden md:table-cell">
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${kycColor(dev.kycStatus)}`}>
-                            {dev.kycStatus?.replace(/_/g, " ")}
-                          </span>
-                        </td>
-                        <td className="p-3 text-right hidden md:table-cell text-sm">
-                          ₦{parseFloat(dev.walletBalance || "0").toLocaleString()}
-                        </td>
-                        <td className="p-3">
-                          {dev.isActive
-                            ? <Badge className="bg-green-100 text-green-800 border-0 text-xs">Active</Badge>
-                            : <Badge variant="destructive" className="text-xs">Inactive</Badge>}
-                        </td>
-                        <td className="p-3 text-right" onClick={e => e.stopPropagation()}>
-                          <div className="flex items-center justify-end gap-1.5">
-                            <Button size="sm" variant="ghost" onClick={() => loadDevDetail(dev.id)}
-                              className="h-7 w-7 p-0 text-muted-foreground">
-                              <Eye className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button size="sm" variant="outline"
-                              onClick={() => handleToggleStatus(dev.id, dev.isActive)}
-                              className="h-7 text-xs px-2">
-                              {dev.isActive ? "Deactivate" : "Activate"}
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                    {filteredDevs.length === 0 && (
-                      <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No developers found</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              <PaginationRow page={devsPage} hasMore={developers.length >= 20}
-                onPrev={() => setDevsPage(p => p - 1)} onNext={() => setDevsPage(p => p + 1)} />
-            </TabsContent>
-
-            {/* ── Logs tab ── */}
-            <TabsContent value="logs" className="space-y-3 mt-4">
-              <div className="rounded-lg border overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted">
-                    <tr>
-                      <th className="text-left p-3 font-medium">Developer</th>
-                      <th className="text-left p-3 font-medium">Endpoint</th>
-                      <th className="text-left p-3 font-medium hidden md:table-cell">Status</th>
-                      <th className="text-right p-3 font-medium hidden md:table-cell">Cost</th>
-                      <th className="text-right p-3 font-medium hidden lg:table-cell">Duration</th>
-                      <th className="text-right p-3 font-medium">Time</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {logs.map(log => {
-                      const code = log.status_code ?? log.statusCode ?? 0;
-                      const dur = log.duration_ms ?? log.durationMs ?? 0;
-                      const ts = log.created_at ?? log.createdAt ?? "";
-                      return (
-                        <tr key={log.id} className="border-t hover:bg-muted/40">
-                          <td className="p-3">
-                            <p className="text-xs font-medium">{log.developer_name || "—"}</p>
-                            <p className="text-xs text-muted-foreground">{log.developer_email || ""}</p>
-                          </td>
-                          <td className="p-3">
-                            <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded mr-1.5">{log.method}</span>
-                            <span className="text-xs">{log.endpoint}</span>
-                          </td>
-                          <td className="p-3 hidden md:table-cell">
-                            {code >= 200 && code < 300 ? <CheckCircle className="h-4 w-4 text-green-500" />
-                              : code >= 400 ? <XCircle className="h-4 w-4 text-red-500" />
-                              : <Clock className="h-4 w-4 text-yellow-500" />}
-                          </td>
-                          <td className="p-3 text-right hidden md:table-cell text-xs">
-                            {parseFloat(log.cost || "0") > 0 ? `₦${parseFloat(log.cost).toLocaleString()}` : "—"}
-                          </td>
-                          <td className="p-3 text-right hidden lg:table-cell text-xs text-muted-foreground">{dur}ms</td>
-                          <td className="p-3 text-right text-xs text-muted-foreground">
-                            {ts ? new Date(ts).toLocaleString() : "—"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    {logs.length === 0 && (
-                      <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No logs found</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              <PaginationRow page={logsPage} hasMore={logs.length >= 50}
-                onPrev={() => setLogsPage(p => p - 1)} onNext={() => setLogsPage(p => p + 1)} />
-            </TabsContent>
-
             {/* ── KYB Review tab ── */}
-            <TabsContent value="kyc" className="space-y-4 mt-4">
-              <div className="flex flex-wrap gap-2">
+            <TabsContent value="kyc" className="space-y-4 mt-0">
+              {/* Filter Pills */}
+              <div className="flex flex-wrap gap-2 pb-1">
                 {([
-                  { value: "submitted", label: "Pending Review" },
-                  { value: "approved", label: "Approved" },
-                  { value: "conditional", label: "Conditional" },
-                  { value: "rejected", label: "Rejected" },
-                  { value: "all", label: "All KYBs" },
+                  { value: "submitted", label: "Pending Review", color: "amber" },
+                  { value: "approved",  label: "Approved",       color: "emerald" },
+                  { value: "conditional", label: "Conditional",  color: "orange" },
+                  { value: "rejected",  label: "Rejected",       color: "red" },
+                  { value: "all",       label: "All",            color: "gray" },
                 ] as const).map(f => (
-                  <Button key={f.value} size="sm" variant={kycFilter === f.value ? "default" : "outline"}
-                    onClick={() => setKycFilter(f.value)} className="h-7 text-xs">
+                  <button key={f.value}
+                    onClick={() => setKycFilter(f.value)}
+                    className={`h-7 px-3 text-xs font-semibold rounded-full border transition-all ${
+                      kycFilter === f.value
+                        ? "bg-foreground text-background border-foreground"
+                        : "bg-background text-muted-foreground border-border hover:border-foreground/30"
+                    }`}>
                     {f.label}
-                  </Button>
+                  </button>
                 ))}
               </div>
+
               {kycQueue.length === 0 ? (
                 <Card>
-                  <CardContent className="pt-10 pb-10 text-center">
-                    <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
-                    <p className="font-medium">
+                  <CardContent className="pt-12 pb-12 text-center">
+                    <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+                      <CheckCircle className="h-7 w-7 text-green-600" />
+                    </div>
+                    <p className="font-semibold text-base">
                       {kycFilter === "submitted" ? "No pending KYB reviews" :
                        kycFilter === "all" ? "No KYB applications found" :
                        `No ${kycFilter} KYB applications`}
                     </p>
-                    <p className="text-sm text-muted-foreground">
-                      {kycFilter === "submitted" ? "All business verification submissions have been reviewed" :
-                       "Try a different status filter above"}
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {kycFilter === "submitted" ? "All business verification submissions have been reviewed." :
+                       "Try a different status filter above."}
                     </p>
                   </CardContent>
                 </Card>
               ) : kycQueue.map(dev => {
                 const kyb = dev.kycDocuments as any;
                 const structured = kyb?.companyInfo;
-                return (
-                  <Card key={dev.id}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <CardTitle className="text-base">{dev.name}</CardTitle>
-                          <p className="text-sm text-muted-foreground mt-0.5">{dev.email}{dev.company && ` · ${dev.company}`}</p>
-                          <div className="flex gap-2 mt-2">
-                            <Badge variant="outline" className="capitalize text-xs">{dev.accountType}</Badge>
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${kycColor(dev.kycStatus)}`}>
-                              {dev.kycStatus?.replace(/_/g, " ")}
-                            </span>
-                          </div>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {dev.kycSubmittedAt ? new Date(dev.kycSubmittedAt).toLocaleDateString() : "—"}
-                        </p>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      {structured ? (
-                        <div className="space-y-3">
-                          <KybSection title="Company Information" icon={<Globe className="h-3.5 w-3.5" />}>
-                            <KybRow label="Legal Name" value={kyb.companyInfo.legalName} />
-                            <KybRow label="CAC Number" value={kyb.companyInfo.cacNumber} />
-                            <KybRow label="Business Type" value={kyb.companyInfo.businessType} />
-                            <KybRow label="Address" value={kyb.companyInfo.businessAddress} />
-                            <KybRow label="Phone" value={kyb.companyInfo.phone} />
-                            {kyb.companyInfo.tin && <KybRow label="TIN" value={kyb.companyInfo.tin} />}
-                            {kyb.companyInfo.website && <KybRow label="Website" value={kyb.companyInfo.website} />}
-                          </KybSection>
-                          {kyb.directors?.length > 0 && (
-                            <KybSection title="Directors / UBO" icon={<Users className="h-3.5 w-3.5" />}>
-                              {kyb.directors.map((d: any, i: number) => (
-                                <div key={i} className={i > 0 ? "border-t pt-2 mt-1" : ""}>
-                                  <KybRow label={`Director ${i + 1}`} value={d.fullName} />
-                                  <KybRow label="ID" value={`${(d.idType || "").toUpperCase()}: ${d.idNumber}`} />
-                                  {d.ownershipPercent && <KybRow label="Ownership" value={`${d.ownershipPercent}%`} />}
-                                </div>
-                              ))}
-                            </KybSection>
-                          )}
-                          {kyb.apiUseCase && (
-                            <KybSection title="API Use Case" icon={<FileText className="h-3.5 w-3.5" />}>
-                              <KybRow label="Purpose" value={kyb.apiUseCase.purpose} />
-                              <KybRow label="Volume" value={kyb.apiUseCase.expectedVolume} />
-                              <KybRow label="Customers" value={kyb.apiUseCase.targetCustomers} />
-                              <KybRow label="Services" value={(kyb.apiUseCase.dataTypesNeeded || []).join(", ")} />
-                            </KybSection>
-                          )}
-                          {kyb.compliance && (
-                            <KybSection title="Compliance" icon={<ShieldCheck className="h-3.5 w-3.5" />}>
-                              <KybRow label="PEP" value={kyb.compliance.isPEP ? "Declared PEP" : "No PEPs"} />
-                              <KybRow label="AML" value={kyb.compliance.amlDeclaration ? "Declared" : "Not declared"} />
-                              <KybRow label="Terms" value={kyb.compliance.termsAccepted ? "Accepted" : "Not accepted"} />
-                            </KybSection>
-                          )}
-                          {kyb.uploadedDocuments && Object.keys(kyb.uploadedDocuments).length > 0 && (
-                            <KybSection title="Uploaded Documents" icon={<FileCheck className="h-3.5 w-3.5" />}>
-                              <div className="space-y-2">
-                                {([
-                                  { key: "cac_certificate", label: "CAC Certificate" },
-                                  { key: "status_report", label: "Status Report" },
-                                  { key: "address_verification", label: "Address Verification" },
-                                ] as const).map(({ key, label }) => {
-                                  const doc = kyb.uploadedDocuments[key];
-                                  if (!doc) return null;
-                                  return (
-                                    <div key={key} className="flex items-center justify-between gap-2 p-2 bg-muted/50 rounded">
-                                      <div className="min-w-0">
-                                        <p className="text-xs font-medium">{label}</p>
-                                        <p className="text-xs text-muted-foreground truncate">{doc.name}</p>
-                                      </div>
-                                      <Button size="sm" variant="outline" className="h-7 text-xs shrink-0"
-                                        onClick={() => downloadKybDoc(doc.fileKey, doc.name)}>
-                                        <Download className="h-3 w-3 mr-1" /> Download
-                                      </Button>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </KybSection>
-                          )}
-                        </div>
-                      ) : dev.kycDocuments ? (
-                        <div className="bg-muted rounded-lg p-3 text-xs font-mono whitespace-pre-wrap max-h-40 overflow-y-auto">
-                          {JSON.stringify(dev.kycDocuments, null, 2)}
-                        </div>
-                      ) : <p className="text-sm text-muted-foreground">No documents submitted</p>}
+                const isExpanded = expandedCards[dev.id] ?? true;
+                const isReviewing = reviewId === dev.id;
 
-                      {reviewId === dev.id ? (
-                        <div className="space-y-3 border-t pt-3">
-                          <p className="text-sm font-medium">Decision</p>
-                          <div className="flex gap-2">
-                            {(["approve", "conditional", "reject"] as const).map(a => (
-                              <Button key={a} size="sm" onClick={() => setReviewAction(a)}
-                                className={`flex-1 capitalize ${
-                                  a === "approve" && reviewAction === "approve" ? "bg-green-600 hover:bg-green-700 text-white border-0" :
-                                  a === "conditional" && reviewAction === "conditional" ? "bg-orange-600 hover:bg-orange-700 text-white border-0" :
-                                  a === "reject" && reviewAction === "reject" ? "bg-red-600 hover:bg-red-700 text-white border-0" : ""
-                                }`} variant={reviewAction === a ? "default" : "outline"}>
-                                {a === "approve" ? <CheckCircle className="h-3.5 w-3.5 mr-1" /> :
-                                 a === "conditional" ? <AlertCircle className="h-3.5 w-3.5 mr-1" /> :
-                                 <XCircle className="h-3.5 w-3.5 mr-1" />}
-                                {a.charAt(0).toUpperCase() + a.slice(1)}
-                              </Button>
-                            ))}
+                return (
+                  <div key={dev.id} className="border rounded-xl overflow-hidden bg-card shadow-sm">
+                    {/* Card Header */}
+                    <div className="flex items-start justify-between p-5 gap-4">
+                      <div className="flex items-start gap-4">
+                        <div className="w-11 h-11 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0 font-bold text-indigo-600 text-lg">
+                          {dev.name?.[0]?.toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-bold text-base">{dev.name}</h3>
+                            <KybStatusBadge status={dev.kycStatus} />
+                            <Badge variant="outline" className="capitalize text-xs">{dev.accountType}</Badge>
                           </div>
-                          <Textarea
-                            placeholder={reviewAction === "approve" ? "Optional note..." :
-                              reviewAction === "conditional" ? "Explain conditions and limitations..." :
-                              "Reason for rejection (required)..."}
-                            value={reviewNote} onChange={e => setReviewNote(e.target.value)}
-                            className="text-sm" rows={3} />
-                          <div className="flex gap-2">
-                            <Button size="sm" onClick={handleKycReview} className="flex-1">Submit Decision</Button>
-                            <Button size="sm" variant="outline" onClick={() => setReviewId(null)}>Cancel</Button>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
+                            <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{dev.email}</span>
+                            {dev.company && <span className="flex items-center gap-1"><Building2 className="h-3 w-3" />{dev.company}</span>}
+                            {dev.kycSubmittedAt && (
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                Submitted {new Date(dev.kycSubmittedAt).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}
+                              </span>
+                            )}
                           </div>
                         </div>
-                      ) : (
-                        <Button size="sm" variant="outline"
-                          onClick={() => { setReviewId(dev.id); setReviewAction("approve"); setReviewNote(""); }}>
-                          <Eye className="h-4 w-4 mr-2" /> Review Application
-                        </Button>
-                      )}
-                    </CardContent>
-                  </Card>
+                      </div>
+                      <button onClick={() => toggleCard(dev.id)} className="text-muted-foreground hover:text-foreground mt-1 shrink-0">
+                        {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </button>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="border-t">
+                        {structured ? (
+                          <div className="divide-y">
+                            {/* Company Information */}
+                            <div className="p-5">
+                              <div className="flex items-center gap-2 mb-3">
+                                <div className="w-6 h-6 rounded-md bg-blue-100 flex items-center justify-center">
+                                  <Building2 className="h-3.5 w-3.5 text-blue-600" />
+                                </div>
+                                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Company Information</p>
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                {[
+                                  { label: "Legal Name", value: kyb.companyInfo.legalName },
+                                  { label: "CAC Number", value: kyb.companyInfo.cacNumber },
+                                  { label: "Business Type", value: kyb.companyInfo.businessType },
+                                  { label: "Phone", value: kyb.companyInfo.phone },
+                                  { label: "TIN", value: kyb.companyInfo.tin },
+                                  { label: "Website", value: kyb.companyInfo.website },
+                                ].filter(f => f.value).map(({ label, value }) => (
+                                  <div key={label} className="bg-muted/40 rounded-lg p-3">
+                                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+                                    <p className="text-xs font-medium mt-1 break-words">{value}</p>
+                                  </div>
+                                ))}
+                                {kyb.companyInfo.businessAddress && (
+                                  <div className="bg-muted/40 rounded-lg p-3 col-span-2 md:col-span-3">
+                                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Business Address</p>
+                                    <p className="text-xs font-medium mt-1">{kyb.companyInfo.businessAddress}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Directors */}
+                            {kyb.directors?.length > 0 && (
+                              <div className="p-5">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <div className="w-6 h-6 rounded-md bg-purple-100 flex items-center justify-center">
+                                    <UserCheck className="h-3.5 w-3.5 text-purple-600" />
+                                  </div>
+                                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Directors / UBO ({kyb.directors.length})</p>
+                                </div>
+                                <div className="space-y-2">
+                                  {kyb.directors.map((d: any, i: number) => (
+                                    <div key={i} className="bg-muted/40 rounded-lg p-3 flex gap-4 flex-wrap">
+                                      <div>
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Name</p>
+                                        <p className="text-xs font-semibold mt-0.5">{d.fullName}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">ID</p>
+                                        <p className="text-xs font-medium mt-0.5">{(d.idType || "").toUpperCase()}: {d.idNumber}</p>
+                                      </div>
+                                      {d.ownershipPercent && (
+                                        <div>
+                                          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Ownership</p>
+                                          <p className="text-xs font-medium mt-0.5">{d.ownershipPercent}%</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* API Use Case */}
+                            {kyb.apiUseCase && (
+                              <div className="p-5">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <div className="w-6 h-6 rounded-md bg-indigo-100 flex items-center justify-center">
+                                    <Layers className="h-3.5 w-3.5 text-indigo-600" />
+                                  </div>
+                                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">API Use Case</p>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                  {[
+                                    { label: "Purpose", value: kyb.apiUseCase.purpose },
+                                    { label: "Expected Volume", value: kyb.apiUseCase.expectedVolume },
+                                    { label: "Target Customers", value: kyb.apiUseCase.targetCustomers },
+                                  ].filter(f => f.value).map(({ label, value }) => (
+                                    <div key={label} className="bg-muted/40 rounded-lg p-3">
+                                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+                                      <p className="text-xs font-medium mt-1">{value}</p>
+                                    </div>
+                                  ))}
+                                  {kyb.apiUseCase.dataTypesNeeded?.length > 0 && (
+                                    <div className="bg-muted/40 rounded-lg p-3">
+                                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Services Needed</p>
+                                      <div className="flex flex-wrap gap-1 mt-1.5">
+                                        {kyb.apiUseCase.dataTypesNeeded.map((s: string) => (
+                                          <span key={s} className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-medium">{s}</span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Compliance */}
+                            {kyb.compliance && (
+                              <div className="p-5">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <div className="w-6 h-6 rounded-md bg-green-100 flex items-center justify-center">
+                                    <ShieldCheck className="h-3.5 w-3.5 text-green-600" />
+                                  </div>
+                                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Compliance Declarations</p>
+                                </div>
+                                <div className="flex flex-wrap gap-3">
+                                  {[
+                                    { label: "PEP Status", value: kyb.compliance.isPEP ? "⚠ PEP Declared" : "✓ No PEPs", ok: !kyb.compliance.isPEP },
+                                    { label: "AML Declaration", value: kyb.compliance.amlDeclaration ? "✓ Declared" : "✗ Not declared", ok: !!kyb.compliance.amlDeclaration },
+                                    { label: "Terms Accepted", value: kyb.compliance.termsAccepted ? "✓ Accepted" : "✗ Not accepted", ok: !!kyb.compliance.termsAccepted },
+                                  ].map(({ label, value, ok }) => (
+                                    <div key={label} className={`rounded-lg p-3 border ${ok ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
+                                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+                                      <p className={`text-xs font-semibold mt-1 ${ok ? "text-green-700" : "text-red-600"}`}>{value}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Documents */}
+                            {kyb.uploadedDocuments && Object.keys(kyb.uploadedDocuments).length > 0 && (
+                              <div className="p-5">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <div className="w-6 h-6 rounded-md bg-amber-100 flex items-center justify-center">
+                                    <FileCheck className="h-3.5 w-3.5 text-amber-600" />
+                                  </div>
+                                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Uploaded Documents</p>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                  {([
+                                    { key: "cac_certificate",    label: "CAC Certificate",      icon: "📋" },
+                                    { key: "status_report",      label: "Status Report",        icon: "📄" },
+                                    { key: "address_verification", label: "Address Verification", icon: "🏠" },
+                                  ] as const).map(({ key, label, icon }) => {
+                                    const doc = kyb.uploadedDocuments[key];
+                                    if (!doc) return null;
+                                    const ext = (doc.name || "").split(".").pop()?.toUpperCase() || "FILE";
+                                    return (
+                                      <div key={key} className="border rounded-xl p-4 flex flex-col gap-3 bg-card hover:shadow-md transition-shadow">
+                                        <div className="flex items-start gap-3">
+                                          <div className="w-10 h-10 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center text-lg shrink-0">
+                                            {icon}
+                                          </div>
+                                          <div className="min-w-0 flex-1">
+                                            <p className="text-xs font-bold text-foreground">{label}</p>
+                                            <p className="text-[10px] text-muted-foreground mt-0.5 truncate" title={doc.name}>{doc.name}</p>
+                                            <span className="text-[9px] font-bold bg-muted px-1.5 py-0.5 rounded mt-1 inline-block">{ext}</span>
+                                          </div>
+                                        </div>
+                                        <Button size="sm" variant="outline"
+                                          className="w-full h-8 text-xs font-semibold border-dashed hover:bg-amber-50 hover:border-amber-400 hover:text-amber-700 transition-colors"
+                                          onClick={() => downloadKybDoc(doc.fileKey, doc.name)}>
+                                          <Download className="h-3.5 w-3.5 mr-1.5" /> Download File
+                                        </Button>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Review note from previous review */}
+                            {dev.kycReviewNote && !isReviewing && (
+                              <div className="px-5 py-4 bg-muted/30">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Previous Review Note</p>
+                                <p className="text-xs text-muted-foreground italic">{dev.kycReviewNote}</p>
+                              </div>
+                            )}
+                          </div>
+                        ) : dev.kycDocuments ? (
+                          <div className="p-5">
+                            <div className="bg-muted rounded-lg p-3 text-xs font-mono whitespace-pre-wrap max-h-48 overflow-y-auto">
+                              {JSON.stringify(dev.kycDocuments, null, 2)}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-5 text-center text-sm text-muted-foreground">No documents submitted</div>
+                        )}
+
+                        {/* ── Review Panel ── */}
+                        {isReviewing ? (
+                          <div className="border-t bg-muted/20 p-5 space-y-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-md bg-indigo-100 flex items-center justify-center">
+                                <ShieldCheck className="h-3.5 w-3.5 text-indigo-600" />
+                              </div>
+                              <p className="text-sm font-bold">Review Decision</p>
+                              <span className="text-xs text-muted-foreground">for {dev.name}</span>
+                            </div>
+
+                            {/* Action selector */}
+                            <div className="grid grid-cols-3 gap-2">
+                              {([
+                                { action: "approve",     label: "Approve",      icon: CheckCircle,  active: "bg-emerald-600 text-white border-emerald-600 shadow-sm", inactive: "hover:border-emerald-400 hover:text-emerald-700" },
+                                { action: "conditional", label: "Conditional",  icon: AlertCircle,  active: "bg-orange-500 text-white border-orange-500 shadow-sm", inactive: "hover:border-orange-400 hover:text-orange-700" },
+                                { action: "reject",      label: "Reject",       icon: XCircle,      active: "bg-red-600 text-white border-red-600 shadow-sm", inactive: "hover:border-red-400 hover:text-red-600" },
+                              ] as const).map(({ action, label, icon: Icon, active, inactive }) => (
+                                <button key={action} onClick={() => setReviewAction(action)}
+                                  className={`flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-semibold transition-all ${
+                                    reviewAction === action ? active : `bg-background border-border text-muted-foreground ${inactive}`
+                                  }`}>
+                                  <Icon className="h-4 w-4" />
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">
+                                {reviewAction === "approve" ? "Admin note (optional)" :
+                                 reviewAction === "conditional" ? "Conditions and requirements *" :
+                                 "Reason for rejection *"}
+                              </label>
+                              <Textarea
+                                placeholder={
+                                  reviewAction === "approve" ? "Add an optional note for the developer..." :
+                                  reviewAction === "conditional" ? "Explain what conditions must be met, what documents are missing, and what limitations apply..." :
+                                  "Provide a clear reason for rejection so the developer can understand and resubmit..."
+                                }
+                                value={reviewNote}
+                                onChange={e => setReviewNote(e.target.value)}
+                                className="text-sm resize-none" rows={3} />
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Button onClick={handleKycReview} disabled={reviewLoading} size="sm"
+                                className={`flex-1 font-semibold ${
+                                  reviewAction === "approve" ? "bg-emerald-600 hover:bg-emerald-700 text-white" :
+                                  reviewAction === "conditional" ? "bg-orange-500 hover:bg-orange-600 text-white" :
+                                  "bg-red-600 hover:bg-red-700 text-white"
+                                }`}>
+                                {reviewLoading ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : null}
+                                {reviewLoading ? "Submitting..." :
+                                 reviewAction === "approve" ? "Confirm Approval" :
+                                 reviewAction === "conditional" ? "Set Conditional" :
+                                 "Confirm Rejection"}
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => { setReviewId(null); setReviewNote(""); }} className="px-4">
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="border-t p-4 flex items-center justify-between gap-3">
+                            <div className="text-xs text-muted-foreground">
+                              {dev.kycStatus === "submitted" ? "This application is awaiting your review." :
+                               dev.kycStatus === "approved" ? "Application approved. Developer has live access." :
+                               dev.kycStatus === "conditional" ? "Conditional approval set. Awaiting developer updates." :
+                               "Application was rejected. Developer may resubmit."}
+                            </div>
+                            <Button size="sm"
+                              onClick={() => { setReviewId(dev.id); setReviewAction("approve"); setReviewNote(""); }}
+                              className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold">
+                              <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
+                              {dev.kycStatus === "submitted" ? "Review Application" : "Update Decision"}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
+            </TabsContent>
+
+            {/* ── Developers tab ── */}
+            <TabsContent value="developers" className="space-y-4 mt-4">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input placeholder="Search developers..." value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)} className="pl-9" />
+                </div>
+              </div>
+              <Card>
+                <CardContent className="p-0">
+                  <div className="divide-y">
+                    {filteredDevs.length === 0 ? (
+                      <div className="py-12 text-center text-sm text-muted-foreground">No developers found</div>
+                    ) : filteredDevs.map(dev => (
+                      <div key={dev.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 cursor-pointer"
+                        onClick={() => loadDevDetail(dev.id)}>
+                        <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-600 shrink-0">
+                          {dev.name?.[0]?.toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold truncate">{dev.name}</p>
+                            {!dev.isActive && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 rounded font-bold">inactive</span>}
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">{dev.email}{dev.company && ` · ${dev.company}`}</p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <KybStatusBadge status={dev.kycStatus} />
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium capitalize ${envColor(dev.environmentMode || "sandbox")}`}>
+                            {dev.environmentMode || "sandbox"}
+                          </span>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+              <PaginationRow page={devsPage} hasMore={developers.length >= 50}
+                onPrev={() => setDevsPage(p => p - 1)} onNext={() => setDevsPage(p => p + 1)} />
+            </TabsContent>
+
+            {/* ── Logs tab ── */}
+            <TabsContent value="logs" className="space-y-3 mt-4">
+              <Card>
+                <CardContent className="p-0">
+                  <div className="divide-y">
+                    {logs.length === 0 ? (
+                      <div className="py-12 text-center text-sm text-muted-foreground">No API logs found</div>
+                    ) : logs.map(log => {
+                      const code = (log as any).status_code ?? (log as any).statusCode ?? 0;
+                      const dur = (log as any).duration_ms ?? (log as any).durationMs ?? 0;
+                      const ts = (log as any).created_at ?? (log as any).createdAt ?? "";
+                      const devName = (log as any).developer_name ?? (log as any).developerName ?? "";
+                      return (
+                        <div key={log.id} className="flex items-center gap-3 px-4 py-2.5 text-xs">
+                          {code >= 200 && code < 300
+                            ? <CheckCircle className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                            : <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />}
+                          <span className={`text-xs font-bold px-1.5 py-0.5 rounded shrink-0 ${code >= 200 && code < 300 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>{code}</span>
+                          <span className="font-mono flex-1 truncate text-muted-foreground">{log.endpoint}</span>
+                          <span className="text-muted-foreground shrink-0">{dur}ms</span>
+                          <span className="text-muted-foreground shrink-0 hidden md:block truncate max-w-[120px]">{devName}</span>
+                          <span className="text-muted-foreground shrink-0 hidden md:block">{ts ? new Date(ts).toLocaleDateString() : ""}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+              <PaginationRow page={logsPage} hasMore={logs.length >= 50}
+                onPrev={() => setLogsPage(p => p - 1)} onNext={() => setLogsPage(p => p + 1)} />
             </TabsContent>
           </Tabs>
         </div>
@@ -532,7 +696,7 @@ export default function AdminDeveloperPortal() {
         {/* ── Developer Detail Panel ── */}
         {(selectedDev || detailLoading) && (
           <div className="w-96 shrink-0">
-            <div className="sticky top-4 bg-white border rounded-xl shadow-sm overflow-hidden">
+            <div className="sticky top-4 border rounded-xl shadow-sm overflow-hidden bg-card">
               <div className="flex items-center justify-between p-4 border-b bg-muted/30">
                 <p className="font-semibold text-sm">Developer Detail</p>
                 <button onClick={() => setSelectedDev(null)} className="text-muted-foreground hover:text-foreground">
@@ -567,11 +731,7 @@ export default function AdminDeveloperPortal() {
                           {selectedDev.developer.environmentMode === "live" ? "Live" : "Sandbox"}
                         </span>
                       } />
-                      <InfoPair label="KYB" value={
-                        <span className={`px-1.5 py-0.5 rounded text-xs font-medium capitalize ${kycColor(selectedDev.developer.kycStatus)}`}>
-                          {selectedDev.developer.kycStatus?.replace(/_/g, " ")}
-                        </span>
-                      } />
+                      <InfoPair label="KYB" value={<KybStatusBadge status={selectedDev.developer.kycStatus} />} />
                       <InfoPair label="Wallet" value={`₦${parseFloat(selectedDev.developer.walletBalance || "0").toLocaleString()}`} />
                       <InfoPair label="Joined" value={new Date(selectedDev.developer.createdAt).toLocaleDateString()} />
                       <InfoPair label="Status" value={selectedDev.developer.isActive ? "Active" : "Inactive"} />
@@ -644,8 +804,7 @@ export default function AdminDeveloperPortal() {
                   <div className="p-4 border-b">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Actions</p>
                     <div className="space-y-2">
-                      <Button size="sm" className="w-full justify-between"
-                        variant="outline"
+                      <Button size="sm" className="w-full justify-between" variant="outline"
                         onClick={() => handleToggleStatus(selectedDev.developer.id, selectedDev.developer.isActive)}>
                         {selectedDev.developer.isActive ? "Deactivate Account" : "Activate Account"}
                         <ChevronRight className="h-3.5 w-3.5" />
@@ -681,7 +840,6 @@ export default function AdminDeveloperPortal() {
                         {selectedDev.recentLogs.slice(0, 10).map(log => {
                           const code = (log as any).status_code ?? (log as any).statusCode ?? 0;
                           const dur = (log as any).duration_ms ?? (log as any).durationMs ?? 0;
-                          const ts = (log as any).created_at ?? (log as any).createdAt ?? "";
                           return (
                             <div key={log.id} className="flex items-center gap-2 p-2 bg-muted/30 rounded text-xs">
                               {code >= 200 && code < 300
@@ -724,26 +882,6 @@ function InfoPair({ label, value }: { label: string; value: React.ReactNode }) {
     <div>
       <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{label}</p>
       <div className="text-xs font-medium mt-0.5">{value}</div>
-    </div>
-  );
-}
-
-function KybSection({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div className="border rounded-lg overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 bg-muted border-b text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {icon}{title}
-      </div>
-      <div className="px-3 py-2.5 space-y-1.5">{children}</div>
-    </div>
-  );
-}
-
-function KybRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between gap-4">
-      <span className="text-xs text-muted-foreground shrink-0">{label}</span>
-      <span className="text-xs font-medium text-right break-words">{value || "—"}</span>
     </div>
   );
 }

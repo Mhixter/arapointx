@@ -19,6 +19,12 @@ Arapoint is a production-ready Nigerian Identity Verification and Management Pla
 - **Email**: SendGrid (for OTP delivery)
 - **Identity Verification**: YouVerify API (NIN/BVN)
 
+## Recent Updates (April 2026 — Email Templates, KYB Admin, Bug Fixes)
+- **Professional email template system**: Created `devEmailTemplates.ts` (dark/blue — KYB approved/conditional/rejected/welcome), `userEmailTemplates.ts` (light/navy — OTP, wallet funded, BVN completed, welcome, password reset, service completed), upgraded `agentEmailTemplates.ts` (agent welcome + new request). All use table-based layouts, inline Arapoint "A" logo, properly styled header gradients, info cards, CTA buttons, colored note boxes, and full footer.
+- **From-address overrides**: `sendEmail()` now accepts optional `fromOverride: { name, email }`. Developer emails use `developers@arapoint.com.ng`, user/wallet/BVN emails use `hello@arapoint.com.ng`.
+- **KYB document download bug fixed**: Admin `downloadKybDoc()` was calling `/kyc/document/` (dev route requiring `devJwtAuth`) instead of `/admin/kyc/document/` (admin route requiring `adminAuth`). Fixed to use correct route.
+- **Admin KYB page redesign**: `AdminDeveloperPortal.tsx` KYB tab completely rebuilt — professional card-per-application layout with expand/collapse, color-coded status badges with dots, grid sections for Company Info / Directors / API Use Case / Compliance, document cards with emoji icons and download buttons, and a dedicated review decision panel with Approve/Conditional/Reject buttons and note field.
+
 ## Recent Updates (April 2026 — Developer API Platform)
 - **Developer API Platform built** — full B2B API portal at `/developer/*` with separate login, dashboard, API keys, billing, logs, docs, and account pages. Dark themed (gray-950 + indigo).
 - **New DB tables**: `developer_users`, `developer_api_keys`, `developer_api_logs`, `developer_transactions` (created via raw SQL; not in Drizzle schema.ts).

@@ -1,3 +1,77 @@
+const YEAR = new Date().getFullYear();
+
+const agentLogo = `
+<table cellpadding="0" cellspacing="0" align="center">
+  <tr>
+    <td style="width:36px;height:36px;background:rgba(255,255,255,0.18);border-radius:8px;text-align:center;vertical-align:middle;">
+      <span style="color:#ffffff;font-size:16px;font-weight:900;font-family:Arial,sans-serif;">A</span>
+    </td>
+    <td style="padding-left:10px;vertical-align:middle;">
+      <p style="margin:0;color:#ffffff;font-size:16px;font-weight:800;letter-spacing:1.5px;font-family:Arial,sans-serif;">ARAPOINT</p>
+      <p style="margin:1px 0 0;color:rgba(255,255,255,0.65);font-size:10px;letter-spacing:2px;text-transform:uppercase;font-family:Arial,sans-serif;">Agent Network</p>
+    </td>
+  </tr>
+</table>`;
+
+function agentBase(previewText: string, accentColor: string, accentBg: string, body: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Arapoint Agent Portal</title>
+</head>
+<body style="margin:0;padding:0;background:#F0F4F9;">
+<div style="display:none;max-height:0;overflow:hidden;font-size:1px;color:#F0F4F9;">${previewText}</div>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#F0F4F9;padding:32px 0;">
+  <tr><td align="center">
+    <table width="580" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.07);">
+
+      <!-- Header -->
+      <tr>
+        <td style="background:linear-gradient(135deg,${accentBg} 0%,${accentColor} 100%);padding:26px 32px;text-align:center;">
+          ${agentLogo}
+        </td>
+      </tr>
+
+      <!-- Accent bar -->
+      <tr><td style="height:3px;background:${accentColor};"></td></tr>
+
+      <!-- Body -->
+      <tr>
+        <td style="padding:32px;">
+          ${body}
+        </td>
+      </tr>
+
+      <!-- Footer -->
+      <tr>
+        <td style="background:#F8FAFC;padding:18px 32px;border-top:1px solid #E5E7EB;">
+          <p style="margin:0;color:#9CA3AF;font-size:11px;font-family:Arial,sans-serif;">© ${YEAR} Arapoint Solutions · All rights reserved</p>
+          <p style="margin:4px 0 0;color:#9CA3AF;font-size:10px;font-family:Arial,sans-serif;">This is an official notification from Arapoint. If you did not expect this, contact support@arapoint.com.ng</p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+}
+
+function agentInfoCard(items: { label: string; value: string }[]): string {
+  const rows = items.map(({ label, value }) => `
+    <tr>
+      <td style="padding:10px 16px;border-bottom:1px solid #F3F4F6;">
+        <p style="margin:0;color:#9CA3AF;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;font-family:Arial,sans-serif;">${label}</p>
+        <p style="margin:3px 0 0;color:#111827;font-size:14px;font-weight:600;font-family:Arial,sans-serif;">${value}</p>
+      </td>
+    </tr>`).join('');
+  return `
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;margin-bottom:24px;overflow:hidden;">
+      ${rows}
+    </table>`;
+}
+
 export function agentWelcomeEmailHtml({
   name,
   email,
@@ -13,92 +87,44 @@ export function agentWelcomeEmailHtml({
   role: string;
   loginUrl: string;
 }): string {
-  return `<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Your Arapoint Agent Account</title>
-</head>
-<body style="margin:0;padding:0;background:#f4f6f9;font-family:Arial,sans-serif;">
-  <div style="display:none;max-height:0;overflow:hidden;font-size:1px;color:#f4f6f9;">Your ${role} account on Arapoint has been set up. Here are your login details.</div>
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:30px 0;">
-    <tr><td align="center">
-      <table width="580" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-        <tr>
-          <td style="background:#1a3c5e;padding:28px 32px;text-align:center;">
-            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:1px;">ARAPOINT</h1>
-            <p style="margin:6px 0 0;color:#a8c8e8;font-size:13px;">Digital Services Platform</p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:32px;">
-            <h2 style="margin:0 0 8px;color:#1a3c5e;font-size:18px;">Welcome, ${name}!</h2>
-            <p style="margin:0 0 24px;color:#555;font-size:14px;line-height:1.6;">
-              Your <strong>${role}</strong> account has been set up on the Arapoint platform. Your login details are below — please keep them in a safe place.
-            </p>
+  const infoItems = [
+    { label: "Full Name", value: name },
+    { label: "Login Email", value: email },
+    { label: "Login Code", value: `<span style="font-family:'Courier New',monospace;background:#EEF2FF;color:#3730A3;padding:2px 8px;border-radius:4px;">${password}</span>` },
+    ...(employeeId ? [{ label: "Employee ID", value: employeeId }] : []),
+    { label: "Role", value: role },
+  ];
 
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:24px;">
-              <tr>
-                <td style="padding:20px;">
-                  <table width="100%" cellpadding="0" cellspacing="0">
-                    <tr>
-                      <td style="padding:8px 0;border-bottom:1px solid #e9ecef;">
-                        <span style="color:#888;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Full Name</span><br>
-                        <span style="color:#1a1a1a;font-size:15px;font-weight:600;">${name}</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="padding:8px 0;border-bottom:1px solid #e9ecef;">
-                        <span style="color:#888;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Login Email</span><br>
-                        <span style="color:#1a3c5e;font-size:15px;font-weight:600;">${email}</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="padding:8px 0;border-bottom:1px solid #e9ecef;">
-                        <span style="color:#888;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Login Code</span><br>
-                        <span style="color:#1a1a1a;font-size:15px;font-weight:600;font-family:monospace;background:#eef2f7;padding:2px 8px;border-radius:4px;">${password}</span>
-                      </td>
-                    </tr>
-                    ${employeeId ? `<tr>
-                      <td style="padding:8px 0;border-bottom:1px solid #e9ecef;">
-                        <span style="color:#888;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Employee ID</span><br>
-                        <span style="color:#1a1a1a;font-size:15px;font-weight:600;">${employeeId}</span>
-                      </td>
-                    </tr>` : ''}
-                    <tr>
-                      <td style="padding:8px 0;">
-                        <span style="color:#888;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Role</span><br>
-                        <span style="color:#1a3c5e;font-size:15px;font-weight:600;">${role}</span>
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
+  const body = `
+    <h1 style="margin:0 0 6px;color:#111827;font-size:22px;font-weight:800;font-family:Arial,sans-serif;">Welcome, ${name}!</h1>
+    <p style="margin:0 0 24px;color:#6B7280;font-size:14px;line-height:1.7;font-family:Arial,sans-serif;">
+      Your <strong style="color:#111827;">${role}</strong> account has been set up on the Arapoint Agent Portal. Keep your login details safe and secure.
+    </p>
 
-            <div style="text-align:center;margin-bottom:24px;">
-              <a href="${loginUrl}" style="display:inline-block;background:#1a3c5e;color:#ffffff;text-decoration:none;padding:13px 32px;border-radius:6px;font-size:15px;font-weight:600;">
-                Log In to Your Dashboard
-              </a>
-            </div>
+    ${agentInfoCard(infoItems)}
 
-            <p style="margin:0;color:#999;font-size:12px;line-height:1.5;border-top:1px solid #f0f0f0;padding-top:16px;">
-              <strong>Note:</strong> Your login code is managed by your administrator and cannot be changed directly. If you require a new one, contact your administrator. Your Service Level Agreement (SLA) is attached — please review it before you begin work.
-            </p>
-            <p style="margin:8px 0 0;color:#bbb;font-size:11px;line-height:1.5;">
-              This is an official account setup notification from Arapoint Solutions. If you did not expect this email, please contact support@arapoint.com.ng.
-            </p>
-          </td>
-        </tr>
-        <tr>
-          <td style="background:#f8fafc;padding:16px 32px;text-align:center;border-top:1px solid #e9ecef;">
-            <p style="margin:0;color:#aaa;font-size:12px;">© ${new Date().getFullYear()} Arapoint Solutions. All rights reserved. | support@arapoint.com.ng</p>
-          </td>
-        </tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+    <table cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+      <tr>
+        <td style="background:#1e3a8a;border-radius:8px;">
+          <a href="${loginUrl}" style="display:block;padding:14px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;font-family:Arial,sans-serif;">Log In to Agent Dashboard →</a>
+        </td>
+      </tr>
+    </table>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#FFF7ED;border:1px solid #FED7AA;border-left:3px solid #F59E0B;border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:8px;">
+      <tr>
+        <td>
+          <p style="margin:0;color:#92400E;font-size:13px;line-height:1.7;font-family:Arial,sans-serif;">
+            <strong>Important:</strong> Your login code is managed by your administrator. If you require a new one, contact your supervisor. Your Service Level Agreement (SLA) is attached — please review it before you begin work.
+          </p>
+        </td>
+      </tr>
+    </table>`;
+
+  return agentBase(
+    `Your ${role} account on Arapoint has been set up. Here are your login details.`,
+    "#1d4ed8", "#1e3a8a", body
+  );
 }
 
 export function agentNewRequestEmailHtml({
@@ -116,86 +142,42 @@ export function agentNewRequestEmailHtml({
   details: string;
   dashboardUrl: string;
 }): string {
-  return `<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>New ${serviceLabel} Request</title>
-</head>
-<body style="margin:0;padding:0;background:#f4f6f9;font-family:Arial,sans-serif;">
-  <div style="display:none;max-height:0;overflow:hidden;font-size:1px;color:#f4f6f9;">A new ${serviceLabel} request (${trackingId}) has been submitted and is ready for processing.</div>
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:30px 0;">
-    <tr><td align="center">
-      <table width="580" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-        <tr>
-          <td style="background:#1a3c5e;padding:28px 32px;text-align:center;">
-            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:1px;">ARAPOINT</h1>
-            <p style="margin:6px 0 0;color:#a8c8e8;font-size:13px;">New Service Request Alert</p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:32px;">
-            <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:14px 18px;margin-bottom:24px;">
-              <p style="margin:0;color:#856404;font-size:14px;font-weight:600;">New request awaiting your attention</p>
-            </div>
+  const body = `
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#FFF7ED;border:1px solid #FED7AA;border-left:3px solid #F59E0B;border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:24px;">
+      <tr>
+        <td>
+          <p style="margin:0;color:#92400E;font-size:13px;font-weight:700;font-family:Arial,sans-serif;">⚡ New request awaiting your attention</p>
+        </td>
+      </tr>
+    </table>
 
-            <p style="margin:0 0 20px;color:#555;font-size:14px;line-height:1.6;">
-              Hi <strong>${agentName}</strong>, a new <strong>${serviceLabel}</strong> request has been submitted and is ready for processing.
-            </p>
+    <h1 style="margin:0 0 6px;color:#111827;font-size:22px;font-weight:800;font-family:Arial,sans-serif;">New ${serviceLabel} Request</h1>
+    <p style="margin:0 0 24px;color:#6B7280;font-size:14px;line-height:1.7;font-family:Arial,sans-serif;">
+      Hi <strong style="color:#111827;">${agentName}</strong>, a new <strong style="color:#111827;">${serviceLabel}</strong> request has been submitted and is assigned to you for processing.
+    </p>
 
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:24px;">
-              <tr>
-                <td style="padding:20px;">
-                  <table width="100%" cellpadding="0" cellspacing="0">
-                    <tr>
-                      <td style="padding:8px 0;border-bottom:1px solid #e9ecef;">
-                        <span style="color:#888;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Tracking ID</span><br>
-                        <span style="color:#1a3c5e;font-size:15px;font-weight:700;font-family:monospace;">${trackingId}</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="padding:8px 0;border-bottom:1px solid #e9ecef;">
-                        <span style="color:#888;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Service</span><br>
-                        <span style="color:#1a1a1a;font-size:15px;font-weight:600;">${serviceLabel}</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="padding:8px 0;border-bottom:1px solid #e9ecef;">
-                        <span style="color:#888;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Customer</span><br>
-                        <span style="color:#1a1a1a;font-size:15px;font-weight:600;">${customerName}</span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="padding:8px 0;">
-                        <span style="color:#888;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Details</span><br>
-                        <span style="color:#1a1a1a;font-size:14px;">${details}</span>
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
+    ${agentInfoCard([
+      { label: "Tracking ID", value: trackingId },
+      { label: "Service", value: serviceLabel },
+      { label: "Customer", value: customerName },
+      { label: "Details", value: details },
+      { label: "Received", value: new Date().toLocaleString("en-NG") },
+    ])}
 
-            <div style="text-align:center;margin-bottom:24px;">
-              <a href="${dashboardUrl}" style="display:inline-block;background:#1a3c5e;color:#ffffff;text-decoration:none;padding:13px 32px;border-radius:6px;font-size:15px;font-weight:600;">
-                View Request in Dashboard
-              </a>
-            </div>
+    <table cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+      <tr>
+        <td style="background:#1e3a8a;border-radius:8px;">
+          <a href="${dashboardUrl}" style="display:block;padding:14px 28px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;font-family:Arial,sans-serif;">View Request in Dashboard →</a>
+        </td>
+      </tr>
+    </table>
 
-            <p style="margin:0;color:#999;font-size:12px;line-height:1.5;border-top:1px solid #f0f0f0;padding-top:16px;">
-              Please log in to the agent dashboard and pick up this request as soon as possible to ensure timely delivery.
-            </p>
-          </td>
-        </tr>
-        <tr>
-          <td style="background:#f8fafc;padding:16px 32px;text-align:center;border-top:1px solid #e9ecef;">
-            <p style="margin:0;color:#aaa;font-size:12px;">© ${new Date().getFullYear()} Arapoint Solutions. All rights reserved.</p>
-          </td>
-        </tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+    <p style="margin:0;color:#9CA3AF;font-size:12px;font-family:Arial,sans-serif;">Please log in and pick up this request as soon as possible to meet your SLA commitment.</p>`;
+
+  return agentBase(
+    `New ${serviceLabel} request (${trackingId}) — ${customerName} — ready for processing.`,
+    "#F59E0B", "#92400E", body
+  );
 }
 
 export const SERVICE_LABELS: Record<string, string> = {

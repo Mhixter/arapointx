@@ -74,12 +74,18 @@ export interface EmailAttachment {
   contentType: string;
 }
 
+export interface EmailFromOverride {
+  name?: string;
+  email?: string;
+}
+
 export async function sendEmail(
   to: string,
   subject: string,
   html: string,
   text?: string,
   attachments?: EmailAttachment[],
+  fromOverride?: EmailFromOverride,
 ): Promise<boolean> {
   try {
     const { transport, fromName, fromEmail } = await getTransporter();
@@ -94,9 +100,11 @@ export async function sendEmail(
       return true;
     }
 
-    const fromAddress = `${fromName} <${fromEmail}>`;
-    const replyTo = fromEmail || 'support@arapoint.com.ng';
-    const domain = (fromEmail || 'arapoint.com.ng').split('@')[1] || 'arapoint.com.ng';
+    const effectiveFromName = fromOverride?.name || fromName || 'Arapoint';
+    const effectiveFromEmail = fromOverride?.email || fromEmail || 'noreply@arapoint.com.ng';
+    const fromAddress = `${effectiveFromName} <${effectiveFromEmail}>`;
+    const replyTo = effectiveFromEmail;
+    const domain = effectiveFromEmail.split('@')[1] || 'arapoint.com.ng';
     const messageId = `<${Date.now()}.${Math.random().toString(36).substring(2, 11)}@${domain}>`;
 
     const plainText = text || html

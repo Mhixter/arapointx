@@ -521,27 +521,15 @@ router.put('/bvn-services/:id/status', async (req: Request, res: Response) => {
     // Send completion email to user
     if (status === 'completed' && record.userEmail) {
       const { sendEmail } = await import('../../services/emailService');
+      const { userBvnCompletedEmail } = await import('../../utils/userEmailTemplates');
       const maskedBvn = record.bvn ? `${record.bvn.slice(0, 4)}****${record.bvn.slice(-3)}` : 'N/A';
+      const serviceLabel = record.serviceType === 'modification' ? 'Modification' : 'Service';
       await sendEmail(
         record.userEmail,
-        'Your BVN Modification Request Has Been Completed',
-        `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: linear-gradient(135deg, #1e40af, #3b82f6); padding: 32px; text-align: center; border-radius: 8px 8px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">Request Completed</h1>
-          </div>
-          <div style="background: #f8fafc; padding: 32px; border-radius: 0 0 8px 8px; border: 1px solid #e2e8f0;">
-            <p style="color: #374151; font-size: 16px;">Dear ${record.userName || 'Valued Customer'},</p>
-            <p style="color: #374151;">Your <strong>BVN ${record.serviceType === 'modification' ? 'Modification' : 'Service'}</strong> request has been completed successfully.</p>
-            <div style="background: #dcfce7; border: 1px solid #86efac; border-radius: 8px; padding: 16px; margin: 20px 0;">
-              <p style="margin: 0; color: #15803d; font-weight: bold;">✓ BVN: ${maskedBvn}</p>
-              <p style="margin: 8px 0 0; color: #15803d;">Service Type: ${record.serviceType}</p>
-            </div>
-            <p style="color: #6b7280; font-size: 14px;">Log in to your Arapoint dashboard to view your updated details.</p>
-            <p style="color: #6b7280; font-size: 13px; margin-top: 24px;">Thank you for choosing Arapoint!</p>
-          </div>
-        </div>
-        `,
+        'Your BVN Request Has Been Completed — Arapoint',
+        userBvnCompletedEmail(record.userName || 'Valued Customer', maskedBvn, serviceLabel),
+        undefined, undefined,
+        { name: 'Arapoint', email: 'hello@arapoint.com.ng' },
       ).catch(err => logger.error('BVN completion email failed', { error: err.message }));
     }
 
