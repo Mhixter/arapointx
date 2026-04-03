@@ -19,6 +19,87 @@ Arapoint is a production-ready Nigerian Identity Verification and Management Pla
 - **Email**: SendGrid (for OTP delivery)
 - **Identity Verification**: YouVerify API (NIN/BVN)
 
+## Recent Updates (April 2026 — Employment Verification Deep Implementation)
+
+### `/verify/employment` — Complete Enhancement
+The developer API employment background-check pipeline was fully rebuilt. All 7 gaps from the specification were closed:
+
+**1. Jaro-Winkler Fuzzy Name Matching**
+- Pure-TypeScript `jaroSimilarity()` + `jaroWinklerSimilarity()` helpers (no external dependency)
+- `nameSimilarityScore(a, b)` → returns a `0.00–1.00` float, accounting for token re-ordering (e.g. "Doe John" vs "John Doe") by trying both full-string and per-token best-match strategies
+- Acceptance threshold: `≥ 0.72` (replaces the old blunt word-count boolean)
+- Numeric `name_match_score` is now surfaced in the response inside `crossMatch.nameMatch.score` and in the top-level `checks` summary
+
+**2. `consent: true` Enforcement**
+- Every `POST /verify/employment` request **must** include `consent: true` in the body
+- Returns `400` with a clear compliance message if missing or falsy
+- Consent timestamp is stored in `developer_employment_requests` and returned in `consentRecorded`
+
+**3. `employment_year` + Timeline Validation**
+- New optional body field `employment_year` (integer, defaults to current year)
+- New `validateTimeline(dob, ssceYear, employmentYear)` function checks:
+  - Age at employment year must be ≥ 18 and ≤ 80
+  - If SSCE provided: age at exam year must be 13–35
+  - SSCE exam year must not exceed employment year
+- Timeline is a **scored checkpoint** (`timeline` key in `checkpoints`, 10 pts)
+- All timeline violations surface in the `flags[]` array
+
+**4. `decision` Field (PASS / REVIEW / FAIL)**
+- New `toDecision(score)` helper converts the numeric score to a decision
+- Thresholds: `≥ 85 → PASS` | `60–84 → REVIEW` | `< 60 → FAIL`
+- Returned as a top-level `decision` field on every response
+
+**5. `flags[]` Structured Issue Array**
+- Collects all plain-English issues into one array: NIN/BVN failures, name/DOB mismatches, timeline problems
+- Returned as top-level `flags` field alongside `decision`
+
+**6. Updated Scoring Weights**
+| Checkpoint | Old | New |
+|---|---|---|
+| NIN verified | 35 pts | 20 pts |
+| BVN verified | 30 pts | 20 pts |
+| Name match (graduated by score) | 10 pts (boolean) | 20 pts (score × 20) |
+| DOB consistency | 10 pts | 15 pts |
+| Timeline validity | — | 10 pts *(new)* |
+| SSCE / Education | 15 pts | 15 pts |
+| **Total** | 100 pts | 100 pts |
+
+Max is 85 when SSCE is not provided (SSCE 15 pts excluded from denominator).
+
+**7. `GET /verify/employment/result/:requestId` Poll Endpoint**
+- New endpoint to retrieve the final decision once the SSCE RPA job completes
+- Looks up the stored employment request, checks linked RPA job status
+- If job is `completed`: adds 15 pts SSCE score, recomputes final decision, persists to DB
+- If job is `failed`: adds flag, returns FAIL-adjusted decision
+- If job still `pending/processing`: returns current partial score with a retry note
+- Authenticated with same API key used for the original request
+
+**New `developer_employment_requests` Table**
+Stores all employment request data for polling:
+- `id` (EMP-XXXXXXXXXXXXXXXX), `developer_id`, masked NIN/BVN
+- `employment_year`, `level`, `consent_given`, `consent_at`
+- `nin_score`, `bvn_score`, `name_match_score`, `dob_match`, `timeline_valid`, `timeline_score`
+- `nin_data`, `bvn_data`, `flags` (JSONB)
+- `ssce_job_id`, `ssce_provider`, `initial_score`, `final_score`, `decision`
+- Created via idempotent `CREATE TABLE IF NOT EXISTS` on server startup
+
+**`checks` Summary Object (new top-level field)**
+```json
+{
+  "identity_match": true,
+  "name_match_score": 0.9412,
+  "dob_match": true,
+  "education_verified": false,
+  "timeline_valid": true
+}
+```
+
+**Sandbox mode** fully updated — returns perfect score with all new fields (`decision: "PASS"`, `flags: []`, timeline checkpoint, numeric name score).
+
+**API Pricing** unchanged: `employment_standard` = ₦350, `employment_higher` = ₦450.
+
+---
+
 ## Recent Updates (April 2026 — Email Templates, KYB Admin, Bug Fixes)
 - **Professional email template system**: Created `devEmailTemplates.ts` (dark/blue — KYB approved/conditional/rejected/welcome), `userEmailTemplates.ts` (light/navy — OTP, wallet funded, BVN completed, welcome, password reset, service completed), upgraded `agentEmailTemplates.ts` (agent welcome + new request). All use table-based layouts, inline Arapoint "A" logo, properly styled header gradients, info cards, CTA buttons, colored note boxes, and full footer.
 - **From-address overrides**: `sendEmail()` now accepts optional `fromOverride: { name, email }`. Developer emails use `developers@arapoint.com.ng`, user/wallet/BVN emails use `hello@arapoint.com.ng`.
@@ -34,8 +115,9 @@ Arapoint is a production-ready Nigerian Identity Verification and Management Pla
   - API Keys: `GET/POST /api-keys`, `DELETE /api-keys/:id`
   - Billing: `/wallet/fund`, `/transactions`
   - Logs: `/logs`
-  - Verification (API key auth via `X-API-Key` header): `/verify/nin`, `/verify/bvn`, `/verify/education`, `/verify/unified`
-- **Pay-per-request pricing**: NIN=₦130, BVN=₦80, Education=₦250, Unified=₦400
+  - Verification (API key auth via `X-API-Key` header): `/verify/nin`, `/verify/bvn`, `/verify/education`, `/verify/unified`, `/verify/employment`, `/verify/fraud-score`
+  - Employment: `POST /verify/employment` (NIN + BVN + optional SSCE, consent required), `GET /verify/employment/result/:requestId` (poll for SSCE result)
+- **Pay-per-request pricing**: NIN=₦130, BVN=₦80, Education=₦250, Unified=₦400, Employment Standard=₦350, Employment Higher=₦450, Fraud Score=₦50
 - **Developer wallet**: atomic balance deduction per API call; prevents negative balance
 - **API key generation**: `ara_` prefix + 48 hex chars; max 10 keys per developer; masked in UI
 
@@ -140,7 +222,8 @@ Arapoint/
 - `POST /api/wallet/fund` - Fund wallet
 - `GET /api/wallet/transactions` - Transaction history
 
-## Database Tables (14)
+## Database Tables (20+)
+Core tables (in Drizzle schema.ts):
 1. users - User accounts with wallet balance
 2. otp_verifications - Email OTP storage
 3. rpa_jobs - RPA job queue
@@ -155,6 +238,16 @@ Arapoint/
 12. cable_services - Cable subscription records
 13. transactions - All financial transactions
 14. admin_settings - System configuration
+
+Developer Portal tables (created via inline SQL migration in developer.ts):
+15. developer_users - Developer accounts (wallet, KYC, webhook config)
+16. developer_api_keys - API keys with environment (sandbox/live)
+17. developer_api_logs - Per-request API call logs (endpoint, cost, duration)
+18. developer_transactions - Developer wallet credit/debit history
+19. developer_webhook_logs - Webhook delivery attempts and responses
+20. developer_paystack_transactions - Paystack top-up references
+21. developer_audit_logs - Admin actions on developer accounts
+22. **developer_employment_requests** - Employment verification state for polling (NIN/BVN scores, name_match_score, timeline, flags, SSCE job link, final decision)
 
 ## Environment Variables Required
 - `DATABASE_URL` - PostgreSQL connection string
