@@ -2,10 +2,11 @@ import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import multer from 'multer';
 import { db } from '../../config/database';
 import { config } from '../../config/env';
 import { logger } from '../../utils/logger';
-import { sql, eq, desc, and, count } from 'drizzle-orm';
+import { sql, eq, ne, desc, and, count } from 'drizzle-orm';
 import {
   pgTable, uuid, varchar, text, timestamp, boolean, jsonb, integer, decimal
 } from 'drizzle-orm/pg-core';
@@ -13,6 +14,9 @@ import { otpService } from '../../services/otpService';
 import { rpaJobs } from '../../db/schema';
 import { runWebhookMigrations, developerWebhookLogs, fireWebhookIfEnabled } from '../../services/webhookService';
 import * as paystackService from '../../services/paystackService';
+import { objectStorageService, ObjectNotFoundError } from '../../services/objectStorage';
+
+const kybUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const router = Router();
 
@@ -594,6 +598,9 @@ router.get('/dashboard/stats', devJwtAuth, async (req: Request, res: Response) =
           : 0,
         activeApiKeys: keyCount.active_keys || 0,
         recentLogs,
+        kycStatus: dev.kycStatus || 'not_required',
+        environmentMode: (dev as any).environmentMode || 'sandbox',
+        accountType: dev.accountType || 'individual',
       }
     });
   } catch (e: any) {
@@ -1374,7 +1381,7 @@ router.post('/kyc/submit', devJwtAuth, async (req: Request, res: Response) => {
       kycStatus = 'not_required';
     } else if (kybData) {
       // Structured KYB submission from the new form
-      const { companyInfo, directors, apiUseCase, compliance } = kybData;
+      const { companyInfo, directors, apiUseCase, compliance, uploadedDocuments } = kybData;
       if (!companyInfo?.legalName || !companyInfo?.cacNumber) {
         return res.status(400).json({ status: 'error', code: 400, message: 'Company legal name and CAC number are required' });
       }
@@ -1385,7 +1392,11 @@ router.post('/kyc/submit', devJwtAuth, async (req: Request, res: Response) => {
         return res.status(400).json({ status: 'error', code: 400, message: 'API use case and expected volume are required' });
       }
       kycStatus = 'submitted';
-      kycDocumentsPayload = { companyInfo, directors, apiUseCase, compliance, submittedAt: new Date().toISOString() };
+      kycDocumentsPayload = {
+        companyInfo, directors, apiUseCase, compliance,
+        uploadedDocuments: uploadedDocuments || {},
+        submittedAt: new Date().toISOString()
+      };
     } else {
       // Legacy path: raw document text
       if (!documents || !documents.length) {
@@ -1515,12 +1526,85 @@ router.get('/admin/logs', adminAuth, async (req: Request, res: Response) => {
   }
 });
 
+// ─── POST /kyc/upload-document — upload a KYB document to object storage ─────
+router.post('/kyc/upload-document', devJwtAuth, kybUpload.single('file'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'No file provided' });
+    }
+    const { docType } = req.body;
+    const validDocTypes = ['cac_certificate', 'status_report', 'address_verification', 'utility_bill', 'other'];
+    if (!docType || !validDocTypes.includes(docType)) {
+      return res.status(400).json({ status: 'error', code: 400, message: `docType must be one of: ${validDocTypes.join(', ')}` });
+    }
+    const ext = req.file.originalname.split('.').pop() || 'pdf';
+    const fileKey = await objectStorageService.uploadBuffer(
+      req.file.buffer,
+      req.file.mimetype,
+      `kyb-docs/${docType}`,
+      ext
+    );
+    if (!fileKey) {
+      return res.status(500).json({ status: 'error', code: 500, message: 'Object storage not configured' });
+    }
+    res.json({
+      status: 'success', code: 200, message: 'Document uploaded',
+      data: { fileKey, docType, originalName: req.file.originalname, size: req.file.size }
+    });
+  } catch (e: any) {
+    logger.error('KYB document upload error', { error: e.message });
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to upload document' });
+  }
+});
+
+// ─── GET /kyc/document/:encodedKey — download a KYB document (developer) ─────
+router.get('/kyc/document/:encodedKey', devJwtAuth, async (req: Request, res: Response) => {
+  try {
+    const dev = (req as any).developer;
+    const fileKey = decodeURIComponent(req.params.encodedKey);
+    if (!fileKey.includes('kyb-docs/')) {
+      return res.status(403).json({ status: 'error', code: 403, message: 'Access denied' });
+    }
+    const file = await objectStorageService.getObjectEntityFile(fileKey);
+    await objectStorageService.downloadObject(file, res);
+  } catch (e: any) {
+    if (e instanceof ObjectNotFoundError) {
+      return res.status(404).json({ status: 'error', code: 404, message: 'Document not found' });
+    }
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to download document' });
+  }
+});
+
+// ─── GET /admin/kyc/document/:encodedKey — download a KYB document (admin) ───
+router.get('/admin/kyc/document/:encodedKey', adminAuth, async (req: Request, res: Response) => {
+  try {
+    const fileKey = decodeURIComponent(req.params.encodedKey);
+    if (!fileKey.includes('kyb-docs/')) {
+      return res.status(403).json({ status: 'error', code: 403, message: 'Access denied' });
+    }
+    const file = await objectStorageService.getObjectEntityFile(fileKey);
+    await objectStorageService.downloadObject(file, res);
+  } catch (e: any) {
+    if (e instanceof ObjectNotFoundError) {
+      return res.status(404).json({ status: 'error', code: 404, message: 'Document not found' });
+    }
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to download document' });
+  }
+});
+
 router.get('/admin/kyc', adminAuth, async (req: Request, res: Response) => {
   try {
     const status = (req.query.status as string) || 'submitted';
-    const devs = await db.select().from(developerUsers)
-      .where(eq(developerUsers.kycStatus, status))
-      .orderBy(desc(developerUsers.kycSubmittedAt));
+    let devs;
+    if (status === 'all') {
+      devs = await db.select().from(developerUsers)
+        .where(ne(developerUsers.kycStatus, 'not_required'))
+        .orderBy(desc(developerUsers.kycSubmittedAt));
+    } else {
+      devs = await db.select().from(developerUsers)
+        .where(eq(developerUsers.kycStatus, status))
+        .orderBy(desc(developerUsers.kycSubmittedAt));
+    }
 
     res.json({ status: 'success', code: 200, message: 'KYC queue retrieved', data: { developers: devs } });
   } catch (e: any) {

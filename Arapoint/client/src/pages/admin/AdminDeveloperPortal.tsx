@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Users, Activity, DollarSign, CheckCircle, XCircle, Clock, Eye,
   Search, RefreshCw, ShieldCheck, FileText, AlertCircle, ChevronRight,
-  X, Key, Lock, Unlock, BarChart3, Globe
+  X, Key, Lock, Unlock, BarChart3, Globe, Download, FileCheck
 } from "lucide-react";
 
 function adminFetch(path: string, options?: RequestInit) {
@@ -56,6 +56,7 @@ export default function AdminDeveloperPortal() {
   const [logs, setLogs] = useState<ApiLog[]>([]);
   const [kycQueue, setKycQueue] = useState<Developer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [kycFilter, setKycFilter] = useState<"submitted" | "approved" | "rejected" | "conditional" | "all">("submitted");
   const [reviewId, setReviewId] = useState<string | null>(null);
   const [reviewAction, setReviewAction] = useState<"approve" | "conditional" | "reject">("approve");
   const [reviewNote, setReviewNote] = useState("");
@@ -66,6 +67,14 @@ export default function AdminDeveloperPortal() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [promotingId, setPromotingId] = useState<string | null>(null);
 
+  const loadKyc = async (filter: string = kycFilter) => {
+    try {
+      const res = await adminFetch(`/admin/kyc?status=${filter}`);
+      const data = await res.json();
+      if (data.status === "success") setKycQueue(data.data.developers);
+    } catch {}
+  };
+
   const loadAll = async () => {
     setLoading(true);
     try {
@@ -73,7 +82,7 @@ export default function AdminDeveloperPortal() {
         adminFetch("/admin/stats"),
         adminFetch(`/admin/developers?page=${devsPage}`),
         adminFetch(`/admin/logs/all?page=${logsPage}`),
-        adminFetch("/admin/kyc?status=submitted"),
+        adminFetch(`/admin/kyc?status=${kycFilter}`),
       ]);
       const [sd, dd, ld, kd] = await Promise.all([
         statsRes.json(), devsRes.json(), logsRes.json(), kycRes.json()
@@ -101,6 +110,7 @@ export default function AdminDeveloperPortal() {
   };
 
   useEffect(() => { loadAll(); }, [devsPage, logsPage]);
+  useEffect(() => { loadKyc(kycFilter); }, [kycFilter]);
 
   const handleKycReview = async () => {
     if (!reviewId) return;
@@ -147,6 +157,21 @@ export default function AdminDeveloperPortal() {
       }
     } catch {}
     setPromotingId(null);
+  };
+
+  const downloadKybDoc = async (fileKey: string, fileName: string) => {
+    try {
+      const res = await adminFetch(`/kyc/document/${encodeURIComponent(fileKey)}`);
+      if (!res.ok) { toast({ title: "Document not found", variant: "destructive" }); return; }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: "Download failed", variant: "destructive" });
+    }
   };
 
   const filteredDevs = developers.filter(d =>
@@ -339,12 +364,33 @@ export default function AdminDeveloperPortal() {
 
             {/* ── KYB Review tab ── */}
             <TabsContent value="kyc" className="space-y-4 mt-4">
+              <div className="flex flex-wrap gap-2">
+                {([
+                  { value: "submitted", label: "Pending Review" },
+                  { value: "approved", label: "Approved" },
+                  { value: "conditional", label: "Conditional" },
+                  { value: "rejected", label: "Rejected" },
+                  { value: "all", label: "All KYBs" },
+                ] as const).map(f => (
+                  <Button key={f.value} size="sm" variant={kycFilter === f.value ? "default" : "outline"}
+                    onClick={() => setKycFilter(f.value)} className="h-7 text-xs">
+                    {f.label}
+                  </Button>
+                ))}
+              </div>
               {kycQueue.length === 0 ? (
                 <Card>
                   <CardContent className="pt-10 pb-10 text-center">
                     <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
-                    <p className="font-medium">No pending KYB reviews</p>
-                    <p className="text-sm text-muted-foreground">All business verification submissions have been reviewed</p>
+                    <p className="font-medium">
+                      {kycFilter === "submitted" ? "No pending KYB reviews" :
+                       kycFilter === "all" ? "No KYB applications found" :
+                       `No ${kycFilter} KYB applications`}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {kycFilter === "submitted" ? "All business verification submissions have been reviewed" :
+                       "Try a different status filter above"}
+                    </p>
                   </CardContent>
                 </Card>
               ) : kycQueue.map(dev => {
@@ -405,6 +451,32 @@ export default function AdminDeveloperPortal() {
                               <KybRow label="PEP" value={kyb.compliance.isPEP ? "Declared PEP" : "No PEPs"} />
                               <KybRow label="AML" value={kyb.compliance.amlDeclaration ? "Declared" : "Not declared"} />
                               <KybRow label="Terms" value={kyb.compliance.termsAccepted ? "Accepted" : "Not accepted"} />
+                            </KybSection>
+                          )}
+                          {kyb.uploadedDocuments && Object.keys(kyb.uploadedDocuments).length > 0 && (
+                            <KybSection title="Uploaded Documents" icon={<FileCheck className="h-3.5 w-3.5" />}>
+                              <div className="space-y-2">
+                                {([
+                                  { key: "cac_certificate", label: "CAC Certificate" },
+                                  { key: "status_report", label: "Status Report" },
+                                  { key: "address_verification", label: "Address Verification" },
+                                ] as const).map(({ key, label }) => {
+                                  const doc = kyb.uploadedDocuments[key];
+                                  if (!doc) return null;
+                                  return (
+                                    <div key={key} className="flex items-center justify-between gap-2 p-2 bg-muted/50 rounded">
+                                      <div className="min-w-0">
+                                        <p className="text-xs font-medium">{label}</p>
+                                        <p className="text-xs text-muted-foreground truncate">{doc.name}</p>
+                                      </div>
+                                      <Button size="sm" variant="outline" className="h-7 text-xs shrink-0"
+                                        onClick={() => downloadKybDoc(doc.fileKey, doc.name)}>
+                                        <Download className="h-3 w-3 mr-1" /> Download
+                                      </Button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </KybSection>
                           )}
                         </div>

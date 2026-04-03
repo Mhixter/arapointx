@@ -26,14 +26,14 @@ function devFetch(path: string, options?: RequestInit) {
 
 interface ApiKey {
   id: string;
-  key_name: string;
-  api_key: string;
-  secret_key_last_four: string;
+  keyName: string;
+  apiKey: string;
+  secretKeyLastFour: string;
   environment: string;
-  is_active: boolean;
-  last_used_at: string | null;
-  total_requests: number;
-  created_at: string;
+  isActive: boolean;
+  lastUsedAt: string | null;
+  totalRequests: number;
+  createdAt: string;
   secretKey?: string;
 }
 
@@ -78,7 +78,7 @@ export default function DevApiKeys() {
       const data = await res.json();
       if (data.status === "success") {
         const k = data.data.key;
-        setNewCreds({ apiKey: k.api_key, secretKey: k.secretKey, env: createEnv });
+        setNewCreds({ apiKey: k.apiKey, secretKey: k.secretKey, env: createEnv });
         setShowCreate(false);
         setKeyName("");
         load();
@@ -118,9 +118,9 @@ export default function DevApiKeys() {
     return key.slice(0, 12) + "•".repeat(Math.max(0, key.length - 16)) + key.slice(-4);
   };
 
-  const sandboxKeys = keys.filter(k => k.environment === "sandbox" && k.is_active);
-  const liveKeys = keys.filter(k => k.environment === "live" && k.is_active);
-  const revokedKeys = keys.filter(k => !k.is_active);
+  const sandboxKeys = keys.filter(k => k.environment === "sandbox" && k.isActive);
+  const liveKeys = keys.filter(k => k.environment === "live" && k.isActive);
+  const revokedKeys = keys.filter(k => !k.isActive);
   const kycApproved = profile?.kycStatus === "approved";
 
   return (
@@ -215,7 +215,7 @@ export default function DevApiKeys() {
                   onToggleVisible={() => setVisibleApiKeys(s => {
                     const n = new Set(s); n.has(k.id) ? n.delete(k.id) : n.add(k.id); return n;
                   })}
-                  onCopy={() => copy(k.api_key, "API Key copied")}
+                  onCopy={() => copy(k.apiKey, "API Key copied")}
                   onRevoke={() => setDeleteConfirm(k.id)}
                   maskFn={maskKey}
                 />
@@ -261,7 +261,7 @@ export default function DevApiKeys() {
                   onToggleVisible={() => setVisibleApiKeys(s => {
                     const n = new Set(s); n.has(k.id) ? n.delete(k.id) : n.add(k.id); return n;
                   })}
-                  onCopy={() => copy(k.api_key, "API Key copied")}
+                  onCopy={() => copy(k.apiKey, "API Key copied")}
                   onRevoke={() => setDeleteConfirm(k.id)}
                   maskFn={maskKey}
                 />
@@ -299,8 +299,8 @@ export default function DevApiKeys() {
                 <div key={k.id} className="flex items-center gap-3 p-3 bg-gray-800/30 rounded-lg opacity-60">
                   <Key className="w-4 h-4 text-gray-600 shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-400 font-medium">{k.key_name}</p>
-                    <p className="text-xs font-mono text-gray-600">{maskKey(k.api_key)}</p>
+                    <p className="text-xs text-gray-400 font-medium">{k.keyName}</p>
+                    <p className="text-xs font-mono text-gray-600">{maskKey(k.apiKey)}</p>
                   </div>
                   <Badge className="text-xs bg-gray-800 text-gray-500 border-gray-700">Revoked</Badge>
                 </div>
@@ -440,7 +440,7 @@ function KeyRow({ apiKey, visible, onToggleVisible, onCopy, onRevoke, maskFn }: 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Key className="w-4 h-4 text-indigo-400" />
-          <span className="text-sm font-medium text-white">{apiKey.key_name}</span>
+          <span className="text-sm font-medium text-white">{apiKey.keyName}</span>
           <Badge className={apiKey.environment === "live"
             ? "bg-emerald-950 text-emerald-400 border-emerald-800/60 text-xs"
             : "bg-amber-950 text-amber-400 border-amber-800/60 text-xs"}>
@@ -457,7 +457,7 @@ function KeyRow({ apiKey, visible, onToggleVisible, onCopy, onRevoke, maskFn }: 
           <p className="text-[10px] uppercase tracking-widest text-gray-500">API Key</p>
           <div className="flex items-center gap-2 bg-gray-900 rounded px-3 py-2 border border-gray-700">
             <code className="text-xs font-mono text-gray-300 flex-1 truncate">
-              {visible ? apiKey.api_key : maskFn(apiKey.api_key)}
+              {visible ? apiKey.apiKey : maskFn(apiKey.apiKey)}
             </code>
             <button onClick={onToggleVisible} className="text-gray-500 hover:text-gray-300">
               {visible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -472,7 +472,7 @@ function KeyRow({ apiKey, visible, onToggleVisible, onCopy, onRevoke, maskFn }: 
           <p className="text-[10px] uppercase tracking-widest text-gray-500">Secret Key</p>
           <div className="flex items-center gap-2 bg-gray-900 rounded px-3 py-2 border border-gray-700">
             <code className="text-xs font-mono text-gray-500 flex-1">
-              ••••••••••••••••••••••••••••••••{apiKey.secret_key_last_four || "????"}
+              ••••••••••••••••••••••••••••••••{apiKey.secretKeyLastFour || "????"}
             </code>
             <span className="text-[10px] text-gray-600 ml-1">hidden</span>
           </div>
@@ -480,9 +480,9 @@ function KeyRow({ apiKey, visible, onToggleVisible, onCopy, onRevoke, maskFn }: 
       </div>
 
       <div className="flex items-center gap-4 text-xs text-gray-600">
-        <span>{apiKey.total_requests?.toLocaleString() || 0} requests</span>
-        {apiKey.last_used_at && <span>Last used {new Date(apiKey.last_used_at).toLocaleDateString()}</span>}
-        <span>Created {new Date(apiKey.created_at).toLocaleDateString()}</span>
+        <span>{apiKey.totalRequests?.toLocaleString() || 0} requests</span>
+        {apiKey.lastUsedAt && <span>Last used {new Date(apiKey.lastUsedAt).toLocaleDateString()}</span>}
+        <span>Created {new Date(apiKey.createdAt).toLocaleDateString()}</span>
       </div>
     </div>
   );

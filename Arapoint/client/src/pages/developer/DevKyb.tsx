@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DevLayout } from "./DevLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Building2, Users, Code2, ShieldCheck, CheckCircle, Clock, XCircle,
   AlertCircle, ChevronRight, ChevronLeft, Plus, Trash2, RefreshCw,
-  Info, Loader2, FileCheck, AlertTriangle
+  Info, Loader2, FileCheck, AlertTriangle, Upload, File, X
 } from "lucide-react";
 
 function devFetch(path: string, options?: RequestInit) {
@@ -21,12 +21,28 @@ function devFetch(path: string, options?: RequestInit) {
   });
 }
 
+async function devUploadFile(file: File, docType: string): Promise<string> {
+  const token = localStorage.getItem("dev_token");
+  const form = new FormData();
+  form.append("file", file);
+  form.append("docType", docType);
+  const res = await fetch("/api/v1/developer/kyc/upload-document", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  const data = await res.json();
+  if (data.status === "success") return data.data.fileKey;
+  throw new Error(data.message || "Upload failed");
+}
+
 const STEPS = [
   { id: 1, label: "Company Info", icon: Building2 },
   { id: 2, label: "Directors", icon: Users },
   { id: 3, label: "API Use Case", icon: Code2 },
   { id: 4, label: "Compliance", icon: ShieldCheck },
-  { id: 5, label: "Review & Submit", icon: FileCheck },
+  { id: 5, label: "Documents", icon: Upload },
+  { id: 6, label: "Review & Submit", icon: FileCheck },
 ];
 
 const BUSINESS_TYPES = [
@@ -77,6 +93,30 @@ export default function DevKyb() {
   const [kybReviewNote, setKybReviewNote] = useState("");
   const [kybSubmittedAt, setKybSubmittedAt] = useState<string | null>(null);
   const [existingKybData, setExistingKybData] = useState<any>(null);
+
+  const [uploadedDocuments, setUploadedDocuments] = useState<{
+    cac_certificate?: { fileKey: string; name: string };
+    status_report?: { fileKey: string; name: string };
+    address_verification?: { fileKey: string; name: string };
+  }>({});
+  const [uploading, setUploading] = useState<Record<string, boolean>>({});
+
+  const uploadDoc = async (file: File, docType: string) => {
+    setUploading(u => ({ ...u, [docType]: true }));
+    try {
+      const fileKey = await devUploadFile(file, docType);
+      setUploadedDocuments(d => ({ ...d, [docType]: { fileKey, name: file.name } }));
+      toast({ title: "Document uploaded", description: file.name });
+    } catch (e: any) {
+      toast({ title: "Upload failed", description: e.message, variant: "destructive" });
+    } finally {
+      setUploading(u => ({ ...u, [docType]: false }));
+    }
+  };
+
+  const removeDoc = (docType: string) => {
+    setUploadedDocuments(d => { const n = { ...d }; delete (n as any)[docType]; return n; });
+  };
 
   const [companyInfo, setCompanyInfo] = useState({
     legalName: "",
@@ -161,6 +201,9 @@ export default function DevKyb() {
     if (step === 4) {
       return compliance.amlDeclaration && compliance.dataAgreement && compliance.termsAccepted;
     }
+    if (step === 5) {
+      return uploadedDocuments.cac_certificate !== undefined;
+    }
     return true;
   };
 
@@ -171,7 +214,7 @@ export default function DevKyb() {
         method: "POST",
         body: JSON.stringify({
           accountType: "business",
-          kybData: { companyInfo, directors, apiUseCase, compliance },
+          kybData: { companyInfo, directors, apiUseCase, compliance, uploadedDocuments },
         }),
       });
       const data = await res.json();
@@ -568,6 +611,86 @@ export default function DevKyb() {
 
             {step === 5 && (
               <div className="space-y-5">
+                <div className="bg-indigo-900/20 border border-indigo-800/50 rounded-lg p-3 text-sm text-indigo-300 flex gap-2">
+                  <Upload className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>Upload your business documents. The CAC Certificate is required. Status Report and Address Verification are strongly recommended.</span>
+                </div>
+
+                {[
+                  {
+                    id: "cac_certificate",
+                    label: "CAC Certificate of Incorporation",
+                    description: "Official CAC registration certificate (PDF or image)",
+                    required: true,
+                  },
+                  {
+                    id: "status_report",
+                    label: "CAC Status Report",
+                    description: "Recent status report from CAC portal (within 6 months)",
+                    required: false,
+                  },
+                  {
+                    id: "address_verification",
+                    label: "Address Verification Document",
+                    description: "Utility bill or bank statement showing registered business address (within 3 months)",
+                    required: false,
+                  },
+                ].map(doc => {
+                  const uploaded = (uploadedDocuments as any)[doc.id];
+                  const isUploading = uploading[doc.id];
+                  return (
+                    <div key={doc.id} className="border border-gray-700 rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <p className="text-sm font-medium text-gray-200">
+                            {doc.label} {doc.required && <span className="text-red-400">*</span>}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-0.5">{doc.description}</p>
+                        </div>
+                        {uploaded && (
+                          <button onClick={() => removeDoc(doc.id)} className="text-gray-600 hover:text-red-400 shrink-0 ml-3">
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                      {uploaded ? (
+                        <div className="flex items-center gap-2 bg-green-900/20 border border-green-700/40 rounded-lg px-3 py-2">
+                          <CheckCircle className="w-4 h-4 text-green-400 shrink-0" />
+                          <span className="text-xs text-green-300 font-medium truncate">{uploaded.name}</span>
+                          <Badge className="ml-auto bg-green-900/50 text-green-400 border-green-700/50 text-[10px]">Uploaded</Badge>
+                        </div>
+                      ) : (
+                        <label className={`flex items-center gap-3 border-2 border-dashed rounded-lg px-4 py-3 cursor-pointer transition-colors ${
+                          isUploading ? "border-indigo-700 bg-indigo-950/30" : "border-gray-700 hover:border-indigo-600 hover:bg-indigo-950/20"
+                        }`}>
+                          {isUploading ? (
+                            <Loader2 className="w-5 h-5 text-indigo-400 animate-spin shrink-0" />
+                          ) : (
+                            <Upload className="w-5 h-5 text-gray-500 shrink-0" />
+                          )}
+                          <span className="text-xs text-gray-400">
+                            {isUploading ? "Uploading..." : "Click to upload (PDF, JPG, PNG, max 10MB)"}
+                          </span>
+                          <input
+                            type="file" className="sr-only"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            disabled={isUploading}
+                            onChange={e => {
+                              const f = e.target.files?.[0];
+                              if (f) uploadDoc(f, doc.id);
+                              e.target.value = "";
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {step === 6 && (
+              <div className="space-y-5">
                 <div className="bg-indigo-900/20 border border-indigo-800/50 rounded-lg p-3 text-sm text-indigo-300">
                   Review your information before submitting. After submission, our compliance team will review your application within 24–72 hours.
                 </div>
@@ -607,6 +730,21 @@ export default function DevKyb() {
                   <ReviewRow label="Terms" value="Accepted" />
                 </ReviewSection>
 
+                <ReviewSection title="Uploaded Documents" icon={Upload}>
+                  <ReviewRow
+                    label="CAC Certificate"
+                    value={uploadedDocuments.cac_certificate?.name || "Not uploaded"}
+                  />
+                  <ReviewRow
+                    label="Status Report"
+                    value={uploadedDocuments.status_report?.name || "Not uploaded"}
+                  />
+                  <ReviewRow
+                    label="Address Verification"
+                    value={uploadedDocuments.address_verification?.name || "Not uploaded"}
+                  />
+                </ReviewSection>
+
                 <Button onClick={handleSubmit} disabled={submitting} className="w-full bg-indigo-600 hover:bg-indigo-700">
                   {submitting ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Submitting...</> : "Submit for Compliance Review"}
                 </Button>
@@ -620,7 +758,7 @@ export default function DevKyb() {
             className="border-gray-700 text-gray-300 hover:bg-gray-800">
             <ChevronLeft className="w-4 h-4 mr-1" /> Back
           </Button>
-          {step < 5 && (
+          {step < 6 && (
             <Button onClick={() => setStep(s => s + 1)} disabled={!canProceed()}
               className="bg-indigo-600 hover:bg-indigo-700">
               Continue <ChevronRight className="w-4 h-4 ml-1" />
