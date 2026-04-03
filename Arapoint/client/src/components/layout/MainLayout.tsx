@@ -34,6 +34,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             <a href="#features" className="text-muted-foreground hover:text-primary transition-colors">Features</a>
             <a href="#services" className="text-muted-foreground hover:text-primary transition-colors">Services</a>
             <a href="#pricing" className="text-muted-foreground hover:text-primary transition-colors">Pricing</a>
+            <a href="https://developer.arapoint.com.ng" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">Developers</a>
             <a href="#contact" className="text-muted-foreground hover:text-primary transition-colors">Contact</a>
           </nav>
 
@@ -62,6 +63,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 <a href="#features" className="text-lg font-medium">Features</a>
                 <a href="#services" className="text-lg font-medium">Services</a>
                 <a href="#pricing" className="text-lg font-medium">Pricing</a>
+                <a href="https://developer.arapoint.com.ng" target="_blank" rel="noopener noreferrer" className="text-lg font-medium text-primary">Developers</a>
                 <Link href="/auth/login">
                   <span className="inline-flex w-full items-center justify-start gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 cursor-pointer">
                     Sign In
