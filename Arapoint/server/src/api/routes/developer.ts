@@ -31,6 +31,7 @@ const developerUsers = pgTable('developer_users', {
   kycReviewedAt: timestamp('kyc_reviewed_at'),
   kycReviewNote: text('kyc_review_note'),
   webhookUrl: varchar('webhook_url', { length: 500 }),
+  environmentMode: varchar('environment_mode', { length: 20 }).default('sandbox'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -39,7 +40,10 @@ const developerApiKeys = pgTable('developer_api_keys', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   developerId: uuid('developer_id').notNull(),
   keyName: varchar('key_name', { length: 100 }).notNull(),
-  apiKey: varchar('api_key', { length: 100 }).unique().notNull(),
+  apiKey: varchar('api_key', { length: 150 }).unique().notNull(),
+  secretKeyHash: varchar('secret_key_hash', { length: 255 }),
+  secretKeyLastFour: varchar('secret_key_last_four', { length: 10 }),
+  environment: varchar('environment', { length: 20 }).default('sandbox'),
   isActive: boolean('is_active').default(true),
   lastUsedAt: timestamp('last_used_at'),
   totalRequests: integer('total_requests').default(0),
@@ -72,6 +76,24 @@ const developerTransactions = pgTable('developer_transactions', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+// ─── Schema migration (idempotent) ───────────────────────────────────────────
+(async () => {
+  try {
+    await db.execute(sql`
+      ALTER TABLE developer_api_keys
+        ADD COLUMN IF NOT EXISTS environment varchar(20) DEFAULT 'sandbox',
+        ADD COLUMN IF NOT EXISTS secret_key_hash varchar(255),
+        ADD COLUMN IF NOT EXISTS secret_key_last_four varchar(10)
+    `);
+    await db.execute(sql`
+      ALTER TABLE developer_users
+        ADD COLUMN IF NOT EXISTS environment_mode varchar(20) DEFAULT 'sandbox'
+    `);
+  } catch (e: any) {
+    // Column already exists or minor error — safe to ignore
+  }
+})();
+
 // ─── Developer API Pricing (NGN) ──────────────────────────────────────────────
 const API_PRICES: Record<string, number> = {
   'nin': 130,
@@ -82,9 +104,14 @@ const API_PRICES: Record<string, number> = {
   'employment_higher': 450,
 };
 
-// ─── Helper: generate API key ─────────────────────────────────────────────────
-function generateApiKey(): string {
-  return 'ara_' + crypto.randomBytes(24).toString('hex');
+// ─── Helper: generate API key / Secret key ───────────────────────────────────
+function generateApiKey(env: 'sandbox' | 'live' = 'sandbox'): string {
+  const prefix = env === 'live' ? 'ara_live_' : 'ara_sand_';
+  return prefix + crypto.randomBytes(24).toString('hex');
+}
+function generateSecretKey(env: 'sandbox' | 'live' = 'sandbox'): string {
+  const prefix = env === 'live' ? 'ara_sk_live_' : 'ara_sk_sand_';
+  return prefix + crypto.randomBytes(32).toString('hex');
 }
 
 // ─── Helper: log API call ─────────────────────────────────────────────────────
@@ -247,12 +274,36 @@ router.post('/auth/register', async (req: Request, res: Response) => {
       company: company || null,
       passwordHash,
       emailVerified: true,
+      environmentMode: 'sandbox',
     }).returning();
+
+    // Auto-create sandbox API keypair on registration
+    const sandboxApiKey = generateApiKey('sandbox');
+    const sandboxSecretRaw = generateSecretKey('sandbox');
+    const sandboxSecretHash = await bcrypt.hash(sandboxSecretRaw, 10);
+    await db.insert(developerApiKeys).values({
+      developerId: dev.id,
+      keyName: 'Sandbox Key',
+      apiKey: sandboxApiKey,
+      secretKeyHash: sandboxSecretHash,
+      secretKeyLastFour: sandboxSecretRaw.slice(-4),
+      environment: 'sandbox',
+    });
 
     const token = jwt.sign({ developerId: dev.id }, config.JWT_SECRET, { expiresIn: '7d' });
     res.status(201).json({
       status: 'success', code: 201, message: 'Developer account created',
-      data: { token, developer: { id: dev.id, email: dev.email, name: dev.name, company: dev.company, walletBalance: 0 } }
+      data: {
+        token,
+        developer: { id: dev.id, email: dev.email, name: dev.name, company: dev.company, walletBalance: 0 },
+        sandboxCredentials: {
+          accountId: dev.id,
+          apiKey: sandboxApiKey,
+          secretKey: sandboxSecretRaw,
+          environment: 'sandbox',
+          note: 'Save your Secret Key now — it will not be shown again.',
+        },
+      }
     });
   } catch (e: any) {
     logger.error('Dev register error', { error: e.message });
@@ -302,12 +353,13 @@ router.get('/profile', devJwtAuth, async (req: Request, res: Response) => {
   res.json({
     status: 'success', code: 200, message: 'Profile retrieved',
     data: {
-      id: dev.id, email: dev.email, name: dev.name,
+      id: dev.id, accountId: dev.id, email: dev.email, name: dev.name,
       company: dev.company, walletBalance: parseFloat(dev.walletBalance || '0'),
       webhookUrl: dev.webhookUrl, createdAt: dev.createdAt,
       accountType: dev.accountType || 'individual',
       kycStatus: dev.kycStatus || 'not_required',
       emailVerified: dev.emailVerified,
+      environmentMode: (dev as any).environmentMode || 'sandbox',
     }
   });
 });
@@ -405,22 +457,40 @@ router.get('/api-keys', devJwtAuth, async (req: Request, res: Response) => {
 router.post('/api-keys', devJwtAuth, async (req: Request, res: Response) => {
   try {
     const dev = (req as any).developer;
-    const { keyName } = req.body;
+    const { keyName, environment = 'sandbox' } = req.body;
     if (!keyName) {
       return res.status(400).json({ status: 'error', code: 400, message: 'Key name required' });
     }
-    const existing = await db.select({ id: developerApiKeys.id }).from(developerApiKeys)
-      .where(eq(developerApiKeys.developerId, dev.id));
-    if (existing.length >= 10) {
-      return res.status(400).json({ status: 'error', code: 400, message: 'Maximum 10 API keys allowed' });
+    if (!['sandbox', 'live'].includes(environment)) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'Environment must be sandbox or live' });
     }
-    const apiKey = generateApiKey();
+    // Live keys require approved KYB
+    if (environment === 'live' && dev.kycStatus !== 'approved') {
+      return res.status(403).json({ status: 'error', code: 403, message: 'Live API keys require approved business verification (KYB)' });
+    }
+    const existing = await db.select({ id: developerApiKeys.id }).from(developerApiKeys)
+      .where(and(eq(developerApiKeys.developerId, dev.id), eq(developerApiKeys.isActive, true)));
+    if (existing.length >= 10) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'Maximum 10 active API keys allowed' });
+    }
+    const apiKey = generateApiKey(environment as 'sandbox' | 'live');
+    const secretRaw = generateSecretKey(environment as 'sandbox' | 'live');
+    const secretHash = await bcrypt.hash(secretRaw, 10);
     const [key] = await db.insert(developerApiKeys).values({
       developerId: dev.id,
       keyName,
       apiKey,
+      secretKeyHash: secretHash,
+      secretKeyLastFour: secretRaw.slice(-4),
+      environment,
     }).returning();
-    res.status(201).json({ status: 'success', code: 201, message: 'API key created', data: { key } });
+    res.status(201).json({
+      status: 'success', code: 201, message: 'API key created',
+      data: {
+        key: { ...key, secretKey: secretRaw },
+        note: 'Save your Secret Key now — it will not be shown again.',
+      }
+    });
   } catch (e: any) {
     res.status(500).json({ status: 'error', code: 500, message: 'Failed to create API key' });
   }
@@ -1280,6 +1350,96 @@ router.patch('/admin/developers/:id/status', adminAuth, async (req: Request, res
     res.json({ status: 'success', code: 200, message: `Developer ${isActive ? 'activated' : 'deactivated'}` });
   } catch (e: any) {
     res.status(500).json({ status: 'error', code: 500, message: 'Failed to update developer' });
+  }
+});
+
+// ─── GET /admin/developers/:id — full developer detail ────────────────────────
+router.get('/admin/developers/:id', adminAuth, async (req: Request, res: Response) => {
+  try {
+    const [dev] = await db.select().from(developerUsers)
+      .where(eq(developerUsers.id, req.params.id)).limit(1);
+    if (!dev) return res.status(404).json({ status: 'error', code: 404, message: 'Developer not found' });
+
+    const keys = await db.select().from(developerApiKeys)
+      .where(eq(developerApiKeys.developerId, dev.id))
+      .orderBy(desc(developerApiKeys.createdAt));
+
+    const recentLogs = await db.select().from(developerApiLogs)
+      .where(eq(developerApiLogs.developerId, dev.id))
+      .orderBy(desc(developerApiLogs.createdAt))
+      .limit(20);
+
+    const [txSummary] = await db.execute(sql`
+      SELECT
+        COUNT(*)::int AS total_calls,
+        COALESCE(SUM(cost), 0)::numeric AS total_spent,
+        COUNT(*) FILTER (WHERE status_code >= 200 AND status_code < 300)::int AS success_calls,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int AS calls_30d
+      FROM developer_api_logs WHERE developer_id = ${dev.id}
+    `);
+
+    res.json({
+      status: 'success', code: 200, message: 'Developer detail retrieved',
+      data: {
+        developer: dev,
+        apiKeys: keys.map(k => ({
+          ...k,
+          secretKeyHash: undefined, // never expose hash
+        })),
+        recentLogs,
+        summary: txSummary.rows[0] || {},
+      }
+    });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to get developer detail' });
+  }
+});
+
+// ─── PATCH /admin/developers/:id/promote — promote to live mode ───────────────
+router.patch('/admin/developers/:id/promote', adminAuth, async (req: Request, res: Response) => {
+  try {
+    const { action } = req.body; // 'live' | 'sandbox'
+    if (!['live', 'sandbox'].includes(action)) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'action must be live or sandbox' });
+    }
+    const [dev] = await db.select({ id: developerUsers.id, kycStatus: developerUsers.kycStatus })
+      .from(developerUsers).where(eq(developerUsers.id, req.params.id)).limit(1);
+    if (!dev) return res.status(404).json({ status: 'error', code: 404, message: 'Developer not found' });
+    if (action === 'live' && dev.kycStatus !== 'approved') {
+      return res.status(400).json({ status: 'error', code: 400, message: 'Developer must have an approved KYB to be promoted to live mode' });
+    }
+    await db.update(developerUsers).set({ environmentMode: action, updatedAt: new Date() })
+      .where(eq(developerUsers.id, req.params.id));
+    res.json({ status: 'success', code: 200, message: `Developer promoted to ${action} mode` });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to promote developer' });
+  }
+});
+
+// ─── GET /admin/logs — updated with developer name join ───────────────────────
+router.get('/admin/logs/all', adminAuth, async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = 50;
+    const offset = (page - 1) * limit;
+    const devId = req.query.developerId as string | undefined;
+
+    const logsWithDev = await db.execute(sql`
+      SELECT
+        l.id, l.developer_id, l.api_key_id, l.endpoint, l.method,
+        l.status_code, l.cost, l.duration_ms, l.ip_address, l.created_at,
+        u.name AS developer_name, u.email AS developer_email, u.company AS developer_company
+      FROM developer_api_logs l
+      LEFT JOIN developer_users u ON u.id = l.developer_id
+      ${devId ? sql`WHERE l.developer_id = ${devId}` : sql``}
+      ORDER BY l.created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `);
+
+    res.json({ status: 'success', code: 200, message: 'Logs retrieved',
+      data: { logs: logsWithDev.rows, page, limit } });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to get logs' });
   }
 });
 
