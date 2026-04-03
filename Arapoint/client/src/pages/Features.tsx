@@ -1,4 +1,4 @@
-import { Shield, GraduationCap, Building2, Zap, Lock, CheckCircle2, Code2, Fingerprint, Phone, CreditCard, Wifi, Tv, BookOpen, FileCheck, Users, BarChart3, ArrowRight } from "lucide-react";
+import { Shield, GraduationCap, Building2, Zap, Lock, CheckCircle2, Code2, Fingerprint, Phone, CreditCard, Wifi, Tv, BookOpen, FileCheck, Users, BarChart3, ArrowRight, UserCheck, Layers } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 
@@ -83,6 +83,38 @@ const featureGroups = [
         icon: FileCheck,
         title: "TIN Verification",
         desc: "Validate Tax Identification Numbers issued by FIRS. Confirm business compliance before entering contracts.",
+        badge: "Coming soon",
+      },
+    ],
+  },
+  {
+    category: "Employment Verification",
+    color: "teal",
+    icon: UserCheck,
+    tagline: "Confirm employee eligibility in one layered API call",
+    features: [
+      {
+        icon: Layers,
+        title: "Standard Employment Check",
+        desc: "Bundles NIN + BVN + any one of WAEC / NECO / NABTEB / NBAIS into a single API call. Confirms identity and minimum academic qualification in one request.",
+        badge: "Common level",
+      },
+      {
+        icon: UserCheck,
+        title: "Higher-Level Employment Check",
+        desc: "Extends the standard check with NYSC verification — NIN + BVN + WAEC / NECO / NABTEB / NBAIS + NYSC. Required for graduate-level and regulated roles.",
+        badge: "Graduate level",
+      },
+      {
+        icon: FileCheck,
+        title: "Batch Screening API",
+        desc: "Screen multiple candidates simultaneously using a single API request. Ideal for bulk recruitment, agency hiring, and high-volume onboarding.",
+        badge: "API",
+      },
+      {
+        icon: Shield,
+        title: "NYSC Verification",
+        desc: "Independently verify NYSC discharge or exemption certificates. Confirm completion of the National Youth Service Corps programme directly from source.",
         badge: "Coming soon",
       },
     ],
@@ -192,6 +224,7 @@ const colorMap: Record<string, string> = {
   orange: "bg-orange-500/10 text-orange-600 border-orange-200",
   indigo: "bg-indigo-500/10 text-indigo-600 border-indigo-200",
   red: "bg-red-500/10 text-red-600 border-red-200",
+  teal: "bg-teal-500/10 text-teal-600 border-teal-200",
 };
 
 const iconColorMap: Record<string, string> = {
@@ -201,6 +234,7 @@ const iconColorMap: Record<string, string> = {
   orange: "bg-orange-500/10 text-orange-600",
   indigo: "bg-indigo-500/10 text-indigo-600",
   red: "bg-red-500/10 text-red-600",
+  teal: "bg-teal-500/10 text-teal-600",
 };
 
 export default function Features() {

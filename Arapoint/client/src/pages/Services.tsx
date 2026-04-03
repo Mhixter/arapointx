@@ -1,4 +1,4 @@
-import { Shield, GraduationCap, Building2, Zap, Code2, Phone, Tv, BookOpen, ArrowRight, CheckCircle2, ChevronRight } from "lucide-react";
+import { Shield, GraduationCap, Building2, Zap, Code2, Phone, Tv, BookOpen, ArrowRight, CheckCircle2, ChevronRight, UserCheck } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 
@@ -67,6 +67,36 @@ const services = [
     cta: { label: "Validate a Business", href: "/auth/signup" },
   },
   {
+    id: "employment",
+    icon: UserCheck,
+    color: "teal",
+    title: "Employment Verification",
+    subtitle: "Confirm employee eligibility in one API call",
+    description:
+      "Arapoint's Employment Check bundles identity, education, and NYSC verification into a single layered API call — so you can confirm a candidate's full eligibility without managing multiple integrations. Choose the level that fits your hiring standard.",
+    useCases: [
+      "Pre-employment screening for corporates and SMEs",
+      "Compliance checks for regulated sectors (banking, healthcare, education)",
+      "Background verification for contract and freelance staff",
+      "Government and public sector recruitment screening",
+    ],
+    services: [
+      {
+        name: "Standard Employment Check",
+        desc: "NIN + BVN + WAEC / NECO / NABTEB / NBAIS — identity and academic eligibility",
+      },
+      {
+        name: "Higher-Level Employment Check",
+        desc: "NIN + BVN + WAEC / NECO / NABTEB / NBAIS + NYSC — full eligibility including national service",
+      },
+      {
+        name: "Batch API Screening",
+        desc: "Submit multiple candidates in one API request — ideal for bulk recruitment drives",
+      },
+    ],
+    cta: { label: "Start Screening Employees", href: "/auth/signup" },
+  },
+  {
     id: "vtu",
     icon: Zap,
     color: "orange",
@@ -119,6 +149,7 @@ const colorIconMap: Record<string, string> = {
   purple: "bg-purple-500/10 text-purple-600",
   orange: "bg-orange-500/10 text-orange-600",
   indigo: "bg-indigo-500/10 text-indigo-600",
+  teal: "bg-teal-500/10 text-teal-600",
 };
 
 const colorBorderMap: Record<string, string> = {
@@ -127,6 +158,7 @@ const colorBorderMap: Record<string, string> = {
   purple: "border-purple-200 bg-purple-50/50",
   orange: "border-orange-200 bg-orange-50/50",
   indigo: "border-indigo-200 bg-indigo-50/50",
+  teal: "border-teal-200 bg-teal-50/50",
 };
 
 export default function Services() {
