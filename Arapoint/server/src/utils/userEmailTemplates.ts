@@ -1,6 +1,5 @@
 const YEAR = new Date().getFullYear();
 const PLATFORM_URL = "https://arapoint.com.ng";
-const LOGO_URL = "https://arapoint.com.ng/arapoint-logo.png";
 
 const G = {
   dark:   "#166534",
@@ -15,11 +14,10 @@ const G = {
 const userLogo = `
 <table cellpadding="0" cellspacing="0" align="center">
   <tr>
-    <td style="padding-right:12px;vertical-align:middle;">
-      <img src="${LOGO_URL}" width="48" height="48" alt="Arapoint"
-           style="display:block;border-radius:50%;border:2px solid rgba(255,255,255,0.3);" />
+    <td style="width:40px;height:40px;background:rgba(255,255,255,0.2);border-radius:10px;text-align:center;vertical-align:middle;">
+      <span style="color:#ffffff;font-size:20px;font-weight:900;font-family:Arial,sans-serif;">A</span>
     </td>
-    <td style="vertical-align:middle;">
+    <td style="padding-left:12px;vertical-align:middle;">
       <p style="margin:0;color:#ffffff;font-size:20px;font-weight:900;letter-spacing:1px;font-family:Arial,sans-serif;">ARAPOINT</p>
       <p style="margin:2px 0 0;color:rgba(255,255,255,0.75);font-size:10px;letter-spacing:2px;text-transform:uppercase;font-family:Arial,sans-serif;">Digital Services</p>
     </td>
