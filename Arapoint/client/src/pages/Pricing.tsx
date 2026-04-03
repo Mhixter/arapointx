@@ -1,30 +1,7 @@
-import { CheckCircle2, ArrowRight, Shield, GraduationCap, Building2, Zap, Code2, HelpCircle } from "lucide-react";
+import { CheckCircle2, ArrowRight, HelpCircle } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-
-const verificationPricing = [
-  { icon: Shield, category: "Identity", color: "blue", items: [
-    { name: "NIN Verification", price: 130, unit: "per check", note: "Instant result from NIMC" },
-    { name: "BVN Lookup", price: 80, unit: "per check", note: "From CBN-affiliated source" },
-    { name: "NIN-to-Phone Lookup", price: 100, unit: "per check", note: "Phone linked to NIN" },
-  ]},
-  { icon: GraduationCap, category: "Education", color: "green", items: [
-    { name: "WAEC Verification", price: 250, unit: "per check", note: "School candidate & GCE" },
-    { name: "NECO Verification", price: 250, unit: "per check", note: "School candidate & GCE" },
-    { name: "JAMB Status", price: 200, unit: "per check", note: "UTME & admission status" },
-    { name: "NABTEB / NBAIS", price: 250, unit: "per check", note: "Technical & Islamic studies" },
-  ]},
-  { icon: Building2, category: "Business", color: "purple", items: [
-    { name: "CAC Verification", price: 150, unit: "per check", note: "Registration & status" },
-    { name: "Unified Verification", price: 400, unit: "per check", note: "NIN + BVN + Education" },
-  ]},
-  { icon: Code2, category: "API Utilities", color: "indigo", items: [
-    { name: "Wallet Balance Check", price: 0, unit: "free", note: "No charge" },
-    { name: "API Logs Access", price: 0, unit: "free", note: "No charge" },
-    { name: "Sandbox / Test Mode", price: 0, unit: "free", note: "All endpoints, no charge" },
-  ]},
-];
 
 const plans = [
   {
@@ -36,7 +13,7 @@ const plans = [
     features: [
       "Access to all verification services",
       "Pay only per successful check",
-      "Prepaid wallet top-up from ₦1,000",
+      "Prepaid wallet top-up",
       "API access with 60 req/min rate limit",
       "Developer sandbox (free)",
       "Email support",
@@ -52,7 +29,7 @@ const plans = [
     popular: true,
     features: [
       "Everything in Pay-As-You-Go",
-      "Discounted per-check rates (10,000+ checks/month)",
+      "Discounted per-check rates (high volume)",
       "300 req/min API rate limit",
       "Priority email & phone support",
       "Dedicated account manager",
@@ -86,7 +63,7 @@ const plans = [
 const faqs = [
   {
     q: "How does billing work?",
-    a: "Arapoint uses a prepaid wallet system. You top up your wallet with any amount (minimum ₦1,000) and each successful verification deducts the listed fee. There are no monthly subscription charges unless you are on a Growth or Enterprise plan.",
+    a: "Arapoint uses a prepaid wallet system. You top up your wallet and each successful verification deducts the applicable fee. There are no monthly subscription charges unless you are on a Growth or Enterprise plan.",
   },
   {
     q: "Am I charged for failed lookups?",
@@ -102,7 +79,7 @@ const faqs = [
   },
   {
     q: "Are there volume discounts?",
-    a: "Yes. Accounts that exceed 10,000 verifications per month qualify for discounted per-check rates. Contact our sales team at sales@arapoint.com.ng to discuss pricing.",
+    a: "Yes. Accounts that exceed high monthly verification volumes qualify for discounted per-check rates. Contact our sales team at sales@arapoint.com.ng to discuss pricing.",
   },
   {
     q: "Is the sandbox free to use?",
@@ -110,16 +87,9 @@ const faqs = [
   },
   {
     q: "What is the minimum top-up amount?",
-    a: "The minimum wallet top-up is ₦1,000. There is no maximum limit.",
+    a: "Contact our support team at support@arapoint.com.ng to learn about wallet top-up requirements and payment options.",
   },
 ];
-
-const colorMap: Record<string, string> = {
-  blue: "bg-blue-500/10 text-blue-600",
-  green: "bg-green-500/10 text-green-600",
-  purple: "bg-purple-500/10 text-purple-600",
-  indigo: "bg-indigo-500/10 text-indigo-600",
-};
 
 export default function Pricing() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -197,50 +167,6 @@ export default function Pricing() {
         </div>
       </section>
 
-      {/* Per-check pricing table */}
-      <section className="bg-muted/30 border-y border-border/50 py-20 px-4">
-        <div className="container max-w-4xl mx-auto">
-          <div className="text-center mb-12 space-y-2">
-            <h2 className="text-2xl font-heading font-bold">Per-check pricing</h2>
-            <p className="text-muted-foreground text-sm">Charges apply per successful verification. Failed lookups (not found) are not charged.</p>
-          </div>
-          <div className="space-y-8">
-            {verificationPricing.map(group => {
-              const GroupIcon = group.icon;
-              return (
-                <div key={group.category}>
-                  <div className="flex items-center gap-2.5 mb-4">
-                    <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${colorMap[group.color]}`}>
-                      <GroupIcon className="w-4 h-4" />
-                    </div>
-                    <h3 className="font-semibold text-foreground">{group.category}</h3>
-                  </div>
-                  <div className="bg-background border border-border/50 rounded-xl overflow-hidden">
-                    {group.items.map((item, i) => (
-                      <div key={item.name} className={`flex items-center justify-between gap-4 px-5 py-4 ${i < group.items.length - 1 ? "border-b border-border/40" : ""}`}>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{item.name}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{item.note}</p>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className={`text-sm font-bold ${item.price === 0 ? "text-green-600" : "text-foreground"}`}>
-                            {item.price === 0 ? "Free" : `₦${item.price}`}
-                          </p>
-                          <p className="text-xs text-muted-foreground">{item.unit}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <p className="text-xs text-muted-foreground text-center mt-8">
-            Prices are in Nigerian Naira (NGN) and inclusive of all fees. VTU services (airtime, data, electricity, cable) are billed at market rate.
-          </p>
-        </div>
-      </section>
-
       {/* FAQ */}
       <section className="py-20 px-4">
         <div className="container max-w-3xl mx-auto">
@@ -272,7 +198,7 @@ export default function Pricing() {
       {/* CTA */}
       <section className="bg-muted/30 border-t border-border/50 py-16 px-4">
         <div className="container max-w-xl mx-auto text-center space-y-5">
-          <h2 className="text-2xl font-heading font-bold">Start with ₦1,000</h2>
+          <h2 className="text-2xl font-heading font-bold">Get started today</h2>
           <p className="text-muted-foreground text-sm">Top up your wallet, run your first verification, and see Arapoint in action — no lock-ins, no monthly fees.</p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/auth/signup">

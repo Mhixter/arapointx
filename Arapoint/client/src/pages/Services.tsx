@@ -18,9 +18,9 @@ const services = [
       "Fraud prevention for lending and insurance products",
     ],
     services: [
-      { name: "NIN Verification", desc: "Full name, DOB, gender, phone from NIMC", price: "₦130" },
-      { name: "BVN Lookup", desc: "Identity data from CBN-affiliated source", price: "₦80" },
-      { name: "NIN-to-Phone", desc: "Link phone numbers to NIN records", price: "₦100" },
+      { name: "NIN Verification", desc: "Full name, DOB, gender, phone from NIMC" },
+      { name: "BVN Lookup", desc: "Identity data from CBN-affiliated source" },
+      { name: "NIN-to-Phone", desc: "Link phone numbers to NIN records" },
     ],
     cta: { label: "Start Verifying", href: "/auth/signup" },
   },
@@ -39,10 +39,10 @@ const services = [
       "Professional bodies validating educational prerequisites",
     ],
     services: [
-      { name: "WAEC Result Check", desc: "O-Level results for school & GCE candidates", price: "₦250" },
-      { name: "NECO Verification", desc: "NECO school candidate & GCE results", price: "₦250" },
-      { name: "JAMB Status", desc: "UTME scores, admission status", price: "₦200" },
-      { name: "NABTEB / NBAIS", desc: "Technical & Islamic studies certificates", price: "₦250" },
+      { name: "WAEC Result Check", desc: "O-Level results for school & GCE candidates" },
+      { name: "NECO Verification", desc: "NECO school candidate & GCE results" },
+      { name: "JAMB Status", desc: "UTME scores, admission status" },
+      { name: "NABTEB / NBAIS", desc: "Technical & Islamic studies certificates" },
     ],
     cta: { label: "Verify Credentials", href: "/auth/signup" },
   },
@@ -61,8 +61,8 @@ const services = [
       "Anti-money laundering (AML) business screening",
     ],
     services: [
-      { name: "CAC Verification", desc: "Registration status, RC number, company type", price: "₦150" },
-      { name: "TIN Verification", desc: "FIRS Tax ID validation", price: "Coming soon" },
+      { name: "CAC Verification", desc: "Registration status, RC number, company type" },
+      { name: "TIN Verification", desc: "FIRS Tax ID validation" },
     ],
     cta: { label: "Validate a Business", href: "/auth/signup" },
   },
@@ -81,11 +81,11 @@ const services = [
       "Corporate utilities management through the API",
     ],
     services: [
-      { name: "Airtime Top-Up", desc: "MTN, Airtel, Glo, 9mobile", price: "Market rate" },
-      { name: "Data Bundles", desc: "All networks, all sizes", price: "Market rate" },
-      { name: "Electricity Bills", desc: "All DISCOs — prepaid & postpaid", price: "Market rate" },
-      { name: "Cable TV", desc: "DStv, GOtv, Startimes", price: "Market rate" },
-      { name: "Exam Pins", desc: "WAEC, NECO, JAMB scratch cards", price: "Market rate" },
+      { name: "Airtime Top-Up", desc: "MTN, Airtel, Glo, 9mobile" },
+      { name: "Data Bundles", desc: "All networks, all sizes" },
+      { name: "Electricity Bills", desc: "All DISCOs — prepaid & postpaid" },
+      { name: "Cable TV", desc: "DStv, GOtv, Startimes" },
+      { name: "Exam Pins", desc: "WAEC, NECO, JAMB scratch cards" },
     ],
     cta: { label: "Access VTU Services", href: "/auth/signup" },
   },
@@ -104,10 +104,10 @@ const services = [
       "Lending apps verifying BVN and NIN before disbursement",
     ],
     services: [
-      { name: "Identity API", desc: "NIN, BVN, CAC endpoints", price: "From ₦80/call" },
-      { name: "Education API", desc: "WAEC, NECO, JAMB endpoints", price: "From ₦200/call" },
-      { name: "Webhook Events", desc: "Real-time async notifications", price: "Free" },
-      { name: "Sandbox Access", desc: "Full test environment", price: "Free" },
+      { name: "Identity API", desc: "NIN, BVN, CAC endpoints" },
+      { name: "Education API", desc: "WAEC, NECO, JAMB endpoints" },
+      { name: "Webhook Events", desc: "Real-time async notifications" },
+      { name: "Sandbox Access", desc: "Full test environment" },
     ],
     cta: { label: "Visit Developer Portal", href: "https://developer.arapoint.com.ng", external: true },
   },
@@ -205,17 +205,12 @@ export default function Services() {
                   <div className={`space-y-3 ${!isEven ? "lg:order-1" : ""}`}>
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Available services</p>
                     {service.services.map(svc => (
-                      <div key={svc.name} className={`rounded-xl border p-4 flex items-center justify-between gap-4 ${colorBorderMap[service.color]}`}>
-                        <div className="flex items-center gap-3 min-w-0">
-                          <ChevronRight className={`w-4 h-4 flex-shrink-0 ${colorIconMap[service.color].split(" ")[1]}`} />
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-foreground">{svc.name}</p>
-                            <p className="text-xs text-muted-foreground truncate">{svc.desc}</p>
-                          </div>
+                      <div key={svc.name} className={`rounded-xl border p-4 flex items-center gap-3 ${colorBorderMap[service.color]}`}>
+                        <ChevronRight className={`w-4 h-4 flex-shrink-0 ${colorIconMap[service.color].split(" ")[1]}`} />
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground">{svc.name}</p>
+                          <p className="text-xs text-muted-foreground">{svc.desc}</p>
                         </div>
-                        <span className="text-xs font-bold text-foreground flex-shrink-0 bg-background border border-border/60 px-2.5 py-1 rounded-full">
-                          {svc.price}
-                        </span>
                       </div>
                     ))}
                   </div>
