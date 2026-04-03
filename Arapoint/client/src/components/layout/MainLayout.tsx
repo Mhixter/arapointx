@@ -19,7 +19,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col bg-background font-sans">
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <Link href="/" className="flex items-center gap-2 font-heading font-bold text-xl text-primary tracking-tight hover:opacity-90 transition-opacity cursor-pointer">
               <div className="h-12 w-12 logo-cycle">
@@ -86,7 +86,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       </main>
 
       <footer className="border-t border-border/50 bg-muted/20">
-        <div className="container py-14">
+        <div className="container mx-auto py-14 px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
             {/* Brand column */}
             <div className="space-y-4 sm:col-span-2 lg:col-span-1">
