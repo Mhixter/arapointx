@@ -18,3 +18,9 @@ id = "QgHPMQKgi9w9TyPdjed3u"
 uri = "file://attached_assets/generated_images/arapoint_launch_banner_v3.png"
 type = "image"
 title = "Arapoint Launch Banner — With Circle Logo, Advertiser & Contacts"
+
+[[outputs]]
+id = "3MtiOcl46lUUphmN5Kwi3"
+uri = "file://Arapoint/exports/Arapoint_Technical_Roadmap.pdf"
+type = "pdf"
+title = "Arapoint Technical Roadmap"
