@@ -1,14 +1,26 @@
 const YEAR = new Date().getFullYear();
 const PLATFORM_URL = "https://arapoint.com.ng";
+const LOGO_URL = "https://arapoint.com.ng/arapoint-logo.png";
+
+const G = {
+  dark:   "#166534",
+  mid:    "#16a34a",
+  light:  "#22c55e",
+  bg:     "#f0fdf4",
+  border: "#bbf7d0",
+  tint:   "#dcfce7",
+  link:   "#15803d",
+};
 
 const userLogo = `
 <table cellpadding="0" cellspacing="0" align="center">
   <tr>
-    <td style="width:40px;height:40px;background:rgba(255,255,255,0.2);border-radius:10px;text-align:center;vertical-align:middle;">
-      <span style="color:#ffffff;font-size:18px;font-weight:900;font-family:Arial,sans-serif;">A</span>
+    <td style="padding-right:12px;vertical-align:middle;">
+      <img src="${LOGO_URL}" width="48" height="48" alt="Arapoint"
+           style="display:block;border-radius:50%;border:2px solid rgba(255,255,255,0.3);" />
     </td>
-    <td style="padding-left:12px;vertical-align:middle;">
-      <p style="margin:0;color:#ffffff;font-size:18px;font-weight:800;letter-spacing:1.5px;font-family:Arial,sans-serif;">ARAPOINT</p>
+    <td style="vertical-align:middle;">
+      <p style="margin:0;color:#ffffff;font-size:20px;font-weight:900;letter-spacing:1px;font-family:Arial,sans-serif;">ARAPOINT</p>
       <p style="margin:2px 0 0;color:rgba(255,255,255,0.75);font-size:10px;letter-spacing:2px;text-transform:uppercase;font-family:Arial,sans-serif;">Digital Services</p>
     </td>
   </tr>
@@ -22,11 +34,11 @@ const userFooter = `
         <td>
           <p style="margin:0;color:#9CA3AF;font-size:11px;font-family:Arial,sans-serif;">© ${YEAR} Arapoint Solutions · All rights reserved</p>
           <p style="margin:4px 0 0;font-size:11px;font-family:Arial,sans-serif;">
-            <a href="${PLATFORM_URL}" style="color:#1e3a8a;text-decoration:none;">arapoint.com.ng</a>
+            <a href="${PLATFORM_URL}" style="color:${G.link};text-decoration:none;">arapoint.com.ng</a>
             &nbsp;·&nbsp;
-            <a href="mailto:hello@arapoint.com.ng" style="color:#1e3a8a;text-decoration:none;">hello@arapoint.com.ng</a>
+            <a href="mailto:hello@arapoint.com.ng" style="color:${G.link};text-decoration:none;">hello@arapoint.com.ng</a>
             &nbsp;·&nbsp;
-            <a href="mailto:support@arapoint.com.ng" style="color:#1e3a8a;text-decoration:none;">support@arapoint.com.ng</a>
+            <a href="mailto:support@arapoint.com.ng" style="color:${G.link};text-decoration:none;">support@arapoint.com.ng</a>
           </p>
           <p style="margin:8px 0 0;color:#D1D5DB;font-size:10px;font-family:Arial,sans-serif;">This is a transactional email from Arapoint. If you did not request this, please ignore or contact support.</p>
         </td>
@@ -51,7 +63,7 @@ function userBase(previewText: string, accentColor: string, body: string): strin
 
       <!-- Header -->
       <tr>
-        <td style="background:linear-gradient(135deg,#1e3a8a 0%,#1d4ed8 100%);padding:28px 32px;text-align:center;">
+        <td style="background:linear-gradient(135deg,${G.dark} 0%,${G.mid} 100%);padding:28px 32px;text-align:center;">
           ${userLogo}
         </td>
       </tr>
@@ -99,7 +111,7 @@ function userNoteBox(text: string, color: string, bgColor: string): string {
     </table>`;
 }
 
-function userCTA(label: string, url: string, color = "#1d4ed8"): string {
+function userCTA(label: string, url: string, color = G.mid): string {
   return `
     <table cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
       <tr>
@@ -119,9 +131,9 @@ export function userOtpEmail(name: string, otp: string, purpose = "email verific
 
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
       <tr>
-        <td align="center" style="background:#EFF6FF;border:2px dashed #BFDBFE;border-radius:12px;padding:28px;">
+        <td align="center" style="background:${G.bg};border:2px dashed ${G.border};border-radius:12px;padding:28px;">
           <p style="margin:0 0 6px;color:#6B7280;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;font-family:Arial,sans-serif;">Your verification code</p>
-          <p style="margin:0;color:#1e3a8a;font-size:40px;font-weight:900;letter-spacing:12px;font-family:'Courier New',monospace;">${otp}</p>
+          <p style="margin:0;color:${G.dark};font-size:40px;font-weight:900;letter-spacing:12px;font-family:'Courier New',monospace;">${otp}</p>
         </td>
       </tr>
     </table>
@@ -129,12 +141,12 @@ export function userOtpEmail(name: string, otp: string, purpose = "email verific
     ${userNoteBox("Never share this code with anyone. Arapoint will never ask for your OTP. If you did not request this, please ignore this email.", "#F59E0B", "#FFFBEB")}
 
     <p style="margin:0;color:#9CA3AF;font-size:12px;font-family:Arial,sans-serif;">
-      Need help? Contact us at <a href="mailto:support@arapoint.com.ng" style="color:#1d4ed8;text-decoration:none;">support@arapoint.com.ng</a>
+      Need help? Contact us at <a href="mailto:support@arapoint.com.ng" style="color:${G.link};text-decoration:none;">support@arapoint.com.ng</a>
     </p>`;
 
   return userBase(
     `Your verification code is ${otp}. It expires in 10 minutes.`,
-    "#1d4ed8", body
+    G.light, body
   );
 }
 
@@ -150,12 +162,12 @@ export function userWelcomeEmail(name: string, email: string): string {
       { label: "Account Status", value: "Active" },
     ])}
 
-    <table width="100%" cellpadding="0" cellspacing="0" style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;margin-bottom:24px;padding:18px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:${G.bg};border:1px solid ${G.border};border-radius:10px;margin-bottom:24px;padding:18px;">
       <tr><td>
         <p style="margin:0 0 12px;color:#374151;font-size:13px;font-weight:700;font-family:Arial,sans-serif;">What you can do with Arapoint:</p>
         ${["NIN verification & personalization", "BVN services & modifications", "CAC business registration", "Educational result verification", "JAMB & WAEC services"].map(item =>
           `<p style="margin:0 0 6px;color:#6B7280;font-size:13px;font-family:Arial,sans-serif;">
-            <span style="color:#1d4ed8;font-weight:700;margin-right:8px;">✓</span>${item}
+            <span style="color:${G.mid};font-weight:700;margin-right:8px;">✓</span>${item}
           </p>`
         ).join('')}
       </td></tr>
@@ -164,12 +176,12 @@ export function userWelcomeEmail(name: string, email: string): string {
     ${userCTA("Go to Dashboard", `${PLATFORM_URL}/dashboard`)}
 
     <p style="margin:0;color:#9CA3AF;font-size:12px;font-family:Arial,sans-serif;">
-      Questions? Email us at <a href="mailto:hello@arapoint.com.ng" style="color:#1d4ed8;text-decoration:none;">hello@arapoint.com.ng</a>
+      Questions? Email us at <a href="mailto:hello@arapoint.com.ng" style="color:${G.link};text-decoration:none;">hello@arapoint.com.ng</a>
     </p>`;
 
   return userBase(
     `Your Arapoint account is ready. Start verifying identities today.`,
-    "#10b981", body
+    G.light, body
   );
 }
 
@@ -182,9 +194,9 @@ export function userWalletFundedEmail(name: string, amount: string, balance: str
 
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
       <tr>
-        <td align="center" style="background:#ECFDF5;border:1px solid #A7F3D0;border-radius:12px;padding:24px;">
+        <td align="center" style="background:${G.bg};border:1px solid ${G.border};border-radius:12px;padding:24px;">
           <p style="margin:0 0 4px;color:#6B7280;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;font-family:Arial,sans-serif;">Amount Credited</p>
-          <p style="margin:0;color:#065F46;font-size:36px;font-weight:900;font-family:Arial,sans-serif;">${amount}</p>
+          <p style="margin:0;color:${G.dark};font-size:36px;font-weight:900;font-family:Arial,sans-serif;">${amount}</p>
         </td>
       </tr>
     </table>
@@ -198,12 +210,12 @@ export function userWalletFundedEmail(name: string, amount: string, balance: str
     ${userCTA("View Wallet", `${PLATFORM_URL}/dashboard`)}
 
     <p style="margin:0;color:#9CA3AF;font-size:12px;font-family:Arial,sans-serif;">
-      Didn't make this transaction? Contact us immediately at <a href="mailto:support@arapoint.com.ng" style="color:#1d4ed8;text-decoration:none;">support@arapoint.com.ng</a>
+      Didn't make this transaction? Contact us immediately at <a href="mailto:support@arapoint.com.ng" style="color:${G.link};text-decoration:none;">support@arapoint.com.ng</a>
     </p>`;
 
   return userBase(
     `Your wallet has been funded with ${amount}. New balance: ${balance}.`,
-    "#10b981", body
+    G.light, body
   );
 }
 
@@ -232,12 +244,12 @@ export function userServiceCompletedEmail(name: string, serviceType: string, det
     ${userCTA("View in Dashboard", `${PLATFORM_URL}/dashboard`)}
 
     <p style="margin:0;color:#9CA3AF;font-size:12px;font-family:Arial,sans-serif;">
-      Thank you for choosing Arapoint. Contact <a href="mailto:support@arapoint.com.ng" style="color:#1d4ed8;text-decoration:none;">support@arapoint.com.ng</a> if you have any questions.
+      Thank you for choosing Arapoint. Contact <a href="mailto:support@arapoint.com.ng" style="color:${G.link};text-decoration:none;">support@arapoint.com.ng</a> if you have any questions.
     </p>`;
 
   return userBase(
     `Your ${serviceType} request (${trackingId}) has been completed.`,
-    "#10b981", body
+    G.light, body
   );
 }
 
@@ -260,7 +272,7 @@ export function userPasswordResetEmail(name: string, otp: string): string {
     ${userNoteBox("If you did not request a password reset, please ignore this email. Your account is safe and no changes have been made.", "#EF4444", "#FEF2F2")}
 
     <p style="margin:0;color:#9CA3AF;font-size:12px;font-family:Arial,sans-serif;">
-      Security concerns? Email us at <a href="mailto:support@arapoint.com.ng" style="color:#1d4ed8;text-decoration:none;">support@arapoint.com.ng</a>
+      Security concerns? Email us at <a href="mailto:support@arapoint.com.ng" style="color:${G.link};text-decoration:none;">support@arapoint.com.ng</a>
     </p>`;
 
   return userBase(
@@ -286,11 +298,11 @@ export function userBvnCompletedEmail(name: string, maskedBvn: string, serviceTy
     ${userCTA("View Dashboard", `${PLATFORM_URL}/dashboard`)}
 
     <p style="margin:0;color:#9CA3AF;font-size:12px;font-family:Arial,sans-serif;">
-      Thank you for choosing Arapoint. Contact <a href="mailto:support@arapoint.com.ng" style="color:#1d4ed8;text-decoration:none;">support@arapoint.com.ng</a> with questions.
+      Thank you for choosing Arapoint. Contact <a href="mailto:support@arapoint.com.ng" style="color:${G.link};text-decoration:none;">support@arapoint.com.ng</a> with questions.
     </p>`;
 
   return userBase(
     `Your BVN ${serviceType} request has been completed.`,
-    "#10b981", body
+    G.light, body
   );
 }
