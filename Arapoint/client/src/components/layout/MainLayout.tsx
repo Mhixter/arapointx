@@ -84,49 +84,112 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      <footer className="border-t bg-muted/30 py-12">
-        <div className="container grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 font-heading font-bold text-lg text-primary">
-              <img src={arapointLogo} alt="Arapoint" className="h-8 w-8 object-contain" />
-              <span className="text-foreground">Arapoint</span>
+      <footer className="border-t border-border/50 bg-muted/20">
+        <div className="container py-14">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+            {/* Brand column */}
+            <div className="space-y-4 sm:col-span-2 lg:col-span-1">
+              <Link href="/" className="flex items-center gap-2 font-heading font-bold text-lg group w-fit">
+                <img src={arapointLogo} alt="Arapoint" className="h-8 w-8 object-contain" />
+                <span className="text-foreground group-hover:text-primary transition-colors">Arapoint</span>
+              </Link>
+              <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
+                Nigeria's trusted standard for identity verification and digital services. Secure, fast, and NDPA compliant.
+              </p>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
+                  NDPA Compliant
+                </span>
+                <span className="inline-flex items-center gap-1 text-xs bg-green-500/10 text-green-600 px-2 py-0.5 rounded-full font-medium">
+                  99.9% Uptime
+                </span>
+              </div>
             </div>
-            <p className="text-sm text-muted-foreground max-w-xs">
-              The trusted standard for identity verification and digital services in Nigeria. Secure, fast, and compliant.
-            </p>
-          </div>
-          
-          <div>
-            <h4 className="font-bold mb-4">Platform</h4>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-primary">Identity Verification</a></li>
-              <li><a href="#" className="hover:text-primary">Education Checks</a></li>
-              <li><a href="#" className="hover:text-primary">Business Lookup</a></li>
-              <li><a href="#" className="hover:text-primary">VTU Services</a></li>
-            </ul>
+
+            {/* Platform */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-foreground text-sm">Platform</h4>
+              <ul className="space-y-2.5">
+                {[
+                  { label: "Identity Verification", href: "#features" },
+                  { label: "Education Checks", href: "#features" },
+                  { label: "Business Lookup", href: "#features" },
+                  { label: "VTU Services", href: "#features" },
+                  { label: "Developer API", href: "https://developer.arapoint.com.ng", external: true },
+                ].map(item => (
+                  <li key={item.label}>
+                    {item.external ? (
+                      <a href={item.href} target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                        {item.label}
+                      </a>
+                    ) : (
+                      <a href={item.href} className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                        {item.label}
+                      </a>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Company */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-foreground text-sm">Company</h4>
+              <ul className="space-y-2.5">
+                {[
+                  { label: "About Us", href: "/about" },
+                  { label: "Careers", href: "/careers" },
+                  { label: "Privacy Policy", href: "/privacy" },
+                  { label: "Terms of Service", href: "/terms" },
+                ].map(item => (
+                  <li key={item.label}>
+                    <Link href={item.href} className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Contact */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-foreground text-sm">Contact</h4>
+              <ul className="space-y-2.5">
+                {settings.siteEmail && (
+                  <li>
+                    <a href={`mailto:${settings.siteEmail}`} className="text-sm text-muted-foreground hover:text-primary transition-colors break-all">
+                      {settings.siteEmail}
+                    </a>
+                  </li>
+                )}
+                {settings.sitePhone && (
+                  <li>
+                    <a href={`tel:${settings.sitePhone}`} className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                      {settings.sitePhone}
+                    </a>
+                  </li>
+                )}
+                {settings.siteAddress && (
+                  <li className="text-sm text-muted-foreground leading-relaxed">{settings.siteAddress}</li>
+                )}
+                <li>
+                  <a href="mailto:support@arapoint.com.ng" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                    support@arapoint.com.ng
+                  </a>
+                </li>
+              </ul>
+            </div>
           </div>
 
-          <div>
-            <h4 className="font-bold mb-4">Company</h4>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-primary">About Us</a></li>
-              <li><a href="#" className="hover:text-primary">Careers</a></li>
-              <li><a href="#" className="hover:text-primary">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-primary">Terms of Service</a></li>
-            </ul>
+          {/* Bottom bar */}
+          <div className="mt-12 pt-6 border-t border-border/40 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+            <span>© {new Date().getFullYear()} {settings.siteName || "Arapoint"}. All rights reserved.</span>
+            <div className="flex items-center gap-4">
+              <Link href="/privacy" className="hover:text-primary transition-colors">Privacy</Link>
+              <Link href="/terms" className="hover:text-primary transition-colors">Terms</Link>
+              <a href="mailto:legal@arapoint.com.ng" className="hover:text-primary transition-colors">Legal</a>
+            </div>
           </div>
-
-          <div>
-            <h4 className="font-bold mb-4">Contact</h4>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li>{settings.siteEmail}</li>
-              <li>{settings.sitePhone}</li>
-              <li>{settings.siteAddress}</li>
-            </ul>
-          </div>
-        </div>
-        <div className="container mt-12 pt-8 border-t text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} {settings.siteName}. All rights reserved. NDPA Compliant.
         </div>
       </footer>
     </div>
