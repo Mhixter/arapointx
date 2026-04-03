@@ -12,6 +12,7 @@ import SuspendedPage from "@/pages/Suspended";
 import { MainLayout } from "@/components/layout/MainLayout";
 
 import Home from "@/pages/Home";
+import DevLanding from "@/pages/developer/DevLanding";
 import Login from "@/pages/auth/Login";
 import Signup from "@/pages/auth/Signup";
 import ForgotPassword from "@/pages/auth/ForgotPassword";
@@ -256,6 +257,11 @@ function Router() {
           <AdminDeveloperPortal />
         </AdminCRUDLayout>
       </Route>
+
+      {/* Developer Portal Landing (subdomain root) */}
+      {window.location.hostname === "developer.arapoint.com.ng" && (
+        <Route path="/" component={DevLanding} />
+      )}
 
       {/* Developer Portal Routes */}
       <Route path="/developer/login" component={DevLogin} />

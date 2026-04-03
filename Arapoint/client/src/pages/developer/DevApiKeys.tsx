@@ -113,8 +113,10 @@ export default function DevApiKeys() {
     toast({ title: label });
   };
 
-  const maskKey = (key: string) =>
-    key.slice(0, 12) + "•".repeat(Math.max(0, key.length - 16)) + key.slice(-4);
+  const maskKey = (key: string) => {
+    if (!key) return "••••••••••••••••";
+    return key.slice(0, 12) + "•".repeat(Math.max(0, key.length - 16)) + key.slice(-4);
+  };
 
   const sandboxKeys = keys.filter(k => k.environment === "sandbox" && k.is_active);
   const liveKeys = keys.filter(k => k.environment === "live" && k.is_active);
