@@ -5,13 +5,19 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiClient } from "@/lib/api/client";
 import arapointLogo from "@assets/generated_images/arapoint_solution_logo.png";
 
 export default function Signup() {
   const [_, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (window.location.hostname === 'developer.arapoint.com.ng') {
+      setLocation('/developer/login');
+    }
+  }, []);
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
