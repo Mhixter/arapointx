@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arapoint API Tester</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0b0f1a;
+    --surface:   #111827;
+    --card:      #1a2236;
+    --border:    #1e2d45;
+    --blue:      #0B5FFF;
+    --blue-dim:  #0a4fd4;
+    --green:     #12B76A;
+    --red:       #f04438;
+    --yellow:    #f59e0b;
+    --text:      #e2e8f0;
+    --muted:     #64748b;
+    --accent:    #3b82f6;
+    --sidebar-w: 230px;
+    --header-h:  56px;
+  }
+
+  html, body { height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── Layout ── */
+  #app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+  /* ── Header ── */
+  header {
+    height: var(--header-h); min-height: var(--header-h);
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px; padding: 0 16px;
+    z-index: 20; flex-shrink: 0;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; }
+  .logo-icon {
+    width: 32px; height: 32px; background: var(--blue); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 16px; color: #fff; letter-spacing: -1px;
+  }
+  .logo-text { color: var(--text); }
+  .logo-text span { color: var(--blue); }
+
+  header .spacer { flex: 1; }
+
+  .env-toggle {
+    display: flex; align-items: center; background: var(--card); border-radius: 8px;
+    border: 1px solid var(--border); overflow: hidden;
+  }
+  .env-btn {
+    padding: 6px 14px; cursor: pointer; font-size: 12px; font-weight: 600;
+    border: none; background: transparent; color: var(--muted); transition: all 0.15s;
+  }
+  .env-btn.active { background: var(--blue); color: #fff; }
+  .env-btn.active.prod { background: var(--green); }
+
+  .cfg-btn {
+    padding: 6px 12px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; gap: 6px; transition: border-color 0.15s;
+  }
+  .cfg-btn:hover { border-color: var(--blue); }
+
+  /* ── Body ── */
+  .body { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── Sidebar ── */
+  aside {
+    width: var(--sidebar-w); min-width: var(--sidebar-w); overflow-y: auto;
+    background: var(--surface); border-right: 1px solid var(--border);
+    padding: 12px 0;
+  }
+  .cat-label {
+    padding: 10px 16px 4px; font-size: 10px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .ep-btn {
+    width: 100%; text-align: left; padding: 8px 16px;
+    background: transparent; border: none; color: var(--muted);
+    cursor: pointer; display: flex; align-items: center; gap: 8px;
+    transition: all 0.12s; border-left: 2px solid transparent; font-size: 13px;
+  }
+  .ep-btn:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+  .ep-btn.active { color: var(--blue); background: rgba(11,95,255,0.08); border-left-color: var(--blue); }
+  .ep-btn .method-pill {
+    font-size: 9px; font-weight: 700; padding: 2px 5px; border-radius: 4px;
+    text-transform: uppercase; letter-spacing: 0.5px; flex-shrink: 0;
+  }
+  .pill-GET    { background: rgba(18,183,106,0.15); color: var(--green); }
+  .pill-POST   { background: rgba(11,95,255,0.15);  color: #60a5fa; }
+  .pill-DELETE { background: rgba(240,68,56,0.15);  color: var(--red); }
+
+  /* ── Main ── */
+  main { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+
+  .req-res-wrap { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── Request Panel ── */
+  .req-panel {
+    width: 45%; min-width: 340px; overflow-y: auto;
+    border-right: 1px solid var(--border); display: flex; flex-direction: column;
+  }
+  .panel-header {
+    padding: 16px 20px 12px; border-bottom: 1px solid var(--border);
+    flex-shrink: 0; background: var(--surface);
+  }
+  .panel-title { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+
+  .ep-headline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .ep-method { font-size: 13px; font-weight: 700; }
+  .ep-path { font-family: 'Courier New', monospace; font-size: 13px; color: var(--text); word-break: break-all; }
+
+  .meta-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .meta-badge {
+    font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 4px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .badge-apikey { background: rgba(245,158,11,0.15); color: var(--yellow); }
+  .badge-jwt    { background: rgba(139,92,246,0.15);  color: #a78bfa; }
+  .badge-none   { background: rgba(100,116,139,0.15); color: var(--muted); }
+  .badge-price  { background: rgba(18,183,106,0.12);  color: var(--green); }
+
+  .ep-desc { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+
+  .panel-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+
+  label { font-size: 11px; font-weight: 600; color: var(--muted); display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  input[type="text"], input[type="password"], input[type="email"], textarea, select {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); padding: 8px 12px; font-size: 13px;
+    outline: none; transition: border-color 0.15s; font-family: inherit;
+  }
+  input:focus, textarea:focus { border-color: var(--blue); }
+  textarea { resize: vertical; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.5; min-height: 200px; }
+
+  .path-param-row { display: flex; gap: 8px; align-items: flex-end; }
+  .path-param-row input { flex: 1; }
+
+  .btn-send {
+    width: 100%; padding: 10px; background: var(--blue); color: #fff;
+    border: none; border-radius: 8px; font-size: 14px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    gap: 8px; transition: background 0.15s; margin-top: 4px;
+  }
+  .btn-send:hover { background: var(--blue-dim); }
+  .btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-send.loading::after { content: ''; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .format-btn {
+    font-size: 11px; padding: 4px 10px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 6px; color: var(--muted);
+    cursor: pointer; margin-left: auto; display: block;
+  }
+  .format-btn:hover { color: var(--text); }
+
+  /* ── Response Panel ── */
+  .res-panel { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+
+  .res-header {
+    padding: 14px 20px 12px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px; background: var(--surface); flex-shrink: 0;
+  }
+  .status-badge {
+    font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 6px;
+    font-family: 'Courier New', monospace;
+  }
+  .status-2xx { background: rgba(18,183,106,0.15); color: var(--green); }
+  .status-4xx { background: rgba(240,68,56,0.15);  color: var(--red); }
+  .status-5xx { background: rgba(240,68,56,0.15);  color: var(--red); }
+  .status-err { background: rgba(245,158,11,0.15); color: var(--yellow); }
+
+  .res-time { font-size: 11px; color: var(--muted); }
+  .copy-btn {
+    margin-left: auto; font-size: 11px; padding: 4px 10px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--muted); cursor: pointer;
+  }
+  .copy-btn:hover { color: var(--text); }
+
+  .res-body { padding: 16px 20px; flex: 1; }
+
+  pre.json-view {
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px; overflow: auto; font-family: 'Courier New', monospace;
+    font-size: 12px; line-height: 1.6; white-space: pre-wrap; word-break: break-all;
+    max-height: calc(100vh - 200px);
+  }
+
+  pre .key    { color: #60a5fa; }
+  pre .str    { color: #a3e635; }
+  pre .num    { color: #fb923c; }
+  pre .bool   { color: #c084fc; }
+  pre .nil    { color: var(--muted); }
+
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%; color: var(--muted); gap: 12px; padding: 40px;
+  }
+  .empty-icon { font-size: 48px; opacity: 0.4; }
+  .empty-title { font-size: 15px; font-weight: 600; }
+  .empty-sub { font-size: 12px; text-align: center; max-width: 300px; line-height: 1.6; }
+
+  /* ── Config Modal ── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    z-index: 100; display: flex; align-items: center; justify-content: center;
+  }
+  .modal-overlay.hidden { display: none; }
+  .modal {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 24px; width: 480px; max-width: 95vw; max-height: 90vh; overflow-y: auto;
+  }
+  .modal h2 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .modal .modal-sub { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+  .modal .field { margin-bottom: 14px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .btn-primary {
+    flex: 1; padding: 10px; background: var(--blue); color: #fff;
+    border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .btn-secondary {
+    padding: 10px 20px; background: var(--card); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; font-size: 14px; cursor: pointer;
+  }
+
+  .info-box {
+    background: rgba(11,95,255,0.08); border: 1px solid rgba(11,95,255,0.25);
+    border-radius: 8px; padding: 10px 14px; font-size: 12px; line-height: 1.6;
+    color: #93c5fd; margin-bottom: 14px;
+  }
+  .warn-box {
+    background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25);
+    border-radius: 8px; padding: 10px 14px; font-size: 12px; line-height: 1.6;
+    color: var(--yellow); margin-bottom: 14px;
+  }
+
+  /* ── History ── */
+  .history-bar {
+    border-top: 1px solid var(--border); background: var(--surface);
+    padding: 0 20px; display: flex; align-items: center; gap: 12px;
+    height: 36px; overflow-x: auto; flex-shrink: 0;
+  }
+  .history-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); white-space: nowrap; }
+  .history-item {
+    display: flex; align-items: center; gap: 6px; padding: 3px 10px;
+    border-radius: 6px; cursor: pointer; white-space: nowrap;
+    background: var(--card); border: 1px solid var(--border); font-size: 11px;
+    transition: border-color 0.12s;
+  }
+  .history-item:hover { border-color: var(--blue); }
+  .history-item .h-status { font-weight: 700; }
+  .h-ok  { color: var(--green); }
+  .h-err { color: var(--red); }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed; bottom: 20px; right: 20px; padding: 10px 16px;
+    background: var(--green); color: #fff; border-radius: 8px; font-size: 13px;
+    font-weight: 600; z-index: 200; opacity: 0; transition: opacity 0.2s;
+    pointer-events: none;
+  }
+  #toast.show { opacity: 1; }
+
+  /* ── Welcome ── */
+  .welcome {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%; padding: 40px; gap: 20px;
+  }
+  .welcome-logo {
+    width: 64px; height: 64px; background: var(--blue); border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px; font-weight: 900; color: #fff;
+  }
+  .welcome h1 { font-size: 24px; font-weight: 700; }
+  .welcome p { font-size: 14px; color: var(--muted); text-align: center; max-width: 460px; line-height: 1.7; }
+  .welcome .start-tip {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 20px; font-size: 13px; color: var(--muted); line-height: 1.7;
+    max-width: 460px;
+  }
+  .welcome .start-tip strong { color: var(--text); }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ── Header ── -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">A</div>
+      <span class="logo-text">Ara<span>point</span> API Tester</span>
+    </div>
+    <div class="spacer"></div>
+
+    <div class="env-toggle">
+      <button class="env-btn active" id="btnSandbox" onclick="setEnv('sandbox')">Sandbox</button>
+      <button class="env-btn" id="btnLive" onclick="setEnv('live')">Live</button>
+    </div>
+
+    <button class="cfg-btn" onclick="openConfig()">⚙ Configure</button>
+  </header>
+
+  <!-- ── Body ── -->
+  <div class="body">
+
+    <!-- ── Sidebar ── -->
+    <aside>
+      <div class="cat-label">Authentication</div>
+      <button class="ep-btn" onclick="selectEndpoint('auth-register')">
+        <span class="method-pill pill-POST">POST</span> Register
+      </button>
+      <button class="ep-btn" onclick="selectEndpoint('auth-login')">
+        <span class="method-pill pill-POST">POST</span> Login
+      </button>
+
+      <div class="cat-label" style="margin-top:8px">Verification</div>
+      <button class="ep-btn" onclick="selectEndpoint('verify-nin')">
+        <span class="method-pill pill-POST">POST</span> NIN Verify
+      </button>
+      <button class="ep-btn" onclick="selectEndpoint('verify-bvn')">
+        <span class="method-pill pill-POST">POST</span> BVN Verify
+      </button>
+      <button class="ep-btn" onclick="selectEndpoint('verify-education')">
+        <span class="method-pill pill-POST">POST</span> Education
+      </button>
+      <button class="ep-btn" onclick="selectEndpoint('verify-unified')">
+        <span class="method-pill pill-POST">POST</span> Unified
+      </button>
+
+      <div class="cat-label" style="margin-top:8px">Employment</div>
+      <button class="ep-btn" onclick="selectEndpoint('verify-employment')">
+        <span class="method-pill pill-POST">POST</span> Submit
+      </button>
+      <button class="ep-btn" onclick="selectEndpoint('verify-employment-result')">
+        <span class="method-pill pill-GET">GET</span> Poll Result
+      </button>
+
+      <div class="cat-label" style="margin-top:8px">Risk</div>
+      <button class="ep-btn" onclick="selectEndpoint('verify-fraud')">
+        <span class="method-pill pill-POST">POST</span> Fraud Score
+      </button>
+
+      <div class="cat-label" style="margin-top:8px">Account</div>
+      <button class="ep-btn" onclick="selectEndpoint('dashboard-stats')">
+        <span class="method-pill pill-GET">GET</span> Dashboard
+      </button>
+      <button class="ep-btn" onclick="selectEndpoint('kyc-status')">
+        <span class="method-pill pill-GET">GET</span> KYC Status
+      </button>
+      <button class="ep-btn" onclick="selectEndpoint('api-keys-list')">
+        <span class="method-pill pill-GET">GET</span> API Keys
+      </button>
+      <button class="ep-btn" onclick="selectEndpoint('api-keys-create')">
+        <span class="method-pill pill-POST">POST</span> Create Key
+      </button>
+      <button class="ep-btn" onclick="selectEndpoint('wallet-balance')">
+        <span class="method-pill pill-GET">GET</span> Wallet Balance
+      </button>
+      <button class="ep-btn" onclick="selectEndpoint('wallet-transactions')">
+        <span class="method-pill pill-GET">GET</span> Transactions
+      </button>
+    </aside>
+
+    <!-- ── Main ── -->
+    <main>
+      <div class="req-res-wrap">
+
+        <!-- ── Request Panel ── -->
+        <div class="req-panel" id="reqPanel">
+          <div id="welcomeView" class="welcome">
+            <div class="welcome-logo">A</div>
+            <h1>Arapoint API Tester</h1>
+            <p>A live interactive test console for the Arapoint Identity Verification API — covering NIN, BVN, Employment, Education, Fraud Score and more.</p>
+            <div class="start-tip">
+              <strong>Quick start:</strong><br>
+              1. Click <strong>⚙ Configure</strong> in the top bar to set your <strong>Base URL</strong> and credentials.<br>
+              2. Pick an endpoint from the left sidebar.<br>
+              3. Edit the request body and click <strong>Send Request</strong>.
+            </div>
+          </div>
+
+          <div id="reqView" style="display:none; flex-direction:column; height:100%;">
+            <div class="panel-header">
+              <div class="panel-title">Request</div>
+              <div class="ep-headline">
+                <span class="ep-method" id="epMethod"></span>
+                <span class="ep-path" id="epPath"></span>
+              </div>
+              <div class="meta-row" id="metaRow"></div>
+              <div class="ep-desc" id="epDesc"></div>
+            </div>
+
+            <div class="panel-body">
+              <!-- Path params -->
+              <div id="pathParamsSection" style="display:none">
+                <label id="pathParamLabel">Request ID</label>
+                <input type="text" id="pathParamInput" placeholder="EMP-XXXXXXXXXXXXXX">
+              </div>
+
+              <!-- Body editor -->
+              <div id="bodySection" style="display:none">
+                <div style="display:flex; align-items:center; margin-bottom:4px">
+                  <label style="margin-bottom:0">Request Body (JSON)</label>
+                  <button class="format-btn" onclick="formatBody()">Format</button>
+                </div>
+                <textarea id="bodyEditor" spellcheck="false" rows="10"></textarea>
+              </div>
+
+              <!-- Info messages -->
+              <div id="epInfoBox" class="info-box" style="display:none"></div>
+              <div id="epWarnBox" class="warn-box" style="display:none"></div>
+
+              <button class="btn-send" id="sendBtn" onclick="sendRequest()">
+                ▶ Send Request
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Response Panel ── -->
+        <div class="res-panel">
+          <div id="resEmpty" class="empty-state">
+            <div class="empty-icon">📡</div>
+            <div class="empty-title">No response yet</div>
+            <div class="empty-sub">Select an endpoint and click Send Request to see the response here.</div>
+          </div>
+
+          <div id="resView" style="display:none; flex-direction:column; flex:1;">
+            <div class="res-header">
+              <div class="panel-title" style="margin-bottom:0">Response</div>
+              <span class="status-badge" id="statusBadge"></span>
+              <span class="res-time" id="resTime"></span>
+              <button class="copy-btn" onclick="copyResponse()">Copy</button>
+            </div>
+            <div class="res-body">
+              <pre class="json-view" id="resBody"></pre>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- req-res-wrap -->
+
+      <!-- ── History bar ── -->
+      <div class="history-bar">
+        <span class="history-label">History</span>
+        <div id="historyItems" style="display:flex; gap:8px;"></div>
+      </div>
+    </main>
+
+  </div><!-- body -->
+</div><!-- app -->
+
+<!-- ── Config Modal ── -->
+<div class="modal-overlay hidden" id="configModal">
+  <div class="modal">
+    <h2>⚙ Configuration</h2>
+    <p class="modal-sub">Set your Arapoint server URL and credentials. These are saved in your browser.</p>
+
+    <div class="info-box">
+      In <strong>Sandbox</strong> mode the API returns realistic mock data without hitting real government databases.
+      In <strong>Live</strong> mode real verifications are performed and your balance is deducted.
+    </div>
+
+    <div class="field">
+      <label>Base URL (Sandbox)</label>
+      <input type="text" id="cfgSandboxUrl" placeholder="https://your-arapoint.replit.app">
+    </div>
+    <div class="field">
+      <label>Base URL (Live / Production)</label>
+      <input type="text" id="cfgLiveUrl" placeholder="https://arapoint.com.ng">
+    </div>
+    <div class="field">
+      <label>Developer API Key (X-API-Key) <span style="color:var(--muted)">— from API Keys page</span></label>
+      <input type="text" id="cfgApiKey" placeholder="ara_sand_... or ara_live_...">
+    </div>
+    <div class="field">
+      <label>JWT Token <span style="color:var(--muted)">— auto-populated after Login</span></label>
+      <input type="text" id="cfgJwt" placeholder="eyJhbGci...">
+    </div>
+
+    <div class="warn-box">
+      <strong>Tip:</strong> Use the <em>Login</em> endpoint first — the JWT token will be auto-saved here so you can test JWT-protected endpoints immediately.
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeConfig()">Cancel</button>
+      <button class="btn-primary" onclick="saveConfig()">Save Settings</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast ── -->
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let ENV = 'sandbox';
+let currentEpId = null;
+let lastResponse = null;
+const history = [];
+
+const CONFIG_KEY = 'arapoint_tester_config';
+let config = {
+  sandboxUrl: '',
+  liveUrl   : '',
+  apiKey    : '',
+  jwt       : '',
+};
+
+// ═══════════════════════════════════════════════════════════════
+// ENDPOINT DEFINITIONS
+// ═══════════════════════════════════════════════════════════════
+const ENDPOINTS = {
+
+  'auth-register': {
+    name: 'Register Developer Account',
+    method: 'POST',
+    path: '/api/v1/developer/auth/register',
+    auth: 'none',
+    category: 'Authentication',
+    desc: 'Create a new developer account on the Arapoint portal.',
+    body: {
+      name: 'Jane Doe',
+      email: 'jane@mycompany.ng',
+      password: 'SecurePass123!',
+      company: 'MyCompany Ltd',
+    },
+    info: 'After registration, verify your email then use the Login endpoint to get a JWT token.',
+  },
+
+  'auth-login': {
+    name: 'Login',
+    method: 'POST',
+    path: '/api/v1/developer/auth/login',
+    auth: 'none',
+    category: 'Authentication',
+    desc: 'Authenticate and receive a JWT access token. The token is auto-saved for JWT-protected endpoints.',
+    body: {
+      email: 'jane@mycompany.ng',
+      password: 'SecurePass123!',
+    },
+  },
+
+  'verify-nin': {
+    name: 'NIN Verification',
+    method: 'POST',
+    path: '/api/v1/developer/verify/nin',
+    auth: 'apikey',
+    price: '₦130',
+    category: 'Verification',
+    desc: 'Verify a National Identification Number (NIN) against NIMC records.',
+    body: { nin: '12345678901' },
+    info: 'In sandbox mode, any valid 11-digit NIN returns mock verified data.',
+  },
+
+  'verify-bvn': {
+    name: 'BVN Verification',
+    method: 'POST',
+    path: '/api/v1/developer/verify/bvn',
+    auth: 'apikey',
+    price: '₦80',
+    category: 'Verification',
+    desc: 'Verify a Bank Verification Number (BVN) against CBN records.',
+    body: { bvn: '12345678901' },
+    info: 'In sandbox mode, any valid 11-digit BVN returns mock verified data.',
+  },
+
+  'verify-education': {
+    name: 'Education Verification',
+    method: 'POST',
+    path: '/api/v1/developer/verify/education',
+    auth: 'apikey',
+    price: '₦250',
+    category: 'Verification',
+    desc: 'Verify WAEC, NECO, NABTEB, NBAIS or JAMB results via RPA automation.',
+    body: {
+      provider: 'waec',
+      registrationNumber: '4190101001',
+      examYear: 2019,
+    },
+    info: 'Providers: waec, neco, nabteb, nbais, jamb. Live mode results take 1–3 minutes via RPA. Use the returned jobId to poll for results.',
+  },
+
+  'verify-unified': {
+    name: 'Unified Verification',
+    method: 'POST',
+    path: '/api/v1/developer/verify/unified',
+    auth: 'apikey',
+    price: '₦400',
+    category: 'Verification',
+    desc: 'Verify NIN + BVN in a single call with cross-reference checking.',
+    body: {
+      nin: '12345678901',
+      bvn: '12345678901',
+    },
+  },
+
+  'verify-employment': {
+    name: 'Submit Employment Verification',
+    method: 'POST',
+    path: '/api/v1/developer/verify/employment',
+    auth: 'apikey',
+    price: '₦350 – ₦450',
+    category: 'Employment',
+    desc: 'Full employment background check: verifies NIN + BVN, cross-matches name (Jaro-Winkler fuzzy), validates DOB, checks chronological timeline, and optionally verifies SSCE/JAMB qualifications via RPA. Returns a weighted trust score and PASS / REVIEW / FAIL decision.',
+    body: {
+      nin: '12345678901',
+      bvn: '12345678901',
+      consent: true,
+      level: 'standard',
+      employment_year: new Date().getFullYear(),
+      ssce: {
+        provider: 'waec',
+        examYear: 2015,
+        registrationNumber: '4190101001',
+      },
+    },
+    info: 'consent: true is required (compliance). level: "standard" (₦350) or "higher" (₦450). employment_year defaults to current year. ssce is optional but adds 15 pts to the score. Poll the returned requestId for the final score once SSCE completes.',
+  },
+
+  'verify-employment-result': {
+    name: 'Poll Employment Result',
+    method: 'GET',
+    path: '/api/v1/developer/verify/employment/result/:requestId',
+    auth: 'apikey',
+    price: 'Free',
+    category: 'Employment',
+    desc: 'Poll for the final employment verification score once the SSCE/JAMB RPA job completes. Returns the updated trust score and PASS / REVIEW / FAIL decision.',
+    pathParam: { key: 'requestId', label: 'Request ID (from Submit response)', placeholder: 'EMP-XXXXXXXXXXXXXXXX' },
+    info: 'If the SSCE job is still processing, the response will include status: "processing" and ask you to try again in 60 seconds.',
+  },
+
+  'verify-fraud': {
+    name: 'Fraud Score',
+    method: 'POST',
+    path: '/api/v1/developer/verify/fraud-score',
+    auth: 'apikey',
+    price: '₦50',
+    category: 'Risk',
+    desc: 'Compute a fraud risk score by cross-referencing NIN, BVN, and/or phone for anomalies: DOB mismatch, duplicate accounts, flagged devices, etc.',
+    body: {
+      nin: '12345678901',
+      bvn: '12345678901',
+      phone: '08012345678',
+    },
+  },
+
+  'dashboard-stats': {
+    name: 'Dashboard Statistics',
+    method: 'GET',
+    path: '/api/v1/developer/dashboard/stats',
+    auth: 'jwt',
+    category: 'Account',
+    desc: 'Returns wallet balance, total API calls, spending this month, and usage breakdown by endpoint.',
+  },
+
+  'kyc-status': {
+    name: 'KYC / KYB Status',
+    method: 'GET',
+    path: '/api/v1/developer/kyc/status',
+    auth: 'jwt',
+    category: 'Account',
+    desc: 'Returns the current KYB (business verification) status for your developer account.',
+  },
+
+  'api-keys-list': {
+    name: 'List API Keys',
+    method: 'GET',
+    path: '/api/v1/developer/api-keys',
+    auth: 'jwt',
+    category: 'Account',
+    desc: 'Retrieve all API keys associated with your developer account.',
+  },
+
+  'api-keys-create': {
+    name: 'Create API Key',
+    method: 'POST',
+    path: '/api/v1/developer/api-keys',
+    auth: 'jwt',
+    category: 'Account',
+    desc: 'Create a new API key. Each account can have up to 10 active keys.',
+    body: {
+      name: 'My Test Key',
+      environment: 'sandbox',
+    },
+    info: 'environment: "sandbox" or "live". Live keys require KYB approval.',
+  },
+
+  'wallet-balance': {
+    name: 'Wallet Balance',
+    method: 'GET',
+    path: '/api/v1/developer/wallet/balance',
+    auth: 'jwt',
+    category: 'Account',
+    desc: 'Returns the current wallet balance in NGN.',
+  },
+
+  'wallet-transactions': {
+    name: 'Transaction History',
+    method: 'GET',
+    path: '/api/v1/developer/transactions',
+    auth: 'jwt',
+    category: 'Account',
+    desc: 'Returns the last 50 wallet transactions (API deductions and top-ups).',
+  },
+};
+
+// ═══════════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════════
+function loadConfig() {
+  try {
+    const saved = localStorage.getItem(CONFIG_KEY);
+    if (saved) config = { ...config, ...JSON.parse(saved) };
+  } catch(e) {}
+}
+function saveConfig() {
+  config.sandboxUrl = document.getElementById('cfgSandboxUrl').value.trim().replace(/\/$/, '');
+  config.liveUrl    = document.getElementById('cfgLiveUrl').value.trim().replace(/\/$/, '');
+  config.apiKey     = document.getElementById('cfgApiKey').value.trim();
+  config.jwt        = document.getElementById('cfgJwt').value.trim();
+  localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+  closeConfig();
+  showToast('Configuration saved ✓');
+}
+function openConfig() {
+  document.getElementById('cfgSandboxUrl').value = config.sandboxUrl || '';
+  document.getElementById('cfgLiveUrl').value    = config.liveUrl    || '';
+  document.getElementById('cfgApiKey').value     = config.apiKey     || '';
+  document.getElementById('cfgJwt').value        = config.jwt        || '';
+  document.getElementById('configModal').classList.remove('hidden');
+}
+function closeConfig() {
+  document.getElementById('configModal').classList.add('hidden');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ENVIRONMENT
+// ═══════════════════════════════════════════════════════════════
+function setEnv(env) {
+  ENV = env;
+  document.getElementById('btnSandbox').className = 'env-btn' + (env === 'sandbox' ? ' active' : '');
+  document.getElementById('btnLive').className    = 'env-btn' + (env === 'live' ? ' active prod' : '');
+}
+
+function baseUrl() {
+  const url = ENV === 'sandbox' ? config.sandboxUrl : config.liveUrl;
+  if (!url) {
+    openConfig();
+    throw new Error('Please set the Base URL in configuration first.');
+  }
+  return url;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ENDPOINT SELECTION
+// ═══════════════════════════════════════════════════════════════
+function selectEndpoint(id) {
+  currentEpId = id;
+  const ep = ENDPOINTS[id];
+  if (!ep) return;
+
+  // Highlight sidebar
+  document.querySelectorAll('.ep-btn').forEach(b => b.classList.remove('active'));
+  const btns = document.querySelectorAll('.ep-btn');
+  btns.forEach(b => { if (b.getAttribute('onclick') === `selectEndpoint('${id}')`) b.classList.add('active'); });
+
+  // Show panels
+  document.getElementById('welcomeView').style.display = 'none';
+  document.getElementById('reqView').style.display = 'flex';
+
+  // Method + path
+  const colors = { GET: '#12B76A', POST: '#60a5fa', DELETE: '#f04438' };
+  document.getElementById('epMethod').textContent = ep.method;
+  document.getElementById('epMethod').style.color = colors[ep.method] || '#e2e8f0';
+  document.getElementById('epPath').textContent = ep.path;
+
+  // Meta badges
+  const metaRow = document.getElementById('metaRow');
+  const authLabel = { apikey: '🔑 API Key', jwt: '🔐 JWT Token', none: '🌐 Public' };
+  const authClass = { apikey: 'badge-apikey', jwt: 'badge-jwt', none: 'badge-none' };
+  let meta = `<span class="meta-badge ${authClass[ep.auth] || 'badge-none'}">${authLabel[ep.auth] || ep.auth}</span>`;
+  if (ep.price) meta += `<span class="meta-badge badge-price">₦ ${ep.price}</span>`;
+  metaRow.innerHTML = meta;
+
+  // Description
+  document.getElementById('epDesc').textContent = ep.desc || '';
+
+  // Info / warn boxes
+  const infoBox = document.getElementById('epInfoBox');
+  const warnBox = document.getElementById('epWarnBox');
+  if (ep.info) { infoBox.textContent = ep.info; infoBox.style.display = 'block'; } else { infoBox.style.display = 'none'; }
+  warnBox.style.display = 'none';
+
+  // Path param
+  const pps = document.getElementById('pathParamsSection');
+  if (ep.pathParam) {
+    document.getElementById('pathParamLabel').textContent = ep.pathParam.label;
+    document.getElementById('pathParamInput').placeholder = ep.pathParam.placeholder || '';
+    // auto-fill from last employment response
+    const stored = sessionStorage.getItem('last_employment_requestId');
+    if (stored) document.getElementById('pathParamInput').value = stored;
+    pps.style.display = 'block';
+  } else {
+    pps.style.display = 'none';
+  }
+
+  // Body editor
+  const bodySection = document.getElementById('bodySection');
+  if (ep.body) {
+    document.getElementById('bodyEditor').value = JSON.stringify(ep.body, null, 2);
+    bodySection.style.display = 'block';
+  } else {
+    bodySection.style.display = 'none';
+  }
+}
+
+function formatBody() {
+  try {
+    const ta = document.getElementById('bodyEditor');
+    ta.value = JSON.stringify(JSON.parse(ta.value), null, 2);
+  } catch(e) {
+    showToast('Invalid JSON — cannot format', true);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SEND REQUEST
+// ═══════════════════════════════════════════════════════════════
+async function sendRequest() {
+  if (!currentEpId) return;
+  const ep = ENDPOINTS[currentEpId];
+  if (!ep) return;
+
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true;
+  btn.classList.add('loading');
+  btn.textContent = '';
+
+  try {
+    const base = baseUrl();
+
+    // Build path
+    let path = ep.path;
+    if (ep.pathParam) {
+      const paramVal = document.getElementById('pathParamInput').value.trim();
+      if (!paramVal) { showToast('Please enter a ' + ep.pathParam.label, true); btn.disabled = false; btn.classList.remove('loading'); btn.textContent = '▶ Send Request'; return; }
+      path = path.replace(':requestId', paramVal);
+    }
+
+    const targetUrl = base + path;
+
+    // Build headers
+    const headers = { 'Content-Type': 'application/json' };
+    if (ep.auth === 'apikey') {
+      if (!config.apiKey) {
+        showToast('No API Key set — open ⚙ Configure', true);
+        btn.disabled = false; btn.classList.remove('loading'); btn.textContent = '▶ Send Request';
+        return;
+      }
+      headers['X-API-Key'] = config.apiKey;
+    }
+    if (ep.auth === 'jwt') {
+      if (!config.jwt) {
+        showToast('No JWT token — login first', true);
+        btn.disabled = false; btn.classList.remove('loading'); btn.textContent = '▶ Send Request';
+        return;
+      }
+      headers['Authorization'] = 'Bearer ' + config.jwt;
+    }
+
+    // Build body
+    let bodyData = null;
+    if (ep.body) {
+      try {
+        bodyData = JSON.parse(document.getElementById('bodyEditor').value);
+      } catch(e) {
+        showToast('Invalid JSON in request body', true);
+        btn.disabled = false; btn.classList.remove('loading'); btn.textContent = '▶ Send Request';
+        return;
+      }
+    }
+
+    // Proxy request via server.js to avoid CORS
+    const proxyHeaders = { ...headers, 'x-proxy-target': targetUrl };
+
+    const t0 = Date.now();
+    const fetchOptions = {
+      method: ep.method,
+      headers: proxyHeaders,
+    };
+    if (bodyData && ep.method !== 'GET') {
+      fetchOptions.body = JSON.stringify(bodyData);
+    }
+
+    const res = await fetch('/proxy', fetchOptions);
+    const elapsed = Date.now() - t0;
+    const text = await res.text();
+
+    let parsed;
+    try { parsed = JSON.parse(text); } catch(e) { parsed = text; }
+
+    showResponse(res.status, elapsed, parsed);
+    addHistory(ep.method, ep.name, res.status, elapsed, parsed);
+
+    // Auto-save JWT after login
+    if (currentEpId === 'auth-login' && res.ok) {
+      const token = parsed?.data?.token || parsed?.data?.accessToken || parsed?.token;
+      if (token) {
+        config.jwt = token;
+        localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+        showToast('JWT token auto-saved ✓');
+      }
+    }
+    // Auto-save API key after create
+    if (currentEpId === 'api-keys-create' && res.ok) {
+      const key = parsed?.data?.apiKey;
+      if (key) {
+        config.apiKey = key;
+        localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+        showToast('API key auto-saved ✓');
+      }
+    }
+    // Auto-save employment requestId for poll endpoint
+    if (currentEpId === 'verify-employment' && res.ok) {
+      const rid = parsed?.data?.requestId;
+      if (rid) sessionStorage.setItem('last_employment_requestId', rid);
+    }
+
+  } catch(e) {
+    showResponse(0, 0, { error: e.message });
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    btn.textContent = '▶ Send Request';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RESPONSE DISPLAY
+// ═══════════════════════════════════════════════════════════════
+function showResponse(status, elapsed, body) {
+  lastResponse = body;
+
+  document.getElementById('resEmpty').style.display = 'none';
+  document.getElementById('resView').style.display = 'flex';
+
+  const badge = document.getElementById('statusBadge');
+  if (status === 0) {
+    badge.textContent = 'Network Error';
+    badge.className = 'status-badge status-err';
+  } else {
+    badge.textContent = `${status} ${statusText(status)}`;
+    badge.className = 'status-badge ' + (status < 300 ? 'status-2xx' : status < 500 ? 'status-4xx' : 'status-5xx');
+  }
+
+  document.getElementById('resTime').textContent = elapsed ? `⏱ ${elapsed}ms` : '';
+
+  const pre = document.getElementById('resBody');
+  const json = typeof body === 'string' ? body : JSON.stringify(body, null, 2);
+  pre.innerHTML = syntaxHighlight(json);
+}
+
+function syntaxHighlight(json) {
+  json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return json.replace(
+    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+    match => {
+      let cls = 'num';
+      if (/^"/.test(match)) {
+        cls = /:$/.test(match) ? 'key' : 'str';
+      } else if (/true|false/.test(match)) {
+        cls = 'bool';
+      } else if (/null/.test(match)) {
+        cls = 'nil';
+      }
+      return `<span class="${cls}">${match}</span>`;
+    }
+  );
+}
+
+function statusText(code) {
+  const map = { 200:'OK', 201:'Created', 400:'Bad Request', 401:'Unauthorized', 402:'Payment Required', 403:'Forbidden', 404:'Not Found', 409:'Conflict', 429:'Too Many Requests', 500:'Internal Server Error', 502:'Bad Gateway' };
+  return map[code] || '';
+}
+
+function copyResponse() {
+  if (!lastResponse) return;
+  navigator.clipboard.writeText(typeof lastResponse === 'string' ? lastResponse : JSON.stringify(lastResponse, null, 2))
+    .then(() => showToast('Copied to clipboard ✓'))
+    .catch(() => showToast('Copy failed', true));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HISTORY
+// ═══════════════════════════════════════════════════════════════
+function addHistory(method, name, status, elapsed, body) {
+  history.unshift({ method, name, status, elapsed, body });
+  if (history.length > 8) history.pop();
+  renderHistory();
+}
+
+function renderHistory() {
+  const el = document.getElementById('historyItems');
+  el.innerHTML = history.map((h, i) => {
+    const ok = h.status >= 200 && h.status < 300;
+    return `<div class="history-item" onclick="replayHistory(${i})">
+      <span class="h-status ${ok ? 'h-ok' : 'h-err'}">${h.status || 'ERR'}</span>
+      <span>${h.method} ${h.name}</span>
+      <span style="color:var(--muted)">${h.elapsed}ms</span>
+    </div>`;
+  }).join('');
+}
+
+function replayHistory(i) {
+  const h = history[i];
+  if (!h) return;
+  showResponse(h.status, h.elapsed, h.body);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════════
+let toastTimer;
+function showToast(msg, isError = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.background = isError ? 'var(--red)' : 'var(--green)';
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// KEYBOARD SHORTCUTS
+// ═══════════════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    sendRequest();
+  }
+  if (e.key === 'Escape') closeConfig();
+});
+
+document.getElementById('configModal').addEventListener('click', function(e) {
+  if (e.target === this) closeConfig();
+});
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+loadConfig();
+
+// Show a prompt to configure if nothing is set yet
+if (!config.sandboxUrl && !config.liveUrl) {
+  setTimeout(() => openConfig(), 600);
+}
+</script>
+</body>
+</html>

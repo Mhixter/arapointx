@@ -1,0 +1,13 @@
+{
+  "name": "arapoint-api-tester",
+  "version": "1.0.0",
+  "description": "Interactive test dashboard for the Arapoint Identity Verification API",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

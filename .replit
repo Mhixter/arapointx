@@ -47,6 +47,10 @@ task = "shell.exec"
 args = "cd Arapoint && NODE_ENV=development node_modules/.bin/tsx server/rpa-worker.ts"
 
 [[ports]]
+localPort = 4500
+externalPort = 3000
+
+[[ports]]
 localPort = 5000
 externalPort = 80
 
