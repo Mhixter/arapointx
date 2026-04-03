@@ -206,7 +206,7 @@ export default function A2CAgentDashboard() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: 'Success', description: 'Phone number added to inventory' });
+        toast({ title: 'Success', variant: 'success', description: 'Phone number added to inventory' });
         setShowAddInventoryModal(false);
         setInventoryForm({ phoneNumber: '', network: 'mtn', dailyLimit: '500000', label: '' });
         fetchInventory();
@@ -229,7 +229,7 @@ export default function A2CAgentDashboard() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: 'Success', description: `Phone number ${isActive ? 'activated' : 'deactivated'}` });
+        toast({ title: 'Success', variant: 'success', description: `Phone number ${isActive ? 'activated' : 'deactivated'}` });
         fetchInventory();
       }
     } catch (error) {
@@ -246,7 +246,7 @@ export default function A2CAgentDashboard() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: 'Success', description: 'Phone number removed' });
+        toast({ title: 'Success', variant: 'success', description: 'Phone number removed' });
         fetchInventory();
       }
     } catch (error) {
@@ -272,7 +272,7 @@ export default function A2CAgentDashboard() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: 'Success', description: 'Request status updated!' });
+        toast({ title: 'Success', variant: 'success', description: 'Request status updated!' });
         setShowStatusModal(false);
         setStatusForm({ status: '', agentNotes: '', rejectionReason: '' });
         fetchMyRequests();

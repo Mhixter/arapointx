@@ -120,7 +120,7 @@ export default function AdminDeveloperPortal() {
       });
       const data = await res.json();
       if (data.status === "success") {
-        toast({ title: `KYB ${reviewAction}d` });
+        toast({ title: `KYB ${reviewAction}d`, variant: "success" });
         setReviewId(null); setReviewNote("");
         loadAll();
       } else {
@@ -137,7 +137,7 @@ export default function AdminDeveloperPortal() {
         method: "PATCH", body: JSON.stringify({ isActive: !current }),
       });
       const data = await res.json();
-      if (data.status === "success") { toast({ title: "Updated" }); loadAll(); }
+      if (data.status === "success") { toast({ title: "Updated", variant: "success" }); loadAll(); }
     } catch {}
   };
 
@@ -149,7 +149,7 @@ export default function AdminDeveloperPortal() {
       });
       const data = await res.json();
       if (data.status === "success") {
-        toast({ title: `Developer moved to ${action} mode` });
+        toast({ title: `Developer moved to ${action} mode`, variant: "success" });
         loadAll();
         if (selectedDev?.developer.id === id) loadDevDetail(id);
       } else {

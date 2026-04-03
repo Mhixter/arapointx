@@ -31,7 +31,7 @@ export default function CACAgentLogin() {
       if (data.status === 'success') {
         tokenStorage.setItem('cacAgentToken', data.data.token);
         tokenStorage.setItem('cacAgentInfo', JSON.stringify(data.data.agent));
-        toast({ title: "Welcome!", description: `Logged in as ${data.data.agent.name}` });
+        toast({ title: "Welcome!", variant: "success", description: `Logged in as ${data.data.agent.name}` });
         setLocation('/agent/dashboard');
       } else {
         setError(data.message || 'Login failed');

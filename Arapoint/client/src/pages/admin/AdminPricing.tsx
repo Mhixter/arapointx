@@ -174,7 +174,7 @@ export default function AdminPricing() {
       });
       const data = await res.json();
       if (data.status === 'success') {
-        toast({ title: "Price Updated", description: `${editForm.serviceName} price has been updated` });
+        toast({ title: "Price Updated", variant: "success", description: `${editForm.serviceName} price has been updated` });
         fetchPricing();
       } else {
         toast({ title: "Error", description: data.message, variant: "destructive" });
@@ -205,7 +205,7 @@ export default function AdminPricing() {
       });
       const data = await res.json();
       if (data.status === 'success') {
-        toast({ title: item.isActive ? "Service Disabled" : "Service Enabled", description: `${item.serviceName} has been ${item.isActive ? "disabled" : "enabled"}` });
+        toast({ title: item.isActive ? "Service Disabled" : "Service Enabled", variant: "success", description: `${item.serviceName} has been ${item.isActive ? "disabled" : "enabled"}` });
         fetchPricing();
       }
     } catch (error) {
@@ -228,7 +228,7 @@ export default function AdminPricing() {
       });
       const data = await res.json();
       if (data.status === 'success') {
-        toast({ title: "Service Added", description: `${newService.serviceName} has been added` });
+        toast({ title: "Service Added", variant: "success", description: `${newService.serviceName} has been added` });
         setShowAddDialog(false);
         setNewService({ serviceType: '', serviceName: '', price: 0, description: '' });
         fetchPricing();
@@ -258,7 +258,7 @@ export default function AdminPricing() {
       });
       const data = await res.json();
       if (data.status === 'success') {
-        toast({ title: "Service Deleted", description: `${deletingItem.serviceName} has been removed` });
+        toast({ title: "Service Deleted", variant: "success", description: `${deletingItem.serviceName} has been removed` });
         fetchPricing();
       } else {
         toast({ title: "Error", description: data.message, variant: "destructive" });
@@ -398,7 +398,7 @@ export default function AdminPricing() {
                         }
                       });
                       if (res.ok) {
-                        toast({ title: "Scrape Started", description: "Data pricing scrape job has been queued." });
+                        toast({ title: "Scrape Started", variant: "success", description: "Data pricing scrape job has been queued." });
                       } else {
                         const errorData = await res.json();
                         toast({ title: "Error", description: errorData.message || "Failed to start scrape", variant: "destructive" });

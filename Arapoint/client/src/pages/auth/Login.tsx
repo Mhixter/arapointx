@@ -38,6 +38,7 @@ export default function Login() {
       toast({
         title: "Welcome back!",
         description: "Successfully logged in.",
+        variant: "success",
       });
       setLocation("/dashboard");
     } catch (error: any) {

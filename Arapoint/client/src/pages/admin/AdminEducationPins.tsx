@@ -148,7 +148,7 @@ export default function AdminEducationPins() {
 
       const result = await response.json();
       if (response.ok) {
-        toast({ title: "Success", description: "PIN added successfully" });
+        toast({ title: "Success", variant: "success", description: "PIN added successfully" });
         setShowAddModal(false);
         setAddPinCode("");
         setAddSerialNumber("");
@@ -225,7 +225,7 @@ export default function AdminEducationPins() {
       });
 
       if (response.ok) {
-        toast({ title: "Success", description: "PIN deleted successfully" });
+        toast({ title: "Success", variant: "success", description: "PIN deleted successfully" });
         fetchStock();
         fetchPins();
       } else {

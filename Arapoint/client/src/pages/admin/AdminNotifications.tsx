@@ -65,7 +65,7 @@ export default function AdminNotifications() {
         })
       ));
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-      toast({ title: 'All notifications marked as read' });
+      toast({ title: 'All notifications marked as read', variant: 'success' });
     } catch {
       toast({ title: 'Failed to mark all as read', variant: 'destructive' });
     } finally {

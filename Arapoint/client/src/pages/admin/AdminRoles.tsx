@@ -152,7 +152,7 @@ export default function AdminRoles() {
       const result = await response.json();
       
       if (response.ok && result.status === 'success') {
-        toast({ title: "Success", description: "Role created successfully" });
+        toast({ title: "Success", variant: "success", description: "Role created successfully" });
         setIsCreateOpen(false);
         setFormData({ name: "", description: "", permissions: [] });
         fetchRoles();
@@ -184,7 +184,7 @@ export default function AdminRoles() {
       const result = await response.json();
       
       if (response.ok && result.status === 'success') {
-        toast({ title: "Success", description: "Role updated successfully" });
+        toast({ title: "Success", variant: "success", description: "Role updated successfully" });
         setEditingRole(null);
         setFormData({ name: "", description: "", permissions: [] });
         fetchRoles();
@@ -213,7 +213,7 @@ export default function AdminRoles() {
       const result = await response.json();
       
       if (response.ok && result.status === 'success') {
-        toast({ title: "Success", description: "Role deleted successfully" });
+        toast({ title: "Success", variant: "success", description: "Role deleted successfully" });
         fetchRoles();
       } else {
         toast({ title: "Error", description: result.message || "Failed to delete role", variant: "destructive" });

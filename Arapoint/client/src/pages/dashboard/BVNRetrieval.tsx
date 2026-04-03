@@ -99,7 +99,7 @@ export default function BVNRetrieval() {
       if (!hasValidResult) throw new Error('No record found for the provided BVN. Please double-check and try again.');
       setRetrievedData(resultData);
       if (data.data?.slip?.html) setSlipHtml(data.data.slip.html);
-      toast({ title: "BVN Retrieved Successfully", description: "Your BVN details have been retrieved." });
+      toast({ title: "BVN Retrieved Successfully", variant: "success", description: "Your BVN details have been retrieved." });
     } catch (err: any) {
       setError(err.message || 'BVN verification failed');
       toast({ title: "BVN Verification Failed", description: err.message || 'An error occurred', variant: "destructive" });
@@ -148,7 +148,7 @@ export default function BVNRetrieval() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'Modification request failed');
       setSubmitted(true);
-      toast({ title: "Modification Request Submitted", description: "Your BVN modification request has been submitted successfully." });
+      toast({ title: "Modification Request Submitted", variant: "success", description: "Your BVN modification request has been submitted successfully." });
     } catch (err: any) {
       toast({ title: "Request Failed", description: err.message || 'An error occurred', variant: "destructive" });
     } finally { setLoading(false); }
@@ -165,7 +165,7 @@ export default function BVNRetrieval() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    toast({ title: "Slip Downloaded", description: "Open the HTML file in your browser and print it" });
+    toast({ title: "Slip Downloaded", variant: "success", description: "Open the HTML file in your browser and print it" });
   };
 
   const handlePrintSlip = () => {

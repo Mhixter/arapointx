@@ -92,7 +92,7 @@ export default function AdminRPAJobs() {
   const retryMutation = useMutation({
     mutationFn: (jobId: string) => adminApi.retryRpaJob(jobId),
     onSuccess: () => {
-      toast({ title: 'Job queued for retry' });
+      toast({ title: 'Job queued for retry', variant: 'success' });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/rpa/jobs'] });
     },
     onError: (err: any) => {
@@ -103,7 +103,7 @@ export default function AdminRPAJobs() {
   const forceRetryMutation = useMutation({
     mutationFn: (jobId: string) => (adminApi as any).forceRetryRpaJob(jobId),
     onSuccess: () => {
-      toast({ title: 'Job force-retried — queued as fresh attempt' });
+      toast({ title: 'Job force-retried — queued as fresh attempt', variant: 'success' });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/rpa/jobs'] });
     },
     onError: (err: any) => {

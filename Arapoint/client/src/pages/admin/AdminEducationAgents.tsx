@@ -84,7 +84,7 @@ export default function AdminEducationAgents() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Success", description: "Education agent created successfully" });
+        toast({ title: "Success", variant: "success", description: "Education agent created successfully" });
         setShowAgentModal(false);
         setAgentForm({ name: '', email: '', password: '', employeeId: '' });
         fetchAgents();
@@ -108,7 +108,7 @@ export default function AdminEducationAgents() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Success", description: `Agent ${!isAvailable ? 'activated' : 'deactivated'}` });
+        toast({ title: "Success", variant: "success", description: `Agent ${!isAvailable ? 'activated' : 'deactivated'}` });
         fetchAgents();
       } else {
         toast({ title: "Error", description: data.message, variant: "destructive" });
@@ -128,7 +128,7 @@ export default function AdminEducationAgents() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Success", description: "Agent deleted" });
+        toast({ title: "Success", variant: "success", description: "Agent deleted" });
         fetchAgents();
       } else {
         toast({ title: "Error", description: data.message, variant: "destructive" });

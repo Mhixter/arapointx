@@ -64,7 +64,7 @@ export default function DevLogin() {
       if (data.status === "success") {
         localStorage.setItem("dev_token", data.data.token);
         localStorage.setItem("dev_user", JSON.stringify(data.data.developer));
-        toast({ title: "Welcome back!", description: `Logged in as ${data.data.developer.name}` });
+        toast({ title: "Welcome back!", variant: "success", description: `Logged in as ${data.data.developer.name}` });
         window.location.href = "/developer/dashboard";
       } else {
         toast({ title: "Login failed", description: data.message, variant: "destructive" });

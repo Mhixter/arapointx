@@ -86,7 +86,7 @@ export default function AdminBirthAttestation() {
       });
       const data = await res.json();
       if (data.status === 'success') {
-        toast({ title: 'Updated', description: 'Request status updated successfully' });
+        toast({ title: 'Updated', variant: 'success', description: 'Request status updated successfully' });
         setSelected(null);
         setProcessForm({ status: '', adminNotes: '' });
         fetchRequests();

@@ -97,7 +97,7 @@ export default function AdminBVNServices() {
       if (response.ok) {
         setServices(services.map(s => s.id === id ? { ...s, status } : s));
         setSelectedRequest(null);
-        toast({ title: "Status Updated", description: `Service marked as ${status}.` });
+        toast({ title: "Status Updated", variant: "success", description: `Service marked as ${status}.` });
       } else {
         toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
       }
@@ -119,7 +119,7 @@ export default function AdminBVNServices() {
         
         if (response.ok) {
           setServices(services.filter(s => s.id !== item.id));
-          toast({ title: "Deleted", description: "BVN service record deleted." });
+          toast({ title: "Deleted", variant: "success", description: "BVN service record deleted." });
         } else {
           toast({ title: "Error", description: "Failed to delete record", variant: "destructive" });
         }
@@ -134,7 +134,7 @@ export default function AdminBVNServices() {
     setOpenEditDialog(false);
     setSelectedRequest(null);
     setFormData({});
-    toast({ title: "Updated", description: "BVN service record updated." });
+    toast({ title: "Updated", variant: "success", description: "BVN service record updated." });
   };
 
   const filteredServices = services.filter(s => 

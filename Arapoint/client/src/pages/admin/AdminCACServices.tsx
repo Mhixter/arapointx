@@ -92,7 +92,7 @@ export default function AdminCACServices() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Success", description: "CAC agent created successfully" });
+        toast({ title: "Success", variant: "success", description: "CAC agent created successfully" });
         setShowAgentModal(false);
         setAgentForm({ name: '', email: '', password: '', employeeId: '', maxActiveRequests: 10 });
         fetchAgents();
@@ -118,7 +118,7 @@ export default function AdminCACServices() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Success", description: "CAC agent updated successfully" });
+        toast({ title: "Success", variant: "success", description: "CAC agent updated successfully" });
         setShowAgentModal(false);
         setEditingAgent(null);
         setAgentForm({ name: '', email: '', password: '', employeeId: '', maxActiveRequests: 10 });
@@ -143,7 +143,7 @@ export default function AdminCACServices() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Success", description: "CAC agent deleted" });
+        toast({ title: "Success", variant: "success", description: "CAC agent deleted" });
         fetchAgents();
       } else {
         toast({ title: "Error", description: data.message, variant: "destructive" });
@@ -168,7 +168,7 @@ export default function AdminCACServices() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Success", description: "Service type created" });
+        toast({ title: "Success", variant: "success", description: "Service type created" });
         setShowServiceModal(false);
         setServiceForm({ code: '', name: '', description: '', price: '', processingDays: 7, requiredDocuments: [] });
         fetchServiceTypes();

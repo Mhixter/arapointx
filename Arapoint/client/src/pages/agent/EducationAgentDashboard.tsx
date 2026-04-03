@@ -194,7 +194,7 @@ export default function EducationAgentDashboard() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Success", description: "PIN added successfully" });
+        toast({ title: "Success", variant: "success", description: "PIN added successfully" });
         setNewPin({ examType: 'waec', pinCode: '', serialNumber: '' });
         setShowAddPin(false);
         fetchPinStock();
@@ -238,7 +238,8 @@ export default function EducationAgentDashboard() {
       if (data.status === 'success') {
         toast({ 
           title: "Bulk Upload Complete", 
-          description: `Added: ${data.data.added}, Duplicates: ${data.data.duplicates}` 
+          description: `Added: ${data.data.added}, Duplicates: ${data.data.duplicates}`,
+          variant: "success",
         });
         setBulkPins({ examType: 'waec', pinsText: '' });
         setShowBulkUpload(false);
@@ -269,7 +270,7 @@ export default function EducationAgentDashboard() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Success", description: "Pricing updated" });
+        toast({ title: "Success", variant: "success", description: "Pricing updated" });
         setShowPricing(false);
         fetchPinStock();
       } else {
@@ -321,7 +322,7 @@ export default function EducationAgentDashboard() {
   const handleLogout = () => {
     tokenStorage.removeItem('educationAgentToken');
     tokenStorage.removeItem('educationAgentInfo');
-    toast({ title: "Logged out", description: "You have been logged out" });
+    toast({ title: "Logged out", variant: "success", description: "You have been logged out" });
     setLocation('/agent/education');
   };
 
@@ -358,7 +359,7 @@ export default function EducationAgentDashboard() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Updated!", description: "Request status updated successfully." });
+        toast({ title: "Updated!", variant: "success", description: "Request status updated successfully." });
         fetchRequests();
         fetchStats();
         setShowStatusUpdate(false);

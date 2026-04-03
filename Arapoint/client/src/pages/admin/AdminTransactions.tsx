@@ -149,7 +149,7 @@ export default function AdminTransactions({ filterUserId, filterUserName, embedd
       queryClient.invalidateQueries({ queryKey: ['admin-transactions'] });
       setSelectedTx(null);
       setRefundingTxId(null);
-      toast({ title: "Refund Issued", description: `₦${result.amount.toLocaleString()} refunded successfully. Ref: ${result.refundReference}` });
+      toast({ title: "Refund Issued", variant: "success", description: `₦${result.amount.toLocaleString()} refunded successfully. Ref: ${result.refundReference}` });
     },
     onError: (error: any) => {
       setRefundingTxId(null);

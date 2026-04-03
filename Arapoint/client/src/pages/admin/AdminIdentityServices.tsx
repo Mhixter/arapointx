@@ -96,7 +96,7 @@ export default function AdminIdentityServices() {
       if (response.ok) {
         setServices(services.map(s => s.id === id ? { ...s, status } : s));
         setSelectedRequest(null);
-        toast({ title: "Status Updated", description: `Service marked as ${status}.` });
+        toast({ title: "Status Updated", variant: "success", description: `Service marked as ${status}.` });
       } else {
         toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
       }

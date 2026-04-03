@@ -292,7 +292,7 @@ export default function SupportDashboard() {
     mutationFn: () =>
       adminApiClient.post(`/admin/support/tickets/${selectedTicketId}/assign`),
     onSuccess: () => {
-      toast({ title: "Assigned", description: "Ticket assigned to you." });
+      toast({ title: "Assigned", variant: "success", description: "Ticket assigned to you." });
       queryClient.invalidateQueries({ queryKey: ["admin", "support"] });
     },
     onError: (error: any) => {
@@ -308,7 +308,7 @@ export default function SupportDashboard() {
     mutationFn: (status: string) =>
       adminApiClient.post(`/admin/support/tickets/${selectedTicketId}/status`, { status }),
     onSuccess: () => {
-      toast({ title: "Updated", description: "Ticket status updated." });
+      toast({ title: "Updated", variant: "success", description: "Ticket status updated." });
       queryClient.invalidateQueries({ queryKey: ["admin", "support"] });
     },
     onError: (error: any) => {
@@ -325,7 +325,7 @@ export default function SupportDashboard() {
       adminApiClient.post(`/admin/support/tickets/${selectedTicketId}/notes`, { note }),
     onSuccess: () => {
       setNoteContent("");
-      toast({ title: "Note Added", description: "Internal note saved." });
+      toast({ title: "Note Added", variant: "success", description: "Internal note saved." });
       queryClient.invalidateQueries({ queryKey: ["admin", "support", "notes", selectedTicketId] });
     },
     onError: (error: any) => {
@@ -344,7 +344,7 @@ export default function SupportDashboard() {
       queryClient.invalidateQueries({ queryKey: ["admin", "support", "agents"] });
       setShowAgentModal(false);
       setAgentForm({ name: "", email: "", password: "" });
-      toast({ title: "Agent Created", description: "Support agent has been added." });
+      toast({ title: "Agent Created", variant: "success", description: "Support agent has been added." });
     },
     onError: (error: any) => {
       toast({

@@ -44,7 +44,7 @@ export default function FundWallet() {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopied(true);
-    toast({ title: "Copied!", description: "Account number copied to clipboard." });
+    toast({ title: "Copied!", variant: "success", description: "Account number copied to clipboard." });
     setTimeout(() => setCopied(false), 2000);
   };
 

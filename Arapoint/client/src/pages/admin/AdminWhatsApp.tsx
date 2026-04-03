@@ -216,7 +216,7 @@ export default function AdminWhatsApp() {
         });
       }
       
-      toast({ title: "Success", description: "WhatsApp credentials saved" });
+      toast({ title: "Success", variant: "success", description: "WhatsApp credentials saved" });
     } catch (error) {
       toast({ title: "Error", description: "Failed to save credentials", variant: "destructive" });
     } finally {
@@ -234,7 +234,7 @@ export default function AdminWhatsApp() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Success", description: "Default templates initialized" });
+        toast({ title: "Success", variant: "success", description: "Default templates initialized" });
         fetchTemplates();
       } else {
         throw new Error(data.message);
@@ -271,7 +271,7 @@ export default function AdminWhatsApp() {
       
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Success", description: editingTemplate ? "Template updated" : "Template created" });
+        toast({ title: "Success", variant: "success", description: editingTemplate ? "Template updated" : "Template created" });
         setShowTemplateModal(false);
         setEditingTemplate(null);
         resetTemplateForm();
@@ -297,7 +297,7 @@ export default function AdminWhatsApp() {
       });
       
       if (response.ok) {
-        toast({ title: "Success", description: "Template deleted" });
+        toast({ title: "Success", variant: "success", description: "Template deleted" });
         fetchTemplates();
       }
     } catch (error) {
@@ -325,7 +325,7 @@ export default function AdminWhatsApp() {
       
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Success", description: "Agent WhatsApp number added" });
+        toast({ title: "Success", variant: "success", description: "Agent WhatsApp number added" });
         setShowChannelModal(false);
         resetChannelForm();
         fetchChannels();
@@ -350,7 +350,7 @@ export default function AdminWhatsApp() {
       });
       
       if (response.ok) {
-        toast({ title: "Success", description: "Channel deleted" });
+        toast({ title: "Success", variant: "success", description: "Channel deleted" });
         fetchChannels();
       }
     } catch (error) {
@@ -369,7 +369,7 @@ export default function AdminWhatsApp() {
       
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Success", description: `Processed ${data.data?.processed || 0} notifications` });
+        toast({ title: "Success", variant: "success", description: `Processed ${data.data?.processed || 0} notifications` });
         fetchNotifications();
       }
     } catch (error) {

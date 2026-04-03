@@ -74,7 +74,7 @@ export default function AdminEducationServices() {
       });
       const result = await response.json();
       if (result.status === 'success') {
-        toast({ title: "Schools Updated", description: `Successfully scraped ${result.data?.schoolsScraped || 0} schools.` });
+        toast({ title: "Schools Updated", variant: "success", description: `Successfully scraped ${result.data?.schoolsScraped || 0} schools.` });
         fetchNbaisSchoolStats();
       } else {
         toast({ title: "Scraping Failed", description: result.message || 'Failed to scrape schools', variant: "destructive" });
@@ -140,7 +140,7 @@ export default function AdminEducationServices() {
       if (response.ok) {
         setServices(services.map(s => s.id === id ? { ...s, status } : s));
         setSelectedRequest(null);
-        toast({ title: "Status Updated", description: `Service marked as ${status}.` });
+        toast({ title: "Status Updated", variant: "success", description: `Service marked as ${status}.` });
       } else {
         toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
       }
@@ -162,7 +162,7 @@ export default function AdminEducationServices() {
         
         if (response.ok) {
           setServices(services.filter(s => s.id !== item.id));
-          toast({ title: "Deleted", description: "Education service record deleted." });
+          toast({ title: "Deleted", variant: "success", description: "Education service record deleted." });
         } else {
           toast({ title: "Error", description: "Failed to delete record", variant: "destructive" });
         }
@@ -177,7 +177,7 @@ export default function AdminEducationServices() {
     setOpenEditDialog(false);
     setSelectedRequest(null);
     setFormData({});
-    toast({ title: "Updated", description: "Education service record updated." });
+    toast({ title: "Updated", variant: "success", description: "Education service record updated." });
   };
 
   const filteredServices = services.filter(s => 

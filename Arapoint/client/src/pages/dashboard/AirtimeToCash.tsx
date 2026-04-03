@@ -185,7 +185,7 @@ export default function AirtimeToCash() {
       if (!response.ok) throw new Error(data.message || 'Failed to cancel');
       setShowConfirmDialog(false);
       setCurrentRequest(null);
-      toast({ title: "Request Cancelled", description: "Your request has been cancelled. You can now submit a new one." });
+      toast({ title: "Request Cancelled", variant: "success", description: "Your request has been cancelled. You can now submit a new one." });
     } catch (err: any) {
       toast({ title: "Cannot Cancel", description: err.message, variant: "destructive" });
     } finally {

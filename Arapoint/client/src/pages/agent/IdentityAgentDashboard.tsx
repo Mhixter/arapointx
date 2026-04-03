@@ -135,7 +135,7 @@ export default function IdentityAgentDashboard() {
   const handleLogout = () => {
     tokenStorage.removeItem('identityAgentToken');
     tokenStorage.removeItem('identityAgentInfo');
-    toast({ title: "Logged out", description: "You have been logged out" });
+    toast({ title: "Logged out", variant: "success", description: "You have been logged out" });
     setLocation('/agent/identity');
   };
 
@@ -194,7 +194,7 @@ export default function IdentityAgentDashboard() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Updated!", description: "Request status updated successfully." });
+        toast({ title: "Updated!", variant: "success", description: "Request status updated successfully." });
         fetchRequests();
         fetchStats();
         setShowStatusUpdate(false);

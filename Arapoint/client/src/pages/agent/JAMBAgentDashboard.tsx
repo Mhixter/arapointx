@@ -163,7 +163,7 @@ export default function JAMBAgentDashboard() {
   const handleLogout = () => {
     tokenStorage.removeItem('jambAgentToken');
     tokenStorage.removeItem('jambAgentInfo');
-    toast({ title: "Logged out", description: "You have been logged out" });
+    toast({ title: "Logged out", variant: "success", description: "You have been logged out" });
     setLocation('/jamb/agent/login');
   };
 
@@ -197,7 +197,7 @@ export default function JAMBAgentDashboard() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Updated!", description: "Request status updated successfully." });
+        toast({ title: "Updated!", variant: "success", description: "Request status updated successfully." });
         fetchRequests();
         fetchStats();
         setShowStatusUpdate(false);
@@ -231,7 +231,7 @@ export default function JAMBAgentDashboard() {
       const uploadData = await uploadResponse.json();
 
       if (uploadResponse.ok && uploadData.status === 'success') {
-        toast({ title: "Uploaded!", description: "Document uploaded successfully." });
+        toast({ title: "Uploaded!", variant: "success", description: "Document uploaded successfully." });
         setUploadFile(null);
         fetchRequestDetails(selectedRequest.id);
       } else {

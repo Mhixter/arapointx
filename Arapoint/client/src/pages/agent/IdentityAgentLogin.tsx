@@ -43,6 +43,7 @@ export default function IdentityAgentLogin() {
         toast({
           title: "Welcome!",
           description: `Logged in as ${data.data.agent.name}`,
+          variant: "success",
         });
         setLocation("/agent/identity/dashboard");
       } else {

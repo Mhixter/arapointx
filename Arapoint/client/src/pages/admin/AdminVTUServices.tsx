@@ -104,7 +104,7 @@ export default function AdminVTUServices() {
       if (response.ok) {
         setServices(services.map(s => s.id === id ? { ...s, status } : s));
         setSelectedRequest(null);
-        toast({ title: "Status Updated", description: `Service marked as ${status}.` });
+        toast({ title: "Status Updated", variant: "success", description: `Service marked as ${status}.` });
       } else {
         toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
       }
@@ -126,7 +126,7 @@ export default function AdminVTUServices() {
         
         if (response.ok) {
           setServices(services.filter(s => s.id !== item.id));
-          toast({ title: "Deleted", description: "VTU service record deleted." });
+          toast({ title: "Deleted", variant: "success", description: "VTU service record deleted." });
         } else {
           toast({ title: "Error", description: "Failed to delete record", variant: "destructive" });
         }
@@ -147,7 +147,7 @@ export default function AdminVTUServices() {
     setOpenEditDialog(false);
     setSelectedRequest(null);
     setFormData({});
-    toast({ title: "Updated", description: "VTU service record updated." });
+    toast({ title: "Updated", variant: "success", description: "VTU service record updated." });
   };
 
   const filteredServices = services.filter(s => 

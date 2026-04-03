@@ -62,6 +62,7 @@ export default function Signup() {
       toast({
         title: "Verification Code Sent",
         description: "Please check your email for the OTP.",
+        variant: "success",
       });
     } catch (error: any) {
       toast({
@@ -88,6 +89,7 @@ export default function Signup() {
       toast({
         title: "OTP Resent",
         description: "A new verification code has been sent to your email.",
+        variant: "success",
       });
     } catch (error: any) {
       toast({
@@ -142,6 +144,7 @@ export default function Signup() {
       toast({
         title: "Account Created",
         description: "Welcome to Arapoint!",
+        variant: "success",
       });
       setLocation("/dashboard");
     } catch (error: any) {

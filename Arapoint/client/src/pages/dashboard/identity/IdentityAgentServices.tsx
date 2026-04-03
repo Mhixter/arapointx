@@ -125,7 +125,7 @@ export default function IdentityAgentServices() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Request Submitted", description: `Tracking ID: ${data.data.request.trackingId}` });
+        toast({ title: "Request Submitted", variant: "success", description: `Tracking ID: ${data.data.request.trackingId}` });
         setFormData({ nin: '', newTrackingId: '', updateFields: '', customerNotes: '', validationType: '', slipType: 'standard' });
         setSelectedService(null);
         fetchMyRequests();

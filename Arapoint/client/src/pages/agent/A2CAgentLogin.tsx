@@ -38,6 +38,7 @@ export default function A2CAgentLogin() {
         toast({
           title: 'Login Successful',
           description: `Welcome back, ${data.data.agent.name}!`,
+          variant: 'success',
         });
         
         setLocation('/agent/a2c/dashboard');

@@ -34,6 +34,7 @@ export default function AdminLogin() {
       toast({
         title: admin.role === 'support_agent' ? "Welcome!" : "Welcome Admin!",
         description: `Successfully logged in as ${admin.name}.`,
+        variant: "success",
       });
       setLocation(admin.role === 'support_agent' ? "/admin/support" : "/admin");
     } catch (error: any) {

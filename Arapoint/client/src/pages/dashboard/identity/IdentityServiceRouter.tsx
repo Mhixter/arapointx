@@ -334,12 +334,12 @@ function ServiceContent({ service }: { service: any }) {
       const agentProcessedServices = ['ipe-clearance', 'validation', 'personalization', 'birth-attestation', 'nin-tracking'];
       if (agentProcessedServices.includes(service.id)) {
         setRequestStatus("pending");
-        toast({ title: "Request Submitted", description: data.data?.message || `Your ${service.name} request has been submitted` });
+        toast({ title: "Request Submitted", variant: "success", description: data.data?.message || `Your ${service.name} request has been submitted` });
       } else if (!hasValidResult) {
         throw new Error('No record found for the provided ID. Please double-check and try again.');
       } else {
         setRequestStatus("completed");
-        toast({ title: "Verification Successful", description: `${service.name} completed successfully` });
+        toast({ title: "Verification Successful", variant: "success", description: `${service.name} completed successfully` });
       }
     } catch (err: any) {
       setError(err.message || 'Verification failed');
@@ -362,7 +362,7 @@ function ServiceContent({ service }: { service: any }) {
         link.href = url; link.download = `NIN-Slip-${slipReference || Date.now()}.pdf`;
         document.body.appendChild(link); link.click();
         document.body.removeChild(link); URL.revokeObjectURL(url);
-        toast({ title: "Slip Downloaded", description: "Your NIN slip has been downloaded as PDF" });
+        toast({ title: "Slip Downloaded", variant: "success", description: "Your NIN slip has been downloaded as PDF" });
       } catch {
         toast({ title: "Download Failed", description: "Failed to download slip. Please try again.", variant: "destructive" });
       }
@@ -373,7 +373,7 @@ function ServiceContent({ service }: { service: any }) {
       link.href = url; link.download = `${service.id}-slip-${Date.now()}.html`;
       document.body.appendChild(link); link.click();
       document.body.removeChild(link); URL.revokeObjectURL(url);
-      toast({ title: "Slip Downloaded", description: "Open the HTML file in your browser and print it" });
+      toast({ title: "Slip Downloaded", variant: "success", description: "Open the HTML file in your browser and print it" });
     }
   };
 
@@ -1061,7 +1061,7 @@ function VerificationsHistory() {
       link.href = url; link.download = `NIN-Slip-${slipReference}.pdf`;
       document.body.appendChild(link); link.click();
       document.body.removeChild(link); URL.revokeObjectURL(url);
-      toast({ title: "Slip Downloaded", description: "Your NIN slip has been downloaded" });
+      toast({ title: "Slip Downloaded", variant: "success", description: "Your NIN slip has been downloaded" });
     } catch {
       toast({ title: "Download Failed", description: "Failed to download slip. Please try again.", variant: "destructive" });
     }

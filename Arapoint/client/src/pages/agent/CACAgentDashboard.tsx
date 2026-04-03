@@ -143,7 +143,7 @@ export default function CACAgentDashboard() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Updated!", description: "Service pricing updated successfully." });
+        toast({ title: "Updated!", variant: "success", description: "Service pricing updated successfully." });
         fetchServiceTypes();
         setEditingService(null);
       } else {
@@ -171,7 +171,7 @@ export default function CACAgentDashboard() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Created!", description: "New service type created successfully." });
+        toast({ title: "Created!", variant: "success", description: "New service type created successfully." });
         fetchServiceTypes();
         setShowCreateService(false);
         setNewService({ code: '', name: '', description: '', price: '', processingDays: 7 });
@@ -196,7 +196,7 @@ export default function CACAgentDashboard() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Deleted!", description: "Service type deleted successfully." });
+        toast({ title: "Deleted!", variant: "success", description: "Service type deleted successfully." });
         fetchServiceTypes();
       } else {
         toast({ title: "Failed", description: data.message, variant: "destructive" });
@@ -271,7 +271,7 @@ export default function CACAgentDashboard() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Assigned!", description: "Request has been assigned to you." });
+        toast({ title: "Assigned!", variant: "success", description: "Request has been assigned to you." });
         fetchRequests();
         fetchStats();
       } else {
@@ -342,7 +342,7 @@ export default function CACAgentDashboard() {
           });
         }
         
-        toast({ title: "Updated!", description: "Request status has been updated." });
+        toast({ title: "Updated!", variant: "success", description: "Request status has been updated." });
         setShowStatusUpdate(false);
         setShowDetails(false);
         setUpdateData({ status: '', comment: '', cacRegistrationNumber: '', rejectionReason: '', certificateUrl: '', statusReportUrl: '', certificateFileName: '', statusReportFileName: '' });

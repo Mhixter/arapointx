@@ -46,7 +46,7 @@ export default function ForgotPassword() {
       await response.json();
       setStep('reset');
       startResendCooldown();
-      toast({ title: "Code Sent", description: "If that email is registered, a 6-digit reset code has been sent to it." });
+      toast({ title: "Code Sent", variant: "success", description: "If that email is registered, a 6-digit reset code has been sent to it." });
     } catch {
       toast({ title: "Error", description: "Something went wrong. Please try again.", variant: "destructive" });
     } finally {
@@ -64,7 +64,7 @@ export default function ForgotPassword() {
         body: JSON.stringify({ email }),
       });
       startResendCooldown();
-      toast({ title: "Code Resent", description: "A new reset code has been sent to your email." });
+      toast({ title: "Code Resent", variant: "success", description: "A new reset code has been sent to your email." });
     } catch {
       toast({ title: "Error", description: "Failed to resend code.", variant: "destructive" });
     } finally {

@@ -91,7 +91,7 @@ export default function ElectricityServices() {
       const data = await response.json();
       if (data.status === 'success') {
         setCustomerInfo(data.data);
-        toast({ title: "Validated", description: `Customer: ${data.data.customerName}` });
+        toast({ title: "Validated", variant: "success", description: `Customer: ${data.data.customerName}` });
       } else {
         toast({ title: "Validation Failed", description: data.message || "Could not validate meter", variant: "destructive" });
       }
@@ -146,7 +146,7 @@ export default function ElectricityServices() {
   const copyToken = async (token: string) => {
     try {
       await navigator.clipboard.writeText(token);
-      toast({ title: "Copied!", description: "Token copied to clipboard" });
+      toast({ title: "Copied!", variant: "success", description: "Token copied to clipboard" });
     } catch {
       toast({ title: "Copy failed", description: "Please copy manually", variant: "destructive" });
     }

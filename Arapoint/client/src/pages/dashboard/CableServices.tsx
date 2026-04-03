@@ -116,7 +116,7 @@ export default function CableServices() {
       const data = await response.json();
       if (data.status === 'success') {
         setCustomerInfo(data.data);
-        toast({ title: "Validated", description: `Customer: ${data.data.customerName}` });
+        toast({ title: "Validated", variant: "success", description: `Customer: ${data.data.customerName}` });
       } else {
         toast({ title: "Validation Failed", description: data.message || "Could not validate smartcard", variant: "destructive" });
       }
@@ -154,7 +154,7 @@ export default function CableServices() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Success!", description: "Cable subscription purchased successfully." });
+        toast({ title: "Success!", variant: "success", description: "Cable subscription purchased successfully." });
         setShowConfirmation(false);
         setSelectedTransaction({ ...data.data, provider: formData.provider, smartcardNumber: formData.iucNumber, packageName: formData.packageName });
         setShowReceipt(true);

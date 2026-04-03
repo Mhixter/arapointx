@@ -64,7 +64,7 @@ export default function AdminProfile() {
       const data = await res.json();
       if (res.ok && data.success) {
         setProfile(prev => prev ? { ...prev, name: name.trim() } : prev);
-        toast({ title: 'Profile updated', description: 'Your name has been saved.' });
+        toast({ title: 'Profile updated', variant: 'success', description: 'Your name has been saved.' });
       } else {
         toast({ title: 'Update failed', description: data.message || 'Could not save profile.', variant: 'destructive' });
       }
@@ -99,7 +99,7 @@ export default function AdminProfile() {
       const data = await res.json();
       if (res.ok && data.success) {
         setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
-        toast({ title: 'Password changed', description: 'Your password has been updated.' });
+        toast({ title: 'Password changed', variant: 'success', description: 'Your password has been updated.' });
       } else {
         toast({ title: 'Failed', description: data.message || 'Could not change password.', variant: 'destructive' });
       }

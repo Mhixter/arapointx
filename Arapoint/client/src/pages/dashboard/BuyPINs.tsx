@@ -338,7 +338,7 @@ export default function BuyPINs() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast({ title: "Receipt Saved", description: "Your branded receipt has been downloaded." });
+      toast({ title: "Receipt Saved", variant: "success", description: "Your branded receipt has been downloaded." });
     } catch (error) {
       console.error('Download error:', error);
       toast({ title: "Error", description: "Failed to download receipt", variant: "destructive" });

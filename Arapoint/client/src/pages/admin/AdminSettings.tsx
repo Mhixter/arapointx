@@ -144,6 +144,7 @@ export default function AdminSettings() {
       toast({
         title: "Gateway Saved",
         description: `${gateways[gatewayKey]?.name || gatewayKey} credentials saved and activated.`,
+        variant: "success",
       });
       await fetchGateways();
     } catch (err) {
@@ -178,6 +179,7 @@ export default function AdminSettings() {
       toast({
         title: `${tabName} Settings Saved`,
         description: `Your ${tabName.toLowerCase()} settings have been updated successfully.`,
+        variant: "success",
       });
     } catch (err) {
       toast({
@@ -262,7 +264,7 @@ export default function AdminSettings() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error('Request failed');
-      toast({ title: "Test Data Cleared", description: "All transactions, orders, and support records have been removed." });
+      toast({ title: "Test Data Cleared", variant: "success", description: "All transactions, orders, and support records have been removed." });
     } catch {
       toast({ title: "Error", description: "Failed to clear test data. Please try again.", variant: "destructive" });
     } finally {
@@ -701,7 +703,7 @@ export default function AdminSettings() {
                       });
                       const data = await response.json();
                       if (response.ok) {
-                        toast({ title: "Test Email Sent", description: "Check your inbox for the test email." });
+                        toast({ title: "Test Email Sent", variant: "success", description: "Check your inbox for the test email." });
                       } else {
                         toast({ title: "Failed", description: data.message || "Failed to send test email", variant: "destructive" });
                       }

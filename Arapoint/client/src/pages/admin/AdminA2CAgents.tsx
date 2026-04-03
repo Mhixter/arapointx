@@ -80,7 +80,7 @@ export default function AdminA2CAgents() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Success", description: "A2C agent created successfully" });
+        toast({ title: "Success", variant: "success", description: "A2C agent created successfully" });
         setShowAgentModal(false);
         setAgentForm({ name: '', email: '', password: '', employeeId: '' });
         fetchAgents();
@@ -104,7 +104,7 @@ export default function AdminA2CAgents() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Success", description: `Agent ${!isAvailable ? 'activated' : 'deactivated'}` });
+        toast({ title: "Success", variant: "success", description: `Agent ${!isAvailable ? 'activated' : 'deactivated'}` });
         fetchAgents();
       } else {
         toast({ title: "Error", description: data.message, variant: "destructive" });
@@ -124,7 +124,7 @@ export default function AdminA2CAgents() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Success", description: "Agent deleted successfully" });
+        toast({ title: "Success", variant: "success", description: "Agent deleted successfully" });
         fetchAgents();
       } else {
         toast({ title: "Error", description: data.message, variant: "destructive" });

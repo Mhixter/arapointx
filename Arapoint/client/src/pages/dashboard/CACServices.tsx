@@ -240,7 +240,7 @@ export default function CACServices() {
       setPreview(URL.createObjectURL(file));
       setFormData((prev: any) => ({ ...prev, [fieldName]: publicUrl }));
       
-      toast({ title: "Uploaded", description: `${type === 'passport' ? 'Passport photo' : type === 'signature' ? 'Signature' : 'NIN slip'} uploaded successfully` });
+      toast({ title: "Uploaded", variant: "success", description: `${type === 'passport' ? 'Passport photo' : type === 'signature' ? 'Signature' : 'NIN slip'} uploaded successfully` });
     } catch (error) {
       console.error('Upload error:', error);
       toast({ title: "Upload failed", description: "Failed to upload file to secure storage", variant: "destructive" });
@@ -355,7 +355,7 @@ export default function CACServices() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Request Submitted!", description: "Your CAC registration request has been submitted. An agent will process it shortly." });
+        toast({ title: "Request Submitted!", variant: "success", description: "Your CAC registration request has been submitted. An agent will process it shortly." });
         setShowConfirmation(false);
         setFormData({});
         queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });

@@ -31,7 +31,7 @@ export default function JAMBAgentLogin() {
       if (data.status === 'success') {
         tokenStorage.setItem('jambAgentToken', data.data.token);
         tokenStorage.setItem('jambAgentInfo', JSON.stringify(data.data.agent));
-        toast({ title: "Welcome!", description: `Logged in as ${data.data.agent.name}` });
+        toast({ title: "Welcome!", variant: "success", description: `Logged in as ${data.data.agent.name}` });
         setLocation('/jamb/agent/dashboard');
       } else {
         setError(data.message || 'Login failed');

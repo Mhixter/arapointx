@@ -436,7 +436,7 @@ export default function SupportAgentDashboard() {
     if (!selectedTicketId) return;
     try {
       await adminApiClient.post(`/admin/support/tickets/${selectedTicketId}/assign`);
-      toast({ title: "Assigned", description: "Ticket assigned to you." });
+      toast({ title: "Assigned", variant: "success", description: "Ticket assigned to you." });
       fetchTickets();
       fetchTicketDetail(selectedTicketId);
       fetchMessages(selectedTicketId);
@@ -449,7 +449,7 @@ export default function SupportAgentDashboard() {
     if (!selectedTicketId) return;
     try {
       await adminApiClient.post(`/admin/support/tickets/${selectedTicketId}/status`, { status });
-      toast({ title: "Updated", description: "Status updated." });
+      toast({ title: "Updated", variant: "success", description: "Status updated." });
       fetchTickets();
       fetchTicketDetail(selectedTicketId);
       fetchMessages(selectedTicketId);

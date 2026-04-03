@@ -85,7 +85,7 @@ export default function AdminIdentityAgents() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Success", description: "Identity agent created successfully" });
+        toast({ title: "Success", variant: "success", description: "Identity agent created successfully" });
         setShowAgentModal(false);
         setAgentForm({ name: '', email: '', password: '', employeeId: '' });
         fetchAgents();
@@ -109,7 +109,7 @@ export default function AdminIdentityAgents() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Success", description: `Agent ${!isAvailable ? 'activated' : 'deactivated'}` });
+        toast({ title: "Success", variant: "success", description: `Agent ${!isAvailable ? 'activated' : 'deactivated'}` });
         fetchAgents();
       } else {
         toast({ title: "Error", description: data.message, variant: "destructive" });
@@ -129,7 +129,7 @@ export default function AdminIdentityAgents() {
       });
       const data = await response.json();
       if (data.status === 'success') {
-        toast({ title: "Success", description: "Agent deleted" });
+        toast({ title: "Success", variant: "success", description: "Agent deleted" });
         fetchAgents();
       } else {
         toast({ title: "Error", description: data.message, variant: "destructive" });

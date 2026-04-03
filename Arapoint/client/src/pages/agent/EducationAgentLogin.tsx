@@ -31,7 +31,7 @@ export default function EducationAgentLogin() {
       if (data.status === 'success') {
         tokenStorage.setItem('educationAgentToken', data.data.token);
         tokenStorage.setItem('educationAgentInfo', JSON.stringify(data.data.agent));
-        toast({ title: "Welcome!", description: `Logged in as ${data.data.agent.name}` });
+        toast({ title: "Welcome!", variant: "success", description: `Logged in as ${data.data.agent.name}` });
         setLocation('/agent/education/dashboard');
       } else {
         setError(data.message || 'Login failed');

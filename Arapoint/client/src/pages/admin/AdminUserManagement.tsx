@@ -59,7 +59,7 @@ export default function AdminUserManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       setShowViewModal(false);
-      toast({ title: "User Status Updated", description: `User status changed successfully.` });
+      toast({ title: "User Status Updated", variant: "success", description: `User status changed successfully.` });
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.response?.data?.message || "Failed to update status", variant: "destructive" });
@@ -73,7 +73,7 @@ export default function AdminUserManagement() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       setShowCreateModal(false);
       setCreateForm({ name: '', email: '', phone: '', password: '' });
-      toast({ title: "User Created", description: "New user account created successfully." });
+      toast({ title: "User Created", variant: "success", description: "New user account created successfully." });
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.response?.data?.message || "Failed to create user", variant: "destructive" });
@@ -86,7 +86,7 @@ export default function AdminUserManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       setShowEditModal(false);
-      toast({ title: "User Updated", description: "User details updated successfully." });
+      toast({ title: "User Updated", variant: "success", description: "User details updated successfully." });
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.response?.data?.message || "Failed to update user", variant: "destructive" });
@@ -100,7 +100,7 @@ export default function AdminUserManagement() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       setShowFundModal(false);
       setFundAmount('');
-      toast({ title: "Wallet Funded", description: `Successfully added ₦${data.amount.toLocaleString()} to wallet. New balance: ₦${data.newBalance.toLocaleString()}` });
+      toast({ title: "Wallet Funded", variant: "success", description: `Successfully added ₦${data.amount.toLocaleString()} to wallet. New balance: ₦${data.newBalance.toLocaleString()}` });
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.response?.data?.message || "Failed to fund wallet", variant: "destructive" });
@@ -114,7 +114,7 @@ export default function AdminUserManagement() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       setShowDebitModal(false);
       setDebitAmount('');
-      toast({ title: "Wallet Debited", description: `Successfully removed ₦${data.amount.toLocaleString()} from wallet. New balance: ₦${data.newBalance.toLocaleString()}` });
+      toast({ title: "Wallet Debited", variant: "success", description: `Successfully removed ₦${data.amount.toLocaleString()} from wallet. New balance: ₦${data.newBalance.toLocaleString()}` });
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.response?.data?.message || "Failed to debit wallet", variant: "destructive" });
@@ -129,7 +129,7 @@ export default function AdminUserManagement() {
       setShowSuspendModal(false);
       setShowViewModal(false);
       setSuspendReason('');
-      toast({ title: "User Suspended", description: "User account has been suspended." });
+      toast({ title: "User Suspended", variant: "success", description: "User account has been suspended." });
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.response?.data?.message || "Failed to suspend user", variant: "destructive" });
@@ -141,7 +141,7 @@ export default function AdminUserManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       setShowViewModal(false);
-      toast({ title: "User Unsuspended", description: "User account has been reactivated." });
+      toast({ title: "User Unsuspended", variant: "success", description: "User account has been reactivated." });
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.response?.data?.message || "Failed to unsuspend user", variant: "destructive" });
