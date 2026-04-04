@@ -19,6 +19,81 @@ Arapoint is a production-ready Nigerian Identity Verification and Management Pla
 - **Email**: SendGrid (for OTP delivery)
 - **Identity Verification**: YouVerify API (NIN/BVN)
 
+## Recent Updates (April 2026 — Employment Queue + Admin Monitor + RPA Fixes)
+
+### Employment Endpoint — Fully Async Queue Architecture
+
+`POST /verify/employment` is now a **non-blocking 202 queue**:
+
+| Step | What happens |
+|---|---|
+| 1 | Validate input + enforce `consent: true` |
+| 2 | Deduct developer wallet balance |
+| 3 | `INSERT` into `developer_employment_requests` with `queue_status = 'queued'` |
+| 4 | Return `202 Accepted` immediately with `requestId` + `pollUrl` |
+| 5 | `setImmediate` background: call Prembly NIN + BVN in parallel |
+| 6 | Insert RPA job for SSCE (if provided) — stays `processing` |
+| 7 | No SSCE → compute score, set `queue_status = 'completed'` with `decision` |
+
+`GET /verify/employment/result/:requestId` returns early `202` for `queued`/`processing`, `500` for `failed`, and full scored response for `completed`.
+
+**Sandbox mode** still returns a full `200` synchronously (no change to sandbox behaviour).
+
+**New `developer_employment_requests` columns added:**
+`queue_status`, `developer_email`, `developer_name`, `error_message`, `completed_at`
+
+### RPA Query Data Fixes (WAEC / NECO / NABTEB / NBAIS)
+
+When the employment background worker queues an SSCE job into `rpa_jobs`, the `queryData` is now correctly structured:
+
+| Field | Before (wrong) | After (correct) |
+|---|---|---|
+| `examYear` | `ssce.examYear.toString()` (string) | `parseInt(ssce.examYear, 10)` (number) |
+| `examType` | Raw provider name e.g. `"WAEC"` | Portal-specific form value (see table below) |
+
+**`examType` values by provider (matching `PROVIDER_PROFILES.defaultExamType`):**
+
+| Provider | `serviceType` (RPA) | `examType` sent | Portal form value meaning |
+|---|---|---|---|
+| `waec` | `waec_result` | `WASSCE` | West African Senior School Cert (school candidate) |
+| `neco` | `neco_result` | `ssce_int` | SSCE Internal (school candidate) |
+| `nabteb` | `nabteb_result` | `NBC/NTC` | National Business Certificate / Technical |
+| `nbais` | `nbais_result` | `AISSCE` | Arabic & Islamic Senior School Certificate |
+
+**NBAIS settings key typo fixed:** `rpa_provider_url_mbais` → `rpa_provider_url_nbais` (admin settings lookup was silently failing).
+
+**Employment → RPA `queryData` structure:**
+```json
+{
+  "registrationNumber": "1234567890",
+  "examYear": 2019,
+  "examType": "WASSCE",
+  "source": "developer_api_employment",
+  "employmentRequestId": "EMP-XXXXXXXXXXXXXXXX"
+}
+```
+
+### Admin Employment Queue Monitor
+
+New admin page at `/admin/employment-queue` ("Employment Queue" in sidebar):
+
+**Backend routes (all `adminAuth`):**
+- `GET /api/v1/developer/admin/queue/stats` — aggregate counts (queued/processing/completed/failed/total/with_ssce/last_24h) + provider breakdown
+- `GET /api/v1/developer/admin/queue/employment` — paginated list; filters: `status`, `provider`, `search` (email/name/ID); joins `rpa_jobs` for RPA status
+- `GET /api/v1/developer/admin/queue/employment/:id` — full detail including RPA result + raw query data
+- `PATCH /api/v1/developer/admin/queue/employment/:id/retry` — requeue a `failed` job back to `queued`
+- `DELETE /api/v1/developer/admin/queue/employment/:id` — remove entry (admin cleanup)
+
+**Frontend (`AdminQueueMonitor.tsx`):**
+- Stat cards with live counts auto-refreshed every 15 s (toggleable)
+- Clickable provider breakdown pills → instant filter
+- Status filter bar (All / Queued / Processing / Completed / Failed) + free-text search
+- Expandable rows: checkpoint scores (NIN/BVN/name/DOB/timeline), flags, RPA job status, error messages
+- Retry button (failed jobs only), Delete button
+- Pagination
+
+---
+
 ## Recent Updates (April 2026 — Employment Verification Deep Implementation)
 
 ### `/verify/employment` — Complete Enhancement

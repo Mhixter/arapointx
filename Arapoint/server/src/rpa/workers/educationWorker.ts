@@ -112,7 +112,7 @@ const PROVIDER_PROFILES: Record<string, ProviderProfile> = {
   },
   nbais: {
     name: 'NBAIS',
-    settingsKey: 'rpa_provider_url_mbais',
+    settingsKey: 'rpa_provider_url_nbais',
     selectors: {
       examYearSelect: 'select[name="ExamYear"], select#ExamYear',
       examTypeSelect: 'select[name="ExamType"], select#ExamType',

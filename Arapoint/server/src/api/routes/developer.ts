@@ -1612,17 +1612,29 @@ router.post('/verify/employment', apiKeyAuth, async (req: Request, res: Response
         let ssceJobId: string | null = null;
         if (ssce) {
           const serviceTypeMap: Record<string, string> = {
-            waec: 'waec_result', neco: 'neco_result',
-            nabteb: 'nabteb_result', nbais: 'nbais_result',
+            waec:   'waec_result',
+            neco:   'neco_result',
+            nabteb: 'nabteb_result',
+            nbais:  'nbais_result',
           };
-          const svcType = serviceTypeMap[ssce.provider.toLowerCase()] || `${ssce.provider.toLowerCase()}_result`;
+          // Map provider to the exam-type string each portal form expects
+          const defaultExamTypeMap: Record<string, string> = {
+            waec:   'WASSCE',
+            neco:   'ssce_int',
+            nabteb: 'NBC/NTC',
+            nbais:  'AISSCE',
+          };
+          const providerKey = ssce.provider.toLowerCase();
+          const svcType = serviceTypeMap[providerKey] || `${providerKey}_result`;
+          const examTypeValue = defaultExamTypeMap[providerKey] || ssce.provider.toUpperCase();
+
           try {
             const [job] = await db.insert(rpaJobs).values({
               serviceType: svcType,
               queryData: {
                 registrationNumber: ssce.registrationNumber,
-                examYear: ssce.examYear.toString(),
-                examType: ssce.provider.toUpperCase(),
+                examYear: parseInt(String(ssce.examYear), 10),   // worker expects number
+                examType: examTypeValue,
                 source: 'developer_api_employment',
                 employmentRequestId: requestId,
               },
