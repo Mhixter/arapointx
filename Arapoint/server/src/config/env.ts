@@ -13,10 +13,10 @@ export const config = {
   
   // RPA Configuration
   // How many jobs may be actively processing at the same time (queue concurrency)
-  RPA_MAX_CONCURRENT_JOBS: parseInt(process.env.RPA_MAX_CONCURRENT_JOBS || '100'),
+  RPA_MAX_CONCURRENT_JOBS: parseInt(process.env.RPA_MAX_CONCURRENT_JOBS || '10'),
   // How many Puppeteer browsers to keep alive in the pool
   // Jobs that need a browser wait (up to RPA_REQUEST_TIMEOUT) for one to become free.
-  RPA_BROWSER_POOL_SIZE: parseInt(process.env.RPA_BROWSER_POOL_SIZE || '20'),
+  RPA_BROWSER_POOL_SIZE: parseInt(process.env.RPA_BROWSER_POOL_SIZE || '3'),
   RPA_JOB_TIMEOUT: parseInt(process.env.RPA_JOB_TIMEOUT || '60000'),
   RPA_REQUEST_TIMEOUT: parseInt(process.env.RPA_REQUEST_TIMEOUT || '90000'),
   RPA_RETRY_MAX: parseInt(process.env.RPA_RETRY_MAX || '3'),
