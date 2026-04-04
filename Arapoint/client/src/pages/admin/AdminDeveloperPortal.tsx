@@ -12,8 +12,12 @@ import {
   Search, RefreshCw, ShieldCheck, FileText, AlertCircle, ChevronRight,
   X, Key, Lock, Unlock, BarChart3, Globe, Download, FileCheck,
   Building2, UserCheck, Layers, ChevronDown, ChevronUp, FileIcon,
-  Calendar, Mail, Hash
+  Calendar, Mail, Hash, Wallet, Plus
 } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 function adminFetch(path: string, options?: RequestInit) {
   const token = tokenStorage.getItem("adminToken");
@@ -82,6 +86,10 @@ export default function AdminDeveloperPortal() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [promotingId, setPromotingId] = useState<string | null>(null);
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
+  const [creditModal, setCreditModal] = useState<{ open: boolean; devId: string; devName: string } | null>(null);
+  const [creditAmount, setCreditAmount] = useState("");
+  const [creditReason, setCreditReason] = useState("");
+  const [crediting, setCrediting] = useState(false);
 
   const loadKyc = async (filter: string = kycFilter) => {
     try {
@@ -198,6 +206,36 @@ export default function AdminDeveloperPortal() {
     } catch {
       toast({ title: "Download failed", variant: "destructive" });
     }
+  };
+
+  const handleCreditSandbox = async () => {
+    if (!creditModal) return;
+    const amt = parseFloat(creditAmount);
+    if (!amt || amt <= 0) {
+      toast({ title: "Enter a valid amount", variant: "destructive" });
+      return;
+    }
+    setCrediting(true);
+    try {
+      const res = await adminFetch(`/admin/developers/${creditModal.devId}/credit-sandbox`, {
+        method: "POST",
+        body: JSON.stringify({ amount: amt, reason: creditReason }),
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        toast({ title: `₦${amt.toLocaleString("en-NG")} credited to ${creditModal.devName}'s sandbox wallet`, variant: "success" });
+        setCreditModal(null);
+        setCreditAmount("");
+        setCreditReason("");
+        loadDevDetail(creditModal.devId);
+        loadAll();
+      } else {
+        toast({ title: data.message || "Credit failed", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    }
+    setCrediting(false);
   };
 
   const filteredDevs = developers.filter(d =>
@@ -827,6 +865,20 @@ export default function AdminDeveloperPortal() {
                             : <><Lock className="h-3.5 w-3.5 mr-1" /> Move to Sandbox</>}
                         </Button>
                       )}
+                      {/* Credit Sandbox Wallet — always available regardless of mode */}
+                      <Button size="sm"
+                        className="w-full justify-between bg-emerald-700 hover:bg-emerald-600 text-white"
+                        onClick={() => {
+                          setCreditAmount("");
+                          setCreditReason("");
+                          setCreditModal({ open: true, devId: selectedDev.developer.id, devName: selectedDev.developer.name });
+                        }}>
+                        <span className="flex items-center gap-1.5">
+                          <Wallet className="h-3.5 w-3.5" />
+                          Credit Sandbox Wallet
+                        </span>
+                        <Plus className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
                   </div>
 
@@ -859,6 +911,65 @@ export default function AdminDeveloperPortal() {
           </div>
         )}
       </div>
+
+      {/* ── Credit Sandbox Wallet Dialog ── */}
+      <Dialog open={!!creditModal?.open} onOpenChange={open => !open && setCreditModal(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-emerald-600" />
+              Credit Sandbox Wallet
+            </DialogTitle>
+            <DialogDescription>
+              Manually add funds to <strong>{creditModal?.devName}</strong>'s sandbox wallet for testing.
+              No real payment is processed. The developer will be notified by email.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="text-sm mb-1.5 block">Amount (₦) <span className="text-red-500">*</span></Label>
+              <Input
+                type="number" min={1} placeholder="e.g. 5000"
+                value={creditAmount}
+                onChange={e => setCreditAmount(e.target.value)}
+              />
+              <div className="flex gap-2 mt-2 flex-wrap">
+                {[1000, 5000, 10000, 50000].map(a => (
+                  <button key={a}
+                    onClick={() => setCreditAmount(a.toString())}
+                    className={`text-xs px-2.5 py-1 rounded border transition-colors ${
+                      creditAmount === a.toString()
+                        ? "border-emerald-600 bg-emerald-50 text-emerald-700"
+                        : "border-border text-muted-foreground hover:bg-muted"
+                    }`}>
+                    ₦{a.toLocaleString()}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label className="text-sm mb-1.5 block">Reason / Note <span className="text-muted-foreground">(optional)</span></Label>
+              <Input
+                placeholder="e.g. Testing allowance for onboarding"
+                value={creditReason}
+                onChange={e => setCreditReason(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCreditModal(null)}>Cancel</Button>
+            <Button
+              onClick={handleCreditSandbox}
+              disabled={crediting || !creditAmount}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white">
+              {crediting
+                ? <RefreshCw className="h-3.5 w-3.5 animate-spin mr-2" />
+                : <Wallet className="h-3.5 w-3.5 mr-2" />}
+              Credit ₦{parseFloat(creditAmount || "0").toLocaleString("en-NG")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

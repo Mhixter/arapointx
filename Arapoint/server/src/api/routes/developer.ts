@@ -724,8 +724,10 @@ router.get('/transactions', devJwtAuth, async (req: Request, res: Response) => {
   res.json({ status: 'success', code: 200, message: 'Transactions retrieved', data: { transactions: txs, page, limit } });
 });
 
-// ─── Mock fund wallet (for development/testing) ───────────────────────────────
-router.post('/wallet/fund', devJwtAuth, async (req: Request, res: Response) => {
+// ─── Admin-only: directly credit a developer wallet (sandbox top-up) ──────────
+// This route is protected by adminAuth — developers cannot call it directly.
+// Use POST /admin/developers/:id/credit-sandbox for the admin portal action.
+router.post('/wallet/fund', adminAuth, async (req: Request, res: Response) => {
   try {
     const dev = (req as any).developer;
     const { amount } = req.body;
@@ -775,6 +777,100 @@ router.post('/wallet/fund', devJwtAuth, async (req: Request, res: Response) => {
     });
   } catch (e: any) {
     res.status(500).json({ status: 'error', code: 500, message: 'Failed to fund wallet' });
+  }
+});
+
+// ─── GET /billing/gateway-status — developer polls before showing Fund button ──
+// Returns whether Paystack is configured (admin_settings or env var) + dev mode
+router.get('/billing/gateway-status', devJwtAuth, async (req: Request, res: Response) => {
+  const dev = (req as any).developer;
+  try {
+    // Check admin_settings table for paystack key (admin-configured), fall back to env
+    const settingRow = (await db.execute(sql`
+      SELECT setting_value FROM admin_settings WHERE setting_key = 'paystack_secret_key' LIMIT 1
+    `)).rows[0] as any;
+    const paystackConfigured = !!(process.env.PAYSTACK_SECRET_KEY || settingRow?.setting_value);
+    res.json({
+      status: 'success', code: 200,
+      data: {
+        paystackConfigured,
+        developerMode: (dev as any).environmentMode || 'sandbox',
+        sandboxFundingAvailable: false, // sandbox funding is admin-only credit
+      },
+    });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to check gateway status' });
+  }
+});
+
+// ─── Admin: credit a developer sandbox wallet ─────────────────────────────────
+router.post('/admin/developers/:id/credit-sandbox', adminAuth, async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { amount, reason } = req.body;
+  const amt = parseFloat(amount);
+  if (!amt || amt <= 0) {
+    return res.status(400).json({ status: 'error', code: 400, message: 'Amount must be greater than 0' });
+  }
+  if (amt > 5000000) {
+    return res.status(400).json({ status: 'error', code: 400, message: 'Maximum credit per operation is ₦5,000,000' });
+  }
+  try {
+    // Resolve developer
+    const devRow = (await db.execute(sql`
+      SELECT id, email, name, environment_mode FROM developer_users WHERE id = ${id} LIMIT 1
+    `)).rows[0] as any;
+    if (!devRow) return res.status(404).json({ status: 'error', code: 404, message: 'Developer not found' });
+
+    const [updated] = await db.update(developerUsers)
+      .set({ walletBalance: sql`wallet_balance + ${amt.toFixed(2)}`, updatedAt: new Date() })
+      .where(eq(developerUsers.id, id))
+      .returning({ walletBalance: developerUsers.walletBalance });
+
+    const reference = 'ADMIN-SANDBOX-' + crypto.randomBytes(6).toString('hex').toUpperCase();
+    const desc = reason?.trim()
+      ? `Admin sandbox credit — ${reason.trim()}`
+      : 'Admin sandbox wallet credit';
+
+    await db.insert(developerTransactions).values({
+      developerId: id,
+      transactionType: 'wallet_funding',
+      amount: amt.toFixed(2),
+      description: desc,
+      referenceId: reference,
+      status: 'successful',
+    });
+
+    // Email developer
+    try {
+      const { sendEmail } = await import('../../services/emailService');
+      const newBal = parseFloat(updated.walletBalance || '0');
+      await sendEmail(
+        devRow.email,
+        `Sandbox Wallet Credited — ₦${amt.toLocaleString('en-NG', { minimumFractionDigits: 2 })} Added`,
+        `<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:32px 24px;background:#0f1117;color:#e2e8f0;border-radius:12px">
+          <div style="margin-bottom:20px"><span style="background:#059669;color:#fff;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600">Sandbox Credit</span></div>
+          <h1 style="font-size:20px;font-weight:700;color:#fff;margin:0 0 12px">Hi ${devRow.name}, your sandbox wallet has been credited!</h1>
+          <div style="background:#111827;border:1px solid #1f2937;border-radius:8px;padding:16px;margin-bottom:16px">
+            <p style="margin:0 0 6px;color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:.05em">Amount Credited</p>
+            <p style="margin:0;font-size:28px;font-weight:700;color:#34d399">₦${amt.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</p>
+            <p style="margin:8px 0 0;color:#94a3b8;font-size:13px">New balance: <strong style="color:#fff">₦${newBal.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</strong></p>
+          </div>
+          ${reason?.trim() ? `<p style="color:#94a3b8;font-size:13px;margin:0 0 16px">Note: ${reason.trim()}</p>` : ''}
+          <p style="color:#6b7280;font-size:12px;margin:0 0 4px">Reference: <span style="color:#9ca3af;font-family:monospace">${reference}</span></p>
+          <p style="margin-top:24px;color:#475569;font-size:12px">Arapoint Developer Portal · developers.arapoint.com.ng</p>
+        </div>`
+      );
+    } catch {}
+
+    logger.info('Admin credited developer sandbox wallet', { developerId: id, amt, reference });
+    res.json({
+      status: 'success', code: 200,
+      message: `Sandbox wallet credited ₦${amt.toLocaleString('en-NG', { minimumFractionDigits: 2 })} successfully`,
+      data: { developerId: id, amount: amt, newBalance: parseFloat(updated.walletBalance || '0'), reference },
+    });
+  } catch (e: any) {
+    logger.error('Admin credit sandbox error', { error: e.message, developerId: id });
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to credit wallet' });
   }
 });
 
@@ -2324,18 +2420,42 @@ router.post('/webhook/test', devJwtAuth, async (req: Request, res: Response) => 
 // PAYSTACK WALLET FUNDING
 // ─────────────────────────────────────────────────────────────────────────────
 
-// POST /billing/initiate — start a Paystack payment
+// POST /billing/initiate — start a Paystack payment (live mode only)
 router.post('/billing/initiate', devJwtAuth, async (req: Request, res: Response) => {
   const dev = (req as any).developer;
+
+  // Sandbox developers cannot initiate real payments — admin credits their wallet
+  if ((dev as any).environmentMode === 'sandbox') {
+    return res.status(403).json({
+      status: 'error', code: 403,
+      message: 'Sandbox accounts cannot initiate Paystack payments. Contact the admin to credit your sandbox wallet for testing.',
+    });
+  }
+
   const { amount } = req.body;
   const amtNgn = parseFloat(amount);
   if (!amtNgn || amtNgn < 100) {
     return res.status(400).json({ status: 'error', code: 400, message: 'Minimum amount is ₦100' });
   }
 
-  if (!process.env.PAYSTACK_SECRET_KEY) {
-    return res.status(503).json({ status: 'error', code: 503, message: 'Payment gateway not configured. Contact support.' });
+  // Resolve Paystack secret key: env var takes priority, then admin_settings DB
+  let paystackKey = process.env.PAYSTACK_SECRET_KEY;
+  if (!paystackKey) {
+    const row = (await db.execute(sql`
+      SELECT setting_value FROM admin_settings WHERE setting_key = 'paystack_secret_key' LIMIT 1
+    `)).rows[0] as any;
+    paystackKey = row?.setting_value || '';
   }
+  if (!paystackKey) {
+    return res.status(503).json({
+      status: 'error', code: 503,
+      message: 'Payment gateway not yet configured. Please contact support.',
+    });
+  }
+
+  // Temporarily set env var so paystackService picks it up (it reads process.env at call time)
+  const originalKey = process.env.PAYSTACK_SECRET_KEY;
+  process.env.PAYSTACK_SECRET_KEY = paystackKey;
 
   try {
     const reference = `ara_${dev.id.slice(0, 8)}_${Date.now()}`;
@@ -2366,6 +2486,10 @@ router.post('/billing/initiate', devJwtAuth, async (req: Request, res: Response)
   } catch (e: any) {
     logger.error('Paystack initiate error', { error: e.message });
     res.status(500).json({ status: 'error', code: 500, message: e.message || 'Failed to initiate payment' });
+  } finally {
+    // Restore original env key (may have been undefined)
+    if (originalKey === undefined) delete process.env.PAYSTACK_SECRET_KEY;
+    else process.env.PAYSTACK_SECRET_KEY = originalKey;
   }
 });
 
