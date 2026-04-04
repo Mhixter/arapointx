@@ -1467,7 +1467,9 @@ router.post('/verify/employment', apiKeyAuth, async (req: Request, res: Response
     }
     if (ssce) {
       const validProviders = ['waec', 'neco', 'nabteb', 'nbais'];
-      if (!ssce.provider || !validProviders.includes(ssce.provider.toLowerCase())) {
+      const providerLower = ssce.provider?.toLowerCase();
+
+      if (!providerLower || !validProviders.includes(providerLower)) {
         statusCode = 400;
         responseData = { status: 'error', code: 400, message: `ssce.provider must be one of: ${validProviders.join(', ')}` };
         return res.status(400).json(responseData);
@@ -1475,6 +1477,21 @@ router.post('/verify/employment', apiKeyAuth, async (req: Request, res: Response
       if (!ssce.examYear || !ssce.registrationNumber) {
         statusCode = 400;
         responseData = { status: 'error', code: 400, message: 'ssce.examYear and ssce.registrationNumber are required when providing ssce' };
+        return res.status(400).json(responseData);
+      }
+      // cardPin required for all providers.
+      // NECO calls it a "token"; WAEC/NABTEB/NBAIS call it a PIN.
+      if (!ssce.cardPin) {
+        const pinLabel = providerLower === 'neco' ? 'ssce.cardPin (token)' : 'ssce.cardPin (scratch-card PIN)';
+        statusCode = 400;
+        responseData = { status: 'error', code: 400, message: `${pinLabel} is required for ${providerLower.toUpperCase()} verification` };
+        return res.status(400).json(responseData);
+      }
+      // cardSerialNumber required for WAEC, NABTEB, NBAIS (not for NECO)
+      const requiresSerial = ['waec', 'nabteb', 'nbais'].includes(providerLower);
+      if (requiresSerial && !ssce.cardSerialNumber) {
+        statusCode = 400;
+        responseData = { status: 'error', code: 400, message: `ssce.cardSerialNumber (scratch-card serial) is required for ${providerLower.toUpperCase()} verification` };
         return res.status(400).json(responseData);
       }
     }
@@ -1635,6 +1652,8 @@ router.post('/verify/employment', apiKeyAuth, async (req: Request, res: Response
                 registrationNumber: ssce.registrationNumber,
                 examYear: parseInt(String(ssce.examYear), 10),   // worker expects number
                 examType: examTypeValue,
+                cardPin: ssce.cardPin,                           // required by all providers
+                ...(ssce.cardSerialNumber ? { cardSerialNumber: ssce.cardSerialNumber } : {}),
                 source: 'developer_api_employment',
                 employmentRequestId: requestId,
               },

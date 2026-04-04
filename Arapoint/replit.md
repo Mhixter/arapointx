@@ -42,36 +42,78 @@ Arapoint is a production-ready Nigerian Identity Verification and Management Pla
 **New `developer_employment_requests` columns added:**
 `queue_status`, `developer_email`, `developer_name`, `error_message`, `completed_at`
 
-### RPA Query Data Fixes (WAEC / NECO / NABTEB / NBAIS)
+### SSCE Credential Requirements (WAEC / NECO / NABTEB / NBAIS)
 
-When the employment background worker queues an SSCE job into `rpa_jobs`, the `queryData` is now correctly structured:
+The employment endpoint now **enforces full scratch-card credentials** for SSCE verification,  
+matching exactly what each exam portal requires:
 
-| Field | Before (wrong) | After (correct) |
-|---|---|---|
-| `examYear` | `ssce.examYear.toString()` (string) | `parseInt(ssce.examYear, 10)` (number) |
-| `examType` | Raw provider name e.g. `"WAEC"` | Portal-specific form value (see table below) |
-
-**`examType` values by provider (matching `PROVIDER_PROFILES.defaultExamType`):**
-
-| Provider | `serviceType` (RPA) | `examType` sent | Portal form value meaning |
+| Provider | `ssce.cardPin` | `ssce.cardSerialNumber` | Notes |
 |---|---|---|---|
-| `waec` | `waec_result` | `WASSCE` | West African Senior School Cert (school candidate) |
-| `neco` | `neco_result` | `ssce_int` | SSCE Internal (school candidate) |
-| `nabteb` | `nabteb_result` | `NBC/NTC` | National Business Certificate / Technical |
-| `nbais` | `nbais_result` | `AISSCE` | Arabic & Islamic Senior School Certificate |
+| `waec` | ✓ Required | ✓ Required | Pin = scratch-card PIN; Serial = scratch-card serial no. |
+| `neco` | ✓ Required | ✗ Not needed | `cardPin` is the NECO portal "token" value |
+| `nabteb` | ✓ Required | ✓ Required | Pin = scratch-card PIN; Serial = scratch-card serial no. |
+| `nbais` | ✓ Required | ✓ Required | Pin = scratch-card PIN; Serial = scratch-card serial no. |
 
-**NBAIS settings key typo fixed:** `rpa_provider_url_mbais` → `rpa_provider_url_nbais` (admin settings lookup was silently failing).
-
-**Employment → RPA `queryData` structure:**
+**`ssce` object shape in the `POST /verify/employment` request body:**
 ```json
 {
+  "provider": "waec",
+  "registrationNumber": "3249012345",
+  "examYear": 2019,
+  "cardPin": "12345678",
+  "cardSerialNumber": "AA12345678"
+}
+```
+```json
+{
+  "provider": "neco",
   "registrationNumber": "1234567890",
+  "examYear": 2020,
+  "cardPin": "NECO-TOKEN-VALUE"
+}
+```
+
+**RPA `queryData` fields sent to each job:**
+```json
+{
+  "registrationNumber": "3249012345",
   "examYear": 2019,
   "examType": "WASSCE",
+  "cardPin": "12345678",
+  "cardSerialNumber": "AA12345678",
   "source": "developer_api_employment",
   "employmentRequestId": "EMP-XXXXXXXXXXXXXXXX"
 }
 ```
+
+**`examType` values by provider (matching `PROVIDER_PROFILES.defaultExamType`):**
+
+| Provider | `serviceType` (RPA) | `examType` | Portal form value |
+|---|---|---|---|
+| `waec` | `waec_result` | `WASSCE` | School candidate WASSCE |
+| `neco` | `neco_result` | `ssce_int` | SSCE Internal |
+| `nabteb` | `nabteb_result` | `NBC/NTC` | National Business/Technical Certificate |
+| `nbais` | `nbais_result` | `AISSCE` | Arabic & Islamic Senior School Certificate |
+
+**Bug fixes applied:**
+- `examYear` was being sent as a string (`".toString()"`) — now `parseInt()` (number)
+- `examType` was the raw provider name — now portal-specific form value
+- NBAIS settings key typo fixed: `rpa_provider_url_mbais` → `rpa_provider_url_nbais`
+
+### RPA Worker Concurrency — 100 Concurrent Jobs
+
+`RPA_MAX_CONCURRENT_JOBS` raised from 5 → **100** (configurable via env var).
+
+**Architecture: job concurrency vs. browser pool are now separate:**
+
+| Config | Default | Purpose |
+|---|---|---|
+| `RPA_MAX_CONCURRENT_JOBS` | `100` | How many jobs can be in "processing" state at once |
+| `RPA_BROWSER_POOL_SIZE` | `20` | How many Puppeteer browsers are kept alive in the pool |
+
+Jobs that are processing but waiting for a browser slot sit in memory and retry every 100 ms until a browser frees up (up to `RPA_REQUEST_TIMEOUT`). This lets 100 jobs be picked from the DB queue concurrently without spawning 100 Chromium processes.
+
+**Browser pool** (`browserPool.ts`) already has built-in wait logic (`acquire(maxWaitMs=30000)`), so no code change was needed there — just initializing it with `RPA_BROWSER_POOL_SIZE` instead of `RPA_MAX_CONCURRENT_JOBS`.
 
 ### Admin Employment Queue Monitor
 

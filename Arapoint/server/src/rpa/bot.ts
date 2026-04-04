@@ -34,8 +34,12 @@ class RPABot {
     this.isRunning = true;
     logger.info('RPA Bot started - polling database for jobs');
 
-    // Initialize browser pool in the background (non-blocking)
-    browserPool.initialize(config.RPA_MAX_CONCURRENT_JOBS || 5).catch(err => {
+    // Initialize browser pool in the background (non-blocking).
+    // Pool size (browsers) is independent from job concurrency.
+    // Up to RPA_MAX_CONCURRENT_JOBS can be "processing" at once;
+    // each waits for a browser slot from this pool.
+    const poolSize = config.RPA_BROWSER_POOL_SIZE || 20;
+    browserPool.initialize(poolSize).catch(err => {
       logger.error('Browser pool initialization failed', { error: err.message });
     });
 
@@ -402,7 +406,7 @@ class RPABot {
       running: this.isRunning,
       queueLength: jobQueue.getQueueLength(),
       activeJobs: this.activeJobCount,
-      maxConcurrent: config.RPA_MAX_CONCURRENT_JOBS || 5,
+      maxConcurrentJobs: config.RPA_MAX_CONCURRENT_JOBS || 100,
       browserPool: browserPool.getStats(),
     };
   }
