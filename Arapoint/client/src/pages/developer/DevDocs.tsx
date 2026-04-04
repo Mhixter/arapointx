@@ -200,50 +200,103 @@ const endpoints = [
     group: "Verification",
     method: "POST",
     path: "/verify/employment",
-    title: "Employment Verification",
-    description: "Run a confidence-scored employment check that cross-references NIN, BVN, and SSCE results to produce a trust score. Returns a match score (0–100), a confidence grade (A–F), and a detailed breakdown of each identity signal.",
+    title: "Employment Background Check",
+    description: "Submit an employment background check that cross-references NIN, BVN, and optional SSCE certificate results. This is an asynchronous operation — the API accepts the request and returns a requestId and HTTP 202 immediately. The check runs in the background (Prembly for NIN+BVN, RPA bot for SSCE). Poll the result endpoint or configure webhooks to receive the final decision.",
     price: 350,
     auth: "api-key",
-    async: false,
+    async: true,
     request: {
       nin: "12345678901",
       bvn: "12345678901",
       fullName: "John Emeka Doe",
       dateOfBirth: "1990-01-15",
-      education: { provider: "waec", examYear: 2023, registrationNumber: "4190101001" }
+      employmentYear: 2015,
+      level: "degree",
+      ssce: {
+        provider: "waec",
+        registrationNumber: "4190101001",
+        examYear: 2009,
+        cardPin: "12345678",
+        cardSerialNumber: "AA12345678"
+      }
     },
+    response: {
+      status: "accepted",
+      code: 202,
+      message: "Employment verification queued. Poll the result endpoint for status.",
+      data: {
+        requestId: "EMP-xyz789abc123",
+        queueStatus: "queued",
+        submittedAt: "2026-04-04T10:00:00.000Z",
+        pollUrl: "GET /verify/employment/result/EMP-xyz789abc123"
+      }
+    },
+    params: [
+      { name: "nin", type: "string", required: true, desc: "11-digit National ID Number of the subject" },
+      { name: "bvn", type: "string", required: true, desc: "11-digit Bank Verification Number of the subject" },
+      { name: "fullName", type: "string", required: true, desc: "Full name of the subject to cross-reference" },
+      { name: "dateOfBirth", type: "string", required: false, desc: "Date of birth in YYYY-MM-DD format" },
+      { name: "employmentYear", type: "number", required: false, desc: "Year the subject claims to have started work / graduated" },
+      { name: "level", type: "string", required: false, desc: "Education level: 'degree' or 'higher' (postgrad/masters)" },
+      { name: "ssce", type: "object", required: false, desc: "SSCE certificate details for cross-referencing (see below)" },
+      { name: "ssce.provider", type: "string", required: false, desc: "One of: waec, neco, nabteb, nbais" },
+      { name: "ssce.registrationNumber", type: "string", required: false, desc: "Candidate's exam registration number" },
+      { name: "ssce.examYear", type: "number", required: false, desc: "Year the exam was sat (e.g. 2009)" },
+      { name: "ssce.cardPin", type: "string", required: false, desc: "Scratch-card PIN (required for all providers when ssce is included)" },
+      { name: "ssce.cardSerialNumber", type: "string", required: false, desc: "Scratch-card serial number (required for WAEC, NABTEB, NBAIS; not needed for NECO)" },
+    ],
+    notes: [
+      "This is ASYNC — you will receive HTTP 202 immediately, NOT the final result",
+      "Poll GET /verify/employment/result/:requestId for the decision",
+      "Or configure webhooks to receive the employment.completed event",
+      "Decision values: PASS (score ≥ 85) | REVIEW (60–84) | FAIL (< 60)",
+      "Score breakdown: NIN 20pts + BVN 20pts + Name match 20pts + DOB 15pts + Timeline 10pts + SSCE 15pts = 100",
+      "If no SSCE is provided, max possible score is 85 — PASS threshold still applies",
+      "SSCE cardSerialNumber is required for WAEC, NABTEB, NBAIS — NECO only needs cardPin",
+      "Charge is deducted when the request is accepted (queued), not when result arrives",
+    ]
+  },
+  {
+    group: "Verification",
+    method: "GET",
+    path: "/verify/employment/result/:requestId",
+    title: "Poll Employment Result",
+    description: "Poll the status and final decision of a previously submitted employment background check. Use this if you are not using webhooks. Pass the requestId returned by POST /verify/employment.",
+    price: 0,
+    auth: "api-key",
+    async: false,
+    request: {},
     response: {
       status: "success",
       code: 200,
       message: "Employment verification completed",
       data: {
-        requestId: "EMP-xyz789",
-        score: 88,
-        label: "High Confidence",
-        level: "A",
+        requestId: "EMP-xyz789abc123",
+        queueStatus: "completed",
+        decision: "PASS",
+        finalScore: 90,
         breakdown: {
-          ninMatch: true,
-          bvnMatch: true,
-          nameConsistency: 95,
+          ninScore: 20,
+          bvnScore: 20,
+          nameMatchScore: "0.97",
           dobMatch: true,
-          educationPending: true
+          timelineValid: true,
+          ssceScore: 15,
+          flags: []
         },
-        recommendation: "Suitable for employment — proceed with onboarding"
+        completedAt: "2026-04-04T10:02:35.000Z"
       }
     },
     params: [
-      { name: "nin", type: "string", required: true, desc: "Subject's NIN" },
-      { name: "bvn", type: "string", required: true, desc: "Subject's BVN" },
-      { name: "fullName", type: "string", required: true, desc: "Full name to cross-reference" },
-      { name: "dateOfBirth", type: "string", required: false, desc: "DOB in YYYY-MM-DD for additional validation" },
-      { name: "education", type: "object", required: false, desc: "Optional education check object" },
+      { name: "requestId", type: "string", required: true, desc: "The requestId from POST /verify/employment (URL path param)" },
     ],
     notes: [
-      "Score 90–100 = Very High Confidence (Grade A)",
-      "Score 75–89 = High Confidence (Grade B)",
-      "Score 60–74 = Moderate Confidence (Grade C)",
-      "Score below 60 = Low Confidence (Grade D/F) — manual review recommended",
-      "Education verification is async; score is recalculated when result arrives",
+      "queueStatus values: queued | processing | completed | failed",
+      "Returns HTTP 202 if still queued or processing — check queueStatus field",
+      "Returns HTTP 200 with full result when queueStatus = 'completed'",
+      "Returns HTTP 500 with error detail when queueStatus = 'failed'",
+      "Poll every 10–30 seconds — most checks complete within 2–3 minutes",
+      "This endpoint is free — no additional charge",
     ]
   },
   {
@@ -891,8 +944,23 @@ export default function DevDocs() {
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm text-gray-400">
                   <p>
-                    Education verification (<code className="bg-gray-800 px-1 py-0.5 rounded text-indigo-300 text-xs">/verify/education</code>) uses our RPA bot to retrieve results from exam body portals. Results are not instant — they typically arrive within <span className="text-white">1–5 minutes</span>. There are two ways to receive results:
+                    Two endpoints are asynchronous — they return <code className="bg-gray-800 px-1 py-0.5 rounded text-indigo-300 text-xs">202 Accepted</code> immediately and deliver results later:
                   </p>
+
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div className="bg-gray-800/40 border border-gray-700 rounded-lg p-3">
+                      <p className="text-xs text-white font-semibold mb-1">Education Verification</p>
+                      <p className="text-xs text-gray-400">Uses our RPA bot to retrieve results from WAEC, NECO, NABTEB, NBAIS, and JAMB portals. Results typically arrive within <span className="text-white">1–5 minutes</span>.</p>
+                      <p className="text-xs text-gray-500 mt-1.5">Poll: <code className="text-indigo-300">GET /verify/education/result?requestId=xxx</code></p>
+                      <p className="text-xs text-gray-500">Webhook event: <code className="text-purple-300">verification.completed</code></p>
+                    </div>
+                    <div className="bg-gray-800/40 border border-gray-700 rounded-lg p-3">
+                      <p className="text-xs text-white font-semibold mb-1">Employment Background Check</p>
+                      <p className="text-xs text-gray-400">Runs NIN + BVN via Prembly and SSCE via RPA bot in the background. Produces a PASS / REVIEW / FAIL decision. Results typically arrive within <span className="text-white">2–3 minutes</span>.</p>
+                      <p className="text-xs text-gray-500 mt-1.5">Poll: <code className="text-indigo-300">GET /verify/employment/result/:requestId</code></p>
+                      <p className="text-xs text-gray-500">Webhook event: <code className="text-purple-300">employment.completed</code></p>
+                    </div>
+                  </div>
 
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div className="bg-purple-950/20 border border-purple-800/40 rounded-lg p-4">
@@ -900,9 +968,9 @@ export default function DevDocs() {
                       <ol className="space-y-1.5 text-xs text-purple-200">
                         {[
                           "Configure your webhook URL in the Webhooks & Security page",
-                          "Submit education verification → get requestId",
+                          "Submit the async request → receive requestId + 202",
                           "Arapoint sends POST to your webhook when result is ready",
-                          "Handle the verification.completed event in your endpoint",
+                          "Handle verification.completed or employment.completed",
                         ].map((s, i) => (
                           <li key={i} className="flex items-start gap-2">
                             <span className="w-4 h-4 rounded-full bg-purple-700 flex items-center justify-center text-xs text-white flex-shrink-0">{i + 1}</span>
@@ -915,9 +983,9 @@ export default function DevDocs() {
                       <p className="text-xs text-blue-300 font-semibold mb-2">Option B — Polling</p>
                       <ol className="space-y-1.5 text-xs text-blue-200">
                         {[
-                          "Submit education verification → get requestId",
-                          "Call GET /verify/education/result?requestId=xxx",
-                          "Check the status field: processing | completed | failed",
+                          "Submit the async request → receive requestId + 202",
+                          "Call the corresponding poll endpoint with your requestId",
+                          "Check the status field: queued | processing | completed | failed",
                           "Repeat every 15–30 seconds until status is completed",
                         ].map((s, i) => (
                           <li key={i} className="flex items-start gap-2">
@@ -930,7 +998,37 @@ export default function DevDocs() {
                   </div>
 
                   <div>
-                    <p className="text-xs text-gray-400 font-medium mb-2">Polling example (JavaScript)</p>
+                    <p className="text-xs text-gray-400 font-medium mb-2">Employment result polling example (JavaScript)</p>
+                    <CopyableCode code={`async function pollEmploymentResult(requestId, apiKey) {
+  const maxAttempts = 20;
+  for (let i = 0; i < maxAttempts; i++) {
+    const res = await fetch(
+      \`${BASE_URL}/verify/employment/result/\${requestId}\`,
+      { headers: { "X-API-Key": apiKey } }
+    );
+
+    // 202 = still queued/processing
+    if (res.status === 202) {
+      await new Promise(r => setTimeout(r, 20000));
+      continue;
+    }
+
+    const data = await res.json();
+
+    if (res.status === 200) {
+      console.log("Decision:", data.data.decision); // "PASS" | "REVIEW" | "FAIL"
+      console.log("Score:", data.data.finalScore);
+      return data.data;
+    }
+
+    throw new Error(data.message || "Verification failed");
+  }
+  throw new Error("Timed out waiting for result");
+}`} />
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium mb-2">Education result polling example (JavaScript)</p>
                     <CopyableCode code={`async function pollEducationResult(requestId, apiKey) {
   const maxAttempts = 20;
   for (let i = 0; i < maxAttempts; i++) {
@@ -1110,11 +1208,13 @@ Retry-After: 3600   ← only present when rate limited (429)`} />
                     <p className="text-xs text-gray-300 font-semibold">Event types</p>
                     <div className="border border-gray-800 rounded-lg overflow-hidden">
                       {[
-                        { event: "verification.completed", desc: "A verification has returned a successful result (NIN, BVN, or education)" },
-                        { event: "verification.failed", desc: "A verification could not be completed — check the error field" },
+                        { event: "verification.completed", desc: "A NIN, BVN, or education verification has returned a successful result" },
+                        { event: "verification.failed", desc: "A NIN, BVN, or education verification could not be completed — check the error field" },
+                        { event: "employment.completed", desc: "An employment background check has finished — includes decision (PASS/REVIEW/FAIL), score, and full breakdown" },
+                        { event: "employment.failed", desc: "An employment background check failed — check the error field for details" },
                         { event: "verification.test", desc: "Manually triggered test event — confirms your endpoint is reachable" },
                       ].map((ev, i) => (
-                        <div key={ev.event} className={`flex items-start gap-3 p-3 ${i < 2 ? "border-b border-gray-800" : ""}`}>
+                        <div key={ev.event} className={`flex items-start gap-3 p-3 ${i < 4 ? "border-b border-gray-800" : ""}`}>
                           <code className="text-xs text-purple-300 font-mono flex-shrink-0 w-48">{ev.event}</code>
                           <span className="text-xs text-gray-400">{ev.desc}</span>
                         </div>
@@ -1281,8 +1381,15 @@ app.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
   verifyUnified(nin?: string, bvn?: string, education?: object) {
     return this.request("POST", "/verify/unified", { nin, bvn, education });
   }
-  verifyEmployment(nin: string, bvn: string, fullName: string, dateOfBirth?: string) {
-    return this.request("POST", "/verify/employment", { nin, bvn, fullName, dateOfBirth });
+  verifyEmployment(payload: {
+    nin: string; bvn: string; fullName: string;
+    dateOfBirth?: string; employmentYear?: number; level?: string;
+    ssce?: { provider: string; registrationNumber: string; examYear: number; cardPin: string; cardSerialNumber?: string };
+  }) {
+    return this.request("POST", "/verify/employment", payload);
+  }
+  getEmploymentResult(requestId: string) {
+    return this.request("GET", \`/verify/employment/result/\${requestId}\`);
   }
   fraudScore(nin: string, bvn: string) {
     return this.request("POST", "/verify/fraud-score", { nin, bvn });
@@ -1383,12 +1490,13 @@ print(result["data"]["verification"]["firstName"])`} />
                       { service: "BVN Verification", cost: "₦80", speed: "Instant", note: "CBN database" },
                       { service: "Education Verification", cost: "₦250", speed: "1–5 minutes", note: "WAEC, NECO, JAMB, NABTEB" },
                       { service: "Unified (NIN+BVN+Edu)", cost: "₦400", speed: "Mixed", note: "Bundle discount" },
-                      { service: "Employment Verification", cost: "₦350–450", speed: "Mixed", note: "Confidence-scored check" },
+                      { service: "Employment Background Check", cost: "₦350", speed: "2–3 minutes", note: "NIN + BVN + SSCE async" },
                       { service: "Fraud Risk Score", cost: "₦50", speed: "Instant", note: "NIN vs BVN comparison" },
                       { service: "Education Result Poll", cost: "Free", speed: "Instant", note: "No additional charge" },
+                      { service: "Employment Result Poll", cost: "Free", speed: "Instant", note: "No additional charge" },
                       { service: "API Logs / Analytics", cost: "Free", speed: "Instant", note: "Dashboard endpoints" },
                     ].map((row, i) => (
-                      <div key={row.service} className={`grid grid-cols-4 p-3 text-xs ${i < 7 ? "border-b border-gray-800" : ""}`}>
+                      <div key={row.service} className={`grid grid-cols-4 p-3 text-xs ${i < 8 ? "border-b border-gray-800" : ""}`}>
                         <span className="text-gray-300">{row.service}</span>
                         <span className={row.cost === "Free" ? "text-green-400 font-medium" : "text-yellow-400 font-medium"}>{row.cost}</span>
                         <span className="text-gray-400">{row.speed}</span>
@@ -1402,7 +1510,8 @@ print(result["data"]["verification"]["firstName"])`} />
                       <p className="text-xs text-indigo-300 font-semibold">Billing rules</p>
                       <ul className="space-y-1.5 text-xs text-indigo-200">
                         {[
-                          "Charged only on HTTP 200 successful responses",
+                          "Charged on HTTP 200 (sync) or HTTP 202 (async/queued) success responses",
+                          "Employment check: charged when queued (202), not when result arrives",
                           "404 Not Found (record doesn't exist) — not charged",
                           "400 Bad Request (your error) — not charged",
                           "5xx Server errors — not charged",
