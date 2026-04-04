@@ -12,7 +12,8 @@ import {
   Package,
   Headset,
   MessageSquare,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  ListTodo
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -78,6 +79,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     { href: "/admin/roles", label: "Role Management", icon: ShieldCheck },
     { href: "/admin/settings", label: "Settings", icon: SettingsIcon },
     { href: "/admin/whatsapp", label: "WhatsApp", icon: MessageSquare },
+    { href: "/admin/employment-queue", label: "Employment Queue", icon: ListTodo },
   ];
 
   const NavContent = () => (

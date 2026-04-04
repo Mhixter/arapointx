@@ -171,8 +171,22 @@ const developerTransactions = pgTable('developer_transactions', {
         initial_score integer DEFAULT 0,
         final_score integer,
         decision varchar(10),
+        queue_status varchar(20) DEFAULT 'queued',
+        developer_email varchar(255),
+        developer_name varchar(255),
+        error_message text,
+        completed_at timestamp,
         created_at timestamp DEFAULT now()
       )
+    `);
+    // Idempotent column additions for existing tables
+    await db.execute(sql`
+      ALTER TABLE developer_employment_requests
+        ADD COLUMN IF NOT EXISTS queue_status varchar(20) DEFAULT 'queued',
+        ADD COLUMN IF NOT EXISTS developer_email varchar(255),
+        ADD COLUMN IF NOT EXISTS developer_name varchar(255),
+        ADD COLUMN IF NOT EXISTS error_message text,
+        ADD COLUMN IF NOT EXISTS completed_at timestamp
     `);
   } catch (e: any) {
     // Column already exists or minor error — safe to ignore
@@ -1400,17 +1414,27 @@ function toDecision(score: number): 'PASS' | 'REVIEW' | 'FAIL' {
  * Decision thresholds:
  *   ≥ 85 → PASS  |  60–84 → REVIEW  |  < 60 → FAIL
  */
+/**
+ * POST /verify/employment
+ *
+ * Fully async — returns a requestId immediately (202 Accepted).
+ * Background processing:
+ *   • NIN + BVN  → Prembly API (direct, parallel)
+ *   • SSCE        → RPA queue (WAEC / NECO / NABTEB / NBAIS)
+ *
+ * Poll: GET /verify/employment/result/:requestId
+ */
 router.post('/verify/employment', apiKeyAuth, async (req: Request, res: Response) => {
   const start = Date.now();
   const dev = (req as any).developer;
   const apiKeyId = (req as any).apiKeyId;
   const { nin, bvn, ssce, level = 'standard', employment_year, consent } = req.body;
-  let statusCode = 200;
+  let statusCode = 202;
   let responseData: any;
-  let empYear = employment_year ? parseInt(employment_year, 10) : new Date().getFullYear();
+  const empYear = employment_year ? parseInt(employment_year, 10) : new Date().getFullYear();
 
   try {
-    // ── Consent enforcement (compliance requirement) ────────────────────────
+    // ── Consent enforcement ─────────────────────────────────────────────────
     if (consent !== true) {
       statusCode = 400;
       responseData = {
@@ -1420,7 +1444,7 @@ router.post('/verify/employment', apiKeyAuth, async (req: Request, res: Response
       return res.status(400).json(responseData);
     }
 
-    // ── Input validation ───────────────────────────────────────────────────
+    // ── Input validation ────────────────────────────────────────────────────
     if (!nin || !bvn) {
       statusCode = 400;
       responseData = { status: 'error', code: 400, message: 'Both nin and bvn are required for employment verification' };
@@ -1442,7 +1466,7 @@ router.post('/verify/employment', apiKeyAuth, async (req: Request, res: Response
       return res.status(400).json(responseData);
     }
     if (ssce) {
-      const validProviders = ['waec', 'neco', 'nabteb', 'nbais', 'jamb'];
+      const validProviders = ['waec', 'neco', 'nabteb', 'nbais'];
       if (!ssce.provider || !validProviders.includes(ssce.provider.toLowerCase())) {
         statusCode = 400;
         responseData = { status: 'error', code: 400, message: `ssce.provider must be one of: ${validProviders.join(', ')}` };
@@ -1455,13 +1479,14 @@ router.post('/verify/employment', apiKeyAuth, async (req: Request, res: Response
       }
     }
 
+    // ── Deduct balance up-front ─────────────────────────────────────────────
     const priceKey = level === 'higher' ? 'employment_higher' : 'employment_standard';
     await deductDeveloperBalance(dev.id, API_PRICES[priceKey],
       `Employment verification (${level}) — NIN ${nin.substring(0, 4)}***`);
 
     const requestId = 'EMP-' + crypto.randomBytes(8).toString('hex').toUpperCase();
 
-    // ── Sandbox mode ──────────────────────────────────────────────────────────
+    // ── Sandbox: return completed result immediately ─────────────────────────
     if ((dev as any).environmentMode === 'sandbox') {
       const ninSandbox = sandboxNIN(nin);
       const bvnSandbox = sandboxBVN(bvn);
@@ -1469,21 +1494,21 @@ router.post('/verify/employment', apiKeyAuth, async (req: Request, res: Response
       const bvnName = `${bvnSandbox.data.firstName} ${bvnSandbox.data.lastName}`;
       const nameScore = nameSimilarityScore(ninName, bvnName);
       const timeline = validateTimeline(ninSandbox.data.dateOfBirth, ssce?.examYear ? parseInt(ssce.examYear, 10) : null, empYear);
+      statusCode = 200;
       responseData = {
         status: 'success', code: 200, message: 'Employment verification completed (sandbox)',
         data: {
-          requestId, level, processedAt: new Date().toISOString(),
-          decision: 'PASS',
-          flags: [],
+          requestId, level, queueStatus: 'completed', processedAt: new Date().toISOString(),
+          decision: 'PASS', flags: [],
           checks: { identity_match: true, name_match_score: nameScore, dob_match: true, education_verified: !!ssce, timeline_valid: timeline.valid },
           confidence: { score: 100, label: 'Very High Confidence', grade: 'A', earned: 100, maxPossible: 100 },
           checkpoints: {
-            nin: { checkpoint: 'NIN Verification', status: 'verified', weight: '20 pts', earned: 20, data: ninSandbox.data },
-            bvn: { checkpoint: 'BVN Verification', status: 'verified', weight: '20 pts', earned: 20, data: bvnSandbox.data },
+            nin:  { checkpoint: 'NIN Verification', status: 'verified', weight: '20 pts', earned: 20, data: ninSandbox.data },
+            bvn:  { checkpoint: 'BVN Verification', status: 'verified', weight: '20 pts', earned: 20, data: bvnSandbox.data },
             crossMatch: {
               checkpoint: 'Identity Cross-Reference (NIN ↔ BVN)', status: 'completed',
               nameMatch: { result: true, score: nameScore, earned: 20, weight: '20 pts', ninName, bvnName },
-              dobMatch: { result: true, earned: 15, weight: '15 pts', ninDob: ninSandbox.data.dateOfBirth, bvnDob: bvnSandbox.data.dateOfBirth },
+              dobMatch:  { result: true, earned: 15, weight: '15 pts', ninDob: ninSandbox.data.dateOfBirth, bvnDob: bvnSandbox.data.dateOfBirth },
             },
             timeline: {
               checkpoint: 'Timeline Validation', status: 'passed', weight: '10 pts', earned: 10,
@@ -1503,216 +1528,182 @@ router.post('/verify/employment', apiKeyAuth, async (req: Request, res: Response
       return res.json(responseData);
     }
 
-    // ── Live: Call Prembly for NIN + BVN in parallel ─────────────────────────
-    const { premblyService } = await import('../../services/premblyService');
-    const [ninResult, bvnResult] = await Promise.allSettled([
-      premblyService.verifyNIN(nin),
-      premblyService.verifyBVN(bvn),
-    ]);
-
-    const ninRes = ninResult.status === 'fulfilled' ? ninResult.value : { success: false, error: (ninResult.reason as Error)?.message || 'NIN lookup failed' };
-    const bvnRes = bvnResult.status === 'fulfilled' ? bvnResult.value : { success: false, error: (bvnResult.reason as Error)?.message || 'BVN lookup failed' };
-
-    const ninOk = ninRes.success === true;
-    const bvnOk = bvnRes.success === true;
-    const ninData = (ninRes as any).data || null;
-    const bvnData = (bvnRes as any).data || null;
-
-    // ── Cross-reference name + DOB ────────────────────────────────────────────
-    const ninFullName = `${ninData?.firstName || ''} ${ninData?.lastName || ''}`.trim();
-    const bvnFullName = `${bvnData?.firstName || ''} ${bvnData?.lastName || ''}`.trim();
-    const nameScore = (ninOk && bvnOk) ? nameSimilarityScore(ninFullName, bvnFullName) : 0;
-    const nameMatchPass = nameScore >= 0.72;
-    const dobMatchPass = (ninOk && bvnOk) ? dobsMatch(ninData?.dateOfBirth || '', bvnData?.dateOfBirth || '') : false;
-
-    // ── Timeline validation ───────────────────────────────────────────────────
-    const dob = ninData?.dateOfBirth || bvnData?.dateOfBirth || null;
-    const ssceYear = ssce?.examYear ? parseInt(ssce.examYear, 10) : null;
-    const timeline = validateTimeline(dob, ssceYear, empYear);
-
-    // ── Collect flags ─────────────────────────────────────────────────────────
-    const flags: string[] = [];
-    if (!ninOk) flags.push(`NIN verification failed: ${(ninRes as any).error || 'unknown error'}`);
-    if (!bvnOk) flags.push(`BVN verification failed: ${(bvnRes as any).error || 'unknown error'}`);
-    if (ninOk && bvnOk && !nameMatchPass) flags.push(`Name mismatch between NIN and BVN (similarity: ${nameScore.toFixed(2)})`);
-    if (ninOk && bvnOk && !dobMatchPass) flags.push('Date of birth mismatch between NIN and BVN');
-    flags.push(...timeline.issues);
-
-    // ── Queue RPA job for SSCE (if provided) ─────────────────────────────────
-    let ssceCheck: any = null;
-    let ssceJobId: string | null = null;
-    if (ssce) {
-      const serviceTypeMap: Record<string, string> = {
-        waec: 'waec_result', neco: 'neco_result',
-        nabteb: 'nabteb_result', nbais: 'nbais_result', jamb: 'jamb_score',
-      };
-      const svcType = serviceTypeMap[ssce.provider.toLowerCase()] || `${ssce.provider.toLowerCase()}_result`;
-      try {
-        const [job] = await db.insert(rpaJobs).values({
-          serviceType: svcType,
-          queryData: {
-            registrationNumber: ssce.registrationNumber,
-            examYear: ssce.examYear.toString(),
-            examType: ssce.provider.toUpperCase(),
-            source: 'developer_api_employment',
-            employmentRequestId: requestId,
-          },
-          status: 'pending',
-          priority: 5,
-        }).returning();
-        ssceJobId = job.id;
-        ssceCheck = {
-          status: 'processing',
-          provider: ssce.provider.toUpperCase(),
-          examYear: ssce.examYear,
-          registrationNumber: ssce.registrationNumber,
-          jobId: job.id,
-          pollUrl: `GET /verify/employment/result/${requestId}`,
-          maxScore: 15,
-          earnedScore: 0,
-          note: 'SSCE result is being retrieved. Poll GET /verify/employment/result/' + requestId + ' for the final score.',
-        };
-      } catch (rpaErr: any) {
-        ssceCheck = { status: 'error', error: rpaErr.message, maxScore: 15, earnedScore: 0 };
-      }
-    }
-
-    // ── Scoring  (NIN 20 | BVN 20 | name 20 graduated | DOB 15 | timeline 10 | SSCE 15) ──
-    const WEIGHTS = { nin: 20, bvn: 20, nameMatch: 20, dobMatch: 15, timeline: 10, ssce: 15 };
-    const maxPossible = ssce ? 100 : 85;
-
-    const ninEarned      = ninOk ? WEIGHTS.nin : 0;
-    const bvnEarned      = bvnOk ? WEIGHTS.bvn : 0;
-    const nameEarned     = Math.round(nameScore * WEIGHTS.nameMatch);
-    const dobEarned      = dobMatchPass ? WEIGHTS.dobMatch : 0;
-    const timelineEarned = timeline.valid ? WEIGHTS.timeline : 0;
-    const earned         = ninEarned + bvnEarned + nameEarned + dobEarned + timelineEarned;
-    // SSCE always 0 on this response (pending); final score returned by poll endpoint
-
-    const scorePercent = Math.min(100, Math.round((earned / maxPossible) * 100));
-    const { label: confidenceLabel, level: confidenceLevel } = labelScore(scorePercent);
-    const decision = toDecision(scorePercent);
-
-    // ── Checkpoints ──────────────────────────────────────────────────────────
-    const checkpoints: Record<string, any> = {
-      nin: {
-        checkpoint: 'NIN Verification',
-        status: ninOk ? 'verified' : 'failed',
-        weight: `${WEIGHTS.nin} pts`,
-        earned: ninEarned,
-        data: ninOk ? {
-          firstName: ninData?.firstName, lastName: ninData?.lastName,
-          dateOfBirth: ninData?.dateOfBirth, gender: ninData?.gender, phone: ninData?.phone,
-        } : null,
-        error: ninOk ? null : (ninRes as any).error,
-      },
-      bvn: {
-        checkpoint: 'BVN Verification',
-        status: bvnOk ? 'verified' : 'failed',
-        weight: `${WEIGHTS.bvn} pts`,
-        earned: bvnEarned,
-        data: bvnOk ? {
-          firstName: bvnData?.firstName, lastName: bvnData?.lastName,
-          dateOfBirth: bvnData?.dateOfBirth, gender: bvnData?.gender, phone: bvnData?.phone,
-        } : null,
-        error: bvnOk ? null : (bvnRes as any).error,
-      },
-      crossMatch: {
-        checkpoint: 'Identity Cross-Reference (NIN ↔ BVN)',
-        status: (ninOk && bvnOk) ? 'completed' : 'skipped',
-        nameMatch: {
-          result: nameMatchPass,
-          score: nameScore,
-          earned: nameEarned,
-          weight: `${WEIGHTS.nameMatch} pts`,
-          ninName: ninFullName || null,
-          bvnName: bvnFullName || null,
-        },
-        dobMatch: {
-          result: dobMatchPass,
-          earned: dobEarned,
-          weight: `${WEIGHTS.dobMatch} pts`,
-          ninDob: ninData?.dateOfBirth || null,
-          bvnDob: bvnData?.dateOfBirth || null,
-        },
-      },
-      timeline: {
-        checkpoint: 'Timeline Validation',
-        status: !dob ? 'skipped' : (timeline.valid ? 'passed' : 'flagged'),
-        weight: `${WEIGHTS.timeline} pts`,
-        earned: timelineEarned,
-        employmentYear: empYear,
-        ageAtEmployment: timeline.ageAtEmployment,
-        ageAtExam: timeline.ageAtExam,
-        issues: timeline.issues,
-      },
-    };
-
-    if (ssce && ssceCheck) {
-      checkpoints.ssce = {
-        checkpoint: 'SSCE / Qualifications Check',
-        status: ssceCheck.status,
-        weight: `${WEIGHTS.ssce} pts`,
-        earned: 0,
-        ...ssceCheck,
-      };
-    }
-
-    // ── Persist request for polling ──────────────────────────────────────────
-    try {
-      await db.execute(sql`
-        INSERT INTO developer_employment_requests
-          (id, developer_id, nin, bvn, employment_year, level, consent_given, consent_at,
-           nin_score, bvn_score, name_match_score, dob_match, timeline_valid, timeline_score,
-           nin_data, bvn_data, flags, ssce_job_id, ssce_provider, initial_score)
-        VALUES
-          (${requestId}, ${dev.id}, ${nin.substring(0, 4) + '***'}, ${bvn.substring(0, 4) + '***'},
-           ${empYear}, ${level}, true, now(),
-           ${ninEarned}, ${bvnEarned}, ${nameScore}, ${dobMatchPass}, ${timeline.valid}, ${timelineEarned},
-           ${JSON.stringify(ninOk ? checkpoints.nin.data : null)}::jsonb,
-           ${JSON.stringify(bvnOk ? checkpoints.bvn.data : null)}::jsonb,
-           ${JSON.stringify(flags)}::jsonb,
-           ${ssceJobId ? ssceJobId : null}::uuid,
-           ${ssce?.provider?.toUpperCase() || null},
-           ${scorePercent})
-      `);
-    } catch (persistErr: any) {
-      logger.warn('Failed to persist employment request', { requestId, error: persistErr.message });
-    }
+    // ── LIVE: Insert queue record immediately, return 202 ─────────────────────
+    await db.execute(sql`
+      INSERT INTO developer_employment_requests
+        (id, developer_id, nin, bvn, employment_year, level, consent_given, consent_at,
+         ssce_provider, queue_status, developer_email, developer_name)
+      VALUES
+        (${requestId}, ${dev.id},
+         ${nin.substring(0, 4) + '***'}, ${bvn.substring(0, 4) + '***'},
+         ${empYear}, ${level}, true, now(),
+         ${ssce?.provider?.toUpperCase() || null},
+         'queued',
+         ${dev.email || null}, ${dev.name || null})
+    `);
 
     responseData = {
-      status: 'success',
-      code: 200,
-      message: 'Employment verification completed',
+      status: 'accepted', code: 202,
+      message: 'Employment verification queued. Poll the result endpoint for status.',
       data: {
         requestId,
         level,
-        processedAt: new Date().toISOString(),
-        decision,
-        flags,
+        queueStatus: 'queued',
+        submittedAt: new Date().toISOString(),
+        pollUrl: `GET /verify/employment/result/${requestId}`,
+        estimatedTime: ssce ? '60–120 seconds (SSCE lookup via RPA)' : '5–15 seconds (identity checks only)',
         checks: {
-          identity_match: ninOk && bvnOk,
-          name_match_score: nameScore,
-          dob_match: dobMatchPass,
-          education_verified: false,
-          timeline_valid: timeline.valid,
+          nin: 'queued',
+          bvn: 'queued',
+          ...(ssce ? { ssce: `queued — ${ssce.provider.toUpperCase()} (${ssce.examYear})` } : {}),
         },
-        confidence: {
-          score: scorePercent,
-          label: confidenceLabel,
-          grade: confidenceLevel,
-          earned,
-          maxPossible,
-          note: ssce
-            ? `Score will increase once SSCE result is retrieved. Poll GET /verify/employment/result/${requestId} for the final decision.`
-            : undefined,
-        },
-        checkpoints,
-        consentRecorded: { given: true, timestamp: new Date().toISOString() },
       },
     };
+    res.status(202).json(responseData);
 
-    res.json(responseData);
+    // ── BACKGROUND: Process NIN + BVN via Prembly, SSCE via RPA ─────────────
+    setImmediate(async () => {
+      try {
+        // Mark as processing
+        await db.execute(sql`
+          UPDATE developer_employment_requests SET queue_status = 'processing' WHERE id = ${requestId}
+        `);
+
+        const { premblyService } = await import('../../services/premblyService');
+        const [ninResult, bvnResult] = await Promise.allSettled([
+          premblyService.verifyNIN(nin),
+          premblyService.verifyBVN(bvn),
+        ]);
+
+        const ninRes = ninResult.status === 'fulfilled' ? ninResult.value : { success: false, error: (ninResult.reason as Error)?.message || 'NIN lookup failed' };
+        const bvnRes = bvnResult.status === 'fulfilled' ? bvnResult.value : { success: false, error: (bvnResult.reason as Error)?.message || 'BVN lookup failed' };
+
+        const ninOk = ninRes.success === true;
+        const bvnOk = bvnRes.success === true;
+        const ninData = (ninRes as any).data || null;
+        const bvnData = (bvnRes as any).data || null;
+
+        const ninFullName = `${ninData?.firstName || ''} ${ninData?.lastName || ''}`.trim();
+        const bvnFullName = `${bvnData?.firstName || ''} ${bvnData?.lastName || ''}`.trim();
+        const nameScore = (ninOk && bvnOk) ? nameSimilarityScore(ninFullName, bvnFullName) : 0;
+        const nameMatchPass = nameScore >= 0.72;
+        const dobMatchPass = (ninOk && bvnOk) ? dobsMatch(ninData?.dateOfBirth || '', bvnData?.dateOfBirth || '') : false;
+
+        const dob = ninData?.dateOfBirth || bvnData?.dateOfBirth || null;
+        const ssceYear = ssce?.examYear ? parseInt(ssce.examYear, 10) : null;
+        const timeline = validateTimeline(dob, ssceYear, empYear);
+
+        const flags: string[] = [];
+        if (!ninOk) flags.push(`NIN verification failed: ${(ninRes as any).error || 'unknown error'}`);
+        if (!bvnOk) flags.push(`BVN verification failed: ${(bvnRes as any).error || 'unknown error'}`);
+        if (ninOk && bvnOk && !nameMatchPass) flags.push(`Name mismatch between NIN and BVN (similarity: ${nameScore.toFixed(2)})`);
+        if (ninOk && bvnOk && !dobMatchPass) flags.push('Date of birth mismatch between NIN and BVN');
+        flags.push(...timeline.issues);
+
+        const WEIGHTS = { nin: 20, bvn: 20, nameMatch: 20, dobMatch: 15, timeline: 10, ssce: 15 };
+        const ninEarned      = ninOk ? WEIGHTS.nin : 0;
+        const bvnEarned      = bvnOk ? WEIGHTS.bvn : 0;
+        const nameEarned     = Math.round(nameScore * WEIGHTS.nameMatch);
+        const dobEarned      = dobMatchPass ? WEIGHTS.dobMatch : 0;
+        const timelineEarned = timeline.valid ? WEIGHTS.timeline : 0;
+        const identityEarned = ninEarned + bvnEarned + nameEarned + dobEarned + timelineEarned;
+
+        // Queue SSCE to RPA (WAEC/NECO/NABTEB/NBAIS)
+        let ssceJobId: string | null = null;
+        if (ssce) {
+          const serviceTypeMap: Record<string, string> = {
+            waec: 'waec_result', neco: 'neco_result',
+            nabteb: 'nabteb_result', nbais: 'nbais_result',
+          };
+          const svcType = serviceTypeMap[ssce.provider.toLowerCase()] || `${ssce.provider.toLowerCase()}_result`;
+          try {
+            const [job] = await db.insert(rpaJobs).values({
+              serviceType: svcType,
+              queryData: {
+                registrationNumber: ssce.registrationNumber,
+                examYear: ssce.examYear.toString(),
+                examType: ssce.provider.toUpperCase(),
+                source: 'developer_api_employment',
+                employmentRequestId: requestId,
+              },
+              status: 'pending',
+              priority: 5,
+            }).returning();
+            ssceJobId = job.id;
+          } catch (rpaErr: any) {
+            flags.push(`SSCE queue failed: ${rpaErr.message}`);
+          }
+        }
+
+        // Compute initial score (no SSCE yet)
+        const maxPossible = ssce ? 100 : 85;
+        const initialScore = Math.min(100, Math.round((identityEarned / maxPossible) * 100));
+        const initialDecision = toDecision(initialScore);
+
+        // Persist identity results back to queue record
+        const ninDataJson  = JSON.stringify(ninOk ? { firstName: ninData?.firstName, lastName: ninData?.lastName, dateOfBirth: ninData?.dateOfBirth, gender: ninData?.gender, phone: ninData?.phone } : null);
+        const bvnDataJson  = JSON.stringify(bvnOk ? { firstName: bvnData?.firstName, lastName: bvnData?.lastName, dateOfBirth: bvnData?.dateOfBirth, gender: bvnData?.gender, phone: bvnData?.phone } : null);
+        const flagsJson    = JSON.stringify(flags);
+
+        if (ssce) {
+          // SSCE still pending in RPA queue — stay 'processing'
+          await db.execute(sql`
+            UPDATE developer_employment_requests SET
+              nin_score       = ${ninEarned},
+              bvn_score       = ${bvnEarned},
+              name_match_score= ${nameScore},
+              dob_match       = ${dobMatchPass},
+              timeline_valid  = ${timeline.valid},
+              timeline_score  = ${timelineEarned},
+              nin_data        = ${ninDataJson}::jsonb,
+              bvn_data        = ${bvnDataJson}::jsonb,
+              flags           = ${flagsJson}::jsonb,
+              ssce_job_id     = ${ssceJobId}::uuid,
+              initial_score   = ${initialScore},
+              queue_status    = 'processing',
+              error_message   = null
+            WHERE id = ${requestId}
+          `);
+        } else {
+          // No SSCE — all checks done; mark completed
+          await db.execute(sql`
+            UPDATE developer_employment_requests SET
+              nin_score       = ${ninEarned},
+              bvn_score       = ${bvnEarned},
+              name_match_score= ${nameScore},
+              dob_match       = ${dobMatchPass},
+              timeline_valid  = ${timeline.valid},
+              timeline_score  = ${timelineEarned},
+              nin_data        = ${ninDataJson}::jsonb,
+              bvn_data        = ${bvnDataJson}::jsonb,
+              flags           = ${flagsJson}::jsonb,
+              initial_score   = ${initialScore},
+              final_score     = ${initialScore},
+              decision        = ${initialDecision},
+              queue_status    = 'completed',
+              completed_at    = now(),
+              error_message   = null
+            WHERE id = ${requestId}
+          `);
+        }
+
+        logger.info('Employment background processing done', {
+          requestId, ninOk, bvnOk, initialScore, hasSsce: !!ssce, ssceJobId,
+        });
+      } catch (bgErr: any) {
+        logger.error('Employment background processing error', { requestId, error: bgErr.message });
+        try {
+          await db.execute(sql`
+            UPDATE developer_employment_requests SET
+              queue_status = 'failed',
+              error_message = ${bgErr.message},
+              completed_at = now()
+            WHERE id = ${requestId}
+          `);
+        } catch {}
+      }
+    });
+
   } catch (e: any) {
     if (e.message?.includes('Insufficient')) {
       statusCode = 402;
@@ -1726,7 +1717,7 @@ router.post('/verify/employment', apiKeyAuth, async (req: Request, res: Response
     await logApiCall(dev.id, apiKeyId, '/verify/employment', 'POST',
       { nin: nin ? nin.substring(0, 4) + '***' : null, bvn: bvn ? bvn.substring(0, 4) + '***' : null, ssce, level, employment_year: empYear },
       responseData, statusCode,
-      statusCode === 200 ? API_PRICES[`employment_${level === 'higher' ? 'higher' : 'standard'}`] : 0,
+      [200, 202].includes(statusCode) ? API_PRICES[`employment_${level === 'higher' ? 'higher' : 'standard'}`] : 0,
       Date.now() - start, req.ip || '');
   }
 });
@@ -1757,6 +1748,41 @@ router.get('/verify/employment/result/:requestId', apiKeyAuth, async (req: Reque
       statusCode = 404;
       responseData = { status: 'error', code: 404, message: 'Employment request not found or does not belong to your account' };
       return res.status(404).json(responseData);
+    }
+
+    // If still in queue or being processed, return status early
+    const queueStatus = stored.queue_status || 'completed';
+    if (queueStatus === 'queued') {
+      statusCode = 202;
+      responseData = {
+        status: 'accepted', code: 202, message: 'Verification is queued and will begin processing shortly.',
+        data: { requestId, queueStatus: 'queued', submittedAt: stored.created_at, pollUrl: `GET /verify/employment/result/${requestId}` },
+      };
+      return res.status(202).json(responseData);
+    }
+    if (queueStatus === 'processing') {
+      statusCode = 202;
+      responseData = {
+        status: 'accepted', code: 202, message: 'Identity checks complete. SSCE result is being retrieved via RPA.',
+        data: {
+          requestId, queueStatus: 'processing', submittedAt: stored.created_at,
+          pollUrl: `GET /verify/employment/result/${requestId}`,
+          partial: {
+            nin: stored.nin_score > 0 ? 'verified' : 'pending',
+            bvn: stored.bvn_score > 0 ? 'verified' : 'pending',
+            ssce: 'processing — ' + (stored.ssce_provider || 'unknown'),
+          },
+        },
+      };
+      return res.status(202).json(responseData);
+    }
+    if (queueStatus === 'failed') {
+      statusCode = 500;
+      responseData = {
+        status: 'error', code: 500, message: 'Employment verification processing failed.',
+        data: { requestId, queueStatus: 'failed', error: stored.error_message || 'Unknown error', submittedAt: stored.created_at },
+      };
+      return res.status(500).json(responseData);
     }
 
     // Base earned score (identity checkpoints already computed)
@@ -2312,6 +2338,137 @@ async function writeAuditLog(adminId: string, action: string, targetDeveloperId:
     `);
   } catch {}
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMIN: EMPLOYMENT QUEUE MONITORING
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /admin/queue/stats — queue summary counts
+router.get('/admin/queue/stats', adminAuth, async (req: Request, res: Response) => {
+  try {
+    const stats = (await db.execute(sql`
+      SELECT
+        COUNT(*) FILTER (WHERE queue_status = 'queued')::int     AS queued,
+        COUNT(*) FILTER (WHERE queue_status = 'processing')::int AS processing,
+        COUNT(*) FILTER (WHERE queue_status = 'completed')::int  AS completed,
+        COUNT(*) FILTER (WHERE queue_status = 'failed')::int     AS failed,
+        COUNT(*)::int                                             AS total,
+        COUNT(*) FILTER (WHERE ssce_job_id IS NOT NULL)::int     AS with_ssce,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours')::int AS last_24h
+      FROM developer_employment_requests
+    `)).rows[0] as any;
+
+    const providerBreakdown = (await db.execute(sql`
+      SELECT ssce_provider, COUNT(*)::int AS count
+      FROM developer_employment_requests
+      WHERE ssce_provider IS NOT NULL
+      GROUP BY ssce_provider ORDER BY count DESC
+    `)).rows;
+
+    res.json({ status: 'success', code: 200, data: { ...stats, providerBreakdown } });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to fetch queue stats' });
+  }
+});
+
+// GET /admin/queue/employment — paginated queue listing with filters
+router.get('/admin/queue/employment', adminAuth, async (req: Request, res: Response) => {
+  const page   = parseInt(req.query.page as string) || 1;
+  const limit  = parseInt(req.query.limit as string) || 20;
+  const offset = (page - 1) * limit;
+  const status = req.query.status as string || '';
+  const provider = req.query.provider as string || '';
+  const search = req.query.search as string || '';
+
+  try {
+    const rows = (await db.execute(sql`
+      SELECT
+        e.id, e.developer_id, e.developer_email, e.developer_name,
+        e.nin, e.bvn, e.employment_year, e.level, e.ssce_provider,
+        e.queue_status, e.decision, e.initial_score, e.final_score,
+        e.nin_score, e.bvn_score, e.name_match_score, e.dob_match, e.timeline_valid,
+        e.flags, e.error_message, e.consent_given, e.ssce_job_id,
+        e.created_at, e.completed_at,
+        j.status AS rpa_status, j.created_at AS rpa_queued_at, j.completed_at AS rpa_completed_at
+      FROM developer_employment_requests e
+      LEFT JOIN rpa_jobs j ON j.id = e.ssce_job_id
+      WHERE 1=1
+        ${status   ? sql`AND e.queue_status = ${status}` : sql``}
+        ${provider ? sql`AND e.ssce_provider = ${provider.toUpperCase()}` : sql``}
+        ${search   ? sql`AND (e.developer_email ILIKE ${'%' + search + '%'} OR e.developer_name ILIKE ${'%' + search + '%'} OR e.id ILIKE ${'%' + search + '%'})` : sql``}
+      ORDER BY e.created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `)).rows;
+
+    const total = (await db.execute(sql`
+      SELECT COUNT(*)::int AS cnt FROM developer_employment_requests
+      WHERE 1=1
+        ${status   ? sql`AND queue_status = ${status}` : sql``}
+        ${provider ? sql`AND ssce_provider = ${provider.toUpperCase()}` : sql``}
+        ${search   ? sql`AND (developer_email ILIKE ${'%' + search + '%'} OR developer_name ILIKE ${'%' + search + '%'} OR id ILIKE ${'%' + search + '%'})` : sql``}
+    `)).rows[0] as any;
+
+    res.json({
+      status: 'success', code: 200,
+      data: { items: rows, total: total.cnt, page, limit, pages: Math.ceil(total.cnt / limit) },
+    });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to fetch queue' });
+  }
+});
+
+// GET /admin/queue/employment/:id — detailed view of one queue item
+router.get('/admin/queue/employment/:id', adminAuth, async (req: Request, res: Response) => {
+  try {
+    const row = (await db.execute(sql`
+      SELECT e.*, j.status AS rpa_status, j.result AS rpa_result, j.error AS rpa_error,
+             j.created_at AS rpa_queued_at, j.completed_at AS rpa_completed_at,
+             j.query_data AS rpa_query_data
+      FROM developer_employment_requests e
+      LEFT JOIN rpa_jobs j ON j.id = e.ssce_job_id
+      WHERE e.id = ${req.params.id}
+      LIMIT 1
+    `)).rows[0] as any;
+    if (!row) return res.status(404).json({ status: 'error', code: 404, message: 'Queue item not found' });
+    res.json({ status: 'success', code: 200, data: row });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to fetch queue item' });
+  }
+});
+
+// PATCH /admin/queue/employment/:id/retry — requeue a failed job
+router.patch('/admin/queue/employment/:id/retry', adminAuth, async (req: Request, res: Response) => {
+  try {
+    const row = (await db.execute(sql`
+      SELECT * FROM developer_employment_requests WHERE id = ${req.params.id} LIMIT 1
+    `)).rows[0] as any;
+    if (!row) return res.status(404).json({ status: 'error', code: 404, message: 'Queue item not found' });
+    if (row.queue_status !== 'failed') {
+      return res.status(400).json({ status: 'error', code: 400, message: 'Only failed jobs can be retried' });
+    }
+
+    // Reset to queued so the background worker picks it up again
+    await db.execute(sql`
+      UPDATE developer_employment_requests SET
+        queue_status = 'queued', error_message = null, completed_at = null
+      WHERE id = ${req.params.id}
+    `);
+
+    res.json({ status: 'success', code: 200, message: 'Job requeued successfully', data: { id: req.params.id } });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to retry job' });
+  }
+});
+
+// DELETE /admin/queue/employment/:id — remove a queue entry (admin cleanup)
+router.delete('/admin/queue/employment/:id', adminAuth, async (req: Request, res: Response) => {
+  try {
+    await db.execute(sql`DELETE FROM developer_employment_requests WHERE id = ${req.params.id}`);
+    res.json({ status: 'success', code: 200, message: 'Queue entry removed' });
+  } catch (e: any) {
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to delete queue entry' });
+  }
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WEBHOOK MANAGEMENT (JWT auth)
