@@ -24,7 +24,8 @@ import {
   MessageSquare,
   Receipt,
   Cpu,
-  Code2
+  Code2,
+  ListTodo
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -81,6 +82,7 @@ const ALL_NAV_ITEMS = [
   { href: "/admin/transactions", label: "Transactions", icon: Receipt, permission: "transactions" },
   { href: "/admin/rpa-jobs", label: "RPA Job Monitor", icon: Cpu, permission: "education" },
   { href: "/admin/developer-portal", label: "Developer Portal", icon: Code2, permission: "settings" },
+  { href: "/admin/employment-queue", label: "Employment Queue", icon: ListTodo, permission: "settings" },
   { href: "/admin/whatsapp", label: "WhatsApp", icon: MessageSquare, permission: "whatsapp" },
   { href: "/admin/roles", label: "Role Management", icon: Shield, permission: "roles" },
   { href: "/admin/settings", label: "Settings", icon: Settings, permission: "settings" },
