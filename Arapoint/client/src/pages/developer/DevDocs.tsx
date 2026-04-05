@@ -97,35 +97,49 @@ const endpoints = [
     method: "POST",
     path: "/verify/education",
     title: "Education Verification",
-    description: "Verify academic results from WAEC, NECO, NABTEB, NBAIS, or JAMB. This is an asynchronous operation — the API accepts the request and returns a requestId immediately. Results are delivered via webhook or can be polled using the result endpoint.",
+    description: "Verify academic results from WAEC, NECO, NABTEB, or NBAIS. This is asynchronous — the API queues the request and returns a jobId immediately. Results are delivered via webhook or can be polled. Each exam body requires different fields — see parameters below.",
     price: 250,
     auth: "api-key",
     async: true,
-    request: { provider: "waec", examYear: 2023, registrationNumber: "4190101001", examType: "school_candidate" },
+    request: {
+      provider: "waec",
+      registrationNumber: "4190101001",
+      examYear: 2023,
+      examType: "WASSCE",
+      cardPin: "12345678",
+      cardSerialNumber: "AA123456789"
+    },
     response: {
       status: "success",
       code: 200,
-      message: "Education verification request accepted",
+      message: "Education verification queued",
       data: {
         provider: "WAEC",
         examYear: 2023,
         registrationNumber: "4190101001",
         status: "processing",
-        requestId: "EDU-abc123def456",
-        message: "Result will be delivered via webhook or poll /verify/education/result"
+        jobId: "uuid-job-id-here",
+        note: "Results will be available in 1-3 minutes. Poll GET /verify/education/result?jobId=<jobId>"
       }
     },
     params: [
-      { name: "provider", type: "string", required: true, desc: "One of: waec, neco, nabteb, nbais, jamb" },
-      { name: "registrationNumber", type: "string", required: true, desc: "Candidate's exam registration number" },
-      { name: "examYear", type: "number", required: true, desc: "Year of exam (e.g. 2023)" },
-      { name: "examType", type: "string", required: false, desc: "For NECO: school_candidate or gce" },
+      { name: "provider", type: "string", required: true, desc: "Exam body. One of: waec, neco, nabteb, nbais" },
+      { name: "registrationNumber", type: "string", required: true, desc: "WAEC/NABTEB: Examination Number | NECO: Registration Number | NBAIS: Exam Number" },
+      { name: "examYear", type: "number", required: true, desc: "Year of examination (e.g. 2023)" },
+      { name: "examType", type: "string", required: true, desc: "WAEC: WASSCE or GCE | NECO: school_candidate or private | NABTEB: MAY/JUN or NOV/DEC | NBAIS: AISSCE" },
+      { name: "cardPin", type: "string", required: true, desc: "WAEC/NABTEB/NBAIS: scratch-card PIN | NECO: verification token" },
+      { name: "cardSerialNumber", type: "string", required: true, desc: "WAEC & NABTEB only: scratch-card serial number. Not required for NECO or NBAIS." },
+      { name: "state", type: "string", required: true, desc: "NBAIS only: candidate state of origin (e.g. Kano). Not required for other providers." },
+      { name: "schoolName", type: "string", required: true, desc: "NBAIS only: candidate school name. Not required for other providers." },
+      { name: "examMonth", type: "string", required: true, desc: "NBAIS only: exam month — MAY or NOV. Not required for other providers." },
     ],
     notes: [
-      "This is ASYNC — you will NOT get results immediately",
-      "Poll GET /verify/education/result?requestId=EDU-xxx for status",
-      "Or configure webhooks to receive verification.completed event automatically",
-      "Charge is deducted when the request is accepted, not when result arrives",
+      "ASYNC — results are NOT returned immediately. Poll or use webhooks.",
+      "NECO requires: registrationNumber, examYear, examType (school_candidate/private), cardPin (token)",
+      "WAEC requires: registrationNumber, examYear, examType (WASSCE/GCE), cardPin (PIN), cardSerialNumber",
+      "NABTEB requires: registrationNumber, examYear, examType (MAY/JUN or NOV/DEC), cardPin (PIN), cardSerialNumber",
+      "NBAIS requires: registrationNumber, examYear, examType, examMonth (MAY/NOV), state, schoolName, cardPin (PIN)",
+      "Charge is deducted when the request is accepted, not when the result arrives",
     ]
   },
   {
@@ -951,7 +965,7 @@ export default function DevDocs() {
                     <div className="bg-gray-800/40 border border-gray-700 rounded-lg p-3">
                       <p className="text-xs text-white font-semibold mb-1">Education Verification</p>
                       <p className="text-xs text-gray-400">Retrieves results directly from WAEC, NECO, NABTEB, NBAIS, and JAMB certificate portals via Arapoint's automated verification engine. Results typically arrive within <span className="text-white">1–5 minutes</span>.</p>
-                      <p className="text-xs text-gray-500 mt-1.5">Poll: <code className="text-indigo-300">GET /verify/education/result?requestId=xxx</code></p>
+                      <p className="text-xs text-gray-500 mt-1.5">Poll: <code className="text-indigo-300">GET /verify/education/result?jobId=xxx</code></p>
                       <p className="text-xs text-gray-500">Webhook event: <code className="text-purple-300">verification.completed</code></p>
                     </div>
                     <div className="bg-gray-800/40 border border-gray-700 rounded-lg p-3">
@@ -1029,11 +1043,11 @@ export default function DevDocs() {
 
                   <div>
                     <p className="text-xs text-gray-400 font-medium mb-2">Education result polling example (JavaScript)</p>
-                    <CopyableCode code={`async function pollEducationResult(requestId, apiKey) {
+                    <CopyableCode code={`async function pollEducationResult(jobId, apiKey) {
   const maxAttempts = 20;
   for (let i = 0; i < maxAttempts; i++) {
     const res = await fetch(
-      \`${BASE_URL}/verify/education/result?requestId=\${requestId}\`,
+      \`${BASE_URL}/verify/education/result?jobId=\${jobId}\`,
       { headers: { "X-API-Key": apiKey } }
     );
     const data = await res.json();
@@ -1372,11 +1386,15 @@ app.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
   verifyBVN(bvn: string) {
     return this.request("POST", "/verify/bvn", { bvn });
   }
-  verifyEducation(provider: string, registrationNumber: string, examYear: number) {
-    return this.request("POST", "/verify/education", { provider, registrationNumber, examYear });
+  verifyEducation(payload: {
+    provider: string; registrationNumber: string; examYear: number; examType: string;
+    cardPin: string; cardSerialNumber?: string;
+    state?: string; schoolName?: string; examMonth?: string;
+  }) {
+    return this.request("POST", "/verify/education", payload);
   }
-  getEducationResult(requestId: string) {
-    return this.request("GET", \`/verify/education/result?requestId=\${requestId}\`);
+  getEducationResult(jobId: string) {
+    return this.request("GET", \`/verify/education/result?jobId=\${jobId}\`);
   }
   verifyUnified(nin?: string, bvn?: string, education?: object) {
     return this.request("POST", "/verify/unified", { nin, bvn, education });

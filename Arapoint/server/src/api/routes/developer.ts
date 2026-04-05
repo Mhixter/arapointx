@@ -1081,7 +1081,17 @@ router.post('/verify/education', apiKeyAuth, async (req: Request, res: Response)
   const start = Date.now();
   const dev = (req as any).developer;
   const apiKeyId = (req as any).apiKeyId;
-  const { provider, examYear, registrationNumber, examType } = req.body;
+  const {
+    provider,
+    examYear,
+    registrationNumber,
+    examType,
+    cardPin,
+    cardSerialNumber,
+    state,
+    schoolName,
+    examMonth,
+  } = req.body;
   let statusCode = 200;
   let responseData: any;
 
@@ -1089,17 +1099,38 @@ router.post('/verify/education', apiKeyAuth, async (req: Request, res: Response)
     const validProviders = ['waec', 'neco', 'nabteb', 'nbais', 'jamb'];
     if (!provider || !validProviders.includes(provider.toLowerCase())) {
       statusCode = 400;
-      responseData = { status: 'error', code: 400, message: `Provider required. Valid: ${validProviders.join(', ')}` };
+      responseData = { status: 'error', code: 400, message: `provider required. Valid values: ${validProviders.join(', ')}` };
       return res.status(400).json(responseData);
     }
-    if (!registrationNumber) {
-      statusCode = 400;
-      responseData = { status: 'error', code: 400, message: 'Registration number required' };
-      return res.status(400).json(responseData);
+
+    const p = provider.toLowerCase();
+    const missing: string[] = [];
+
+    if (!registrationNumber) missing.push('registrationNumber');
+    if (!examYear) missing.push('examYear');
+    if (!examType) missing.push('examType');
+
+    if (p === 'neco') {
+      if (!cardPin) missing.push('cardPin (NECO token)');
+    } else if (p === 'waec') {
+      if (!cardPin) missing.push('cardPin (scratch-card PIN)');
+      if (!cardSerialNumber) missing.push('cardSerialNumber (scratch-card serial number)');
+    } else if (p === 'nabteb') {
+      if (!cardPin) missing.push('cardPin (scratch-card PIN)');
+      if (!cardSerialNumber) missing.push('cardSerialNumber (card serial number)');
+    } else if (p === 'nbais') {
+      if (!examMonth) missing.push('examMonth (e.g. MAY or NOV)');
+      if (!state) missing.push('state (candidate state of origin)');
+      if (!schoolName) missing.push('schoolName (candidate school name)');
+      if (!cardPin) missing.push('cardPin (scratch-card PIN)');
     }
-    if (!examYear) {
+
+    if (missing.length > 0) {
       statusCode = 400;
-      responseData = { status: 'error', code: 400, message: 'Exam year required' };
+      responseData = {
+        status: 'error', code: 400,
+        message: `Missing required fields for ${p.toUpperCase()}: ${missing.join(', ')}`,
+      };
       return res.status(400).json(responseData);
     }
 
@@ -1126,14 +1157,19 @@ router.post('/verify/education', apiKeyAuth, async (req: Request, res: Response)
       nbais: 'nbais_result',
       jamb: 'jamb_score',
     };
-    const serviceType = serviceTypeMap[provider.toLowerCase()] || `${provider.toLowerCase()}_result`;
+    const serviceType = serviceTypeMap[p] || `${p}_result`;
 
     const [job] = await db.insert(rpaJobs).values({
       serviceType,
       queryData: {
         registrationNumber,
-        examYear: examYear.toString(),
+        examYear: parseInt(String(examYear), 10),
         examType: examType || provider.toUpperCase(),
+        ...(cardPin        ? { cardPin }        : {}),
+        ...(cardSerialNumber ? { cardSerialNumber } : {}),
+        ...(state          ? { state }          : {}),
+        ...(schoolName     ? { schoolName }     : {}),
+        ...(examMonth      ? { examMonth }      : {}),
         source: 'developer_api',
         developerId: dev.id,
       },
@@ -1142,7 +1178,7 @@ router.post('/verify/education', apiKeyAuth, async (req: Request, res: Response)
     }).returning({ id: rpaJobs.id });
 
     responseData = {
-      status: 'success', code: 200, message: 'Education verification queued via RPA',
+      status: 'success', code: 200, message: 'Education verification queued',
       data: {
         provider: provider.toUpperCase(),
         examYear,
@@ -1164,7 +1200,8 @@ router.post('/verify/education', apiKeyAuth, async (req: Request, res: Response)
     res.status(500).json(responseData);
   } finally {
     await logApiCall(dev.id, apiKeyId, '/verify/education', 'POST',
-      { provider, examYear, registrationNumber, examType },
+      { provider, examYear, registrationNumber, examType,
+        cardPin: cardPin ? '***' : undefined, cardSerialNumber, state, schoolName, examMonth },
       responseData, statusCode, statusCode === 200 ? API_PRICES.education : 0,
       Date.now() - start, req.ip || '');
   }

@@ -14,6 +14,9 @@ interface EducationQueryData {
   cardSerialNumber?: string;
   cardPin?: string;
   portalUrl?: string;
+  state?: string;
+  schoolName?: string;
+  examMonth?: string;
 }
 
 interface ExamSubject {
@@ -45,6 +48,7 @@ interface ProviderProfile {
     serialInput: string;
     pinInput: string;
     tokenInput: string;
+    [key: string]: string;
   };
   examTypeNormalizer: (examType: string) => { isInternal: boolean };
   defaultExamType: string;
@@ -116,10 +120,13 @@ const PROVIDER_PROFILES: Record<string, ProviderProfile> = {
     selectors: {
       examYearSelect: 'select[name="ExamYear"], select#ExamYear',
       examTypeSelect: 'select[name="ExamType"], select#ExamType',
-      examNumberInput: 'input[name="ExamNumber"], input#ExamNumber, input[placeholder*="Registration"]',
+      examNumberInput: 'input[name="ExamNumber"], input#ExamNumber, input[placeholder*="Registration"], input[placeholder*="Exam Number"]',
       serialInput: 'input[name="SerialNumber"], input#SerialNumber',
-      pinInput: 'input[name="Pin"], input#Pin, input[type="password"]',
+      pinInput: 'input[name="Pin"], input#Pin, input[name="PIN"], input[type="password"]',
       tokenInput: 'input[name="token"], input#token',
+      stateSelect: 'select[name="State"], select#State, select[name="state"], select[placeholder*="State"]',
+      schoolNameInput: 'input[name="SchoolName"], input#SchoolName, input[name="schoolName"], input[placeholder*="School"]',
+      examMonthSelect: 'select[name="Month"], select[name="ExamMonth"], select#ExamMonth, select[name="month"]',
     },
     examTypeNormalizer: () => ({ isInternal: true }),
     defaultExamType: 'AISSCE',
@@ -600,6 +607,21 @@ export class EducationWorker extends BaseWorker {
       }
     }
 
+    // NBAIS-specific fields: state, school name, exam month
+    if (this.provider === 'nbais') {
+      if (data.state && selectors.stateSelect) {
+        await this.selectByText(page, selectors.stateSelect, data.state, 'state');
+        await this.sleep(500);
+      }
+      if (data.schoolName && selectors.schoolNameInput) {
+        await this.fillField(page, selectors.schoolNameInput, data.schoolName, 'school name');
+      }
+      if (data.examMonth && selectors.examMonthSelect) {
+        await this.selectByText(page, selectors.examMonthSelect, data.examMonth, 'exam month');
+        await this.sleep(400);
+      }
+    }
+
     await this.sleep(500);
 
     // Read back ALL inputs (any type) to confirm exact values being submitted
@@ -988,6 +1010,39 @@ export class EducationWorker extends BaseWorker {
     }
     
     logger.warn(`Could not find ${fieldName} input field`);
+  }
+
+  private async selectByText(page: Page, selectorString: string, value: string, fieldName: string): Promise<void> {
+    const selectorList = this.parseSelectors(selectorString);
+    const valueLower = value.toLowerCase();
+
+    for (const selector of selectorList) {
+      try {
+        const selected = await page.evaluate((sel: string, val: string) => {
+          const el = document.querySelector(sel) as HTMLSelectElement | null;
+          if (!el) return false;
+          const options = Array.from(el.querySelectorAll('option'));
+          for (let i = 0; i < options.length; i++) {
+            const text = (options[i].textContent || '').toLowerCase();
+            const optVal = (options[i].value || '').toLowerCase();
+            if (text.includes(val) || optVal.includes(val)) {
+              el.selectedIndex = i;
+              el.dispatchEvent(new Event('change', { bubbles: true }));
+              el.dispatchEvent(new Event('input', { bubbles: true }));
+              return true;
+            }
+          }
+          return false;
+        }, selector, valueLower);
+
+        if (selected) {
+          logger.info(`Selected ${fieldName}`, { selector, value });
+          return;
+        }
+      } catch { continue; }
+    }
+
+    logger.warn(`Could not select ${fieldName} option`, { value });
   }
 
   private async handleNecoConfirmation(page: Page): Promise<boolean> {
