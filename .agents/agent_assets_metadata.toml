@@ -1,5 +1,10 @@
 uploads = []
-generated = []
+
+[[generated]]
+id = "kc7EL4MYWe-uaJFr_Xnqe"
+uri = "file://public/images/shield-badge.png"
+type = "image"
+title = "Security shield badge"
 
 [[outputs]]
 id = "z6o-oO6GVSPv_J9EZkzSF"

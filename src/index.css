@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: #0F2346;
+    --foreground: #f0f4ff;
+    --primary: #1C3A6B;
+    --accent: #6DB33F;
+    --font-display: 'Plus Jakarta Sans', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-display);
+    overflow: hidden;
+  }
+}
+
+.clip-path-slant {
+  clip-path: polygon(0 0, 100% 0, 90% 100%, 0% 100%);
+}
