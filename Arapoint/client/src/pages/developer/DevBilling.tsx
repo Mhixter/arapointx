@@ -120,11 +120,11 @@ export default function DevBilling() {
   };
 
   const totalFunded = transactions
-    .filter(t => t.transaction_type === "wallet_funding")
+    .filter(t => t.transactionType === "wallet_funding")
     .reduce((s, t) => s + Math.abs(parseFloat(t.amount || "0")), 0);
 
   const totalSpent = transactions
-    .filter(t => t.transaction_type === "api_charge")
+    .filter(t => t.transactionType === "api_charge")
     .reduce((s, t) => s + Math.abs(parseFloat(t.amount || "0")), 0);
 
   return (
@@ -281,9 +281,9 @@ export default function DevBilling() {
             ) : (
               <div className="space-y-2">
                 {transactions.map(tx => {
-                  const isCredit = tx.transaction_type === "wallet_funding";
+                  const isCredit = tx.transactionType === "wallet_funding";
                   const amt = Math.abs(parseFloat(tx.amount || "0"));
-                  const isAdminCredit = (tx.reference_id || tx.referenceId || "").startsWith("ADMIN-SANDBOX-");
+                  const isAdminCredit = (tx.referenceId || "").startsWith("ADMIN-SANDBOX-");
                   return (
                     <div key={tx.id} className="flex items-center gap-3 py-2.5 border-b border-gray-800 last:border-0">
                       <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${isCredit ? "bg-[#12B76A1A]" : "bg-red-500/10"}`}>
@@ -292,9 +292,9 @@ export default function DevBilling() {
                           : <ArrowUpRight className="w-3.5 h-3.5 text-red-400" />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-200 truncate">{tx.description || tx.transaction_type}</p>
+                        <p className="text-sm text-gray-200 truncate">{tx.description || tx.transactionType}</p>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <p className="text-xs text-gray-500">{new Date(tx.created_at).toLocaleString()}</p>
+                          <p className="text-xs text-gray-500">{new Date(tx.createdAt).toLocaleString()}</p>
                           {isAdminCredit && (
                             <span className="text-xs text-amber-400/80 bg-amber-400/10 px-1.5 py-0.5 rounded">Admin Credit</span>
                           )}

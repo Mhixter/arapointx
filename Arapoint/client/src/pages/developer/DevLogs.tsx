@@ -81,16 +81,16 @@ export default function DevLogs() {
                         onClick={() => setSelected(selected?.id === log.id ? null : log)}
                         className={`w-full flex items-center gap-3 px-4 py-3 border-b border-gray-800 last:border-0 hover:bg-gray-800 transition-colors text-left ${selected?.id === log.id ? "bg-gray-800" : ""}`}
                       >
-                        {getStatusIcon(log.status_code)}
+                        {getStatusIcon(log.statusCode)}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-0.5">
                             <span className="text-xs font-mono text-gray-300 truncate">{log.method} {log.endpoint}</span>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span className="text-xs text-gray-500">{new Date(log.created_at).toLocaleString()}</span>
-                            {log.duration_ms && (
+                            <span className="text-xs text-gray-500">{new Date(log.createdAt).toLocaleString()}</span>
+                            {log.durationMs && (
                               <span className="text-xs text-gray-500 flex items-center gap-1">
-                                <Clock className="w-2.5 h-2.5" />{log.duration_ms}ms
+                                <Clock className="w-2.5 h-2.5" />{log.durationMs}ms
                               </span>
                             )}
                           </div>
@@ -99,8 +99,8 @@ export default function DevLogs() {
                           {parseFloat(log.cost || "0") > 0 && (
                             <span className="text-xs text-gray-500">₦{parseFloat(log.cost).toFixed(0)}</span>
                           )}
-                          <Badge variant="outline" className={`text-xs ${getStatusColor(log.status_code)}`}>
-                            {log.status_code}
+                          <Badge variant="outline" className={`text-xs ${getStatusColor(log.statusCode)}`}>
+                            {log.statusCode}
                           </Badge>
                         </div>
                       </button>
@@ -135,18 +135,18 @@ export default function DevLogs() {
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 mb-1">Status</p>
-                    <Badge variant="outline" className={`text-xs ${getStatusColor(selected.status_code)}`}>
-                      {selected.status_code}
+                    <Badge variant="outline" className={`text-xs ${getStatusColor(selected.statusCode)}`}>
+                      {selected.statusCode}
                     </Badge>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 mb-1">Time</p>
-                    <p className="text-xs text-gray-200">{new Date(selected.created_at).toLocaleString()}</p>
+                    <p className="text-xs text-gray-200">{new Date(selected.createdAt).toLocaleString()}</p>
                   </div>
-                  {selected.duration_ms && (
+                  {selected.durationMs && (
                     <div>
                       <p className="text-xs text-gray-400 mb-1">Duration</p>
-                      <p className="text-xs text-gray-200">{selected.duration_ms}ms</p>
+                      <p className="text-xs text-gray-200">{selected.durationMs}ms</p>
                     </div>
                   )}
                   {parseFloat(selected.cost || "0") > 0 && (
@@ -158,13 +158,13 @@ export default function DevLogs() {
                   <div>
                     <p className="text-xs text-gray-400 mb-1">Request</p>
                     <pre className="bg-gray-800 rounded p-2 text-xs text-gray-300 overflow-auto max-h-40">
-                      {JSON.stringify(selected.request_body || {}, null, 2)}
+                      {JSON.stringify(selected.requestBody || {}, null, 2)}
                     </pre>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 mb-1">Response</p>
                     <pre className="bg-gray-800 rounded p-2 text-xs text-gray-300 overflow-auto max-h-40">
-                      {JSON.stringify(selected.response_body || {}, null, 2)}
+                      {JSON.stringify(selected.responseBody || {}, null, 2)}
                     </pre>
                   </div>
                 </CardContent>
