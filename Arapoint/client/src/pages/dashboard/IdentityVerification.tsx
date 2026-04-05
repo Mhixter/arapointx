@@ -24,7 +24,7 @@ import {
 export const SERVICES = [
   { id: "nin-verification", name: "NIN Verification", icon: ShieldCheck, color: "text-green-600", bg: "bg-green-100 dark:bg-green-900/20", desc: "Verify using 11-digit NIN", category: "Verification", badge: "Popular" },
   { id: "nin-phone", name: "NIN With Phone", icon: Smartphone, color: "text-blue-600", bg: "bg-blue-100 dark:bg-blue-900/20", desc: "Search NIN using Phone Number", category: "Verification" },
-  { id: "nin-tracking", name: "NIN With Tracking ID", icon: Hash, color: "text-cyan-600", bg: "bg-cyan-100 dark:bg-cyan-900/20", desc: "Verify using NIMC Tracking ID", category: "Verification" },
+  { id: "nin-tracking", name: "NIN With Tracking ID", icon: Hash, color: "text-cyan-600", bg: "bg-cyan-100 dark:bg-cyan-900/20", desc: "Verify using NIN Tracking ID", category: "Verification" },
   { id: "ipe-clearance", name: "IPE Clearance", icon: RefreshCw, color: "text-teal-600", bg: "bg-teal-100 dark:bg-teal-900/20", desc: "Clear IPE errors and enrollment issues", category: "Management" },
   { id: "validation", name: "Validation", icon: FileCheck, color: "text-emerald-600", bg: "bg-emerald-100 dark:bg-emerald-900/20", desc: "Record validation and corrections", category: "Management" },
   { id: "personalization", name: "Personalization", icon: UserCog, color: "text-pink-600", bg: "bg-pink-100 dark:bg-pink-900/20", desc: "Customize Identity Data", category: "Management" },
@@ -111,8 +111,8 @@ export default function IdentityVerification() {
         <div className="text-sm">
           <p className="font-semibold text-amber-800 dark:text-amber-200">Legal Disclaimer</p>
           <p className="text-amber-700 dark:text-amber-300 mt-1 leading-relaxed">
-            Arapoint is an independent service provider and is <strong>NOT</strong> an official partner or affiliate of the National Identity Management Commission (NIMC).
-            We act as authorized agents to assist you with NIN services. Your data is handled in compliance with Nigerian data protection regulations (NDPR).
+            Arapoint is an independent identity verification platform and is <strong>NOT</strong> a government agency.
+            We provide authorised NIN verification services through licensed channels. Your data is handled in compliance with the Nigerian Data Protection Act (NDPA 2023).
           </p>
         </div>
       </div>

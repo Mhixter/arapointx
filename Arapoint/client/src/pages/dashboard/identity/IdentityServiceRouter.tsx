@@ -574,7 +574,7 @@ function ServiceContent({ service }: { service: any }) {
               {/* Step 2 */}
               <div>
                 <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
-                  <StepBadge n={2} /> Enter NIMC Tracking ID
+                  <StepBadge n={2} /> Enter NIN Tracking ID
                 </p>
                 <Input
                   name="input"
@@ -648,7 +648,7 @@ function ServiceContent({ service }: { service: any }) {
                 </p>
                 <Input
                   name="trackingId"
-                  placeholder="Enter your NIMC Tracking ID"
+                  placeholder="Enter your NIN Tracking ID"
                   required
                   className="h-12 bg-gray-50 dark:bg-gray-800 font-mono tracking-widest"
                 />
@@ -787,7 +787,7 @@ function ServiceContent({ service }: { service: any }) {
                 </p>
                 <Input
                   name="input"
-                  placeholder="Enter your NIMC Tracking ID or Reference"
+                  placeholder="Enter your NIN Tracking ID or Reference"
                   required
                   className="h-12 font-mono tracking-widest bg-gray-50 dark:bg-gray-800"
                 />

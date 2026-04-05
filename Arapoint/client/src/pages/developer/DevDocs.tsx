@@ -19,7 +19,7 @@ const endpoints = [
     method: "POST",
     path: "/verify/nin",
     title: "NIN Verification",
-    description: "Verify a National Identification Number in real-time. Returns full identity data including name, date of birth, gender, and address as held in the NIMC database. You can verify by NIN number or by phone number.",
+    description: "Verify a National Identification Number in real-time. Returns full identity data including name, date of birth, gender, and address from official government identity registries. You can verify by NIN number or by phone number.",
     price: 130,
     auth: "api-key",
     async: false,
@@ -40,7 +40,7 @@ const endpoints = [
           nin: "12345678901",
           address: "12 Lagos Street, Abuja"
         },
-        source: "NIMC",
+        source: "ARAPOINT",
         cached: false,
         requestId: "NIN-abc123"
       }
@@ -60,7 +60,7 @@ const endpoints = [
     method: "POST",
     path: "/verify/bvn",
     title: "BVN Verification",
-    description: "Verify a Bank Verification Number and retrieve the associated identity record from the CBN database. Used to confirm a person's banking identity and cross-reference with other identity documents.",
+    description: "Verify a Bank Verification Number and retrieve the associated identity record from the national banking verification network. Used to confirm a person's banking identity and cross-reference with other identity documents.",
     price: 80,
     auth: "api-key",
     async: false,
@@ -201,7 +201,7 @@ const endpoints = [
     method: "POST",
     path: "/verify/employment",
     title: "Employment Background Check",
-    description: "Submit an employment background check that cross-references NIN, BVN, and optional SSCE certificate results. This is an asynchronous operation — the API accepts the request and returns a requestId and HTTP 202 immediately. The check runs in the background (Prembly for NIN+BVN, RPA bot for SSCE). Poll the result endpoint or configure webhooks to receive the final decision.",
+    description: "Submit an employment background check that cross-references NIN, BVN, and optional SSCE certificate results. This is an asynchronous operation — the API accepts the request and returns a requestId and HTTP 202 immediately. The check runs in the background using Arapoint's verification engine. Poll the result endpoint or configure webhooks to receive the final decision.",
     price: 350,
     auth: "api-key",
     async: true,
@@ -602,8 +602,8 @@ export default function DevDocs() {
                       <p className="text-xs text-indigo-300 font-semibold mb-2">What you can verify</p>
                       <ul className="space-y-1.5 text-xs text-indigo-200">
                         {[
-                          "National Identity Numbers (NIN) — NIMC database",
-                          "Bank Verification Numbers (BVN) — CBN database",
+                          "National Identity Numbers (NIN) — official government registry",
+                          "Bank Verification Numbers (BVN) — national banking network",
                           "Academic results — WAEC, NECO, NABTEB, NBAIS, JAMB",
                           "Multi-factor employment background checks",
                           "Identity fraud risk scoring",
@@ -760,12 +760,12 @@ export default function DevDocs() {
                       <span className="text-green-400">Live</span>
                     </div>
                     {[
-                      ["Data source", "Mock / simulated data", "Real NIMC, CBN, providers"],
+                      ["Data source", "Mock / simulated data", "Official government registries"],
                       ["Wallet deduction", "No charges", "Real ₦ deducted"],
                       ["Rate limit", "100 calls/day", "10,000 calls/day"],
                       ["KYB required", "No", "Yes"],
                       ["Webhook delivery", "Yes (test events)", "Yes (real events)"],
-                      ["Education RPA bot", "Mock response", "Real RPA scraping"],
+                      ["Certificate verification", "Mock response", "Live registry lookup"],
                     ].map(([feature, sandbox, live], i) => (
                       <div key={feature} className={`grid grid-cols-3 p-3 text-xs ${i < 5 ? "border-b border-gray-800" : ""}`}>
                         <span className="text-gray-300">{feature}</span>
@@ -777,7 +777,7 @@ export default function DevDocs() {
 
                   <div className="bg-cyan-950/20 border border-cyan-800/40 rounded-lg p-4">
                     <p className="text-xs text-cyan-300 font-semibold mb-2">How to tell which environment you are in</p>
-                    <p className="text-xs text-cyan-200 mb-3">Every API response includes a <code className="bg-cyan-950/40 px-1 rounded">source</code> field. When in sandbox, you will see <code className="bg-cyan-950/40 px-1 rounded">"source": "SANDBOX_MOCK"</code>. In live mode it will be the real provider name (e.g. "NIMC", "CBN").</p>
+                    <p className="text-xs text-cyan-200 mb-3">Every API response includes a <code className="bg-cyan-950/40 px-1 rounded">source</code> field. When in sandbox, you will see <code className="bg-cyan-950/40 px-1 rounded">"source": "SANDBOX_MOCK"</code>. In live mode you will see <code className="bg-cyan-950/40 px-1 rounded">"source": "ARAPOINT"</code>.</p>
                     <p className="text-xs text-cyan-300 font-semibold mb-1">Sandbox mock data</p>
                     <p className="text-xs text-cyan-200">In sandbox, any valid-format input (e.g. any 11-digit NIN) returns a consistent mock identity record so you can build and test your full integration flow reliably.</p>
                   </div>
@@ -950,13 +950,13 @@ export default function DevDocs() {
                   <div className="grid sm:grid-cols-2 gap-3">
                     <div className="bg-gray-800/40 border border-gray-700 rounded-lg p-3">
                       <p className="text-xs text-white font-semibold mb-1">Education Verification</p>
-                      <p className="text-xs text-gray-400">Uses our RPA bot to retrieve results from WAEC, NECO, NABTEB, NBAIS, and JAMB portals. Results typically arrive within <span className="text-white">1–5 minutes</span>.</p>
+                      <p className="text-xs text-gray-400">Retrieves results directly from WAEC, NECO, NABTEB, NBAIS, and JAMB certificate portals via Arapoint's automated verification engine. Results typically arrive within <span className="text-white">1–5 minutes</span>.</p>
                       <p className="text-xs text-gray-500 mt-1.5">Poll: <code className="text-indigo-300">GET /verify/education/result?requestId=xxx</code></p>
                       <p className="text-xs text-gray-500">Webhook event: <code className="text-purple-300">verification.completed</code></p>
                     </div>
                     <div className="bg-gray-800/40 border border-gray-700 rounded-lg p-3">
                       <p className="text-xs text-white font-semibold mb-1">Employment Background Check</p>
-                      <p className="text-xs text-gray-400">Runs NIN + BVN via Prembly and SSCE via RPA bot in the background. Produces a PASS / REVIEW / FAIL decision. Results typically arrive within <span className="text-white">2–3 minutes</span>.</p>
+                      <p className="text-xs text-gray-400">Cross-references NIN, BVN, and SSCE certificate data using Arapoint's verification engine in the background. Produces a PASS / REVIEW / FAIL decision. Results typically arrive within <span className="text-white">2–3 minutes</span>.</p>
                       <p className="text-xs text-gray-500 mt-1.5">Poll: <code className="text-indigo-300">GET /verify/employment/result/:requestId</code></p>
                       <p className="text-xs text-gray-500">Webhook event: <code className="text-purple-300">employment.completed</code></p>
                     </div>

@@ -539,7 +539,7 @@ export default function IdentityAgentDashboard() {
                 >Download Slip</button></div>
               )}
               {selectedRequest.resolvedTrackingId && (
-                <div><strong>Resolved NIMC Tracking ID:</strong> <span className="font-mono text-green-700 dark:text-green-400">{selectedRequest.resolvedTrackingId}</span></div>
+                <div><strong>Resolved NIN Tracking ID:</strong> <span className="font-mono text-green-700 dark:text-green-400">{selectedRequest.resolvedTrackingId}</span></div>
               )}
               {selectedRequest.validatedFullName && (
                 <div><strong>Validated Full Name:</strong> <span className="font-semibold text-green-700 dark:text-green-400">{selectedRequest.validatedFullName}</span></div>
@@ -584,13 +584,13 @@ export default function IdentityAgentDashboard() {
 
             {updateData.status === 'completed' && selectedRequest?.serviceType === 'ipe_clearance' && (
               <div className="space-y-2">
-                <Label>New NIMC Tracking ID</Label>
+                <Label>New NIN Tracking ID</Label>
                 <Input
-                  placeholder="Enter the new NIMC tracking ID issued after clearance"
+                  placeholder="Enter the new NIN tracking ID issued after clearance"
                   value={updateData.resolvedTrackingId}
                   onChange={(e) => setUpdateData(prev => ({ ...prev, resolvedTrackingId: e.target.value }))}
                 />
-                <p className="text-xs text-muted-foreground">This is the updated tracking ID from NIMC after the IPE issue has been resolved.</p>
+                <p className="text-xs text-muted-foreground">This is the updated NIN tracking ID after the IPE issue has been resolved.</p>
               </div>
             )}
 
@@ -598,7 +598,7 @@ export default function IdentityAgentDashboard() {
               <div className="space-y-3 p-3 border rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
                 <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">NIN Validation Result</p>
                 <div className="space-y-2">
-                  <Label>Full Name (as on NIMC record)</Label>
+                  <Label>Full Name (as on official NIN record)</Label>
                   <Input
                     placeholder="e.g. JOHN ADEBAYO OKAFOR"
                     value={updateData.validatedFullName}
@@ -606,14 +606,14 @@ export default function IdentityAgentDashboard() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Date of Birth (as on NIMC record)</Label>
+                  <Label>Date of Birth (as on official NIN record)</Label>
                   <Input
                     placeholder="e.g. 15-Mar-1990 or 1990-03-15"
                     value={updateData.validatedDateOfBirth}
                     onChange={(e) => setUpdateData(prev => ({ ...prev, validatedDateOfBirth: e.target.value }))}
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">Enter the name and date of birth exactly as shown on the NIMC record for this NIN.</p>
+                <p className="text-xs text-muted-foreground">Enter the name and date of birth exactly as shown on the official NIN record.</p>
               </div>
             )}
 

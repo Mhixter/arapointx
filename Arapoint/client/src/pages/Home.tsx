@@ -38,7 +38,7 @@ export default function Home() {
             <div className="pt-6 sm:pt-8 flex flex-wrap items-center gap-4 sm:gap-8 text-xs sm:text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="text-primary h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span>NIMC Connected</span>
+                <span>Registry Connected</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="text-primary h-3.5 w-3.5 sm:h-4 sm:w-4" />

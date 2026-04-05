@@ -18,7 +18,7 @@ Businesses must be duly registered under Nigerian law (or their home jurisdictio
       title: "3. Description of Services",
       content: `Arapoint provides identity verification and digital services including:
 
-• National Identification Number (NIN) verification via NIMC
+• National Identification Number (NIN) verification
 • Bank Verification Number (BVN) lookup
 • CAC business registration verification
 • Academic result verification (WAEC, NECO, NABTEB, JAMB)
@@ -51,7 +51,7 @@ You must obtain appropriate consent from individuals whose data you submit for v
 
 • Conduct unlawful surveillance, stalking, or harassment of individuals
 • Submit verification requests without the subject's knowledge or consent
-• Attempt to reverse-engineer, scrape, or circumvent our systems
+• Attempt to reverse-engineer or circumvent our systems
 • Use the API in a way that violates any third party's rights
 • Engage in money laundering, fraud, or any criminal activity
 • Resell or redistribute our API data without written authorisation
@@ -86,7 +86,7 @@ We reserve the right to revoke API keys that are found to be misused, compromise
       title: "11. Limitation of Liability",
       content: `To the maximum extent permitted by Nigerian law, Arapoint's total liability to you for any claim arising from your use of our services shall not exceed the amount you paid to Arapoint in the 30 days preceding the claim.
 
-Arapoint is not liable for: indirect, incidental, or consequential damages; inaccuracies in government database records outside our control; service interruptions caused by third-party providers (NIMC, CBN, etc.); or losses resulting from your failure to secure your account credentials.
+Arapoint is not liable for: indirect, incidental, or consequential damages; inaccuracies in government database records outside our control; service interruptions caused by upstream data providers or government registries; or losses resulting from your failure to secure your account credentials.
 
 Verification results are provided "as-is" from the relevant government source databases. We do not guarantee the accuracy of source data.`,
     },

@@ -217,7 +217,7 @@ export default function IdentityAgentServices() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="trackingId">NIMC Tracking ID (optional)</Label>
+                      <Label htmlFor="trackingId">NIN Tracking ID (optional)</Label>
                       <Input
                         id="trackingId"
                         value={formData.newTrackingId}
@@ -401,7 +401,7 @@ export default function IdentityAgentServices() {
                   )}
                   {nimcTrackingId && (
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">NIMC Tracking ID</span>
+                      <span className="text-muted-foreground">NIN Tracking ID</span>
                       <span className="font-mono font-medium">{nimcTrackingId}</span>
                     </div>
                   )}
@@ -444,9 +444,9 @@ export default function IdentityAgentServices() {
                     )}
                     {r.serviceType === 'ipe_clearance' && resolvedTid && (
                       <div>
-                        <Label className="text-muted-foreground text-xs">New NIMC Tracking ID</Label>
+                        <Label className="text-muted-foreground text-xs">New NIN Tracking ID</Label>
                         <p className="text-base font-bold text-green-700 dark:text-green-400 mt-1 font-mono">{resolvedTid}</p>
-                        <p className="text-xs text-muted-foreground mt-1">This is your updated NIMC tracking ID after IPE clearance.</p>
+                        <p className="text-xs text-muted-foreground mt-1">This is your updated NIN tracking ID after IPE clearance.</p>
                       </div>
                     )}
                     {r.serviceType === 'nin_validation' && validatedName && (

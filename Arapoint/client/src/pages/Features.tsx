@@ -12,7 +12,7 @@ const featureGroups = [
       {
         icon: Fingerprint,
         title: "NIN Verification",
-        desc: "Instantly validate National Identification Numbers directly from the NIMC database. Retrieve full name, date of birth, gender, and phone number in under 2 seconds.",
+        desc: "Instantly validate National Identification Numbers directly from official government identity registries. Retrieve full name, date of birth, gender, and phone number in under 2 seconds.",
         badge: "Instant",
       },
       {
@@ -253,7 +253,7 @@ export default function Features() {
             Arapoint combines identity verification, education checks, business validation, and digital services into one unified platform — with a developer API that makes integration simple.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-6 pt-2 text-sm text-muted-foreground">
-            {["NIMC Connected", "CBN Approved Sources", "NDPA 2023 Compliant", "99.9% Uptime SLA"].map(item => (
+            {["Registry Connected", "Government-Approved Sources", "NDPA 2023 Compliant", "99.9% Uptime SLA"].map(item => (
               <div key={item} className="flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-primary" />
                 <span>{item}</span>

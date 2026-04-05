@@ -18,8 +18,8 @@ const services = [
       "Fraud prevention for lending and insurance products",
     ],
     services: [
-      { name: "NIN Verification", desc: "Full name, DOB, gender, phone from NIMC" },
-      { name: "BVN Lookup", desc: "Identity data from CBN-affiliated source" },
+      { name: "NIN Verification", desc: "Full name, DOB, gender & phone via official registry" },
+      { name: "BVN Lookup", desc: "Identity data from the national banking network" },
       { name: "NIN-to-Phone", desc: "Link phone numbers to NIN records" },
     ],
     cta: { label: "Start Verifying", href: "/auth/signup" },

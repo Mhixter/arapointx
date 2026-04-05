@@ -48,7 +48,7 @@ We operate in accordance with the Nigeria Data Protection Act (NDPA) 2023 and ad
       title: "5. Data Sharing & Disclosure",
       content: `We do not sell your personal data. We share data only in the following circumstances:
 
-• **Government Databases:** We transmit verification queries to NIMC, CBN-affiliated BVN systems, and other authorised government data sources to fulfil verification requests.
+• **Government Registries:** We transmit verification queries to authorised government identity registries and licensed data sources to fulfil verification requests.
 • **Payment Processors:** Paystack and Monnify receive payment information necessary to process wallet funding.
 • **Infrastructure Providers:** Cloud hosting and database providers who act as data processors under confidentiality agreements.
 • **Legal Requirements:** We may disclose data if required by a Nigerian court order, law enforcement agency, or regulatory authority.`,

@@ -87,7 +87,7 @@ export default function AboutUs() {
               <h3 className="text-xl font-bold text-foreground">What We Verify</h3>
               <ul className="space-y-3">
                 {[
-                  "National Identification Numbers (NIN) via NIMC",
+                  "National Identification Numbers (NIN)",
                   "Bank Verification Numbers (BVN)",
                   "CAC Business Registration & Status",
                   "WAEC, NECO, NABTEB & JAMB Results",

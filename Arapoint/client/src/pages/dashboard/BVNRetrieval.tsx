@@ -213,8 +213,8 @@ export default function BVNRetrieval() {
           <div className="text-sm">
             <p className="font-semibold text-amber-800 dark:text-amber-200">Legal Disclaimer</p>
             <p className="text-amber-700 dark:text-amber-300 mt-1 leading-relaxed">
-              Arapoint is an independent service provider and is <strong>NOT</strong> an official partner or affiliate of the Nigeria Inter-Bank Settlement System (NIBSS).
-              We act as authorized agents to assist you with BVN services. Your data is handled in compliance with Nigerian data protection regulations (NDPR).
+              Arapoint is an independent identity verification platform and is <strong>NOT</strong> a government agency.
+              We provide authorised BVN verification services through licensed channels. Your data is handled in compliance with the Nigerian Data Protection Act (NDPA 2023).
             </p>
           </div>
         </div>
