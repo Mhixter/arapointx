@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useRef } from 'react';
 import { useVideoPlayer } from '@/lib/video';
 import { Scene1 } from './video_scenes/Scene1';
 import { Scene2 } from './video_scenes/Scene2';
@@ -12,12 +13,60 @@ const SCENE_DURATIONS = {
   identity: 5000,
   education: 5000,
   employment: 5500,
-  api: 5000,
+  api: 5500,
   outro: 6500
 };
 
+const NARRATION = [
+  "Can you really trust who you're hiring? In Nigeria, identity fraud costs businesses millions every year.",
+  "Arapoint instantly verifies NIN and BVN — directly from NIMC and CBN. Real identity. Real time.",
+  "Academic certificates verified straight from WAEC, NECO, JAMB, and NABTEB. No forgeries. No shortcuts.",
+  "Our employment background check cross-references identity and credentials — giving you a clear PASS, REVIEW, or FAIL with a full trust score.",
+  "One API. Every verification you need. Built for developers, powered by Nigeria's official registries.",
+  "Arapoint. Built for Nigeria. Powered by trust. Visit arapoint dot com dot ng to get started today.",
+];
+
 export function VideoAd() {
   const { currentScene } = useVideoPlayer({ durations: SCENE_DURATIONS });
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const hasSpokenRef = useRef<Set<number>>(new Set());
+
+  useEffect(() => {
+    if (!window.speechSynthesis) return;
+    if (currentScene === 0 && hasSpokenRef.current.size === NARRATION.length) {
+      hasSpokenRef.current.clear();
+    }
+    if (hasSpokenRef.current.has(currentScene)) return;
+    hasSpokenRef.current.add(currentScene);
+
+    window.speechSynthesis.cancel();
+
+    const u = new SpeechSynthesisUtterance(NARRATION[currentScene]);
+    u.rate = 0.92;
+    u.pitch = 0.95;
+    u.volume = 1;
+
+    const setVoice = () => {
+      const voices = window.speechSynthesis.getVoices();
+      const preferred = voices.find(v =>
+        v.lang === 'en-GB' ||
+        v.name.toLowerCase().includes('daniel') ||
+        v.name.toLowerCase().includes('google uk') ||
+        v.name.toLowerCase().includes('male')
+      ) || voices.find(v => v.lang.startsWith('en')) || voices[0];
+      if (preferred) u.voice = preferred;
+      window.speechSynthesis.speak(u);
+    };
+
+    if (window.speechSynthesis.getVoices().length > 0) {
+      setVoice();
+    } else {
+      window.speechSynthesis.onvoiceschanged = setVoice;
+    }
+
+    utteranceRef.current = u;
+    return () => { window.speechSynthesis.cancel(); };
+  }, [currentScene]);
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-[#0F2346]">
