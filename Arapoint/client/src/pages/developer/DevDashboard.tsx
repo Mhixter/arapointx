@@ -97,6 +97,13 @@ export default function DevDashboard() {
       const data = await res.json();
       if (data.status === "success") {
         setEnvMode(newMode);
+        if (data.data?.walletBalance !== undefined) {
+          setStats((prev: any) => prev ? { ...prev, walletBalance: data.data.walletBalance } : prev);
+          localStorage.setItem("dev_user", JSON.stringify({
+            ...JSON.parse(localStorage.getItem("dev_user") || "{}"),
+            walletBalance: data.data.walletBalance,
+          }));
+        }
         toast({
           title: `Switched to ${newMode === "live" ? "Live" : "Sandbox"} Mode`,
           description: newMode === "live" ? "API calls now use real identity data." : "API calls return test data.",

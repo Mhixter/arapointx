@@ -28,6 +28,7 @@ const developerUsers = pgTable('developer_users', {
   company: varchar('company', { length: 255 }),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
   walletBalance: decimal('wallet_balance', { precision: 15, scale: 2 }).default('0'),
+  sandboxBalance: decimal('sandbox_balance', { precision: 15, scale: 2 }).default('0'),
   isActive: boolean('is_active').default(true),
   emailVerified: boolean('email_verified').default(false),
   accountType: varchar('account_type', { length: 50 }).default('individual'),
@@ -411,14 +412,39 @@ async function devJwtAuth(req: Request, res: Response, next: Function) {
   }
 }
 
-// ─── Wallet deduction helper ──────────────────────────────────────────────────
-async function deductDeveloperBalance(developerId: string, amount: number, description: string) {
-  const [updated] = await db.update(developerUsers)
-    .set({ walletBalance: sql`wallet_balance - ${amount.toFixed(2)}` })
-    .where(and(eq(developerUsers.id, developerId), sql`wallet_balance >= ${amount.toFixed(2)}`))
-    .returning({ walletBalance: developerUsers.walletBalance });
+// ─── Balance helper — returns the active balance for the current mode ──────────
+function devBalance(dev: any): number {
+  const mode = dev.environmentMode || 'sandbox';
+  return mode === 'sandbox'
+    ? parseFloat(dev.sandboxBalance || '0')
+    : parseFloat(dev.walletBalance || '0');
+}
 
-  if (!updated) throw new Error('Insufficient wallet balance');
+// ─── Wallet deduction helper (mode-aware) ─────────────────────────────────────
+async function deductDeveloperBalance(
+  developerId: string,
+  amount: number,
+  description: string,
+  environmentMode: string = 'live'
+) {
+  const isSandbox = environmentMode === 'sandbox';
+  const amtStr = parseFloat(amount.toFixed(2));
+
+  const result = isSandbox
+    ? await db.execute(sql`
+        UPDATE developer_users
+        SET sandbox_balance = sandbox_balance - ${amtStr}, updated_at = now()
+        WHERE id = ${developerId} AND sandbox_balance >= ${amtStr}
+        RETURNING sandbox_balance AS balance
+      `)
+    : await db.execute(sql`
+        UPDATE developer_users
+        SET wallet_balance = wallet_balance - ${amtStr}, updated_at = now()
+        WHERE id = ${developerId} AND wallet_balance >= ${amtStr}
+        RETURNING wallet_balance AS balance
+      `);
+
+  if (!result.rows[0]) throw new Error('Insufficient wallet balance');
 
   await db.insert(developerTransactions).values({
     developerId,
@@ -429,7 +455,7 @@ async function deductDeveloperBalance(developerId: string, amount: number, descr
     status: 'successful',
   });
 
-  return parseFloat(updated.walletBalance || '0');
+  return parseFloat((result.rows[0] as any).balance || '0');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -542,7 +568,7 @@ router.post('/auth/login', async (req: Request, res: Response) => {
         token,
         developer: {
           id: dev.id, email: dev.email, name: dev.name,
-          company: dev.company, walletBalance: parseFloat(dev.walletBalance || '0'),
+          company: dev.company, walletBalance: devBalance(dev),
           webhookUrl: dev.webhookUrl,
         }
       }
@@ -563,7 +589,7 @@ router.get('/profile', devJwtAuth, async (req: Request, res: Response) => {
     status: 'success', code: 200, message: 'Profile retrieved',
     data: {
       id: dev.id, accountId: dev.id, email: dev.email, name: dev.name,
-      company: dev.company, walletBalance: parseFloat(dev.walletBalance || '0'),
+      company: dev.company, walletBalance: devBalance(dev),
       webhookUrl: dev.webhookUrl, createdAt: dev.createdAt,
       accountType: dev.accountType || 'individual',
       kycStatus: dev.kycStatus || 'not_required',
@@ -636,7 +662,7 @@ router.get('/dashboard/stats', devJwtAuth, async (req: Request, res: Response) =
     res.json({
       status: 'success', code: 200, message: 'Stats retrieved',
       data: {
-        walletBalance: parseFloat(dev.walletBalance || '0'),
+        walletBalance: devBalance(dev),
         totalRequests: logStats.total_requests || 0,
         successCount: logStats.success_count || 0,
         totalSpent: parseFloat(logStats.total_spent || '0'),
@@ -836,9 +862,9 @@ router.post('/admin/developers/:id/credit-sandbox', adminAuth, async (req: Reque
     if (!devRow) return res.status(404).json({ status: 'error', code: 404, message: 'Developer not found' });
 
     const [updated] = await db.update(developerUsers)
-      .set({ walletBalance: sql`wallet_balance + ${amt.toFixed(2)}`, updatedAt: new Date() })
+      .set({ sandboxBalance: sql`sandbox_balance + ${amt.toFixed(2)}`, updatedAt: new Date() })
       .where(eq(developerUsers.id, id))
-      .returning({ walletBalance: developerUsers.walletBalance });
+      .returning({ sandboxBalance: developerUsers.sandboxBalance });
 
     const reference = 'ADMIN-SANDBOX-' + crypto.randomBytes(6).toString('hex').toUpperCase();
     const desc = reason?.trim()
@@ -857,7 +883,7 @@ router.post('/admin/developers/:id/credit-sandbox', adminAuth, async (req: Reque
     // Email developer
     try {
       const { sendEmail } = await import('../../services/emailService');
-      const newBal = parseFloat(updated.walletBalance || '0');
+      const newBal = parseFloat(updated.sandboxBalance || '0');
       await sendEmail(
         devRow.email,
         `Sandbox Wallet Credited — ₦${amt.toLocaleString('en-NG', { minimumFractionDigits: 2 })} Added`,
@@ -880,7 +906,7 @@ router.post('/admin/developers/:id/credit-sandbox', adminAuth, async (req: Reque
     res.json({
       status: 'success', code: 200,
       message: `Sandbox wallet credited ₦${amt.toLocaleString('en-NG', { minimumFractionDigits: 2 })} successfully`,
-      data: { developerId: id, amount: amt, newBalance: parseFloat(updated.walletBalance || '0'), reference },
+      data: { developerId: id, amount: amt, newSandboxBalance: parseFloat(updated.sandboxBalance || '0'), reference },
     });
   } catch (e: any) {
     logger.error('Admin credit sandbox error', { error: e.message, developerId: id });
@@ -901,7 +927,10 @@ router.patch('/mode', devJwtAuth, async (req: Request, res: Response) => {
     }
     await db.update(developerUsers).set({ environmentMode: mode, updatedAt: new Date() })
       .where(eq(developerUsers.id, dev.id));
-    res.json({ status: 'success', code: 200, message: `Switched to ${mode} mode`, data: { mode } });
+    const newBalance = mode === 'sandbox'
+      ? parseFloat((dev as any).sandboxBalance || '0')
+      : parseFloat(dev.walletBalance || '0');
+    res.json({ status: 'success', code: 200, message: `Switched to ${mode} mode`, data: { mode, walletBalance: newBalance } });
   } catch (e: any) {
     res.status(500).json({ status: 'error', code: 500, message: 'Failed to switch mode' });
   }
@@ -954,7 +983,7 @@ router.post('/verify/nin', apiKeyAuth, async (req: Request, res: Response) => {
       return res.status(400).json(responseData);
     }
 
-    await deductDeveloperBalance(dev.id, API_PRICES.nin, `NIN verification - ${nin || phone}`);
+    await deductDeveloperBalance(dev.id, API_PRICES.nin, `NIN verification - ${nin || phone}`, (dev as any).environmentMode);
 
     // ── Sandbox mock ────────────────────────────────────────────────────────
     if ((dev as any).environmentMode === 'sandbox') {
@@ -1028,7 +1057,7 @@ router.post('/verify/bvn', apiKeyAuth, async (req: Request, res: Response) => {
       return res.status(400).json(responseData);
     }
 
-    await deductDeveloperBalance(dev.id, API_PRICES.bvn, `BVN verification - ${bvn}`);
+    await deductDeveloperBalance(dev.id, API_PRICES.bvn, `BVN verification - ${bvn}`, (dev as any).environmentMode);
 
     // ── Sandbox mock ────────────────────────────────────────────────────────
     if ((dev as any).environmentMode === 'sandbox') {
@@ -1135,7 +1164,7 @@ router.post('/verify/education', apiKeyAuth, async (req: Request, res: Response)
     }
 
     await deductDeveloperBalance(dev.id, API_PRICES.education,
-      `Education verification - ${provider.toUpperCase()} ${registrationNumber}`);
+      `Education verification - ${provider.toUpperCase()} ${registrationNumber}`, (dev as any).environmentMode);
 
     // ── Sandbox mock ────────────────────────────────────────────────────────
     if ((dev as any).environmentMode === 'sandbox') {
@@ -1250,7 +1279,7 @@ router.post('/verify/unified', apiKeyAuth, async (req: Request, res: Response) =
     }
 
     await deductDeveloperBalance(dev.id, API_PRICES.unified,
-      `Unified verification - ${[nin && 'NIN', bvn && 'BVN', education && 'Education'].filter(Boolean).join(', ')}`);
+      `Unified verification - ${[nin && 'NIN', bvn && 'BVN', education && 'Education'].filter(Boolean).join(', ')}`, (dev as any).environmentMode);
 
     const results: any = { status: 'success', requestId: 'UNI-' + crypto.randomBytes(8).toString('hex') };
 
@@ -1536,7 +1565,7 @@ router.post('/verify/employment', apiKeyAuth, async (req: Request, res: Response
     // ── Deduct balance up-front ─────────────────────────────────────────────
     const priceKey = level === 'higher' ? 'employment_higher' : 'employment_standard';
     await deductDeveloperBalance(dev.id, API_PRICES[priceKey],
-      `Employment verification (${level}) — NIN ${nin.substring(0, 4)}***`);
+      `Employment verification (${level}) — NIN ${nin.substring(0, 4)}***`, (dev as any).environmentMode);
 
     const requestId = 'EMP-' + crypto.randomBytes(8).toString('hex').toUpperCase();
 
@@ -2067,6 +2096,7 @@ router.get('/admin/developers', adminAuth, async (req: Request, res: Response) =
       name: developerUsers.name,
       company: developerUsers.company,
       walletBalance: developerUsers.walletBalance,
+      sandboxBalance: developerUsers.sandboxBalance,
       isActive: developerUsers.isActive,
       emailVerified: developerUsers.emailVerified,
       accountType: developerUsers.accountType,
@@ -2874,7 +2904,7 @@ router.post('/verify/fraud-score', apiKeyAuth, async (req: Request, res: Respons
       return res.status(400).json(responseData);
     }
 
-    await deductDeveloperBalance(dev.id, API_PRICES.fraud_score, `Fraud score - ${nin || bvn || phone}`);
+    await deductDeveloperBalance(dev.id, API_PRICES.fraud_score, `Fraud score - ${nin || bvn || phone}`, (dev as any).environmentMode);
 
     // Sandbox mock
     if ((dev as any).environmentMode === 'sandbox') {
