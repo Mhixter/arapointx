@@ -104,10 +104,10 @@ ADMIN_PASSWORD = "Mhixter664@gmail.com"
 JWT_SECRET = "your_jwt_secret_key_here_at_least_32_chars_long"
 ADMIN_EMAIL = "saidumuhammed664@gmail.com"
 PORT = "5000"
-PRIVATE_OBJECT_DIR = "replit-objstore-86aadd2e-d3a1-480c-a707-58f1b69befb9"
+PRIVATE_OBJECT_DIR = "replit-objstore-6968e074-5e15-4a51-b02c-97a2a2897949"
 
 [userenv.production]
 SITE_URL = "https://arapoint.com.ng"
 
 [objectStorage]
-defaultBucketID = "replit-objstore-86aadd2e-d3a1-480c-a707-58f1b69befb9"
+defaultBucketID = "replit-objstore-6968e074-5e15-4a51-b02c-97a2a2897949"
