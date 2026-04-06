@@ -29,3 +29,9 @@ id = "3MtiOcl46lUUphmN5Kwi3"
 uri = "file://Arapoint/exports/Arapoint_Technical_Roadmap.pdf"
 type = "pdf"
 title = "Arapoint Technical Roadmap"
+
+[[outputs]]
+id = "UQgks1I7ZmgQP4ByEVyF3"
+uri = "file://Arapoint/ROADMAP.md"
+type = "text"
+title = "Arapoint Infrastructure Roadmap"
