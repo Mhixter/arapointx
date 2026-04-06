@@ -114,6 +114,24 @@ Preferred communication style: Simple, everyday language.
 - **Changelog**: API changelog section in DevDocs with versioned release notes (v2.0.0, v2.1.0)
 - **Webhook System**: Full webhook delivery with HMAC-SHA256 signing, retry schedule (1m/5m/15m/1h), delivery log viewer
 
+### Developer Routes (Modular Split)
+- **Location**: `Arapoint/server/src/api/routes/developer/` (13 files, split from monolithic 3548-line developer.ts)
+- **Entry**: `index.ts` — mounts all sub-routers, runs DB migration IIFE for developer tables
+- **Shared**: `shared.ts` — all shared imports, Drizzle table definitions, middleware (apiKeyAuth, devJwtAuth, adminAuth), helpers (balance deduction, caching, sandbox mocks, rate limiting, API key generation)
+- **Modules**:
+  - `auth.ts` — OTP send, register, login
+  - `profile.ts` — profile CRUD, dashboard stats, environment mode switch
+  - `apikeys.ts` — API key CRUD (create, list, revoke)
+  - `billing.ts` — transactions, wallet fund, Paystack initiate/webhook/verify, gateway status, pricing
+  - `verification.ts` — NIN, BVN, education, unified verification, fraud score (exports `nameSimilarityScore`, `toDecision`, `validateTimeline`)
+  - `employment.ts` — employment verification with identity cross-reference, SSCE via RPA
+  - `kyb.ts` — KYC/KYB status, submit, document upload/download
+  - `admin.ts` — admin monitoring (developers list/detail, stats, logs, KYC review, queue management, audit logs, sandbox credit, promote)
+  - `webhooks.ts` — webhook CRUD, delivery logs, test webhook
+  - `analytics.ts` — developer logs, analytics (daily/endpoint breakdown)
+  - `security.ts` — IP allowlist management
+- **Route mount**: `routes.ts` imports `./src/api/routes/developer` which resolves to `developer/index.ts`
+
 ### Frontend UI
 - **shadcn/ui**: Component library built on Radix UI primitives
 - **Lucide React**: Icon library
