@@ -69,6 +69,7 @@ const developerApiLogs = pgTable('developer_api_logs', {
   cost: decimal('cost', { precision: 10, scale: 2 }).default('0'),
   durationMs: integer('duration_ms'),
   ipAddress: varchar('ip_address', { length: 50 }),
+  environment: varchar('environment', { length: 20 }).default('sandbox'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
@@ -80,6 +81,7 @@ const developerTransactions = pgTable('developer_transactions', {
   description: text('description'),
   referenceId: varchar('reference_id', { length: 100 }),
   status: varchar('status', { length: 50 }).default('successful'),
+  environment: varchar('environment', { length: 20 }).default('live'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
@@ -95,6 +97,14 @@ const developerTransactions = pgTable('developer_transactions', {
     await db.execute(sql`
       ALTER TABLE developer_users
         ADD COLUMN IF NOT EXISTS environment_mode varchar(20) DEFAULT 'sandbox'
+    `);
+    await db.execute(sql`
+      ALTER TABLE developer_api_logs
+        ADD COLUMN IF NOT EXISTS environment varchar(20) DEFAULT 'sandbox'
+    `);
+    await db.execute(sql`
+      ALTER TABLE developer_transactions
+        ADD COLUMN IF NOT EXISTS environment varchar(20) DEFAULT 'live'
     `);
     // Patch any null is_active rows — these should default to active
     await db.execute(sql`
@@ -311,7 +321,8 @@ async function logApiCall(
   statusCode: number,
   cost: number,
   durationMs: number,
-  ipAddress: string
+  ipAddress: string,
+  environment: string = 'sandbox'
 ) {
   try {
     await db.insert(developerApiLogs).values({
@@ -325,6 +336,7 @@ async function logApiCall(
       cost: cost.toFixed(2),
       durationMs,
       ipAddress,
+      environment,
     });
   } catch (e) {
     logger.warn('Failed to insert API log', { error: (e as Error).message });
@@ -453,6 +465,7 @@ async function deductDeveloperBalance(
     description,
     referenceId: 'DEV-' + crypto.randomBytes(8).toString('hex'),
     status: 'successful',
+    environment: environmentMode,
   });
 
   return parseFloat((result.rows[0] as any).balance || '0');
@@ -642,20 +655,42 @@ router.put('/profile/password', devJwtAuth, async (req: Request, res: Response) 
 router.get('/dashboard/stats', devJwtAuth, async (req: Request, res: Response) => {
   try {
     const dev = (req as any).developer;
-    const logStats = ((await db.execute(sql`
+    const envFilter = (req.query.environment as string) || null;
+
+    const sandboxStats = ((await db.execute(sql`
       SELECT
         COUNT(*)::int AS total_requests,
         COUNT(*) FILTER (WHERE status_code >= 200 AND status_code < 300)::int AS success_count,
         COALESCE(SUM(cost), 0)::numeric AS total_spent,
         COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int AS requests_this_month
-      FROM developer_api_logs WHERE developer_id = ${dev.id}
+      FROM developer_api_logs
+      WHERE developer_id = ${dev.id} AND environment = 'sandbox'
     `)).rows[0] || {}) as any;
+
+    const liveStats = ((await db.execute(sql`
+      SELECT
+        COUNT(*)::int AS total_requests,
+        COUNT(*) FILTER (WHERE status_code >= 200 AND status_code < 300)::int AS success_count,
+        COALESCE(SUM(cost), 0)::numeric AS total_spent,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int AS requests_this_month
+      FROM developer_api_logs
+      WHERE developer_id = ${dev.id} AND environment = 'live'
+    `)).rows[0] || {}) as any;
+
+    const activeStats = envFilter === 'live' ? liveStats : envFilter === 'sandbox' ? sandboxStats : (
+      (dev as any).environmentMode === 'live' ? liveStats : sandboxStats
+    );
+
     const keyCount = ((await db.execute(sql`
       SELECT COUNT(*)::int AS active_keys FROM developer_api_keys
       WHERE developer_id = ${dev.id} AND is_active = true
     `)).rows[0] || {}) as any;
+
     const recentLogs = await db.select().from(developerApiLogs)
-      .where(eq(developerApiLogs.developerId, dev.id))
+      .where(and(
+        eq(developerApiLogs.developerId, dev.id),
+        eq(developerApiLogs.environment, envFilter || (dev as any).environmentMode || 'sandbox')
+      ))
       .orderBy(desc(developerApiLogs.createdAt))
       .limit(5);
 
@@ -663,18 +698,31 @@ router.get('/dashboard/stats', devJwtAuth, async (req: Request, res: Response) =
       status: 'success', code: 200, message: 'Stats retrieved',
       data: {
         walletBalance: devBalance(dev),
-        totalRequests: logStats.total_requests || 0,
-        successCount: logStats.success_count || 0,
-        totalSpent: parseFloat(logStats.total_spent || '0'),
-        requestsThisMonth: logStats.requests_this_month || 0,
-        successRate: logStats.total_requests > 0
-          ? Math.round((logStats.success_count / logStats.total_requests) * 100)
+        sandboxBalance: parseFloat((dev as any).sandboxBalance || '0'),
+        totalRequests: activeStats.total_requests || 0,
+        successCount: activeStats.success_count || 0,
+        totalSpent: parseFloat(activeStats.total_spent || '0'),
+        requestsThisMonth: activeStats.requests_this_month || 0,
+        successRate: activeStats.total_requests > 0
+          ? Math.round((activeStats.success_count / activeStats.total_requests) * 100)
           : 0,
         activeApiKeys: keyCount.active_keys || 0,
         recentLogs,
         kycStatus: dev.kycStatus || 'not_required',
         environmentMode: (dev as any).environmentMode || 'sandbox',
         accountType: dev.accountType || 'individual',
+        sandbox: {
+          totalRequests: sandboxStats.total_requests || 0,
+          successCount: sandboxStats.success_count || 0,
+          totalSpent: parseFloat(sandboxStats.total_spent || '0'),
+          requestsThisMonth: sandboxStats.requests_this_month || 0,
+        },
+        live: {
+          totalRequests: liveStats.total_requests || 0,
+          successCount: liveStats.success_count || 0,
+          totalSpent: parseFloat(liveStats.total_spent || '0'),
+          requestsThisMonth: liveStats.requests_this_month || 0,
+        },
       }
     });
   } catch (e: any) {
@@ -757,11 +805,15 @@ router.get('/transactions', devJwtAuth, async (req: Request, res: Response) => {
   const page = parseInt(req.query.page as string) || 1;
   const limit = 20;
   const offset = (page - 1) * limit;
+  const environment = (req.query.environment as string) || null;
+  const whereClause = environment
+    ? and(eq(developerTransactions.developerId, dev.id), eq(developerTransactions.environment, environment))
+    : eq(developerTransactions.developerId, dev.id);
   const txs = await db.select().from(developerTransactions)
-    .where(eq(developerTransactions.developerId, dev.id))
+    .where(whereClause)
     .orderBy(desc(developerTransactions.createdAt))
     .limit(limit).offset(offset);
-  res.json({ status: 'success', code: 200, message: 'Transactions retrieved', data: { transactions: txs, page, limit } });
+  res.json({ status: 'success', code: 200, message: 'Transactions retrieved', data: { transactions: txs, page, limit, environment: environment || 'all' } });
 });
 
 // ─── Admin-only: directly credit a developer wallet (sandbox top-up) ──────────
@@ -789,6 +841,7 @@ router.post('/wallet/fund', adminAuth, async (req: Request, res: Response) => {
       description: 'Wallet funded',
       referenceId: 'FUND-' + crypto.randomBytes(8).toString('hex'),
       status: 'successful',
+      environment: 'live',
     });
 
     // Email notification for wallet funding
@@ -878,6 +931,7 @@ router.post('/admin/developers/:id/credit-sandbox', adminAuth, async (req: Reque
       description: desc,
       referenceId: reference,
       status: 'successful',
+      environment: 'sandbox',
     });
 
     // Email developer
@@ -942,11 +996,15 @@ router.get('/logs', devJwtAuth, async (req: Request, res: Response) => {
   const page = parseInt(req.query.page as string) || 1;
   const limit = 20;
   const offset = (page - 1) * limit;
+  const environment = (req.query.environment as string) || (dev as any).environmentMode || 'sandbox';
   const logs = await db.select().from(developerApiLogs)
-    .where(eq(developerApiLogs.developerId, dev.id))
+    .where(and(
+      eq(developerApiLogs.developerId, dev.id),
+      eq(developerApiLogs.environment, environment)
+    ))
     .orderBy(desc(developerApiLogs.createdAt))
     .limit(limit).offset(offset);
-  res.json({ status: 'success', code: 200, message: 'Logs retrieved', data: { logs, page, limit } });
+  res.json({ status: 'success', code: 200, message: 'Logs retrieved', data: { logs, page, limit, environment } });
 });
 
 // ─── Pricing info ─────────────────────────────────────────────────────────────
@@ -1033,7 +1091,7 @@ router.post('/verify/nin', apiKeyAuth, async (req: Request, res: Response) => {
   } finally {
     await logApiCall(dev.id, apiKeyId, '/verify/nin', 'POST', { nin, phone },
       responseData, statusCode, statusCode === 200 ? API_PRICES.nin : 0,
-      Date.now() - start, req.ip || '');
+      Date.now() - start, req.ip || '', (dev as any).environmentMode || 'sandbox');
   }
 });
 
@@ -1102,7 +1160,7 @@ router.post('/verify/bvn', apiKeyAuth, async (req: Request, res: Response) => {
   } finally {
     await logApiCall(dev.id, apiKeyId, '/verify/bvn', 'POST', { bvn },
       responseData, statusCode, statusCode === 200 ? API_PRICES.bvn : 0,
-      Date.now() - start, req.ip || '');
+      Date.now() - start, req.ip || '', (dev as any).environmentMode || 'sandbox');
   }
 });
 
@@ -1232,7 +1290,7 @@ router.post('/verify/education', apiKeyAuth, async (req: Request, res: Response)
       { provider, examYear, registrationNumber, examType,
         cardPin: cardPin ? '***' : undefined, cardSerialNumber, state, schoolName, examMonth },
       responseData, statusCode, statusCode === 200 ? API_PRICES.education : 0,
-      Date.now() - start, req.ip || '');
+      Date.now() - start, req.ip || '', (dev as any).environmentMode || 'sandbox');
   }
 });
 
@@ -1320,7 +1378,7 @@ router.post('/verify/unified', apiKeyAuth, async (req: Request, res: Response) =
   } finally {
     await logApiCall(dev.id, apiKeyId, '/verify/unified', 'POST', { nin, bvn, education },
       responseData, statusCode, statusCode === 200 ? API_PRICES.unified : 0,
-      Date.now() - start, req.ip || '');
+      Date.now() - start, req.ip || '', (dev as any).environmentMode || 'sandbox');
   }
 });
 
@@ -1815,7 +1873,7 @@ router.post('/verify/employment', apiKeyAuth, async (req: Request, res: Response
       { nin: nin ? nin.substring(0, 4) + '***' : null, bvn: bvn ? bvn.substring(0, 4) + '***' : null, ssce, level, employment_year: empYear },
       responseData, statusCode,
       [200, 202].includes(statusCode) ? API_PRICES[`employment_${level === 'higher' ? 'higher' : 'standard'}`] : 0,
-      Date.now() - start, req.ip || '');
+      Date.now() - start, req.ip || '', (dev as any).environmentMode || 'sandbox');
   }
 });
 
@@ -1980,7 +2038,7 @@ router.get('/verify/employment/result/:requestId', apiKeyAuth, async (req: Reque
     res.status(500).json(responseData);
   } finally {
     await logApiCall(dev.id, apiKeyId, `/verify/employment/result/${requestId}`, 'GET',
-      {}, responseData, statusCode, 0, Date.now() - start, req.ip || '');
+      {}, responseData, statusCode, 0, Date.now() - start, req.ip || '', (dev as any).environmentMode || 'sandbox');
   }
 });
 
@@ -2792,6 +2850,7 @@ router.post('/billing/paystack-webhook', async (req: Request, res: Response) => 
       description: `Wallet funded via Paystack — ref: ${reference}`,
       referenceId: reference,
       status: 'successful',
+      environment: 'live',
     });
 
     await db.execute(sql`
@@ -2973,7 +3032,7 @@ router.post('/verify/fraud-score', apiKeyAuth, async (req: Request, res: Respons
   } finally {
     await logApiCall(dev.id, apiKeyId, '/verify/fraud-score', 'POST', { nin, bvn, phone },
       responseData, statusCode, statusCode === 200 ? API_PRICES.fraud_score : 0,
-      Date.now() - start, req.ip || '');
+      Date.now() - start, req.ip || '', (dev as any).environmentMode || 'sandbox');
   }
 });
 
