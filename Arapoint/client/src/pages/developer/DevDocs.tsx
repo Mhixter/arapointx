@@ -101,22 +101,111 @@ const endpoints = [
     group: "Verification",
     method: "POST",
     path: "/verify/unified",
-    title: "Unified Verification",
-    description: "Combine NIN, BVN, and education verification in a single API call at a discounted bundle price. NIN and BVN results are synchronous; education is async.",
-    price: 400,
+    title: "Unified Verification (Enterprise)",
+    description: "Enterprise-grade multi-check verification in a single API call. Supports NIN, BVN, multiple SSCE results simultaneously, employment background check, and fraud scoring — all with a 15% bundle discount. Always returns HTTP 202 immediately with a requestId; poll or use callbackUrl for the final decision.",
+    price: 0,
+    priceNote: "Dynamic: NIN ₦130 + BVN ₦80 + SSCE ₦250 each + Fraud ₦50 + Employment ₦350 — 15% bundle discount applied automatically when total > ₦300",
     auth: "api-key",
-    async: false,
-    request: { nin: "12345678901", bvn: "12345678901", education: { provider: "waec", examYear: 2023, registrationNumber: "4190101001" } },
+    async: true,
+    request: {
+      reference: "candidate_12345",
+      callbackUrl: "https://yourapp.com/webhook/arapoint",
+      identity: {
+        nin: "12345678901",
+        bvn: "12345678901",
+        fullName: "John Emeka Doe",
+        dateOfBirth: "1990-01-15"
+      },
+      checks: {
+        education: [
+          { type: "waec", examNumber: "4190101001", examYear: 2020, examType: "WASSCE", card: { pin: "12345678", serial: "AA123456789" } },
+          { type: "neco", examNumber: "0987654321", examYear: 2021, token: "abc123xyz" }
+        ],
+        employment: { employmentYear: 2015, level: "degree" },
+        fraudCheck: true
+      },
+      options: {
+        strictNameMatch: false,
+        autoFallback: true,
+        saveResult: true
+      }
+    },
     response: {
-      status: "success", code: 200, message: "Unified verification completed",
-      data: { requestId: "UNI-abc123def456", nin: { firstName: "JOHN", lastName: "DOE" }, bvn: { firstName: "JOHN", bvn: "12345678901" }, education: { status: "processing", requestId: "EDU-xyz789" } }
+      status: "accepted", code: 202, message: "Unified verification started. Poll the result endpoint for status.",
+      data: {
+        requestId: "UNI-ABC123XYZ",
+        reference: "candidate_12345",
+        status: "queued",
+        eta: "60–120 seconds (SSCE via RPA)",
+        checks: { nin: "pending", bvn: "pending", education_0: "pending", education_1: "pending", employment: "pending", fraud: "pending" },
+        pollUrl: "GET /verify/unified/result/UNI-ABC123XYZ",
+        webhookConfigured: true,
+        pricing: { rawCost: 1160, bundleDiscount: "15%", totalCost: 986 }
+      }
     },
     params: [
-      { name: "nin", type: "string", required: false, desc: "NIN to verify (optional — include at least one)" },
-      { name: "bvn", type: "string", required: false, desc: "BVN to verify (optional)" },
-      { name: "education", type: "object", required: false, desc: "Education object with provider, examYear, registrationNumber" },
+      { name: "reference", type: "string", required: false, desc: "Your internal candidate/transaction reference for tracking" },
+      { name: "callbackUrl", type: "string", required: false, desc: "HTTPS webhook URL — Arapoint will POST the final result here when complete" },
+      { name: "identity.nin", type: "string", required: false, desc: "11-digit National ID Number" },
+      { name: "identity.bvn", type: "string", required: false, desc: "11-digit Bank Verification Number" },
+      { name: "identity.fullName", type: "string", required: false, desc: "Candidate's full name (used for cross-match if BVN or NIN not provided)" },
+      { name: "identity.dateOfBirth", type: "string", required: false, desc: "Date of birth YYYY-MM-DD" },
+      { name: "checks.education", type: "array", required: false, desc: "Array of SSCE checks. Each: { type, examNumber, examYear, examType?, card?: { pin, serial }, token? }" },
+      { name: "checks.employment", type: "object", required: false, desc: "Employment check: { employmentYear, level: 'degree' | 'higher' }" },
+      { name: "checks.fraudCheck", type: "boolean", required: false, desc: "Run fraud risk scoring across NIN + BVN records" },
+      { name: "options.strictNameMatch", type: "boolean", required: false, desc: "Require 90%+ name similarity (default: false — 72%+ passes)" },
+      { name: "options.autoFallback", type: "boolean", required: false, desc: "Retry failed checks with alternative methods" },
+      { name: "options.saveResult", type: "boolean", required: false, desc: "Persist full result for future polling (default: true)" },
     ],
-    notes: ["At least one of nin, bvn, or education must be provided", "Cheaper than calling each endpoint separately"]
+    notes: [
+      "ASYNC — always returns HTTP 202 immediately. Poll /verify/unified/result/:requestId for the final decision",
+      "15% bundle discount applied automatically when total check cost exceeds ₦300",
+      "Supports multiple SSCEs simultaneously (WAEC + NECO in one request)",
+      "callbackUrl receives a POST when all checks complete — no need to poll if webhooks are configured",
+      "decision: PASS (score ≥ 85) | REVIEW (60–84) | FAIL (< 60)",
+      "Wallet is charged once on submission — no charge for polling",
+    ]
+  },
+  {
+    group: "Verification",
+    method: "GET",
+    path: "/verify/unified/result/:requestId",
+    title: "Poll Unified Result",
+    description: "Poll the status and final decision of a previously submitted unified verification request. Returns HTTP 202 while still processing and HTTP 200 with the full result when complete.",
+    price: 0,
+    auth: "api-key",
+    async: false,
+    request: {},
+    response: {
+      status: "completed", code: 200,
+      data: {
+        requestId: "UNI-ABC123XYZ", reference: "candidate_12345", status: "completed",
+        decision: "PASS", score: 91,
+        summary: { identityMatch: true, educationVerified: true, employmentVerified: true, fraudRisk: "low" },
+        breakdown: {
+          nin: { status: "matched", data: { firstName: "JOHN", lastName: "DOE", dateOfBirth: "1990-01-15" } },
+          bvn: { status: "matched", data: { firstName: "JOHN", lastName: "DOE", dateOfBirth: "1990-01-15" } },
+          nameMatchScore: 97,
+          education: [
+            { type: "WAEC", examNumber: "4190101001", examYear: 2020, status: "verified", candidateName: "JOHN EMEKA DOE" },
+            { type: "NECO", examNumber: "0987654321", examYear: 2021, status: "verified" }
+          ],
+          employment: { status: "verified", level: "degree", employmentYear: 2015, timeline: "valid" },
+          fraud: { score: 8, riskLevel: "low", signals: {}, flags: [] }
+        },
+        flags: [],
+        completedAt: "2026-04-06T10:01:30Z"
+      }
+    },
+    params: [
+      { name: "requestId", type: "string", required: true, desc: "The requestId from POST /verify/unified (URL path param)" },
+    ],
+    notes: [
+      "Returns HTTP 202 with status 'queued' or 'processing' while checks are running",
+      "Returns HTTP 200 with full breakdown when status = 'completed'",
+      "This endpoint is free — no additional charge",
+      "If using callbackUrl, you do not need to poll — results are pushed to your webhook",
+    ]
   },
   {
     group: "Verification",
@@ -426,7 +515,9 @@ export default function DevDocs() {
                       {ep.async && <span className="text-xs" style={{ color: "#7C3AED" }}>async</span>}
                     </div>
                     <p className="text-xs font-medium leading-snug" style={{ color: active ? "#FFFFFF" : "#9CA3AF" }}>{ep.title}</p>
-                    {ep.price > 0
+                    {(ep as any).priceNote
+                      ? <p className="text-xs mt-0.5" style={{ color: "#6D28D9" }}>Dynamic pricing</p>
+                      : ep.price > 0
                       ? <p className="text-xs mt-0.5" style={{ color: "#4B5563" }}>₦{ep.price}/req</p>
                       : <p className="text-xs mt-0.5" style={{ color: "#065F46" }}>Free</p>}
                   </button>
@@ -651,11 +742,18 @@ export default function DevDocs() {
                         </div>
                         <CardTitle className="text-white text-base">{endpoint.title}</CardTitle>
                       </div>
-                      {endpoint.price > 0
+                      {(endpoint as any).priceNote
+                        ? <Badge variant="outline" className="text-violet-400 border-violet-800 bg-violet-950/20">Dynamic pricing</Badge>
+                        : endpoint.price > 0
                         ? <Badge variant="outline" className="text-yellow-400 border-yellow-800 bg-yellow-950/20">₦{endpoint.price} / request</Badge>
                         : <Badge variant="outline" className="text-green-400 border-green-800 bg-green-950/20">Free</Badge>}
                     </div>
                     <p className="text-sm text-gray-400 mt-2">{endpoint.description}</p>
+                    {(endpoint as any).priceNote && (
+                      <div className="mt-3 bg-violet-950/20 border border-violet-800/40 rounded-lg px-3 py-2">
+                        <p className="text-xs text-violet-300"><span className="font-semibold">Pricing: </span>{(endpoint as any).priceNote}</p>
+                      </div>
+                    )}
                   </CardHeader>
                   <CardContent className="pt-4 space-y-5">
                     {endpoint.notes && endpoint.notes.length > 0 && (

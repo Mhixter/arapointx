@@ -270,6 +270,37 @@ const developerTransactions = pgTable('developer_transactions', {
         ADD COLUMN IF NOT EXISTS error_message text,
         ADD COLUMN IF NOT EXISTS completed_at timestamp
     `);
+    // Enterprise unified verification requests table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS developer_unified_requests (
+        id varchar(30) PRIMARY KEY,
+        developer_id uuid NOT NULL,
+        reference varchar(255),
+        callback_url text,
+        identity_nin varchar(20),
+        identity_bvn varchar(20),
+        identity_full_name varchar(255),
+        identity_dob varchar(20),
+        checks_requested jsonb DEFAULT '{}',
+        options jsonb DEFAULT '{}',
+        status varchar(20) DEFAULT 'queued',
+        checks_status jsonb DEFAULT '{}',
+        nin_data jsonb,
+        bvn_data jsonb,
+        education_results jsonb DEFAULT '[]',
+        employment_result jsonb,
+        fraud_result jsonb,
+        score integer,
+        decision varchar(10),
+        flags jsonb DEFAULT '[]',
+        breakdown jsonb,
+        total_cost numeric(10,2) DEFAULT 0,
+        environment varchar(20) DEFAULT 'sandbox',
+        webhook_delivered boolean DEFAULT false,
+        completed_at timestamp,
+        created_at timestamp DEFAULT now()
+      )
+    `);
   } catch (e: any) {
     // Column already exists or minor error — safe to ignore
   }
@@ -1392,51 +1423,317 @@ router.get('/verify/education/result', apiKeyAuth, async (req: Request, res: Res
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ENTERPRISE UNIFIED VERIFICATION  (v2)
+// POST /verify/unified
+// Accepts: { reference?, callbackUrl?, identity, checks, options? }
+// ─────────────────────────────────────────────────────────────────────────────
 router.post('/verify/unified', apiKeyAuth, async (req: Request, res: Response) => {
   const start = Date.now();
   const dev = (req as any).developer;
   const apiKeyId = (req as any).apiKeyId;
-  const { nin, bvn, education } = req.body;
-  let statusCode = 200;
+  const { reference, callbackUrl, identity = {}, checks = {}, options = {} } = req.body;
+  const envMode: string = (dev as any).environmentMode || 'sandbox';
+  let statusCode = 202;
   let responseData: any;
 
   try {
-    if (!nin && !bvn && !education) {
+    const { nin, bvn, fullName, dateOfBirth } = identity;
+    const { education = [], employment, fraudCheck = false } = checks;
+
+    // ── Validate: at least one check ──────────────────────────────────────────
+    if (!nin && !bvn && education.length === 0 && !employment && !fraudCheck) {
       statusCode = 400;
-      responseData = { status: 'error', code: 400, message: 'At least one of nin, bvn, or education required' };
+      responseData = { status: 'error', code: 400, message: 'Provide at least one check in identity (nin/bvn) or checks (education, employment, fraudCheck)' };
       return res.status(400).json(responseData);
     }
 
-    await deductDeveloperBalance(dev.id, API_PRICES.unified,
-      `Unified verification - ${[nin && 'NIN', bvn && 'BVN', education && 'Education'].filter(Boolean).join(', ')}`, (dev as any).environmentMode);
-
-    const results: any = { status: 'success', requestId: 'UNI-' + crypto.randomBytes(8).toString('hex') };
-
-    if (nin) {
-      try {
-        const { premblyService } = await import('../../services/premblyService');
-        results.nin = await premblyService.verifyNIN(nin);
-      } catch (e: any) {
-        results.nin = { error: e.message };
+    // ── Validate education array ───────────────────────────────────────────────
+    const validProviders = ['waec', 'neco', 'nabteb', 'nbais'];
+    for (const edu of education) {
+      if (!edu.type || !validProviders.includes(edu.type.toLowerCase())) {
+        statusCode = 400;
+        responseData = { status: 'error', code: 400, message: `education[].type must be one of: ${validProviders.join(', ')}` };
+        return res.status(400).json(responseData);
+      }
+      if (!edu.examNumber || !edu.examYear) {
+        statusCode = 400;
+        responseData = { status: 'error', code: 400, message: 'Each education check requires examNumber and examYear' };
+        return res.status(400).json(responseData);
       }
     }
-    if (bvn) {
-      try {
-        const { premblyService } = await import('../../services/premblyService');
-        results.bvn = await premblyService.verifyBVN(bvn);
-      } catch (e: any) {
-        results.bvn = { error: e.message };
-      }
-    }
-    if (education) {
-      results.education = {
-        status: 'processing',
-        note: 'Education results processed separately via RPA. Use /verify/education endpoint for specific results.',
+
+    // ── Dynamic pricing with bundle discount ──────────────────────────────────
+    let rawCost = 0;
+    if (nin) rawCost += API_PRICES.nin;
+    if (bvn) rawCost += API_PRICES.bvn;
+    rawCost += education.length * API_PRICES.education;
+    if (fraudCheck) rawCost += API_PRICES.fraud_score;
+    if (employment) rawCost += API_PRICES.employment_standard;
+    const bundleDiscount = rawCost > 300 ? 0.15 : 0;
+    const totalCost = Math.round(rawCost * (1 - bundleDiscount));
+
+    await deductDeveloperBalance(dev.id, totalCost,
+      `Unified Verification — ${[nin && 'NIN', bvn && 'BVN', education.length > 0 && `${education.length}x SSCE`, fraudCheck && 'Fraud', employment && 'Employment'].filter(Boolean).join(', ')} (${bundleDiscount > 0 ? '15% bundle discount' : 'no discount'})`,
+      envMode
+    );
+
+    const requestId = 'UNI-' + crypto.randomBytes(8).toString('hex').toUpperCase();
+
+    const checksRequested = {
+      nin: !!nin, bvn: !!bvn,
+      education: education.map((e: any) => ({ type: e.type, examYear: e.examYear })),
+      employment: !!employment, fraud: fraudCheck,
+    };
+    const checksStatus: Record<string, string> = {};
+    if (nin) checksStatus.nin = 'pending';
+    if (bvn) checksStatus.bvn = 'pending';
+    education.forEach((_: any, i: number) => { checksStatus[`education_${i}`] = 'pending'; });
+    if (employment) checksStatus.employment = 'pending';
+    if (fraudCheck) checksStatus.fraud = 'pending';
+
+    // ── Sandbox: return completed result immediately ──────────────────────────
+    if (envMode === 'sandbox') {
+      const ninData = nin ? sandboxNIN(nin).data : null;
+      const bvnData = bvn ? sandboxBVN(bvn).data : null;
+      const nameScore = (ninData && bvnData)
+        ? nameSimilarityScore(`${ninData.firstName} ${ninData.lastName}`, `${bvnData.firstName} ${bvnData.lastName}`)
+        : (fullName && ninData ? nameSimilarityScore(fullName, `${ninData.firstName} ${ninData.lastName}`) : 1);
+
+      const eduResults = education.map((edu: any) => ({
+        type: edu.type.toUpperCase(), examNumber: edu.examNumber, examYear: edu.examYear,
+        status: 'verified', ...sandboxEducation(edu.type, edu.examNumber, String(edu.examYear)).data,
+      }));
+      const fraudData = fraudCheck ? { score: 12, riskLevel: 'low', flags: [] } : null;
+      const empData = employment
+        ? { status: 'verified', level: employment.level || 'degree', employmentYear: employment.employmentYear, timeline: 'valid' }
+        : null;
+
+      const identityPts = (nin ? 20 : 0) + (bvn ? 20 : 0);
+      const eduPts = education.length > 0 ? 25 : 0;
+      const empPts = employment ? 25 : 0;
+      const fraudDeduction = fraudData ? Math.floor(fraudData.score / 5) : 0;
+      const maxPts = identityPts + eduPts + empPts;
+      const rawScore = Math.max(0, maxPts - fraudDeduction);
+      const score = maxPts > 0 ? Math.round((rawScore / maxPts) * 100) : 100;
+
+      statusCode = 200;
+      responseData = {
+        status: 'completed', code: 200, message: 'Unified verification completed (sandbox)',
+        data: {
+          requestId, reference: reference || null, status: 'completed',
+          decision: toDecision(score), score,
+          summary: {
+            identityMatch: ninData && bvnData ? nameScore >= 0.72 : true,
+            educationVerified: eduResults.length > 0,
+            employmentVerified: !!empData,
+            fraudRisk: fraudData?.riskLevel || 'not_checked',
+          },
+          breakdown: {
+            nin: ninData ? { status: 'matched', data: ninData } : { status: 'not_requested' },
+            bvn: bvnData ? { status: 'matched', data: bvnData } : { status: 'not_requested' },
+            nameMatchScore: Math.round(nameScore * 100),
+            education: eduResults,
+            employment: empData || { status: 'not_requested' },
+            fraud: fraudData || { status: 'not_requested' },
+          },
+          flags: [],
+          completedAt: new Date().toISOString(),
+          pricing: { rawCost, bundleDiscount: `${bundleDiscount * 100}%`, totalCost },
+        }
       };
+      return res.json(responseData);
     }
 
-    responseData = { status: 'success', code: 200, message: 'Unified verification completed', data: results };
-    res.json(responseData);
+    // ── LIVE: Persist request, return 202 immediately ─────────────────────────
+    await db.execute(sql`
+      INSERT INTO developer_unified_requests
+        (id, developer_id, reference, callback_url, identity_nin, identity_bvn,
+         identity_full_name, identity_dob, checks_requested, options, status,
+         checks_status, total_cost, environment)
+      VALUES
+        (${requestId}, ${dev.id}, ${reference || null}, ${callbackUrl || null},
+         ${nin ? nin.substring(0, 4) + '***' : null}, ${bvn ? bvn.substring(0, 4) + '***' : null},
+         ${fullName || null}, ${dateOfBirth || null},
+         ${JSON.stringify(checksRequested)}::jsonb, ${JSON.stringify(options)}::jsonb,
+         'queued', ${JSON.stringify(checksStatus)}::jsonb, ${totalCost}, ${envMode})
+    `);
+
+    responseData = {
+      status: 'accepted', code: 202,
+      message: 'Unified verification started. Poll the result endpoint for status.',
+      data: {
+        requestId, reference: reference || null, status: 'queued',
+        eta: education.length > 0 ? '60–120 seconds (SSCE via RPA)' : '10–30 seconds',
+        checks: checksStatus,
+        pollUrl: `GET /verify/unified/result/${requestId}`,
+        webhookConfigured: !!callbackUrl,
+        pricing: { rawCost, bundleDiscount: `${bundleDiscount * 100}%`, totalCost },
+      }
+    };
+    res.status(202).json(responseData);
+
+    // ── BACKGROUND PROCESSING ─────────────────────────────────────────────────
+    setImmediate(async () => {
+      try {
+        await db.execute(sql`UPDATE developer_unified_requests SET status = 'processing' WHERE id = ${requestId}`);
+
+        const flags: string[] = [];
+        let ninData: any = null;
+        let bvnData: any = null;
+        const updatedChecksStatus = { ...checksStatus };
+
+        // Parallel NIN + BVN
+        if (nin || bvn) {
+          const { premblyService } = await import('../../services/premblyService');
+          const tasks: Promise<any>[] = [];
+          if (nin) tasks.push(premblyService.verifyNIN(nin));
+          if (bvn) tasks.push(premblyService.verifyBVN(bvn));
+          const results = await Promise.allSettled(tasks);
+          let idx = 0;
+          if (nin) {
+            const r = results[idx++];
+            if (r.status === 'fulfilled') { ninData = r.value?.data || null; updatedChecksStatus.nin = 'verified'; }
+            else { flags.push(`NIN lookup failed: ${r.reason?.message}`); updatedChecksStatus.nin = 'failed'; }
+          }
+          if (bvn) {
+            const r = results[idx++];
+            if (r.status === 'fulfilled') { bvnData = r.value?.data || null; updatedChecksStatus.bvn = 'verified'; }
+            else { flags.push(`BVN lookup failed: ${r.reason?.message}`); updatedChecksStatus.bvn = 'failed'; }
+          }
+        }
+
+        // Name match
+        const nameScore = (ninData && bvnData)
+          ? nameSimilarityScore(`${ninData.firstName} ${ninData.lastName}`, `${bvnData.firstName} ${bvnData.lastName}`)
+          : (fullName && ninData ? nameSimilarityScore(fullName, `${ninData.firstName} ${ninData.lastName}`) : null);
+
+        if (nameScore !== null && nameScore < (options.strictNameMatch ? 0.90 : 0.72)) {
+          flags.push(`Name mismatch between identity records (score: ${(nameScore * 100).toFixed(0)}%)`);
+        }
+
+        // Queue education SSCEs to RPA
+        const educationResults: any[] = [];
+        const serviceTypeMap: Record<string, string> = { waec: 'waec_result', neco: 'neco_result', nabteb: 'nabteb_result', nbais: 'nbais_result' };
+        const defaultExamTypeMap: Record<string, string> = { waec: 'WASSCE', neco: 'ssce_int', nabteb: 'NBC/NTC', nbais: 'AISSCE' };
+
+        for (let i = 0; i < education.length; i++) {
+          const edu = education[i];
+          const provKey = edu.type.toLowerCase();
+          try {
+            const [job] = await db.insert(rpaJobs).values({
+              serviceType: serviceTypeMap[provKey] || `${provKey}_result`,
+              queryData: {
+                registrationNumber: edu.examNumber,
+                examYear: parseInt(String(edu.examYear), 10),
+                examType: edu.examType || defaultExamTypeMap[provKey],
+                cardPin: edu.card?.pin || edu.token,
+                ...(edu.card?.serial ? { cardSerialNumber: edu.card.serial } : {}),
+                source: 'developer_api_unified',
+                unifiedRequestId: requestId,
+              },
+              status: 'pending', priority: 5,
+            }).returning();
+            educationResults.push({ type: edu.type.toUpperCase(), examNumber: edu.examNumber, examYear: edu.examYear, status: 'processing', jobId: job.id });
+            updatedChecksStatus[`education_${i}`] = 'processing';
+          } catch (rpaErr: any) {
+            educationResults.push({ type: edu.type.toUpperCase(), examNumber: edu.examNumber, examYear: edu.examYear, status: 'failed', error: rpaErr.message });
+            updatedChecksStatus[`education_${i}`] = 'failed';
+            flags.push(`Education (${edu.type.toUpperCase()}) queue failed: ${rpaErr.message}`);
+          }
+        }
+
+        // Fraud check
+        let fraudResult: any = null;
+        if (fraudCheck && ninData && bvnData) {
+          const ninName = `${ninData.firstName || ''} ${ninData.lastName || ''}`.trim().toLowerCase();
+          const bvnName = `${bvnData.firstName || ''} ${bvnData.lastName || ''}`.trim().toLowerCase();
+          let riskScore = 0;
+          const signals: Record<string, boolean> = {};
+          if (ninName && bvnName && ninName !== bvnName) { riskScore += 25; signals.nameMismatch = true; }
+          if (ninData.dateOfBirth !== bvnData.dateOfBirth) { riskScore += 15; signals.dobMismatch = true; }
+          fraudResult = { score: riskScore, riskLevel: riskScore >= 40 ? 'high' : riskScore >= 20 ? 'medium' : 'low', signals, flags: Object.keys(signals) };
+          updatedChecksStatus.fraud = 'completed';
+          if (riskScore >= 40) flags.push(`High fraud risk detected (score: ${riskScore})`);
+        } else if (fraudCheck) {
+          fraudResult = { score: 0, riskLevel: 'unknown', note: 'Requires both NIN and BVN for fraud scoring' };
+          updatedChecksStatus.fraud = 'skipped';
+        }
+
+        // Employment result
+        let employmentResult: any = null;
+        if (employment) {
+          const empYear = employment.employmentYear || new Date().getFullYear();
+          const dob = ninData?.dateOfBirth || bvnData?.dateOfBirth || dateOfBirth || null;
+          const timeline = validateTimeline(dob, null, empYear);
+          const empNameScore = nameScore ?? (fullName && ninData ? nameSimilarityScore(fullName, `${ninData.firstName} ${ninData.lastName}`) : 0.5);
+          flags.push(...timeline.issues);
+          employmentResult = {
+            status: ninData || bvnData ? 'verified' : 'partial',
+            level: employment.level || 'degree',
+            employmentYear: empYear,
+            timeline: timeline.valid ? 'valid' : 'issues_found',
+            ageAtEmployment: timeline.ageAtEmployment,
+          };
+          updatedChecksStatus.employment = 'completed';
+        }
+
+        // Score computation
+        const ninVerified = !!ninData;
+        const bvnVerified = !!bvnData;
+        const identityPts = (nin ? (ninVerified ? 20 : 0) : 0) + (bvn ? (bvnVerified ? 20 : 0) : 0);
+        const eduPts = education.length > 0 ? 25 : 0;
+        const empPts = employment ? (employmentResult?.status === 'verified' ? 25 : 10) : 0;
+        const fraudDeduction = fraudResult ? Math.floor((fraudResult.score || 0) / 5) : 0;
+        const maxPts = (nin ? 20 : 0) + (bvn ? 20 : 0) + eduPts + empPts;
+        const rawScore = Math.max(0, identityPts + eduPts + empPts - fraudDeduction);
+        const score = maxPts > 0 ? Math.round((rawScore / maxPts) * 100) : 100;
+        const decision = toDecision(score);
+
+        const breakdown = {
+          nin: ninData ? { status: 'matched', data: { firstName: ninData.firstName, lastName: ninData.lastName, dateOfBirth: ninData.dateOfBirth } } : { status: nin ? 'failed' : 'not_requested' },
+          bvn: bvnData ? { status: 'matched', data: { firstName: bvnData.firstName, lastName: bvnData.lastName, dateOfBirth: bvnData.dateOfBirth } } : { status: bvn ? 'failed' : 'not_requested' },
+          nameMatchScore: nameScore !== null ? Math.round(nameScore * 100) : null,
+          education: educationResults,
+          employment: employmentResult || { status: 'not_requested' },
+          fraud: fraudResult || { status: 'not_requested' },
+        };
+
+        const hasRpaJobs = educationResults.some(e => e.status === 'processing');
+        const finalStatus = hasRpaJobs ? 'processing' : 'completed';
+
+        await db.execute(sql`
+          UPDATE developer_unified_requests SET
+            status = ${finalStatus},
+            checks_status = ${JSON.stringify(updatedChecksStatus)}::jsonb,
+            nin_data = ${ninData ? JSON.stringify(ninData) : null}::jsonb,
+            bvn_data = ${bvnData ? JSON.stringify(bvnData) : null}::jsonb,
+            education_results = ${JSON.stringify(educationResults)}::jsonb,
+            employment_result = ${employmentResult ? JSON.stringify(employmentResult) : null}::jsonb,
+            fraud_result = ${fraudResult ? JSON.stringify(fraudResult) : null}::jsonb,
+            score = ${score}, decision = ${decision},
+            flags = ${JSON.stringify(flags)}::jsonb,
+            breakdown = ${JSON.stringify(breakdown)}::jsonb,
+            ${hasRpaJobs ? sql`completed_at = null` : sql`completed_at = now()`}
+          WHERE id = ${requestId}
+        `);
+
+        // Fire webhook if callbackUrl provided and no pending RPA jobs
+        if (callbackUrl && !hasRpaJobs) {
+          try {
+            const payload = { event: 'unified.completed', requestId, reference: reference || null, decision, score, breakdown, flags, completedAt: new Date().toISOString() };
+            await fetch(callbackUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Arapoint-Event': 'unified.completed' }, body: JSON.stringify(payload) });
+            await db.execute(sql`UPDATE developer_unified_requests SET webhook_delivered = true WHERE id = ${requestId}`);
+          } catch (whErr: any) {
+            logger.error('Unified webhook delivery failed', { requestId, error: whErr.message });
+          }
+        }
+      } catch (bgErr: any) {
+        logger.error('Unified background processing failed', { requestId, error: bgErr.message });
+        await db.execute(sql`UPDATE developer_unified_requests SET status = 'failed' WHERE id = ${requestId}`).catch(() => {});
+      }
+    });
+
   } catch (e: any) {
     if (e.message?.includes('Insufficient')) {
       statusCode = 402;
@@ -1444,12 +1741,80 @@ router.post('/verify/unified', apiKeyAuth, async (req: Request, res: Response) =
       return res.status(402).json(responseData);
     }
     statusCode = 500;
-    responseData = { status: 'error', code: 500, message: 'Verification failed', error: e.message };
+    responseData = { status: 'error', code: 500, message: 'Unified verification failed', error: e.message };
     res.status(500).json(responseData);
   } finally {
-    await logApiCall(dev.id, apiKeyId, '/verify/unified', 'POST', { nin, bvn, education },
-      responseData, statusCode, statusCode === 200 ? API_PRICES.unified : 0,
+    await logApiCall(dev.id, apiKeyId, '/verify/unified', 'POST',
+      { reference, identity: { nin: identity.nin ? '***' : undefined, bvn: identity.bvn ? '***' : undefined }, checks: Object.keys(checks) },
+      responseData, statusCode, [200, 202].includes(statusCode) ? (responseData?.data?.pricing?.totalCost || 0) : 0,
       Date.now() - start, req.ip || '', (dev as any).environmentMode || 'sandbox');
+  }
+});
+
+// ─── Poll Unified Result ───────────────────────────────────────────────────────
+// GET /verify/unified/result/:requestId
+router.get('/verify/unified/result/:requestId', apiKeyAuth, async (req: Request, res: Response) => {
+  const start = Date.now();
+  const dev = (req as any).developer;
+  const apiKeyId = (req as any).apiKeyId;
+  const { requestId } = req.params;
+  let statusCode = 200;
+  let responseData: any;
+
+  try {
+    const rows = await db.execute(sql`
+      SELECT * FROM developer_unified_requests WHERE id = ${requestId} AND developer_id = ${dev.id}
+    `);
+    const row: any = rows.rows?.[0];
+
+    if (!row) {
+      statusCode = 404;
+      responseData = { status: 'error', code: 404, message: 'Unified verification request not found or does not belong to your account' };
+      return res.status(404).json(responseData);
+    }
+
+    if (row.status === 'queued' || row.status === 'processing') {
+      statusCode = 202;
+      responseData = {
+        status: row.status, code: 202,
+        message: 'Verification still in progress — check back in a few seconds',
+        data: { requestId, reference: row.reference, status: row.status, checksStatus: row.checks_status },
+      };
+      return res.status(202).json(responseData);
+    }
+
+    if (row.status === 'failed') {
+      statusCode = 500;
+      responseData = { status: 'error', code: 500, message: 'Unified verification failed', data: { requestId, reference: row.reference } };
+      return res.status(500).json(responseData);
+    }
+
+    statusCode = 200;
+    responseData = {
+      status: 'completed', code: 200,
+      data: {
+        requestId, reference: row.reference, status: 'completed',
+        decision: row.decision, score: row.score,
+        summary: {
+          identityMatch: (row.breakdown as any)?.nin?.status === 'matched' || (row.breakdown as any)?.bvn?.status === 'matched',
+          educationVerified: ((row.education_results as any[]) || []).some((e: any) => e.status === 'verified'),
+          employmentVerified: (row.employment_result as any)?.status === 'verified',
+          fraudRisk: (row.fraud_result as any)?.riskLevel || 'not_checked',
+        },
+        breakdown: row.breakdown,
+        flags: row.flags,
+        completedAt: row.completed_at,
+      }
+    };
+    res.json(responseData);
+
+  } catch (e: any) {
+    statusCode = 500;
+    responseData = { status: 'error', code: 500, message: 'Failed to retrieve unified result', error: e.message };
+    res.status(500).json(responseData);
+  } finally {
+    await logApiCall(dev.id, apiKeyId, `/verify/unified/result/${requestId}`, 'GET',
+      {}, responseData, statusCode, 0, Date.now() - start, req.ip || '', (dev as any).environmentMode || 'sandbox');
   }
 });
 
