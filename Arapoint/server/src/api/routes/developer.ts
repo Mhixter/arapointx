@@ -89,6 +89,77 @@ const developerTransactions = pgTable('developer_transactions', {
 (async () => {
   try {
     await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS developer_users (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        email varchar(255) UNIQUE NOT NULL,
+        name varchar(255) NOT NULL,
+        company varchar(255),
+        password_hash varchar(255) NOT NULL,
+        wallet_balance numeric(15,2) DEFAULT 0,
+        sandbox_balance numeric(15,2) DEFAULT 0,
+        is_active boolean DEFAULT true,
+        email_verified boolean DEFAULT false,
+        account_type varchar(50) DEFAULT 'individual',
+        kyc_status varchar(50) DEFAULT 'not_required',
+        kyc_documents jsonb,
+        kyc_submitted_at timestamp,
+        kyc_reviewed_at timestamp,
+        kyc_review_note text,
+        webhook_url varchar(500),
+        environment_mode varchar(20) DEFAULT 'sandbox',
+        webhook_secret varchar(255),
+        webhook_enabled boolean DEFAULT false,
+        ip_allowlist jsonb DEFAULT '[]'::jsonb,
+        created_at timestamp DEFAULT now(),
+        updated_at timestamp DEFAULT now()
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS developer_api_keys (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        developer_id uuid NOT NULL,
+        key_name varchar(100) NOT NULL,
+        api_key varchar(150) UNIQUE NOT NULL,
+        secret_key_hash varchar(255),
+        secret_key_last_four varchar(10),
+        environment varchar(20) DEFAULT 'sandbox',
+        is_active boolean DEFAULT true,
+        last_used_at timestamp,
+        total_requests integer DEFAULT 0,
+        created_at timestamp DEFAULT now()
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS developer_api_logs (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        developer_id uuid NOT NULL,
+        api_key_id uuid,
+        endpoint varchar(255),
+        method varchar(10),
+        request_body jsonb,
+        response_body jsonb,
+        status_code integer,
+        cost numeric(10,2) DEFAULT 0,
+        duration_ms integer,
+        ip_address varchar(50),
+        environment varchar(20) DEFAULT 'sandbox',
+        created_at timestamp DEFAULT now()
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS developer_transactions (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        developer_id uuid NOT NULL,
+        transaction_type varchar(50),
+        amount numeric(15,2),
+        description text,
+        reference_id varchar(100),
+        status varchar(50) DEFAULT 'successful',
+        environment varchar(20) DEFAULT 'live',
+        created_at timestamp DEFAULT now()
+      )
+    `);
+    await db.execute(sql`
       ALTER TABLE developer_api_keys
         ADD COLUMN IF NOT EXISTS environment varchar(20) DEFAULT 'sandbox',
         ADD COLUMN IF NOT EXISTS secret_key_hash varchar(255),
