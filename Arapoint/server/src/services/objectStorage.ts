@@ -1,27 +1,9 @@
-import { Storage, File } from "@google-cloud/storage";
+import { Client } from "@replit/object-storage";
 import { Response } from "express";
 import { randomUUID } from "crypto";
 import { logger } from "../utils/logger";
 
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
-
-export const objectStorageClient = new Storage({
-  credentials: {
-    audience: "replit",
-    subject_token_type: "access_token",
-    token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
-    type: "external_account",
-    credential_source: {
-      url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
-      format: {
-        type: "json",
-        subject_token_field_name: "access_token",
-      },
-    },
-    universe_domain: "googleapis.com",
-  },
-  projectId: "",
-});
 
 export class ObjectNotFoundError extends Error {
   constructor() {
@@ -32,7 +14,11 @@ export class ObjectNotFoundError extends Error {
 }
 
 export class ObjectStorageService {
-  constructor() {}
+  private client: Client;
+
+  constructor() {
+    this.client = new Client();
+  }
 
   getPrivateObjectDir(): string {
     const dir = process.env.PRIVATE_OBJECT_DIR || "";
@@ -42,6 +28,19 @@ export class ObjectStorageService {
       );
     }
     return dir;
+  }
+
+  parseObjectPath(path: string): { bucketName: string; objectName: string } {
+    if (!path.startsWith("/")) {
+      path = `/${path}`;
+    }
+    const pathParts = path.split("/");
+    if (pathParts.length < 3) {
+      throw new Error("Invalid path: must contain at least a bucket name");
+    }
+    const bucketName = pathParts[1];
+    const objectName = pathParts.slice(2).join("/");
+    return { bucketName, objectName };
   }
 
   /**
@@ -55,33 +54,19 @@ export class ObjectStorageService {
     extension: string = ""
   ): Promise<string | null> {
     try {
-      const privateObjectDir = this.getPrivateObjectDir();
+      this.getPrivateObjectDir();
       const objectId = randomUUID();
       const ext = extension ? (extension.startsWith('.') ? extension : `.${extension}`) : '';
       const objectKey = `${prefix}/${objectId}${ext}`;
-      const fullPath = `${privateObjectDir}/${objectKey}`;
-      const { bucketName, objectName } = this.parseObjectPath(fullPath);
 
-      const uploadURL = await this.signObjectURL({
-        bucketName,
-        objectName,
-        method: "PUT",
-        ttlSec: 300,
-      });
-
-      const uploadRes = await fetch(uploadURL, {
-        method: "PUT",
-        headers: { "Content-Type": mimeType },
-        body: buffer,
-      });
-
-      if (!uploadRes.ok) {
-        throw new Error(`Object storage PUT failed: ${uploadRes.status}`);
+      const result = await this.client.uploadFromBytes(objectKey, buffer);
+      if (!result.ok) {
+        throw new Error(`Upload failed: ${result.error}`);
       }
 
       return `/objects/${objectKey}`;
     } catch (err: any) {
-      logger.warn("uploadBuffer: falling back to disk", { error: err.message });
+      logger.warn("uploadBuffer: failed", { error: err.message });
       return null;
     }
   }
@@ -102,7 +87,7 @@ export class ObjectStorageService {
     return { uploadURL, objectPath: `/objects/${prefix}/${objectId}` };
   }
 
-  async getObjectEntityFile(objectPath: string): Promise<File> {
+  async getObjectEntityFile(objectPath: string): Promise<string> {
     if (!objectPath.startsWith("/objects/")) {
       throw new ObjectNotFoundError();
     }
@@ -112,32 +97,21 @@ export class ObjectStorageService {
       throw new ObjectNotFoundError();
     }
 
-    const entityId = parts.slice(1).join("/");
-    let entityDir = this.getPrivateObjectDir();
-    if (!entityDir.endsWith("/")) {
-      entityDir = `${entityDir}/`;
-    }
-    const objectEntityPath = `${entityDir}${entityId}`;
-    const { bucketName, objectName } = this.parseObjectPath(objectEntityPath);
-    const bucket = objectStorageClient.bucket(bucketName);
-    const objectFile = bucket.file(objectName);
-    const [exists] = await objectFile.exists();
-    if (!exists) {
+    const objectKey = parts.slice(1).join("/");
+    const result = await this.client.exists(objectKey);
+    if (!result.ok || !result.value) {
       throw new ObjectNotFoundError();
     }
-    return objectFile;
+    return objectKey;
   }
 
-  async downloadObject(file: File, res: Response, cacheTtlSec: number = 3600) {
+  async downloadObject(objectKey: string, res: Response, cacheTtlSec: number = 3600) {
     try {
-      const [metadata] = await file.getMetadata();
       res.set({
-        "Content-Type": metadata.contentType || "application/octet-stream",
-        "Content-Length": metadata.size,
         "Cache-Control": `private, max-age=${cacheTtlSec}`,
       });
 
-      const stream = file.createReadStream();
+      const stream = this.client.downloadAsStream(objectKey);
       stream.on("error", (err) => {
         logger.error("Stream error:", { error: err.message });
         if (!res.headersSent) {
@@ -168,19 +142,6 @@ export class ObjectStorageService {
     }
     const entityId = rawObjectPath.slice(objectEntityDir.length);
     return `/objects/${entityId}`;
-  }
-
-  parseObjectPath(path: string): { bucketName: string; objectName: string } {
-    if (!path.startsWith("/")) {
-      path = `/${path}`;
-    }
-    const pathParts = path.split("/");
-    if (pathParts.length < 3) {
-      throw new Error("Invalid path: must contain at least a bucket name");
-    }
-    const bucketName = pathParts[1];
-    const objectName = pathParts.slice(2).join("/");
-    return { bucketName, objectName };
   }
 
   async signObjectURL({
@@ -217,3 +178,6 @@ export class ObjectStorageService {
 }
 
 export const objectStorageService = new ObjectStorageService();
+
+// Keep backward-compat export for any code that used objectStorageClient directly
+export const objectStorageClient = null;
