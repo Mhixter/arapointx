@@ -317,27 +317,52 @@ const API_PRICES: Record<string, number> = {
   'fraud_score': 50,
 };
 
-// ─── In-Memory Rate Limiter (sliding 24-hour window) ─────────────────────────
-const rateLimitStore = new Map<string, { count: number; windowStart: number }>();
 const RATE_LIMITS: Record<string, number> = { sandbox: 100, live: 10000 };
 
-function checkRateLimit(apiKey: string, environment: string): { allowed: boolean; remaining: number; resetAt: number } {
+async function checkRateLimit(apiKey: string, environment: string): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
   const windowMs = 24 * 60 * 60 * 1000;
   const limit = RATE_LIMITS[environment] || 100;
   const now = Date.now();
-  const entry = rateLimitStore.get(apiKey);
+  const resetTime = now + windowMs;
+  const key = `dev_api_${apiKey}`;
 
-  if (!entry || now - entry.windowStart > windowMs) {
-    rateLimitStore.set(apiKey, { count: 1, windowStart: now });
-    return { allowed: true, remaining: limit - 1, resetAt: now + windowMs };
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS rate_limits (
+        key varchar(255) PRIMARY KEY,
+        count integer NOT NULL DEFAULT 1,
+        reset_time bigint NOT NULL
+      )
+    `);
+
+    const result = await db.execute(sql`
+      INSERT INTO rate_limits (key, count, reset_time)
+      VALUES (${key}, 1, ${resetTime})
+      ON CONFLICT (key) DO UPDATE SET
+        count = CASE
+          WHEN rate_limits.reset_time < ${now} THEN 1
+          ELSE rate_limits.count + 1
+        END,
+        reset_time = CASE
+          WHEN rate_limits.reset_time < ${now} THEN ${resetTime}
+          ELSE rate_limits.reset_time
+        END
+      RETURNING count, reset_time
+    `);
+
+    const row = result.rows[0] as { count: number; reset_time: string };
+    const count = Number(row.count);
+    const storedReset = Number(row.reset_time);
+
+    return {
+      allowed: count <= limit,
+      remaining: Math.max(0, limit - count),
+      resetAt: storedReset,
+    };
+  } catch (e: any) {
+    logger.warn('Developer rate limit DB error, allowing request', { error: e.message });
+    return { allowed: true, remaining: limit, resetAt: now + windowMs };
   }
-
-  if (entry.count >= limit) {
-    return { allowed: false, remaining: 0, resetAt: entry.windowStart + windowMs };
-  }
-
-  entry.count++;
-  return { allowed: true, remaining: limit - entry.count, resetAt: entry.windowStart + windowMs };
 }
 
 // ─── In-Memory NIN/BVN Cache (TTL-based) ──────────────────────────────────────
@@ -480,7 +505,7 @@ async function apiKeyAuth(req: Request, res: Response, next: Function) {
 
   // ── Rate limiting ────────────────────────────────────────────────────────
   const env = keyRecord.environment || 'sandbox';
-  const rateCheck = checkRateLimit(apiKey, env);
+  const rateCheck = await checkRateLimit(apiKey, env);
   res.setHeader('X-RateLimit-Limit', RATE_LIMITS[env] || 100);
   res.setHeader('X-RateLimit-Remaining', rateCheck.remaining);
   res.setHeader('X-RateLimit-Reset', Math.floor(rateCheck.resetAt / 1000));

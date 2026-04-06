@@ -53,7 +53,7 @@ export function DevLayout({ children }: { children: React.ReactNode }) {
   if (!developer) return null;
 
   return (
-    <div className="min-h-screen flex" style={{ background: "#0A0A0A", color: "#E5E7EB" }}>
+    <div className="min-h-screen flex" style={{ background: "var(--dev-bg)", color: "var(--dev-text)" }}>
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/70 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
@@ -61,7 +61,7 @@ export function DevLayout({ children }: { children: React.ReactNode }) {
       {/* ── Sidebar ── */}
       <aside
         className={`fixed lg:static inset-y-0 left-0 z-30 flex flex-col transition-transform duration-200 ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
-        style={{ width: 240, background: "#0A0A0A", borderRight: "1px solid #1F2937" }}
+        style={{ width: 240, background: "var(--dev-bg)", borderRight: "1px solid var(--dev-border)" }}
       >
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 py-4" style={{ borderBottom: "1px solid #1F2937" }}>
@@ -136,7 +136,7 @@ export function DevLayout({ children }: { children: React.ReactNode }) {
       {/* ── Main ── */}
       <main className="flex-1 flex flex-col min-w-0">
         {/* Mobile header */}
-        <header className="lg:hidden flex items-center gap-3 px-4 py-3" style={{ background: "#0A0A0A", borderBottom: "1px solid #1F2937" }}>
+        <header className="lg:hidden flex items-center gap-3 px-4 py-3" style={{ background: "var(--dev-bg)", borderBottom: "1px solid var(--dev-border)" }}>
           <button onClick={() => setSidebarOpen(true)} style={{ color: "#6B7280" }}>
             <Menu className="w-5 h-5" />
           </button>

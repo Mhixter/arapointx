@@ -1,36 +1,32 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import pino from 'pino';
 
-const LOG_DIR = './logs';
-const LOG_FILE = path.join(LOG_DIR, 'app.log');
-
-// Ensure logs directory exists
-if (!fs.existsSync(LOG_DIR)) {
-  fs.mkdirSync(LOG_DIR, { recursive: true });
-}
+const pinoLogger = pino({
+  level: process.env.LOG_LEVEL || 'info',
+  transport: process.env.NODE_ENV !== 'production'
+    ? { target: 'pino-pretty', options: { colorize: true, translateTime: 'HH:MM:ss' } }
+    : undefined,
+  formatters: {
+    level: (label) => ({ level: label }),
+  },
+  timestamp: pino.stdTimeFunctions.isoTime,
+});
 
 export const logger = {
   info: (message: string, data?: any) => {
-    const log = `[${new Date().toISOString()}] INFO: ${message}${data ? ' ' + JSON.stringify(data) : ''}`;
-    console.log(log);
-    fs.appendFileSync(LOG_FILE, log + '\n');
+    if (data) pinoLogger.info(data, message);
+    else pinoLogger.info(message);
   },
-  
   error: (message: string, error?: any) => {
-    const log = `[${new Date().toISOString()}] ERROR: ${message}${error ? ' ' + JSON.stringify(error) : ''}`;
-    console.error(log);
-    fs.appendFileSync(LOG_FILE, log + '\n');
+    if (error) pinoLogger.error(error, message);
+    else pinoLogger.error(message);
   },
-  
   warn: (message: string, data?: any) => {
-    const log = `[${new Date().toISOString()}] WARN: ${message}${data ? ' ' + JSON.stringify(data) : ''}`;
-    console.warn(log);
-    fs.appendFileSync(LOG_FILE, log + '\n');
+    if (data) pinoLogger.warn(data, message);
+    else pinoLogger.warn(message);
   },
-  
   debug: (message: string, data?: any) => {
-    const log = `[${new Date().toISOString()}] DEBUG: ${message}${data ? ' ' + JSON.stringify(data) : ''}`;
-    console.log(log);
-    fs.appendFileSync(LOG_FILE, log + '\n');
+    if (data) pinoLogger.debug(data, message);
+    else pinoLogger.debug(message);
   },
+  child: (bindings: Record<string, any>) => pinoLogger.child(bindings),
 };

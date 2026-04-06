@@ -161,6 +161,18 @@
   --sidebar-ring: 142 70% 50%;
 }
 
+:root {
+  --dev-bg: #0A0A0A;
+  --dev-card: #111827;
+  --dev-border: #1F2937;
+  --dev-text: #E5E7EB;
+  --dev-muted: #6B7280;
+  --dev-blue: #0B5FFF;
+  --dev-green: #12B76A;
+  --dev-amber: #F59E0B;
+  --dev-red: #EF4444;
+}
+
 @layer base {
   * {
     @apply border-border;

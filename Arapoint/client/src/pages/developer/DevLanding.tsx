@@ -5,14 +5,14 @@ import {
 } from "lucide-react";
 
 const C = {
-  bg: "#0A0A0A",
-  card: "#111827",
-  border: "#1F2937",
-  text: "#E5E7EB",
-  muted: "#6B7280",
-  blue: "#0B5FFF",
-  green: "#12B76A",
-  amber: "#F59E0B",
+  bg: "var(--dev-bg)",
+  card: "var(--dev-card)",
+  border: "var(--dev-border)",
+  text: "var(--dev-text)",
+  muted: "var(--dev-muted)",
+  blue: "var(--dev-blue)",
+  green: "var(--dev-green)",
+  amber: "var(--dev-amber)",
 };
 
 const FEATURES = [

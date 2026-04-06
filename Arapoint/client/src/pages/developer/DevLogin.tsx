@@ -3,13 +3,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Code2, Loader2, Mail, ArrowLeft, CheckCircle, Eye, EyeOff } from "lucide-react";
 
 const C = {
-  bg: "#0A0A0A",
-  card: "#111827",
-  border: "#1F2937",
-  text: "#E5E7EB",
-  muted: "#6B7280",
-  blue: "#0B5FFF",
-  green: "#12B76A",
+  bg: "var(--dev-bg)",
+  card: "var(--dev-card)",
+  border: "var(--dev-border)",
+  text: "var(--dev-text)",
+  muted: "var(--dev-muted)",
+  blue: "var(--dev-blue)",
+  green: "var(--dev-green)",
 };
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

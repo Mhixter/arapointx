@@ -23,7 +23,7 @@ export default function DevNotFound() {
   return (
     <div
       className="min-h-screen flex flex-col"
-      style={{ background: "#0A0A0A", color: "#E5E7EB" }}
+      style={{ background: "var(--dev-bg)", color: "var(--dev-text)" }}
     >
       <style>{`
         @keyframes dev-float {

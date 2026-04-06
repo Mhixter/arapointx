@@ -10,6 +10,7 @@ import {
   decimal,
   date,
   serial,
+  index,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -53,7 +54,11 @@ export const rpa_jobs = pgTable('rpa_jobs', {
   created_at: timestamp('created_at').defaultNow(),
   started_at: timestamp('started_at'),
   completed_at: timestamp('completed_at'),
-});
+}, (table) => [
+  index('rpa_jobs_status_idx').on(table.status),
+  index('rpa_jobs_user_id_idx').on(table.user_id),
+  index('rpa_jobs_created_at_idx').on(table.created_at),
+]);
 
 export const bot_credentials = pgTable('bot_credentials', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
@@ -100,7 +105,10 @@ export const education_services = pgTable('education_services', {
   status: varchar('status', { length: 50 }),
   result_data: jsonb('result_data'),
   created_at: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('education_services_user_id_idx').on(table.user_id),
+  index('education_services_status_idx').on(table.status),
+]);
 
 export const identity_verifications = pgTable('identity_verifications', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
@@ -112,7 +120,10 @@ export const identity_verifications = pgTable('identity_verifications', {
   status: varchar('status', { length: 50 }),
   verification_data: jsonb('verification_data'),
   created_at: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('identity_verifications_user_id_idx').on(table.user_id),
+  index('identity_verifications_status_idx').on(table.status),
+]);
 
 export const admin_roles = pgTable('admin_roles', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
@@ -142,7 +153,10 @@ export const support_tickets = pgTable('support_tickets', {
   status: varchar('status', { length: 20 }).default('open'),
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').defaultNow(),
-});
+}, (table) => [
+  index('support_tickets_user_id_idx').on(table.user_id),
+  index('support_tickets_status_idx').on(table.status),
+]);
 
 export const support_conversations = pgTable('support_conversations', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
@@ -233,7 +247,11 @@ export const transactions = pgTable('transactions', {
   reference_id: varchar('reference_id', { length: 100 }),
   status: varchar('status', { length: 50 }),
   created_at: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('transactions_user_id_idx').on(table.user_id),
+  index('transactions_status_idx').on(table.status),
+  index('transactions_created_at_idx').on(table.created_at),
+]);
 
 export const admin_settings = pgTable('admin_settings', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),

@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { objectStorageService, ObjectNotFoundError } from "./src/services/objectStorage";
 import { db } from "./src/config/database";
 import { servicePricing } from "./src/db/schema";
-import { eq, inArray, and, gt } from "drizzle-orm";
+import { eq, inArray, and, gt, sql } from "drizzle-orm";
 import { adminSettings, supportPresence } from "./src/db/schema";
 
 import authRoutes from "./src/api/routes/auth";
@@ -48,16 +48,34 @@ export async function registerRoutes(
   // Register object storage routes
   registerObjectStorageRoutes(app);
 
+  const defaultOrigins = [
+    'https://arapoint.com.ng',
+    'https://www.arapoint.com.ng',
+    'https://developer.arapoint.com.ng',
+  ];
+  if (process.env.REPLIT_DEV_DOMAIN) {
+    defaultOrigins.push(`https://${process.env.REPLIT_DEV_DOMAIN}`);
+  }
+  if (process.env.REPL_SLUG) {
+    defaultOrigins.push(/https:\/\/.*\.replit\.dev/i as any);
+  }
+
   app.use((req, res, next) => {
-    const allowedOrigins: string[] = process.env.ALLOWED_ORIGINS
+    const allowedOrigins: (string | RegExp)[] = process.env.ALLOWED_ORIGINS
       ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-      : ['*'];
+      : defaultOrigins;
     const origin = req.headers.origin || '';
-    if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
-      res.header('Access-Control-Allow-Origin', allowedOrigins.includes('*') ? '*' : origin);
+
+    const isAllowed = allowedOrigins.some(o => {
+      if (typeof o === 'string') return o === '*' || o === origin;
+      return o.test(origin);
+    });
+
+    if (isAllowed || process.env.NODE_ENV !== 'production') {
+      res.header('Access-Control-Allow-Origin', origin || '*');
     }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, x-api-key');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, x-api-key, X-Request-Id');
     res.header('Access-Control-Allow-Credentials', 'true');
     if (req.method === 'OPTIONS') {
       return res.sendStatus(200);
@@ -65,8 +83,27 @@ export async function registerRoutes(
     next();
   });
 
-  app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  const serverStartTime = Date.now();
+
+  app.get('/api/health', async (req, res) => {
+    let dbStatus = 'unknown';
+    try {
+      await db.execute(sql`SELECT 1`);
+      dbStatus = 'connected';
+    } catch {
+      dbStatus = 'disconnected';
+    }
+    const memUsage = process.memoryUsage();
+    res.json({
+      status: dbStatus === 'connected' ? 'ok' : 'degraded',
+      timestamp: new Date().toISOString(),
+      uptime: Math.floor((Date.now() - serverStartTime) / 1000),
+      database: dbStatus,
+      memory: {
+        heapUsedMB: Math.round(memUsage.heapUsed / 1024 / 1024),
+        rssMB: Math.round(memUsage.rss / 1024 / 1024),
+      },
+    });
   });
 
   app.get('/api/settings/public', publicRateLimiter, async (req, res) => {

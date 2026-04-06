@@ -1,5 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import compression from "compression";
+import helmet from "helmet";
+import crypto from "crypto";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -11,11 +13,33 @@ import { rpaBot } from "./src/rpa/bot";
 const app = express();
 const httpServer = createServer(app);
 
+app.set('trust proxy', 1);
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
   }
 }
+
+declare global {
+  namespace Express {
+    interface Request {
+      requestId?: string;
+    }
+  }
+}
+
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+}));
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const id = (req.headers['x-request-id'] as string) || crypto.randomUUID();
+  req.requestId = id;
+  res.setHeader('X-Request-Id', id);
+  next();
+});
 
 // Compress all responses except already-compressed media
 app.use(compression({

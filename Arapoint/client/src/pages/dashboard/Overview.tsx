@@ -1,5 +1,6 @@
 import { tokenStorage } from '@/lib/tokenStorage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle2, CreditCard, ArrowUpRight, ArrowDownRight, ShieldCheck, GraduationCap, Loader2, Copy, Building2, AlertTriangle, Smartphone, Zap, Tv, Banknote, FileText, ChevronRight, Wifi, History, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
@@ -187,8 +188,48 @@ export default function Overview() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="space-y-6">
+        <div className="grid lg:grid-cols-3 gap-4">
+          <Card className="lg:col-span-2 bg-gradient-to-br from-slate-800 to-slate-900 border-0 shadow-xl">
+            <CardContent className="pt-6 pb-6">
+              <Skeleton className="h-4 w-28 bg-white/10 mb-3" />
+              <Skeleton className="h-10 w-48 bg-white/10 mb-3" />
+              <Skeleton className="h-3 w-56 bg-white/10" />
+            </CardContent>
+          </Card>
+          <Card className="border-slate-200 dark:border-slate-700 shadow-lg">
+            <CardHeader className="pb-3">
+              <Skeleton className="h-5 w-32" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-4 w-full mb-2" />
+              <Skeleton className="h-4 w-3/4 mb-2" />
+              <Skeleton className="h-4 w-1/2" />
+            </CardContent>
+          </Card>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i} className="shadow-md">
+              <CardContent className="pt-5 pb-4">
+                <Skeleton className="h-3 w-20 mb-3" />
+                <Skeleton className="h-7 w-16 mb-2" />
+                <Skeleton className="h-3 w-24" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="grid lg:grid-cols-4 gap-3">
+          {[...Array(8)].map((_, i) => (
+            <Card key={i} className="shadow-sm">
+              <CardContent className="pt-5 pb-4">
+                <Skeleton className="h-10 w-10 rounded-xl mb-3" />
+                <Skeleton className="h-4 w-28 mb-2" />
+                <Skeleton className="h-3 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }

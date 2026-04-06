@@ -343,6 +343,7 @@ const docSections = [
   { id: "security", label: "IP Allowlist", icon: Lock },
   { id: "sdks", label: "Code Examples", icon: Globe },
   { id: "billing", label: "Billing & Pricing", icon: CreditCard },
+  { id: "changelog", label: "Changelog", icon: BarChart3 },
 ];
 
 const groupOrder = ["Verification", "Account"];
@@ -450,7 +451,7 @@ export default function DevDocs() {
   }, []);
 
   const Sidebar = () => (
-    <div className="flex flex-col h-full" style={{ background: "#0D0D0D" }}>
+    <div className="flex flex-col h-full" style={{ background: "var(--dev-bg)" }}>
       <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid #1F2937" }}>
         <div>
           <p className="text-xs font-bold text-white uppercase tracking-widest">API Docs</p>
@@ -557,13 +558,13 @@ export default function DevDocs() {
         {/* Docs sidebar — desktop (always visible) */}
         <aside
           className="hidden lg:flex flex-col flex-shrink-0"
-          style={{ width: 240, borderRight: "1px solid #1F2937", background: "#0D0D0D" }}
+          style={{ width: 240, borderRight: "1px solid var(--dev-border)", background: "var(--dev-bg)" }}
         >
           <Sidebar />
         </aside>
 
         {/* Main content */}
-        <div className="flex-1 flex flex-col min-w-0" style={{ background: "#0A0A0A" }}>
+        <div className="flex-1 flex flex-col min-w-0" style={{ background: "var(--dev-bg)" }}>
           {/* Top bar */}
           <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0" style={{ borderBottom: "1px solid #1F2937" }}>
             <button className="lg:hidden text-gray-400 hover:text-white" onClick={() => setSidebarOpen(true)}>
@@ -698,8 +699,8 @@ export default function DevDocs() {
                 <Card className="bg-gray-900 border-gray-800">
                   <CardContent className="pt-5 space-y-4 text-sm text-gray-400">
                     <p>Every developer account starts in <span className="text-white font-medium">Sandbox mode</span>. Test all API flows without hitting real government databases or spending money.</p>
-                    <div className="border border-gray-800 rounded-lg overflow-hidden">
-                      <div className="grid grid-cols-3 p-3 bg-gray-800/50 text-xs text-gray-400 font-medium border-b border-gray-700">
+                    <div className="border border-gray-800 rounded-lg overflow-x-auto">
+                      <div className="grid grid-cols-3 p-3 bg-gray-800/50 text-xs text-gray-400 font-medium border-b border-gray-700 min-w-[320px]">
                         <span>Feature</span><span className="text-cyan-400">Sandbox</span><span className="text-green-400">Live</span>
                       </div>
                       {[
@@ -709,7 +710,7 @@ export default function DevDocs() {
                         ["KYB required", "No", "Yes"],
                         ["Webhook delivery", "Yes (test events)", "Yes (real events)"],
                       ].map(([feature, sandbox, live], i) => (
-                        <div key={feature} className={`grid grid-cols-3 p-3 text-xs ${i < 4 ? "border-b border-gray-800" : ""}`}>
+                        <div key={feature} className={`grid grid-cols-3 p-3 text-xs min-w-[320px] ${i < 4 ? "border-b border-gray-800" : ""}`}>
                           <span className="text-gray-300">{feature}</span>
                           <span className="text-cyan-300">{sandbox}</span>
                           <span className="text-green-300">{live}</span>
@@ -906,8 +907,8 @@ export default function DevDocs() {
                 <Card className="bg-gray-900 border-gray-800">
                   <CardContent className="pt-5 space-y-4 text-sm text-gray-400">
                     <p>Rate limits are applied per API key on a 24-hour rolling window.</p>
-                    <div className="border border-gray-800 rounded-lg overflow-hidden">
-                      <div className="grid grid-cols-3 p-3 bg-gray-800/50 text-xs text-gray-400 font-medium border-b border-gray-700">
+                    <div className="border border-gray-800 rounded-lg overflow-x-auto">
+                      <div className="grid grid-cols-3 p-3 bg-gray-800/50 text-xs text-gray-400 font-medium border-b border-gray-700 min-w-[280px]">
                         <span>Environment</span><span>Daily Limit</span><span>Window</span>
                       </div>
                       {[
@@ -1055,15 +1056,15 @@ console.log(result.data.verification.firstName); // "JOHN"`} />
                 <Card className="bg-gray-900 border-gray-800">
                   <CardContent className="pt-5 space-y-4 text-sm text-gray-400">
                     <p>Arapoint uses a prepaid wallet model — no subscriptions, no monthly fees. Pay only for the API calls you make.</p>
-                    <div className="border border-gray-800 rounded-lg overflow-hidden">
-                      <div className="grid grid-cols-4 p-3 bg-gray-800/50 text-xs text-gray-400 font-medium border-b border-gray-700">
-                        <span className="col-span-2">Endpoint</span><span>Price</span><span>Notes</span>
+                    <div className="border border-gray-800 rounded-lg overflow-x-auto">
+                      <div className="grid grid-cols-3 sm:grid-cols-4 p-3 bg-gray-800/50 text-xs text-gray-400 font-medium border-b border-gray-700 min-w-[280px]">
+                        <span>Endpoint</span><span>Price</span><span className="hidden sm:block">Notes</span>
                       </div>
                       {endpoints.filter(e => e.group === "Verification").map((ep, i) => (
-                        <div key={ep.path} className={`grid grid-cols-4 p-3 text-xs ${i < endpoints.filter(e => e.group === "Verification").length - 1 ? "border-b border-gray-800" : ""}`}>
-                          <span className="col-span-2 text-gray-300 font-medium">{ep.title}</span>
+                        <div key={ep.path} className={`grid grid-cols-3 sm:grid-cols-4 p-3 text-xs min-w-[280px] ${i < endpoints.filter(e => e.group === "Verification").length - 1 ? "border-b border-gray-800" : ""}`}>
+                          <span className="text-gray-300 font-medium">{ep.title}</span>
                           <span className={ep.price > 0 ? "text-yellow-400" : "text-green-400"}>{ep.price > 0 ? `₦${ep.price}` : "Free"}</span>
-                          <span className="text-gray-500">{ep.async ? "Charged on queue" : ep.price === 0 ? "No charge" : "Per request"}</span>
+                          <span className="text-gray-500 hidden sm:block">{ep.async ? "Charged on queue" : ep.price === 0 ? "No charge" : "Per request"}</span>
                         </div>
                       ))}
                     </div>
@@ -1078,6 +1079,65 @@ console.log(result.data.verification.firstName); // "JOHN"`} />
                         ))}
                       </ol>
                     </div>
+                  </CardContent>
+                </Card>
+              </section>
+
+              {/* ── Changelog ─────────────────────────────────────── */}
+              <section id="changelog" className="scroll-mt-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <BarChart3 className="w-5 h-5 text-indigo-400" />
+                  <h2 className="text-lg font-bold text-white">Changelog</h2>
+                </div>
+                <Card className="bg-gray-900 border-gray-800">
+                  <CardContent className="pt-5 space-y-6 text-sm text-gray-400">
+                    {[
+                      {
+                        version: "v2.1.0",
+                        date: "April 6, 2026",
+                        changes: [
+                          { type: "new", text: "Enterprise Unified Verification endpoint with multi-SSCE, employment, fraud scoring in a single request" },
+                          { type: "new", text: "Dynamic bundle pricing — 15% discount when total exceeds ₦300" },
+                          { type: "new", text: "Polling endpoint GET /verify/unified/result/:requestId" },
+                          { type: "new", text: "Webhook delivery on unified request completion via callbackUrl" },
+                          { type: "improved", text: "Enhanced API security headers (Helmet, restricted CORS, trust proxy)" },
+                          { type: "improved", text: "Request ID tracking via X-Request-Id header on all responses" },
+                          { type: "improved", text: "Database indexes on frequently queried columns for faster lookups" },
+                          { type: "improved", text: "Structured JSON logging with pino for better production monitoring" },
+                          { type: "improved", text: "Enhanced /api/health endpoint with DB status, memory, and uptime" },
+                        ]
+                      },
+                      {
+                        version: "v2.0.0",
+                        date: "March 2026",
+                        changes: [
+                          { type: "new", text: "Developer Portal launched with full API access" },
+                          { type: "new", text: "NIN, BVN, Education (WAEC/NECO), Employment verification endpoints" },
+                          { type: "new", text: "Fraud Score endpoint for identity risk assessment" },
+                          { type: "new", text: "Sandbox environment with mock data for development" },
+                          { type: "new", text: "Webhook configuration and test delivery" },
+                          { type: "new", text: "IP Allowlist security feature" },
+                          { type: "new", text: "Prepaid wallet with Paystack integration" },
+                        ]
+                      },
+                    ].map(release => (
+                      <div key={release.version}>
+                        <div className="flex items-center gap-3 mb-3">
+                          <Badge variant="outline" className="text-indigo-400 border-indigo-800 bg-indigo-950/20 text-xs">{release.version}</Badge>
+                          <span className="text-xs text-gray-500">{release.date}</span>
+                        </div>
+                        <div className="space-y-2 pl-1">
+                          {release.changes.map((c, i) => (
+                            <div key={i} className="flex items-start gap-2.5">
+                              <Badge className={`text-xs px-1.5 py-0 flex-shrink-0 ${c.type === "new" ? "bg-green-900/40 text-green-400 border border-green-800" : c.type === "improved" ? "bg-blue-900/40 text-blue-400 border border-blue-800" : "bg-red-900/40 text-red-400 border border-red-800"}`}>
+                                {c.type === "new" ? "NEW" : c.type === "improved" ? "IMPROVED" : "FIX"}
+                              </Badge>
+                              <span className="text-xs text-gray-300">{c.text}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </CardContent>
                 </Card>
               </section>

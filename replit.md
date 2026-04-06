@@ -103,6 +103,17 @@ Preferred communication style: Simple, everyday language.
 - **Agent Login**: `Arapoint/client/src/pages/support/SupportAgentLogin.tsx` - Dedicated support agent login at `/support/agent/login`
 - **Agent Dashboard**: `Arapoint/client/src/pages/support/SupportAgentDashboard.tsx` - Agent-specific dashboard at `/support/agent/dashboard` with ticket management, reply suggestions, notes
 
+### Developer Portal Security & Infrastructure
+- **Logging**: Pino-based structured JSON logging (`server/src/utils/logger.ts`) with backward-compatible API
+- **Rate Limiting**: PostgreSQL-backed persistent rate limiter (`server/src/api/middleware/rateLimit.ts`) using upsert pattern — survives server restarts
+- **Security Headers**: Helmet middleware, restricted CORS (production), X-Request-Id per request
+- **Health Check**: Enhanced `/api/health` returns DB status, uptime, memory usage
+- **Database Indexes**: On rpa_jobs, transactions, identity_verifications, support_tickets, education_services
+- **OpenAPI Spec**: `Arapoint/openapi.yaml` documents all developer-facing API endpoints
+- **Developer Portal CSS**: Dark theme uses CSS custom properties (`--dev-bg`, `--dev-card`, `--dev-border`, etc.) defined in `index.css`
+- **Changelog**: API changelog section in DevDocs with versioned release notes (v2.0.0, v2.1.0)
+- **Webhook System**: Full webhook delivery with HMAC-SHA256 signing, retry schedule (1m/5m/15m/1h), delivery log viewer
+
 ### Frontend UI
 - **shadcn/ui**: Component library built on Radix UI primitives
 - **Lucide React**: Icon library
