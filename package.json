@@ -6,7 +6,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "vite --port 3001",
     "build": "cd Arapoint && npm install && npm run build",
-    "start": "cd Arapoint && npm run start"
+    "start": "cd Arapoint && npm run db:push && npm run start"
   },
   "keywords": [],
   "author": "",
