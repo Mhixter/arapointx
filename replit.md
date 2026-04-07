@@ -134,8 +134,9 @@ Preferred communication style: Simple, everyday language.
   - `security.ts` — IP allowlist management
 - **Route mount**: `routes.ts` imports `./src/api/routes/developer` which resolves to `developer/index.ts`
 
-### Identity Check API
-- **Endpoint**: `POST /api/v1/developer/verify/identity-check` — unified NIN + BVN + SSCE verification in one request
+### Employment Screening API
+- **Endpoint**: `POST /api/v1/developer/verify/employment-screening` — unified NIN + BVN + SSCE verification in one request
+- **Polling**: `GET /api/v1/developer/verify/employment-screening/result/:requestId`
 - **Always Required**: `nin` (11 digits), `bvn` (11 digits), `educationProvider` (waec/neco/nabteb/nbais)
 - **Provider-specific fields**:
   - WAEC: registrationNumber, examYear, examType, cardSerialNumber, cardPin
@@ -143,7 +144,7 @@ Preferred communication style: Simple, everyday language.
   - NABTEB: candidateNumber, examYear, examType, cardSerialNumber, cardPin
   - NBAIS: registrationNumber, examYear, examMonth, state, schoolName, cardPin
 - **Pricing**: NIN(130) + BVN(80) + Education(250) = 460, with 15% bundle discount = 391
-- **Flow**: NIN+BVN verified immediately via Prembly, education queued as RPA job (1-3 min). Returns `requestId` (IDC-prefixed) for polling via `GET /verify/identity-check/result/:requestId`
+- **Flow**: NIN+BVN verified immediately via Prembly, education queued as RPA job (1-3 min). Returns `requestId` (IDC-prefixed) for polling
 - **Sandbox**: Returns instant composed mock result. Live: async with polling
 - **Analysis**: Comprehensive `analyzeIdentityCheck()` function cross-references all data:
   - NIN↔BVN name similarity (threshold 0.72) and DOB match

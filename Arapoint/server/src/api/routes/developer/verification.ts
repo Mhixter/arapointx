@@ -973,7 +973,7 @@ router.post('/verify/fraud-score', apiKeyAuth, async (req: Request, res: Respons
   }
 });
 
-router.post('/verify/identity-check', apiKeyAuth, async (req: Request, res: Response) => {
+router.post('/verify/employment-screening', apiKeyAuth, async (req: Request, res: Response) => {
   const start = Date.now();
   const dev = (req as any).developer;
   const apiKeyId = (req as any).apiKeyId;
@@ -1003,7 +1003,7 @@ router.post('/verify/identity-check', apiKeyAuth, async (req: Request, res: Resp
 
     if (missing.length > 0) {
       statusCode = 400;
-      responseData = { status: 'error', code: 400, message: `Missing required fields: ${missing.join(', ')}. All identity checks require nin, bvn, and educationProvider.` };
+      responseData = { status: 'error', code: 400, message: `Missing required fields: ${missing.join(', ')}. Employment screening requires nin, bvn, and educationProvider.` };
       return res.status(400).json(responseData);
     }
 
@@ -1068,7 +1068,7 @@ router.post('/verify/identity-check', apiKeyAuth, async (req: Request, res: Resp
     totalCost = Math.round(rawCost * (1 - bundleDiscount));
 
     await deductDeveloperBalance(dev.id, totalCost,
-      `Identity Check — NIN + BVN + ${provider.toUpperCase()} (15% bundle discount)`, envMode);
+      `Employment Screening — NIN + BVN + ${provider.toUpperCase()} (15% bundle discount)`, envMode);
 
     const requestId = 'IDC-' + crypto.randomBytes(8).toString('hex').toUpperCase();
 
@@ -1080,7 +1080,7 @@ router.post('/verify/identity-check', apiKeyAuth, async (req: Request, res: Resp
 
       statusCode = 200;
       responseData = {
-        status: 'success', code: 200, message: 'Identity check completed (sandbox)',
+        status: 'success', code: 200, message: 'Employment screening completed (sandbox)',
         data: {
           requestId, reference: reference || null, status: 'completed',
           decision: analysis.decision,
@@ -1125,18 +1125,18 @@ router.post('/verify/identity-check', apiKeyAuth, async (req: Request, res: Resp
       VALUES
         (${requestId}, ${dev.id}, ${reference || null}, ${callbackUrl || null},
          ${nin.substring(0, 4) + '***'}, ${bvn.substring(0, 4) + '***'},
-         ${JSON.stringify(checksRequested)}::jsonb, ${JSON.stringify({ source: 'identity-check' })}::jsonb,
+         ${JSON.stringify(checksRequested)}::jsonb, ${JSON.stringify({ source: 'employment-screening' })}::jsonb,
          'queued', ${JSON.stringify(checksStatus)}::jsonb, ${totalCost}, ${envMode})
     `);
 
     responseData = {
       status: 'accepted', code: 202,
-      message: 'Identity check started. NIN + BVN will be verified immediately, education results via RPA in 1-3 minutes.',
+      message: 'Employment screening started. NIN + BVN will be verified immediately, education results via RPA in 1-3 minutes.',
       data: {
         requestId, reference: reference || null, status: 'queued',
         eta: '60–120 seconds',
         checks: checksStatus,
-        pollUrl: `GET /verify/identity-check/result/${requestId}`,
+        pollUrl: `GET /verify/employment-screening/result/${requestId}`,
         webhookConfigured: !!callbackUrl,
         pricing: { rawCost, bundleDiscount: '15%', totalCost },
       }
@@ -1189,7 +1189,7 @@ router.post('/verify/identity-check', apiKeyAuth, async (req: Request, res: Resp
               ...(candidateState ? { state: candidateState } : {}),
               ...(schoolName ? { schoolName } : {}),
               ...(examMonth ? { examMonth } : {}),
-              source: 'developer_api_identity_check',
+              source: 'developer_api_employment_screening',
               unifiedRequestId: requestId,
             },
             status: 'pending', priority: 5,
@@ -1238,15 +1238,15 @@ router.post('/verify/identity-check', apiKeyAuth, async (req: Request, res: Resp
 
         if (callbackUrl && !hasRpaJobs) {
           try {
-            const payload = { event: 'identity-check.completed', requestId, reference: reference || null, decision: analysis?.decision || toDecision(score), score, breakdown, flags, completedAt: new Date().toISOString() };
-            await fetch(callbackUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Arapoint-Event': 'identity-check.completed' }, body: JSON.stringify(payload) });
+            const payload = { event: 'employment-screening.completed', requestId, reference: reference || null, decision: analysis?.decision || toDecision(score), score, breakdown, flags, completedAt: new Date().toISOString() };
+            await fetch(callbackUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Arapoint-Event': 'employment-screening.completed' }, body: JSON.stringify(payload) });
             await db.execute(sql`UPDATE developer_unified_requests SET webhook_delivered = true WHERE id = ${requestId}`).catch(() => {});
           } catch (whErr: any) {
-            logger.error('Identity check webhook delivery failed', { requestId, error: whErr.message });
+            logger.error('Employment screening webhook delivery failed', { requestId, error: whErr.message });
           }
         }
       } catch (bgErr: any) {
-        logger.error('Identity check background processing failed', { requestId, error: bgErr.message });
+        logger.error('Employment screening background processing failed', { requestId, error: bgErr.message });
         await db.execute(sql`UPDATE developer_unified_requests SET status = 'failed' WHERE id = ${requestId}`).catch(() => {});
       }
     });
@@ -1258,17 +1258,17 @@ router.post('/verify/identity-check', apiKeyAuth, async (req: Request, res: Resp
       return res.status(402).json(responseData);
     }
     statusCode = 500;
-    responseData = { status: 'error', code: 500, message: 'Identity check failed', error: e.message };
+    responseData = { status: 'error', code: 500, message: 'Employment screening failed', error: e.message };
     res.status(500).json(responseData);
   } finally {
-    await logApiCall(dev.id, apiKeyId, '/verify/identity-check', 'POST',
+    await logApiCall(dev.id, apiKeyId, '/verify/employment-screening', 'POST',
       { reference, nin: '***', bvn: '***', educationProvider, examYear, registrationNumber: regNo || candidateNumber },
       responseData, statusCode, [200, 202].includes(statusCode) ? totalCost : 0,
       Date.now() - start, req.ip || '', envMode);
   }
 });
 
-router.get('/verify/identity-check/result/:requestId', apiKeyAuth, async (req: Request, res: Response) => {
+router.get('/verify/employment-screening/result/:requestId', apiKeyAuth, async (req: Request, res: Response) => {
   const start = Date.now();
   const dev = (req as any).developer;
   const apiKeyId = (req as any).apiKeyId;
@@ -1279,7 +1279,7 @@ router.get('/verify/identity-check/result/:requestId', apiKeyAuth, async (req: R
   try {
     if (!requestId?.startsWith('IDC-')) {
       statusCode = 400;
-      responseData = { status: 'error', code: 400, message: 'Invalid requestId. Identity check request IDs start with IDC-' };
+      responseData = { status: 'error', code: 400, message: 'Invalid requestId. Employment screening request IDs start with IDC-' };
       return res.status(400).json(responseData);
     }
 
@@ -1290,7 +1290,7 @@ router.get('/verify/identity-check/result/:requestId', apiKeyAuth, async (req: R
 
     if (!row) {
       statusCode = 404;
-      responseData = { status: 'error', code: 404, message: 'Identity check request not found or does not belong to your account' };
+      responseData = { status: 'error', code: 404, message: 'Employment screening request not found or does not belong to your account' };
       return res.status(404).json(responseData);
     }
 
@@ -1391,7 +1391,7 @@ router.get('/verify/identity-check/result/:requestId', apiKeyAuth, async (req: R
 
     responseData = {
       status: 'success', code: 200,
-      message: currentStatus === 'completed' ? 'Identity check completed' : 'Identity check still processing',
+      message: currentStatus === 'completed' ? 'Employment screening completed' : 'Employment screening still processing',
       data: {
         requestId,
         reference: row.reference || null,
@@ -1424,10 +1424,10 @@ router.get('/verify/identity-check/result/:requestId', apiKeyAuth, async (req: R
     res.json(responseData);
   } catch (e: any) {
     statusCode = 500;
-    responseData = { status: 'error', code: 500, message: 'Failed to fetch identity check result', error: e.message };
+    responseData = { status: 'error', code: 500, message: 'Failed to fetch employment screening result', error: e.message };
     res.status(500).json(responseData);
   } finally {
-    await logApiCall(dev.id, apiKeyId, `/verify/identity-check/result/${requestId}`, 'GET',
+    await logApiCall(dev.id, apiKeyId, `/verify/employment-screening/result/${requestId}`, 'GET',
       { requestId }, responseData, statusCode, 0,
       Date.now() - start, req.ip || '', (dev as any).environmentMode || 'sandbox');
   }

@@ -429,22 +429,38 @@ paths:
         "404":
           description: Request not found
 
-  /verify/identity-check:
+  /verify/employment-screening:
     post:
-      summary: Identity Check (NIN + BVN + SSCE)
+      summary: Employment Screening (NIN + BVN + SSCE)
       description: |
-        Unified identity verification endpoint that validates a person's NIN, BVN, and SSCE results
-        (WAEC, NECO, NABTEB, or NBAIS) in a single request. Always requires `nin`, `bvn`, and
-        `educationProvider`. Additional fields depend on the provider:
+        Comprehensive employment screening endpoint that validates a candidate's NIN, BVN, and SSCE results
+        (WAEC, NECO, NABTEB, or NBAIS) in a single request with intelligent cross-referencing.
 
-        **WAEC**: registrationNumber, examYear, examType (Internal/GCE), cardSerialNumber, cardPin
-        **NECO**: registrationNumber, examYear, examType (Internal/GCE), token
-        **NABTEB**: candidateNumber, examYear, examType (MAY/JUN), cardSerialNumber, cardPin
-        **NBAIS**: registrationNumber, examYear, examMonth, state, schoolName, cardPin
+        **What it checks:**
+        - NIN identity verification (name, DOB, gender)
+        - BVN identity verification (name, DOB)
+        - NIN ↔ BVN name similarity (72%+ threshold) and date of birth match
+        - SSCE candidate name ↔ NIN/BVN name cross-reference
+        - SSCE candidate DOB ↔ NIN/BVN DOB cross-reference
+        - SSCE grade analysis: credit = A1, B2, B3, C4, C5, C6 (C6 and above)
+        - Minimum requirement check: credit in English + credit in Mathematics + 3 other credit subjects
+
+        **Provider-specific fields:**
+        - **WAEC**: registrationNumber, examYear, examType (Internal/GCE), cardSerialNumber, cardPin
+        - **NECO**: registrationNumber, examYear, examType (Internal/GCE), token
+        - **NABTEB**: candidateNumber, examYear, examType (MAY/JUN), cardSerialNumber, cardPin
+        - **NBAIS**: registrationNumber, examYear, examMonth, state, schoolName, cardPin
 
         NIN and BVN are verified immediately. Education results are processed via RPA (1-3 min).
         Returns a `requestId` to poll for results. 15% bundle discount applied.
-      operationId: identityCheck
+
+        **Scoring (100-point scale):**
+        NIN verified (15) + BVN verified (15) + NIN↔BVN name match (10) + NIN↔BVN DOB match (5) +
+        Education found (10) + SSCE name matches identity (10) + SSCE DOB matches identity (5) +
+        English credit (10) + Maths credit (10) + Meets minimum 5-credit requirement (10)
+
+        **Decision:** PASS (≥85) | REVIEW (60–84) | FAIL (<60)
+      operationId: employmentScreening
       tags: [Verification]
       requestBody:
         required: true
@@ -498,30 +514,33 @@ paths:
                   description: NBAIS candidate school
                 reference:
                   type: string
-                  description: Your reference ID
+                  description: Your reference ID for tracking
                 callbackUrl:
                   type: string
                   format: uri
-                  description: Webhook URL for result delivery
+                  description: Webhook URL — results are POSTed here when screening completes
       responses:
         "200":
-          description: Completed immediately (sandbox mode)
+          description: Completed immediately (sandbox mode) — includes full crossCheck, ssceAnalysis, decision
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/SuccessResponse"
         "202":
-          description: Accepted — poll for result
+          description: Accepted — education verification queued. Poll for result.
         "400":
-          description: Missing required fields
+          description: Missing required fields or invalid provider-specific fields
         "402":
           description: Insufficient wallet balance
 
-  /verify/identity-check/result/{requestId}:
+  /verify/employment-screening/result/{requestId}:
     get:
-      summary: Poll Identity Check Result
-      description: Poll for the result of an identity check request. Returns NIN, BVN, and education verification status.
-      operationId: getIdentityCheckResult
+      summary: Poll Employment Screening Result
+      description: |
+        Poll the status and full result of a previously submitted employment screening request.
+        Returns the cross-check analysis, SSCE grade breakdown, overall score, and decision when complete.
+        Returns processing status if education verification is still in progress.
+      operationId: getEmploymentScreeningResult
       tags: [Verification]
       parameters:
         - name: requestId
@@ -529,10 +548,10 @@ paths:
           required: true
           schema:
             type: string
-          description: The IDC-prefixed request ID from the identity-check response
+          description: The IDC-prefixed request ID from the employment-screening response
       responses:
         "200":
-          description: Result available (may still be processing)
+          description: Result available — includes crossCheck, ssceAnalysis, decision, score, summary, flags
           content:
             application/json:
               schema:
