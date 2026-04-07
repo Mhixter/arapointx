@@ -26,6 +26,7 @@ router.get('/logs', devJwtAuth, async (req: Request, res: Response) => {
 router.get('/analytics', devJwtAuth, async (req: Request, res: Response) => {
   const dev = (req as any).developer;
   const days = parseInt(req.query.days as string) || 30;
+  const environment = (req.query.environment as string) || (dev as any).environmentMode || 'sandbox';
   try {
     const summary = await db.execute(sql`
       SELECT
@@ -35,7 +36,7 @@ router.get('/analytics', devJwtAuth, async (req: Request, res: Response) => {
         COALESCE(SUM(cost), 0)::numeric AS total_spent,
         COALESCE(AVG(duration_ms), 0)::numeric AS avg_duration_ms
       FROM developer_api_logs
-      WHERE developer_id = ${dev.id} AND created_at >= NOW() - INTERVAL '${sql.raw(days.toString())} days'
+      WHERE developer_id = ${dev.id} AND environment = ${environment} AND created_at >= NOW() - INTERVAL '${sql.raw(days.toString())} days'
     `);
 
     const dailyData = await db.execute(sql`
@@ -45,7 +46,7 @@ router.get('/analytics', devJwtAuth, async (req: Request, res: Response) => {
         COUNT(*) FILTER (WHERE status_code >= 200 AND status_code < 300)::int AS success,
         COALESCE(SUM(cost), 0)::numeric AS spent
       FROM developer_api_logs
-      WHERE developer_id = ${dev.id} AND created_at >= NOW() - INTERVAL '${sql.raw(days.toString())} days'
+      WHERE developer_id = ${dev.id} AND environment = ${environment} AND created_at >= NOW() - INTERVAL '${sql.raw(days.toString())} days'
       GROUP BY DATE(created_at)
       ORDER BY day ASC
     `);
@@ -53,7 +54,7 @@ router.get('/analytics', devJwtAuth, async (req: Request, res: Response) => {
     const endpointData = await db.execute(sql`
       SELECT endpoint, COUNT(*)::int AS calls, COALESCE(SUM(cost), 0)::numeric AS spent
       FROM developer_api_logs
-      WHERE developer_id = ${dev.id} AND created_at >= NOW() - INTERVAL '${sql.raw(days.toString())} days'
+      WHERE developer_id = ${dev.id} AND environment = ${environment} AND created_at >= NOW() - INTERVAL '${sql.raw(days.toString())} days'
       GROUP BY endpoint
       ORDER BY calls DESC
       LIMIT 10

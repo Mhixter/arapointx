@@ -270,6 +270,40 @@ router.get('/admin/developers/:id', adminAuth, async (req: Request, res: Respons
   }
 });
 
+router.patch('/admin/developers/:id/rate-limit', adminAuth, async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { rateLimit } = req.body;
+  const limit = parseInt(rateLimit);
+  if (isNaN(limit) || limit < 0) {
+    return res.status(400).json({ status: 'error', code: 400, message: 'Rate limit must be a non-negative integer' });
+  }
+  if (limit > 1000000) {
+    return res.status(400).json({ status: 'error', code: 400, message: 'Maximum rate limit is 1,000,000 per day' });
+  }
+  try {
+    const devRow = (await db.execute(sql`
+      SELECT id, name, email FROM developer_users WHERE id = ${id} LIMIT 1
+    `)).rows[0] as any;
+    if (!devRow) return res.status(404).json({ status: 'error', code: 404, message: 'Developer not found' });
+
+    await db.execute(sql`
+      UPDATE developer_users SET custom_rate_limit = ${limit}, updated_at = now() WHERE id = ${id}
+    `);
+
+    logger.info('Admin updated developer rate limit', { developerId: id, newLimit: limit });
+    res.json({
+      status: 'success', code: 200,
+      message: limit === 0
+        ? 'Rate limit reset to default'
+        : `Rate limit set to ${limit.toLocaleString()} requests/day`,
+      data: { developerId: id, customRateLimit: limit },
+    });
+  } catch (e: any) {
+    logger.error('Admin rate limit update error', { error: e.message, developerId: id });
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to update rate limit' });
+  }
+});
+
 router.patch('/admin/developers/:id/promote', adminAuth, async (req: Request, res: Response) => {
   try {
     const { action } = req.body;

@@ -99,9 +99,21 @@ export const API_PRICES: Record<string, number> = {
 
 export const RATE_LIMITS: Record<string, number> = { sandbox: 100, live: 10000 };
 
-export async function checkRateLimit(apiKey: string, environment: string): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
+export async function checkRateLimit(apiKey: string, environment: string, developerId?: string): Promise<{ allowed: boolean; remaining: number; resetAt: number; limit: number }> {
   const windowMs = 24 * 60 * 60 * 1000;
-  const limit = RATE_LIMITS[environment] || 100;
+  let limit = RATE_LIMITS[environment] || 100;
+
+  if (developerId) {
+    try {
+      const devRow = (await db.execute(sql`
+        SELECT custom_rate_limit FROM developer_users WHERE id = ${developerId} LIMIT 1
+      `)).rows[0] as any;
+      if (devRow?.custom_rate_limit && Number(devRow.custom_rate_limit) > 0) {
+        limit = Number(devRow.custom_rate_limit);
+      }
+    } catch {}
+  }
+
   const now = Date.now();
   const resetTime = now + windowMs;
   const key = `dev_api_${apiKey}`;
@@ -138,10 +150,11 @@ export async function checkRateLimit(apiKey: string, environment: string): Promi
       allowed: cnt <= limit,
       remaining: Math.max(0, limit - cnt),
       resetAt: storedReset,
+      limit,
     };
   } catch (e: any) {
     logger.warn('Developer rate limit DB error, allowing request', { error: e.message });
-    return { allowed: true, remaining: limit, resetAt: now + windowMs };
+    return { allowed: true, remaining: limit, resetAt: now + windowMs, limit };
   }
 }
 
@@ -288,8 +301,8 @@ export async function apiKeyAuth(req: Request, res: Response, next: Function) {
   }
 
   const env = keyRecord.environment || 'sandbox';
-  const rateCheck = await checkRateLimit(apiKey, env);
-  res.setHeader('X-RateLimit-Limit', RATE_LIMITS[env] || 100);
+  const rateCheck = await checkRateLimit(apiKey, env, dev.id);
+  res.setHeader('X-RateLimit-Limit', rateCheck.limit);
   res.setHeader('X-RateLimit-Remaining', rateCheck.remaining);
   res.setHeader('X-RateLimit-Reset', Math.floor(rateCheck.resetAt / 1000));
   if (!rateCheck.allowed) {

@@ -17,13 +17,32 @@ export default function DevLogs() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<any | null>(null);
+  const [envMode, setEnvMode] = useState<"sandbox" | "live">("sandbox");
 
-  const fetchLogs = async (p = page) => {
+  const fetchLogs = async (p = page, env?: string) => {
     setLoading(true);
     try {
-      const res = await devFetch(`/logs?page=${p}`);
-      const data = await res.json();
-      if (data.status === "success") setLogs(data.data.logs);
+      const currentEnv = env || envMode;
+      const [logsRes, profileRes] = await Promise.all([
+        devFetch(`/logs?page=${p}&environment=${currentEnv}`),
+        !env ? devFetch("/profile") : Promise.resolve(null),
+      ]);
+      const logsData = await logsRes.json();
+      if (logsData.status === "success") setLogs(logsData.data.logs);
+      if (profileRes) {
+        const pd = await profileRes.json();
+        if (pd.status === "success") {
+          const mode = pd.data.environmentMode || "sandbox";
+          if (mode !== currentEnv) {
+            setEnvMode(mode);
+            const res2 = await devFetch(`/logs?page=${p}&environment=${mode}`);
+            const d2 = await res2.json();
+            if (d2.status === "success") setLogs(d2.data.logs);
+          } else {
+            setEnvMode(mode);
+          }
+        }
+      }
     } catch {}
     setLoading(false);
   };

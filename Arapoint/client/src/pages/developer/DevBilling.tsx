@@ -45,13 +45,15 @@ export default function DevBilling() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [profileRes, txRes, gatewayRes] = await Promise.all([
-        devFetch("/profile"),
-        devFetch("/transactions"),
+      const profileRes = await devFetch("/profile");
+      const profileData = await profileRes.json();
+      const currentEnv = profileData?.data?.environmentMode || "sandbox";
+      const [txRes, gatewayRes] = await Promise.all([
+        devFetch(`/transactions?environment=${currentEnv}`),
         devFetch("/billing/gateway-status"),
       ]);
-      const [profileData, txData, gatewayData] = await Promise.all([
-        profileRes.json(), txRes.json(), gatewayRes.json(),
+      const [txData, gatewayData] = await Promise.all([
+        txRes.json(), gatewayRes.json(),
       ]);
       if (profileData.status === "success") setProfile(profileData.data);
       if (txData.status === "success") setTransactions(txData.data.transactions);

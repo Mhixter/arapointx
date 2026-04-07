@@ -90,6 +90,9 @@ export default function AdminDeveloperPortal() {
   const [creditAmount, setCreditAmount] = useState("");
   const [creditReason, setCreditReason] = useState("");
   const [crediting, setCrediting] = useState(false);
+  const [rateLimitModal, setRateLimitModal] = useState<{ open: boolean; devId: string; devName: string; current: number } | null>(null);
+  const [rateLimitValue, setRateLimitValue] = useState("");
+  const [settingRateLimit, setSettingRateLimit] = useState(false);
 
   const loadKyc = async (filter: string = kycFilter) => {
     try {
@@ -236,6 +239,34 @@ export default function AdminDeveloperPortal() {
       toast({ title: "Network error", variant: "destructive" });
     }
     setCrediting(false);
+  };
+
+  const handleSetRateLimit = async () => {
+    if (!rateLimitModal) return;
+    const limit = parseInt(rateLimitValue);
+    if (isNaN(limit) || limit < 0) {
+      toast({ title: "Enter a valid number", variant: "destructive" });
+      return;
+    }
+    setSettingRateLimit(true);
+    try {
+      const res = await adminFetch(`/admin/developers/${rateLimitModal.devId}/rate-limit`, {
+        method: "PATCH",
+        body: JSON.stringify({ rateLimit: limit }),
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        toast({ title: data.message, variant: "success" });
+        setRateLimitModal(null);
+        setRateLimitValue("");
+        loadDevDetail(rateLimitModal.devId);
+      } else {
+        toast({ title: data.message || "Failed", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    }
+    setSettingRateLimit(false);
   };
 
   const filteredDevs = developers.filter(d =>
@@ -774,6 +805,11 @@ export default function AdminDeveloperPortal() {
                       <InfoPair label="Joined" value={new Date(selectedDev.developer.createdAt).toLocaleDateString()} />
                       <InfoPair label="Status" value={selectedDev.developer.isActive ? "Active" : "Inactive"} />
                       <InfoPair label="Type" value={selectedDev.developer.accountType || "individual"} />
+                      <InfoPair label="Rate Limit" value={
+                        ((selectedDev.developer as any).customRateLimit || (selectedDev.developer as any).custom_rate_limit || 0) > 0
+                          ? `${Number((selectedDev.developer as any).customRateLimit || (selectedDev.developer as any).custom_rate_limit).toLocaleString()}/day`
+                          : `Default (${selectedDev.developer.environmentMode === "live" ? "10,000" : "100"}/day)`
+                      } />
                     </div>
 
                     {selectedDev.developer.webhookUrl && (
@@ -879,6 +915,19 @@ export default function AdminDeveloperPortal() {
                         </span>
                         <Plus className="h-3.5 w-3.5" />
                       </Button>
+                      <Button size="sm"
+                        className="w-full justify-between bg-blue-700 hover:bg-blue-600 text-white"
+                        onClick={() => {
+                          const current = (selectedDev.developer as any).customRateLimit || (selectedDev.developer as any).custom_rate_limit || 0;
+                          setRateLimitValue(current > 0 ? current.toString() : "");
+                          setRateLimitModal({ open: true, devId: selectedDev.developer.id, devName: selectedDev.developer.name, current });
+                        }}>
+                        <span className="flex items-center gap-1.5">
+                          <Activity className="h-3.5 w-3.5" />
+                          Set API Rate Limit
+                        </span>
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
                   </div>
 
@@ -966,6 +1015,73 @@ export default function AdminDeveloperPortal() {
                 ? <RefreshCw className="h-3.5 w-3.5 animate-spin mr-2" />
                 : <Wallet className="h-3.5 w-3.5 mr-2" />}
               Credit ₦{parseFloat(creditAmount || "0").toLocaleString("en-NG")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Set API Rate Limit Dialog ── */}
+      <Dialog open={!!rateLimitModal?.open} onOpenChange={open => !open && setRateLimitModal(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-blue-600" />
+              Set API Rate Limit
+            </DialogTitle>
+            <DialogDescription>
+              Override the daily API call limit for <strong>{rateLimitModal?.devName}</strong>.
+              Default limits: Sandbox = 100/day, Live = 10,000/day.
+              Set to 0 to reset to the default limit.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="text-sm mb-1.5 block">Daily Request Limit</Label>
+              <Input
+                type="number" min={0} placeholder="e.g. 50000"
+                value={rateLimitValue}
+                onChange={e => setRateLimitValue(e.target.value)}
+              />
+              {rateLimitModal && rateLimitModal.current > 0 && (
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  Current custom limit: <strong>{rateLimitModal.current.toLocaleString()}</strong> requests/day
+                </p>
+              )}
+              {rateLimitModal && rateLimitModal.current === 0 && (
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  Currently using default limit
+                </p>
+              )}
+              <div className="flex gap-2 mt-2 flex-wrap">
+                {[1000, 5000, 10000, 50000, 100000].map(a => (
+                  <button key={a}
+                    onClick={() => setRateLimitValue(a.toString())}
+                    className={`text-xs px-2.5 py-1 rounded border transition-colors ${
+                      rateLimitValue === a.toString()
+                        ? "border-blue-600 bg-blue-50 text-blue-700"
+                        : "border-border text-muted-foreground hover:bg-muted"
+                    }`}>
+                    {a.toLocaleString()}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRateLimitModal(null)}>Cancel</Button>
+            {rateLimitModal && rateLimitModal.current > 0 && (
+              <Button variant="outline" onClick={() => { setRateLimitValue("0"); }}>
+                Reset to Default
+              </Button>
+            )}
+            <Button
+              onClick={handleSetRateLimit}
+              disabled={settingRateLimit || rateLimitValue === ""}
+              className="bg-blue-600 hover:bg-blue-700 text-white">
+              {settingRateLimit
+                ? <RefreshCw className="h-3.5 w-3.5 animate-spin mr-2" />
+                : <Activity className="h-3.5 w-3.5 mr-2" />}
+              {parseInt(rateLimitValue || "0") === 0 ? "Reset to Default" : `Set ${parseInt(rateLimitValue || "0").toLocaleString()}/day`}
             </Button>
           </DialogFooter>
         </DialogContent>

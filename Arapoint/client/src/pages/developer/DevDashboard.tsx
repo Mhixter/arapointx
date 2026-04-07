@@ -66,18 +66,18 @@ export default function DevDashboard() {
   const [period, setPeriod] = useState(30);
   const [envMode, setEnvMode] = useState<"sandbox" | "live">("sandbox");
   const [switching, setSwitching] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
-  const fetchAll = async () => {
+  const fetchData = async (env: "sandbox" | "live") => {
     setLoading(true);
     try {
       const [statsRes, analyticsRes] = await Promise.all([
-        devFetch("/dashboard/stats"),
-        devFetch(`/analytics?days=${period}`),
+        devFetch(`/dashboard/stats?environment=${env}`),
+        devFetch(`/analytics?days=${period}&environment=${env}`),
       ]);
       const [sd, ad] = await Promise.all([statsRes.json(), analyticsRes.json()]);
       if (sd.status === "success") {
         setStats(sd.data);
-        setEnvMode(sd.data.environmentMode || "sandbox");
         localStorage.setItem("dev_user", JSON.stringify({
           ...JSON.parse(localStorage.getItem("dev_user") || "{}"),
           walletBalance: sd.data.walletBalance,
@@ -87,6 +87,27 @@ export default function DevDashboard() {
     } catch {}
     setLoading(false);
   };
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const res = await devFetch("/profile");
+        const data = await res.json();
+        if (data.status === "success") {
+          const mode = data.data.environmentMode || "sandbox";
+          setEnvMode(mode);
+          setInitialized(true);
+        }
+      } catch {
+        setInitialized(true);
+      }
+    };
+    init();
+  }, []);
+
+  useEffect(() => {
+    if (initialized) fetchData(envMode);
+  }, [period, envMode, initialized]);
 
   const switchMode = async (newMode: "sandbox" | "live") => {
     if (switching || newMode === envMode) return;
@@ -115,8 +136,6 @@ export default function DevDashboard() {
     }
     setSwitching(false);
   };
-
-  useEffect(() => { fetchAll(); }, [period]);
 
   const kycStatus = stats?.kycStatus || "not_required";
   const kycApproved = kycStatus === "approved";
@@ -181,7 +200,7 @@ export default function DevDashboard() {
               ))}
             </div>
 
-            <button onClick={fetchAll} disabled={loading}
+            <button onClick={() => fetchData(envMode)} disabled={loading}
               className="p-2 rounded-lg transition-colors disabled:opacity-40"
               style={{ background: C.card, border: `1px solid ${C.border}`, color: C.muted }}>
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
