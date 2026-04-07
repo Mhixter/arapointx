@@ -39,6 +39,7 @@ const router = Router();
         webhook_secret varchar(255),
         webhook_enabled boolean DEFAULT false,
         ip_allowlist jsonb DEFAULT '[]'::jsonb,
+        custom_rate_limit integer DEFAULT 0,
         created_at timestamp DEFAULT now(),
         updated_at timestamp DEFAULT now()
       )
@@ -117,6 +118,10 @@ const router = Router();
         ADD COLUMN IF NOT EXISTS webhook_secret varchar(255),
         ADD COLUMN IF NOT EXISTS webhook_enabled boolean DEFAULT false,
         ADD COLUMN IF NOT EXISTS ip_allowlist jsonb DEFAULT '[]'::jsonb
+    `);
+    await db.execute(sql`
+      ALTER TABLE developer_users
+        ADD COLUMN IF NOT EXISTS custom_rate_limit integer DEFAULT 0
     `);
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS developer_webhook_logs (

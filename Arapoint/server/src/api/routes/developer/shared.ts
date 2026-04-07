@@ -41,6 +41,7 @@ export const developerUsers = pgTable('developer_users', {
   kycReviewNote: text('kyc_review_note'),
   webhookUrl: varchar('webhook_url', { length: 500 }),
   environmentMode: varchar('environment_mode', { length: 20 }).default('sandbox'),
+  customRateLimit: integer('custom_rate_limit').default(0),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
