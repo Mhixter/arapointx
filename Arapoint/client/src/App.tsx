@@ -72,6 +72,7 @@ import SupportAgentDashboard from "@/pages/support/SupportAgentDashboard";
 
 // Admin Imports
 import AdminLogin from "@/pages/admin/AdminLogin";
+import AdminForgotPassword from "@/pages/admin/AdminForgotPassword";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminBVNServices from "@/pages/admin/AdminBVNServices";
 import AdminEducationServices from "@/pages/admin/AdminEducationServices";
@@ -134,6 +135,7 @@ function Router() {
       
       {/* Admin Routes - outside MainLayout */}
       <Route path="/admin/login" component={AdminLogin} />
+      <Route path="/admin/forgot-password" component={AdminForgotPassword} />
       <Route path="/admin">
         <AdminCRUDLayout>
           <AdminDashboard />

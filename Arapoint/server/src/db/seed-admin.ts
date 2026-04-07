@@ -3,9 +3,9 @@ import { db } from '../config/database';
 import { adminUsers } from './schema';
 import { eq } from 'drizzle-orm';
 
-const ADMIN_EMAIL = 'saidumuhammed664@gmail.com';
-const ADMIN_PASSWORD = 'Mhixter664@gmail.com';
-const ADMIN_NAME = 'Super Admin';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'saidumuhammed664@gmail.com';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Mhixter664@gmail.com';
+const ADMIN_NAME = process.env.ADMIN_NAME || 'Super Admin';
 
 export async function seedAdmin() {
   try {

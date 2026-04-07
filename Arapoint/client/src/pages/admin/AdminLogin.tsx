@@ -99,7 +99,7 @@ export default function AdminLogin() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="admin-password">Password</Label>
-                <Link href="/auth/reset" className="text-xs text-primary hover:underline">
+                <Link href="/admin/forgot-password" className="text-xs text-primary hover:underline">
                   Forgot password?
                 </Link>
               </div>

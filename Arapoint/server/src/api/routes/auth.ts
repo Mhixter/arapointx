@@ -276,6 +276,71 @@ router.post('/change-password', authMiddleware, async (req: Request, res: Respon
   }
 });
 
+router.post('/admin/forgot-password', authRateLimiter, async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json(formatErrorResponse(400, 'Email is required'));
+    }
+
+    const [admin] = await db.select({ id: adminUsers.id })
+      .from(adminUsers)
+      .where(eq(adminUsers.email, email.toLowerCase()))
+      .limit(1);
+
+    if (admin) {
+      await otpService.sendOTP(email.toLowerCase(), 'password_reset');
+      logger.info('Admin password reset OTP sent', { email });
+    } else {
+      logger.info('Admin password reset requested for non-existent email', { email });
+    }
+
+    res.json(formatResponse('success', 200, 'If an admin account with that email exists, a reset code has been sent'));
+  } catch (error: any) {
+    logger.error('Admin forgot password error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to process request'));
+  }
+});
+
+router.post('/admin/reset-password', authRateLimiter, async (req: Request, res: Response) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json(formatErrorResponse(400, 'Email, OTP code, and new password are required'));
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json(formatErrorResponse(400, 'Password must be at least 8 characters'));
+    }
+
+    const isValid = await otpService.verifyOTP(email.toLowerCase(), otp, 'password_reset');
+    if (!isValid) {
+      return res.status(400).json(formatErrorResponse(400, 'Invalid or expired OTP code'));
+    }
+
+    const [admin] = await db.select({ id: adminUsers.id })
+      .from(adminUsers)
+      .where(eq(adminUsers.email, email.toLowerCase()))
+      .limit(1);
+
+    if (!admin) {
+      return res.status(400).json(formatErrorResponse(400, 'Admin account not found'));
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await db.update(adminUsers)
+      .set({ passwordHash, updatedAt: new Date() })
+      .where(eq(adminUsers.id, admin.id));
+
+    logger.info('Admin password reset completed', { adminId: admin.id });
+    res.json(formatResponse('success', 200, 'Password reset successfully'));
+  } catch (error: any) {
+    logger.error('Admin reset password error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to reset password'));
+  }
+});
+
 router.get('/dashboard', authMiddleware, async (req: Request, res: Response) => {
   try {
     const dashboard = await userService.getDashboard(req.userId!);
