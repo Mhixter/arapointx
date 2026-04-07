@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, FileText, CheckCircle, XCircle, Clock } from "lucide-react";
+import { PageSkeleton } from "@/components/developer/DashboardSkeleton";
 
 function devFetch(path: string) {
   const token = localStorage.getItem("dev_token");
@@ -60,6 +61,10 @@ export default function DevLogs() {
     if (code === 402) return "bg-yellow-900/40 text-yellow-300 border-yellow-800";
     return "bg-red-900/40 text-red-300 border-red-800";
   };
+
+  if (loading && logs.length === 0) {
+    return <DevLayout><PageSkeleton /></DevLayout>;
+  }
 
   return (
     <DevLayout>

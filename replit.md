@@ -108,8 +108,9 @@ Preferred communication style: Simple, everyday language.
 - **Rate Limiting**: PostgreSQL-backed persistent rate limiter (`server/src/api/middleware/rateLimit.ts`) using upsert pattern — survives server restarts
 - **Security Headers**: Helmet middleware, restricted CORS (production), X-Request-Id per request
 - **Health Check**: Enhanced `/api/health` returns DB status, uptime, memory usage
-- **Database Indexes**: On rpa_jobs, transactions, identity_verifications, support_tickets, education_services
-- **OpenAPI Spec**: `Arapoint/openapi.yaml` documents all developer-facing API endpoints
+- **Database Indexes**: On rpa_jobs, transactions, identity_verifications, support_tickets, education_services, otp_verifications, bvn_services, support_conversations, support_messages, airtime_services, data_services, electricity_services, cable_services, cac_requests, bvn_verifications
+- **Loading Skeletons**: Developer portal pages show animated skeleton placeholders during initial data load (DashboardSkeleton, PageSkeleton, StatCardSkeleton, ChartSkeleton, TableSkeleton in `client/src/components/developer/DashboardSkeleton.tsx`)
+- **OpenAPI Spec**: `Arapoint/server/openapi.yaml` documents all developer-facing API endpoints
 - **Developer Portal CSS**: Dark theme uses CSS custom properties (`--dev-bg`, `--dev-card`, `--dev-border`, etc.) defined in `index.css`
 - **Changelog**: API changelog section in DevDocs with versioned release notes (v2.0.0, v2.1.0)
 - **Webhook System**: Full webhook delivery with HMAC-SHA256 signing, retry schedule (1m/5m/15m/1h), delivery log viewer
@@ -132,13 +133,12 @@ Preferred communication style: Simple, everyday language.
   - `security.ts` — IP allowlist management
 - **Route mount**: `routes.ts` imports `./src/api/routes/developer` which resolves to `developer/index.ts`
 
-### API Tester
-- **Location**: `Arapoint/client/src/pages/developer/DevApiTester.tsx`
-- **Route**: `/developer/api-tester`
-- **Purpose**: Standalone interactive API testing tool within the developer portal
-- **Features**: Covers all 35+ developer API endpoints (verification, auth, billing, webhooks, analytics, security, KYB), grouped by category with search, request history, cURL generation, auto-JWT capture on login, and response visualization with headers/timing
-- **Auth**: Supports API Key (X-API-Key), JWT (Bearer), and public endpoint modes
-- **Credentials**: Stored in sessionStorage (cleared on tab close) for security
+### Support AI
+- **Location**: `Arapoint/server/src/services/localAiService.ts`
+- **Engine**: OpenAI (gpt-4o-mini) as primary, TF-IDF cosine similarity as fallback
+- **Knowledge Base**: Static JSON (`server/data/arapoint-knowledge-base.json`) + DB table (`ai_knowledge_base`)
+- **Features**: Natural language understanding, Nigerian Pidgin support, conversation history context, KB-augmented responses, automatic escalation detection via [ESCALATE] tag
+- **Escalation**: Keyword triggers (refund, fraud, legal etc.) + AI-detected frustration + agent request keywords
 
 ### Frontend UI
 - **shadcn/ui**: Component library built on Radix UI primitives

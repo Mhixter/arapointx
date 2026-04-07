@@ -14,6 +14,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription, DialogFooter
 } from "@/components/ui/dialog";
+import { PageSkeleton } from "@/components/developer/DashboardSkeleton";
 
 function devFetch(path: string, options?: RequestInit) {
   const token = localStorage.getItem("dev_token");
@@ -120,6 +121,10 @@ export default function DevApiKeys() {
   const liveKeys = keys.filter(k => k.environment === "live" && k.isActive);
   const revokedKeys = keys.filter(k => !k.isActive);
   const kycApproved = profile?.kycStatus === "approved";
+
+  if (loading && keys.length === 0) {
+    return <DevLayout><PageSkeleton /></DevLayout>;
+  }
 
   return (
     <DevLayout>

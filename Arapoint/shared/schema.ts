@@ -38,7 +38,10 @@ export const otp_verifications = pgTable('otp_verifications', {
   attempts: integer('attempts').default(0),
   expires_at: timestamp('expires_at').notNull(),
   created_at: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('otp_verifications_email_idx').on(table.email),
+  index('otp_verifications_expires_at_idx').on(table.expires_at),
+]);
 
 export const rpa_jobs = pgTable('rpa_jobs', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
@@ -83,7 +86,10 @@ export const bvn_services = pgTable('bvn_services', {
   status: varchar('status', { length: 50 }),
   response_data: jsonb('response_data'),
   created_at: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('bvn_services_user_id_idx').on(table.user_id),
+  index('bvn_services_status_idx').on(table.status),
+]);
 
 export const scraped_data_plans = pgTable('scraped_data_plans', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
@@ -163,7 +169,9 @@ export const support_conversations = pgTable('support_conversations', {
   ticket_id: uuid('ticket_id').references(() => support_tickets.id).notNull(),
   is_active: boolean('is_active').default(true),
   created_at: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('support_conversations_ticket_id_idx').on(table.ticket_id),
+]);
 
 export const support_messages = pgTable('support_messages', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
@@ -173,7 +181,10 @@ export const support_messages = pgTable('support_messages', {
   content: text('content').notNull(),
   is_read: boolean('is_read').default(false),
   created_at: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('support_messages_conversation_id_idx').on(table.conversation_id),
+  index('support_messages_created_at_idx').on(table.created_at),
+]);
 
 export const birth_attestations = pgTable('birth_attestations', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
@@ -197,7 +208,10 @@ export const airtime_services = pgTable('airtime_services', {
   status: varchar('status', { length: 50 }),
   reference: varchar('reference', { length: 100 }),
   created_at: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('airtime_services_user_id_idx').on(table.user_id),
+  index('airtime_services_status_idx').on(table.status),
+]);
 
 export const data_services = pgTable('data_services', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
@@ -211,7 +225,10 @@ export const data_services = pgTable('data_services', {
   status: varchar('status', { length: 50 }),
   reference: varchar('reference', { length: 100 }),
   created_at: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('data_services_user_id_idx').on(table.user_id),
+  index('data_services_status_idx').on(table.status),
+]);
 
 export const electricity_services = pgTable('electricity_services', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
@@ -223,7 +240,10 @@ export const electricity_services = pgTable('electricity_services', {
   status: varchar('status', { length: 50 }),
   reference: varchar('reference', { length: 100 }),
   created_at: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('electricity_services_user_id_idx').on(table.user_id),
+  index('electricity_services_status_idx').on(table.status),
+]);
 
 export const cable_services = pgTable('cable_services', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
@@ -236,7 +256,10 @@ export const cable_services = pgTable('cable_services', {
   status: varchar('status', { length: 50 }),
   reference: varchar('reference', { length: 100 }),
   created_at: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('cable_services_user_id_idx').on(table.user_id),
+  index('cable_services_status_idx').on(table.status),
+]);
 
 export const transactions = pgTable('transactions', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
@@ -298,7 +321,11 @@ export const cac_requests = pgTable('cac_requests', {
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').defaultNow(),
   completed_at: timestamp('completed_at'),
-});
+}, (table) => [
+  index('cac_requests_user_id_idx').on(table.user_id),
+  index('cac_requests_status_idx').on(table.status),
+  index('cac_requests_agent_id_idx').on(table.agent_id),
+]);
 
 export const cac_files = pgTable('cac_files', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
@@ -321,4 +348,6 @@ export const bvn_verifications = pgTable('bvn_verifications', {
   pdf_key: varchar('pdf_key', { length: 500 }),
   status: varchar('status', { length: 50 }).default('completed'),
   created_at: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('bvn_verifications_user_id_idx').on(table.user_id),
+]);

@@ -9,6 +9,7 @@ import {
   integer,
   decimal,
   date,
+  index,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -41,7 +42,10 @@ export const otpVerifications = pgTable('otp_verifications', {
   attempts: integer('attempts').default(0),
   expiresAt: timestamp('expires_at').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('otp_email_idx').on(table.email),
+  index('otp_expires_idx').on(table.expiresAt),
+]);
 
 // RPA Jobs Queue
 export const rpaJobs = pgTable('rpa_jobs', {
@@ -85,7 +89,10 @@ export const bvnServices = pgTable('bvn_services', {
   status: varchar('status', { length: 50 }),
   responseData: jsonb('response_data'),
   createdAt: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('bvn_svc_user_idx').on(table.userId),
+  index('bvn_svc_status_idx').on(table.status),
+]);
 
 // Education Services
 export const educationServices = pgTable('education_services', {
@@ -142,7 +149,10 @@ export const airtimeServices = pgTable('airtime_services', {
   status: varchar('status', { length: 50 }),
   reference: varchar('reference', { length: 100 }),
   createdAt: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('airtime_user_idx').on(table.userId),
+  index('airtime_status_idx').on(table.status),
+]);
 
 // Data Services
 export const dataServices = pgTable('data_services', {
@@ -157,7 +167,10 @@ export const dataServices = pgTable('data_services', {
   status: varchar('status', { length: 50 }),
   reference: varchar('reference', { length: 100 }),
   createdAt: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('data_svc_user_idx').on(table.userId),
+  index('data_svc_status_idx').on(table.status),
+]);
 
 // Electricity Services
 export const electricityServices = pgTable('electricity_services', {
@@ -170,7 +183,10 @@ export const electricityServices = pgTable('electricity_services', {
   status: varchar('status', { length: 50 }),
   reference: varchar('reference', { length: 100 }),
   createdAt: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('elec_user_idx').on(table.userId),
+  index('elec_status_idx').on(table.status),
+]);
 
 // Cable Services
 export const cableServices = pgTable('cable_services', {
@@ -184,7 +200,10 @@ export const cableServices = pgTable('cable_services', {
   status: varchar('status', { length: 50 }),
   reference: varchar('reference', { length: 100 }),
   createdAt: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('cable_user_idx').on(table.userId),
+  index('cable_status_idx').on(table.status),
+]);
 
 // Transactions
 export const transactions = pgTable('transactions', {
@@ -583,7 +602,10 @@ export const supportConversations = pgTable('support_conversations', {
   summary: text('summary'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
-});
+}, (table) => [
+  index('support_conv_ticket_idx').on(table.ticketId),
+  index('support_conv_active_idx').on(table.isActive),
+]);
 
 // Support Messages
 export const supportMessages = pgTable('support_messages', {
@@ -595,7 +617,10 @@ export const supportMessages = pgTable('support_messages', {
   content: text('content').notNull(),
   metadata: jsonb('metadata'),
   createdAt: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('support_msg_conv_idx').on(table.conversationId),
+  index('support_msg_created_idx').on(table.createdAt),
+]);
 
 // Support Internal Notes
 export const supportInternalNotes = pgTable('support_internal_notes', {
@@ -815,13 +840,16 @@ export const cacRequests = pgTable('cac_requests', {
   userId: uuid('user_id').references(() => users.id).notNull(),
   agentId: uuid('agent_id').references(() => users.id),
   businessName: varchar('business_name', { length: 255 }).notNull(),
-  businessType: varchar('business_type', { length: 100 }).notNull(), // business_name, limited_company, etc.
-  status: varchar('status', { length: 50 }).default('pending'), // pending, processing, completed, rejected
+  businessType: varchar('business_type', { length: 100 }).notNull(),
+  status: varchar('status', { length: 50 }).default('pending'),
   reference: varchar('reference', { length: 100 }).unique().notNull(),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
   completedAt: timestamp('completed_at'),
-});
+}, (table) => [
+  index('cac_req_user_idx').on(table.userId),
+  index('cac_req_status_idx').on(table.status),
+]);
 
 // CAC Files - Files shared between users and agents for CAC requests
 export const cacFiles = pgTable('cac_files', {
@@ -899,7 +927,10 @@ export const bvnVerifications = pgTable('bvn_verifications', {
   pdfKey: varchar('pdf_key', { length: 500 }),
   status: varchar('status', { length: 50 }).default('completed'),
   createdAt: timestamp('created_at').defaultNow(),
-});
+}, (table) => [
+  index('bvn_ver_user_idx').on(table.userId),
+  index('bvn_ver_bvn_idx').on(table.bvn),
+]);
 
 // AI Knowledge Base - Custom Q&A entries learned from human agents
 export const aiKnowledgeBase = pgTable('ai_knowledge_base', {

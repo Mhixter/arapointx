@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
-  LayoutDashboard, Key, CreditCard, FileText, Book, User, LogOut, Menu, X, Code2, ShieldCheck, Webhook, Terminal
+  LayoutDashboard, Key, CreditCard, FileText, Book, User, LogOut, Menu, X, Code2, ShieldCheck, Webhook
 } from "lucide-react";
 
 const navigate = (path: string) => { window.location.href = path; };
@@ -20,7 +20,6 @@ const navItems = [
   { path: "/developer/billing", label: "Billing", icon: CreditCard },
   { path: "/developer/logs", label: "API Logs", icon: FileText },
   { path: "/developer/webhooks", label: "Webhooks & Security", icon: Webhook },
-  { path: "/developer/api-tester", label: "API Tester", icon: Terminal },
   { path: "/developer/docs", label: "Documentation", icon: Book },
   { path: "/developer/kyb", label: "Business Verification", icon: ShieldCheck },
   { path: "/developer/account", label: "Account", icon: User },

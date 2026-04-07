@@ -13,6 +13,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from "@/components/ui/dialog";
+import { PageSkeleton } from "@/components/developer/DashboardSkeleton";
 
 function devFetch(path: string, options?: RequestInit) {
   const token = localStorage.getItem("dev_token");
@@ -128,6 +129,10 @@ export default function DevBilling() {
   const totalSpent = transactions
     .filter(t => t.transactionType === "api_charge")
     .reduce((s, t) => s + Math.abs(parseFloat(t.amount || "0")), 0);
+
+  if (loading && !profile) {
+    return <DevLayout><PageSkeleton /></DevLayout>;
+  }
 
   return (
     <DevLayout>

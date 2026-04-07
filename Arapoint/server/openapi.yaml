@@ -1,0 +1,621 @@
+openapi: 3.0.3
+info:
+  title: Arapoint Developer API
+  description: |
+    Arapoint provides identity verification, education verification, employment background checks,
+    and utility services for Nigeria. This API is accessed via the Developer Portal with API key authentication.
+  version: 2.1.0
+  contact:
+    name: Arapoint Support
+    email: support@arapoint.com.ng
+    url: https://arapoint.com.ng
+  termsOfService: https://arapoint.com.ng/terms
+
+servers:
+  - url: https://arapoint.com.ng/api/v1/developer
+    description: Production
+  - url: https://arapoint.com.ng/api/v1/developer
+    description: Sandbox (use sandbox API key)
+
+security:
+  - ApiKeyAuth: []
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Your sandbox or live API key from the Developer Portal.
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for developer portal session endpoints.
+
+  schemas:
+    SuccessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        code:
+          type: integer
+          example: 200
+        message:
+          type: string
+        data:
+          type: object
+
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: error
+        code:
+          type: integer
+        message:
+          type: string
+
+    NinVerificationResult:
+      type: object
+      properties:
+        firstName:
+          type: string
+        middleName:
+          type: string
+        lastName:
+          type: string
+        dateOfBirth:
+          type: string
+        gender:
+          type: string
+        phone:
+          type: string
+        nin:
+          type: string
+        address:
+          type: string
+
+    BvnVerificationResult:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        dateOfBirth:
+          type: string
+        bvn:
+          type: string
+        phone:
+          type: string
+        enrollmentBank:
+          type: string
+
+    EducationQueueResult:
+      type: object
+      properties:
+        provider:
+          type: string
+        examYear:
+          type: integer
+        registrationNumber:
+          type: string
+        status:
+          type: string
+          enum: [processing, completed, failed]
+        jobId:
+          type: string
+          format: uuid
+
+    EmploymentVerificationResult:
+      type: object
+      properties:
+        businessName:
+          type: string
+        rcNumber:
+          type: string
+        registrationDate:
+          type: string
+        status:
+          type: string
+        address:
+          type: string
+
+    FraudScoreResult:
+      type: object
+      properties:
+        score:
+          type: number
+          minimum: 0
+          maximum: 100
+        riskLevel:
+          type: string
+          enum: [low, medium, high, critical]
+        factors:
+          type: array
+          items:
+            type: string
+
+    UnifiedVerificationRequest:
+      type: object
+      properties:
+        checks:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [nin, bvn, education, employment, fraud_score]
+              params:
+                type: object
+        callbackUrl:
+          type: string
+          format: uri
+
+paths:
+  /verify/nin:
+    post:
+      summary: NIN Verification
+      description: Verify a National Identification Number. Provide either NIN or phone number.
+      operationId: verifyNin
+      tags: [Verification]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nin:
+                  type: string
+                  description: 11-digit NIN
+                  example: "12345678901"
+                phone:
+                  type: string
+                  description: Registered phone (alternative to NIN)
+                  example: "08012345678"
+      responses:
+        "200":
+          description: Verification successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          verification:
+                            $ref: "#/components/schemas/NinVerificationResult"
+                          source:
+                            type: string
+                          cached:
+                            type: boolean
+                          requestId:
+                            type: string
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "402":
+          description: Insufficient balance
+        "429":
+          description: Rate limit exceeded
+
+  /verify/bvn:
+    post:
+      summary: BVN Verification
+      description: Verify a Bank Verification Number.
+      operationId: verifyBvn
+      tags: [Verification]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bvn]
+              properties:
+                bvn:
+                  type: string
+                  description: 11-digit BVN
+                  example: "12345678901"
+      responses:
+        "200":
+          description: Verification successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          verification:
+                            $ref: "#/components/schemas/BvnVerificationResult"
+                          source:
+                            type: string
+                          cached:
+                            type: boolean
+        "400":
+          description: Invalid BVN format
+        "402":
+          description: Insufficient balance
+        "429":
+          description: Rate limit exceeded
+
+  /verify/education:
+    post:
+      summary: Education Verification (Async)
+      description: |
+        Queue a verification for WAEC, NECO, NABTEB, or NBAIS results.
+        Returns a jobId immediately. Results delivered via webhook or polling.
+      operationId: verifyEducation
+      tags: [Verification]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider, registrationNumber, examYear, examType, cardPin]
+              properties:
+                provider:
+                  type: string
+                  enum: [waec, neco, nabteb, nbais]
+                registrationNumber:
+                  type: string
+                examYear:
+                  type: integer
+                  example: 2023
+                examType:
+                  type: string
+                  description: "WAEC: WASSCE/GCE | NECO: school_candidate/private"
+                cardPin:
+                  type: string
+                cardSerialNumber:
+                  type: string
+                  description: Required for WAEC and NABTEB
+      responses:
+        "200":
+          description: Verification queued
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/EducationQueueResult"
+        "400":
+          description: Invalid parameters
+        "402":
+          description: Insufficient balance
+
+  /verify/employment:
+    post:
+      summary: Employment / CAC Verification
+      description: Verify a company's CAC registration and retrieve business details.
+      operationId: verifyEmployment
+      tags: [Verification]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rcNumber]
+              properties:
+                rcNumber:
+                  type: string
+                  description: Company RC number
+                  example: "RC123456"
+                companyName:
+                  type: string
+                  description: Optional company name for cross-reference
+      responses:
+        "200":
+          description: Verification successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          verification:
+                            $ref: "#/components/schemas/EmploymentVerificationResult"
+        "402":
+          description: Insufficient balance
+
+  /verify/fraud-score:
+    post:
+      summary: Fraud Score
+      description: Generate a risk score for an identity based on NIN/BVN cross-referencing.
+      operationId: fraudScore
+      tags: [Verification]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nin:
+                  type: string
+                bvn:
+                  type: string
+                phone:
+                  type: string
+                email:
+                  type: string
+                  format: email
+      responses:
+        "200":
+          description: Score generated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/FraudScoreResult"
+        "402":
+          description: Insufficient balance
+
+  /verify/unified:
+    post:
+      summary: Unified Verification (Bundle)
+      description: |
+        Run multiple verification checks in a single request.
+        15% discount when total exceeds NGN 300.
+      operationId: unifiedVerify
+      tags: [Verification]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UnifiedVerificationRequest"
+      responses:
+        "200":
+          description: Bundle queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Invalid checks array
+        "402":
+          description: Insufficient balance
+
+  /verify/unified/result/{requestId}:
+    get:
+      summary: Poll Unified Result
+      description: Poll for the result of a unified verification bundle.
+      operationId: getUnifiedResult
+      tags: [Verification]
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Result available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Request not found
+
+  /webhook:
+    get:
+      summary: Get Webhook Config
+      description: Retrieve current webhook configuration.
+      operationId: getWebhook
+      tags: [Webhooks]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Webhook configuration
+    post:
+      summary: Configure Webhook
+      description: Set or update webhook URL. Must use HTTPS.
+      operationId: setWebhook
+      tags: [Webhooks]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                webhookUrl:
+                  type: string
+                  format: uri
+                  example: "https://yourapp.com/webhook"
+                enabled:
+                  type: boolean
+      responses:
+        "200":
+          description: Webhook configured
+    delete:
+      summary: Remove Webhook
+      description: Disable and remove webhook configuration.
+      operationId: deleteWebhook
+      tags: [Webhooks]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Webhook removed
+
+  /webhook/test:
+    post:
+      summary: Send Test Webhook
+      description: Send a test event to your configured webhook URL.
+      operationId: testWebhook
+      tags: [Webhooks]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Test webhook queued
+        "400":
+          description: Webhook not configured
+
+  /webhook/logs:
+    get:
+      summary: Webhook Delivery Logs
+      description: View webhook delivery history with status and retry info.
+      operationId: getWebhookLogs
+      tags: [Webhooks]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        "200":
+          description: Delivery logs
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/SuccessResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          logs:
+                            type: array
+                            items:
+                              type: object
+                          page:
+                            type: integer
+                          total:
+                            type: integer
+
+  /balance:
+    get:
+      summary: Check Wallet Balance
+      description: Get the developer's current wallet balance.
+      operationId: getBalance
+      tags: [Billing]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Balance retrieved
+
+  /analytics:
+    get:
+      summary: API Usage Analytics
+      description: Retrieve API call statistics, success rates, and usage trends.
+      operationId: getAnalytics
+      tags: [Analytics]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: environment
+          in: query
+          schema:
+            type: string
+            enum: [sandbox, live, all]
+            default: all
+      responses:
+        "200":
+          description: Analytics data
+
+  /security/ip-allowlist:
+    get:
+      summary: Get IP Allowlist
+      description: Retrieve the list of allowed IP addresses for API access.
+      operationId: getIpAllowlist
+      tags: [Security]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: IP allowlist
+    post:
+      summary: Add IP to Allowlist
+      description: Add an IP address to the allowlist.
+      operationId: addIpToAllowlist
+      tags: [Security]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ip]
+              properties:
+                ip:
+                  type: string
+                  format: ipv4
+      responses:
+        "200":
+          description: IP added
+    delete:
+      summary: Remove IP from Allowlist
+      description: Remove an IP address from the allowlist.
+      operationId: removeIpFromAllowlist
+      tags: [Security]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ip]
+              properties:
+                ip:
+                  type: string
+      responses:
+        "200":
+          description: IP removed
+
+tags:
+  - name: Verification
+    description: Identity, education, employment verification endpoints
+  - name: Webhooks
+    description: Webhook configuration and delivery logs
+  - name: Billing
+    description: Wallet balance and transaction history
+  - name: Analytics
+    description: API usage analytics and statistics
+  - name: Security
+    description: IP allowlist and security settings

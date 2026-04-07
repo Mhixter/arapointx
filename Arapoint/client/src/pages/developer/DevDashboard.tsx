@@ -10,6 +10,7 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer
 } from "recharts";
+import { DashboardSkeleton } from "@/components/developer/DashboardSkeleton";
 
 function devFetch(path: string, options?: RequestInit) {
   const token = localStorage.getItem("dev_token");
@@ -152,6 +153,14 @@ export default function DevDashboard() {
     endpoint: e.endpoint?.replace("/verify/", "").replace("/api/v1/developer", "") || e.endpoint,
     calls: parseInt(e.calls) || 0,
   })).slice(0, 5);
+
+  if (loading && !stats) {
+    return (
+      <DevLayout>
+        <DashboardSkeleton />
+      </DevLayout>
+    );
+  }
 
   return (
     <DevLayout>
