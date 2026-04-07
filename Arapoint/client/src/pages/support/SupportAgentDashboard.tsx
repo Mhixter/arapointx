@@ -43,6 +43,7 @@ import {
   Building2,
   X,
   ChevronRight,
+  Clock,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -127,7 +128,7 @@ export default function SupportAgentDashboard() {
   const userScrolledUpRef = useRef(false);
 
   const [agent, setAgent] = useState<any>(null);
-  const [mainTab, setMainTab] = useState<"tickets" | "lookup" | "fraud" | "teach">("tickets");
+  const [mainTab, setMainTab] = useState<"tickets" | "queue" | "lookup" | "fraud" | "teach">("tickets");
 
   // Tickets state
   const [tickets, setTickets] = useState<any[]>([]);
@@ -189,6 +190,11 @@ export default function SupportAgentDashboard() {
   const [showAddKb, setShowAddKb] = useState(false);
   const [kbActiveSection, setKbActiveSection] = useState<"unresolved" | "knowledge">("unresolved");
 
+  const [queueItems, setQueueItems] = useState<any[]>([]);
+  const [queueStats, setQueueStats] = useState<{ totalWaiting: number; avgWaitMinutes: number; acceptedToday: number }>({ totalWaiting: 0, avgWaitMinutes: 0, acceptedToday: 0 });
+  const [queueLoading, setQueueLoading] = useState(false);
+  const [acceptingTicketId, setAcceptingTicketId] = useState<string | null>(null);
+
   useEffect(() => {
     try {
       const stored = JSON.parse(tokenStorage.getItem("adminUser") || "{}");
@@ -249,13 +255,27 @@ export default function SupportAgentDashboard() {
     } catch {}
   }, []);
 
+  const fetchQueue = useCallback(async () => {
+    setQueueLoading(true);
+    try {
+      const res = await adminApiClient.get("/admin/support/queue");
+      setQueueItems(res.data.data.queue || []);
+      setQueueStats(res.data.data.stats || { totalWaiting: 0, avgWaitMinutes: 0, acceptedToday: 0 });
+    } catch {
+      setQueueItems([]);
+    } finally {
+      setQueueLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!agent) return;
     fetchTickets();
     fetchStats();
-    const interval = setInterval(() => { fetchTickets(); fetchStats(); }, 15000);
+    fetchQueue();
+    const interval = setInterval(() => { fetchTickets(); fetchStats(); fetchQueue(); }, 15000);
     return () => clearInterval(interval);
-  }, [agent, fetchTickets, fetchStats]);
+  }, [agent, fetchTickets, fetchStats, fetchQueue]);
 
   const fetchMessages = useCallback(async (ticketId: string) => {
     try {
@@ -316,10 +336,43 @@ export default function SupportAgentDashboard() {
     }
   }, [fraudStatus]);
 
+  const handleAcceptTicket = async (ticketId: string) => {
+    setAcceptingTicketId(ticketId);
+    try {
+      await adminApiClient.post(`/admin/support/queue/${ticketId}/accept`);
+      toast({ title: "Ticket accepted", description: "The ticket has been assigned to you." });
+      fetchQueue();
+      fetchTickets();
+      fetchStats();
+    } catch {
+      toast({ title: "Failed", description: "Could not accept ticket.", variant: "destructive" });
+    } finally {
+      setAcceptingTicketId(null);
+    }
+  };
+
+  const handleAcceptNext = async () => {
+    setAcceptingTicketId("next");
+    try {
+      const res = await adminApiClient.post("/admin/support/queue/accept-next");
+      const ticketId = res.data.data.ticketId;
+      toast({ title: "Ticket accepted", description: "Next ticket from queue has been assigned to you." });
+      fetchQueue();
+      fetchTickets();
+      fetchStats();
+      if (ticketId) setSelectedTicketId(ticketId);
+    } catch (e: any) {
+      toast({ title: "Queue empty", description: "No tickets waiting in the queue.", variant: "destructive" });
+    } finally {
+      setAcceptingTicketId(null);
+    }
+  };
+
   useEffect(() => {
     if (mainTab === "fraud") fetchFraudAlerts();
     if (mainTab === "teach") fetchAiData();
-  }, [mainTab, fetchFraudAlerts]);
+    if (mainTab === "queue") fetchQueue();
+  }, [mainTab, fetchFraudAlerts, fetchQueue]);
 
   const fetchAiData = async () => {
     setTeachLoading(true);
@@ -624,6 +677,7 @@ export default function SupportAgentDashboard() {
         <div className="flex px-6">
           {[
             { id: "tickets", label: "My Tickets", icon: <Inbox className="h-4 w-4" /> },
+            { id: "queue", label: "Queue", icon: <UserCheck className="h-4 w-4" />, badge: queueStats.totalWaiting > 0 ? queueStats.totalWaiting : null },
             { id: "lookup", label: "Transaction Lookup", icon: <Search className="h-4 w-4" /> },
             { id: "fraud", label: "Fraud Alerts", icon: <ShieldAlert className="h-4 w-4" /> },
             { id: "teach", label: "Teach AI", icon: <Bot className="h-4 w-4" />, badge: unresolvedQueries.length > 0 ? unresolvedQueries.length : null },
@@ -1035,6 +1089,128 @@ export default function SupportAgentDashboard() {
                   <p className="text-sm">Select a ticket to view the conversation</p>
                 </div>
               </Card>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ====== QUEUE TAB ====== */}
+      {mainTab === "queue" && (
+        <div className="flex-1 p-6 overflow-auto">
+          <div className="max-w-4xl mx-auto space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold">Support Queue</h2>
+                <p className="text-sm text-muted-foreground mt-1">Users waiting for agent assistance</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button variant="outline" size="sm" onClick={fetchQueue} disabled={queueLoading}>
+                  <RotateCcw className={`h-3.5 w-3.5 mr-1.5 ${queueLoading ? "animate-spin" : ""}`} />
+                  Refresh
+                </Button>
+                <Button size="sm" onClick={handleAcceptNext} disabled={acceptingTicketId === "next" || queueItems.length === 0}>
+                  {acceptingTicketId === "next" ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <ChevronRight className="h-3.5 w-3.5 mr-1.5" />}
+                  Accept Next
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <Card className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                    <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{queueStats.totalWaiting}</p>
+                    <p className="text-xs text-muted-foreground">Waiting</p>
+                  </div>
+                </div>
+              </Card>
+              <Card className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                    <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{queueStats.avgWaitMinutes}<span className="text-sm font-normal text-muted-foreground ml-1">min</span></p>
+                    <p className="text-xs text-muted-foreground">Avg Wait</p>
+                  </div>
+                </div>
+              </Card>
+              <Card className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                    <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{queueStats.acceptedToday}</p>
+                    <p className="text-xs text-muted-foreground">Accepted Today</p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+
+            {queueLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : queueItems.length === 0 ? (
+              <Card className="p-12 text-center">
+                <CheckCircle2 className="h-12 w-12 mx-auto text-green-500/40 mb-3" />
+                <p className="font-medium text-lg">Queue is empty</p>
+                <p className="text-sm text-muted-foreground mt-1">No users are currently waiting for support.</p>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {queueItems.map((item: any) => (
+                  <Card key={item.id} className="p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3 min-w-0 flex-1">
+                        <div className="h-10 w-10 rounded-full bg-amber-100 dark:bg-amber-800/40 flex items-center justify-center shrink-0">
+                          <span className="text-base font-bold text-amber-700 dark:text-amber-300">#{item.position}</span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-medium text-sm">{item.subject || "Support Request"}</p>
+                            <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0">{item.referenceId}</Badge>
+                            <Badge className={`text-[10px] px-1.5 py-0 ${item.priority === "high" || item.priority === "urgent" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"}`}>
+                              {item.priority}
+                            </Badge>
+                            {item.category && item.category !== "general" && (
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{item.category}</Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            <User className="h-3 w-3 inline mr-1 -mt-0.5" />{item.userName}
+                            <span className="mx-1.5">·</span>
+                            <Clock className="h-3 w-3 inline mr-1 -mt-0.5" />Waiting {item.waitMinutes} min
+                          </p>
+                          {item.lastMessage && (
+                            <p className="text-xs text-muted-foreground mt-1 truncate">
+                              <MessageSquare className="h-3 w-3 inline mr-1 -mt-0.5" />
+                              {item.lastMessage.senderType === "user" ? "User" : item.lastMessage.senderType === "ai" ? "AI" : "System"}: {item.lastMessage.content?.substring(0, 80)}{item.lastMessage.content?.length > 80 ? "..." : ""}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => handleAcceptTicket(item.ticketId)}
+                        disabled={acceptingTicketId === item.ticketId}
+                        className="shrink-0"
+                      >
+                        {acceptingTicketId === item.ticketId ? (
+                          <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                        ) : (
+                          <UserCheck className="h-3.5 w-3.5 mr-1.5" />
+                        )}
+                        Accept
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
             )}
           </div>
         </div>

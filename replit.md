@@ -92,7 +92,8 @@ Preferred communication style: Simple, everyday language.
 - **Ticket Lifecycle**: open -> escalated -> assigned -> in_progress -> resolved -> closed
 - **Reference IDs**: ARP-XXXXXX format for ticket tracking
 - **AI First Response**: OpenAI (gpt-4o-mini) handles initial user queries; AI detects complex issues via [ESCALATE] tag and auto-escalates
-- **Auto-assign**: On escalation, system finds available support agent (least active tickets) and auto-assigns. If no agent available, ticket stays in escalated queue.
+- **Auto-assign**: On escalation, system finds available support agent (least active tickets) and auto-assigns. If no agent available, ticket enters support queue.
+- **Support Queue**: `support_queue` table tracks users waiting for agents. Priority-ordered (urgent→high→medium→low) then FIFO. Users see position + estimated wait in SupportChat. Agents see queue tab in SupportAgentDashboard with stats and Accept/Accept Next buttons. Queue entries cleaned on ticket resolve/close/assign.
 - **Auto-close**: Tickets auto-close after 30 minutes of inactivity (checked on message poll)
 - **Presence/Typing**: Polling-based (4s messages, 10s heartbeat) for online status and typing indicators via `support_presence` table
 - **AI Reply Suggestions**: POST `/admin/support/tickets/:id/suggestions` generates 3 contextual reply suggestions for agents

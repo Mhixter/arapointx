@@ -46,6 +46,7 @@ import {
   supportMessages as support_messages,
   supportInternalNotes as support_internal_notes,
   supportPresence as support_presence,
+  supportQueue as support_queue,
   agentInternalMessages,
   fraudAlerts,
   users as usersTable,
@@ -3800,6 +3801,10 @@ router.post('/support/tickets/:id/assign', async (req: Request, res: Response) =
       lastSeenAt: now,
     }).onConflictDoNothing();
 
+    await db.update(support_queue)
+      .set({ status: 'accepted', acceptedBy: agentId, acceptedAt: now, removedAt: now, removeReason: 'accepted' })
+      .where(and(eq(support_queue.ticketId, id), eq(support_queue.status, 'waiting')));
+
     logger.info('Ticket assigned', { ticketId: id, agentId });
     res.json(formatResponse('success', 200, 'Ticket assigned'));
   } catch (error: any) {
@@ -3962,6 +3967,10 @@ router.post('/support/tickets/:id/status', async (req: Request, res: Response) =
     await db.update(support_tickets).set(updateData).where(eq(support_tickets.id, id));
 
     if (status === 'resolved' || status === 'closed') {
+      await db.update(support_queue)
+        .set({ status: 'removed', removedAt: now, removeReason: status })
+        .where(and(eq(support_queue.ticketId, id), eq(support_queue.status, 'waiting')));
+
       await db.update(support_conversations)
         .set({ isActive: false, closedReason: status === 'resolved' ? 'resolved' : 'closed_by_agent', updatedAt: now })
         .where(eq(support_conversations.ticketId, id));
@@ -4459,6 +4468,221 @@ router.delete('/clear-test-data', async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error('Failed to clear test data', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to clear test data: ' + error.message));
+  }
+});
+
+router.get('/support/queue', async (req: Request, res: Response) => {
+  try {
+    const waitingEntries = await db.select({
+      id: support_queue.id,
+      ticketId: support_queue.ticketId,
+      userId: support_queue.userId,
+      conversationId: support_queue.conversationId,
+      priority: support_queue.priority,
+      category: support_queue.category,
+      status: support_queue.status,
+      joinedAt: support_queue.joinedAt,
+      estimatedWaitMinutes: support_queue.estimatedWaitMinutes,
+    })
+      .from(support_queue)
+      .where(eq(support_queue.status, 'waiting'))
+      .orderBy(
+        sql`CASE ${support_queue.priority}
+          WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END`,
+        asc(support_queue.joinedAt)
+      );
+
+    const enriched = await Promise.all(waitingEntries.map(async (entry, idx) => {
+      const [ticket] = await db.select({
+        referenceId: support_tickets.referenceId,
+        subject: support_tickets.subject,
+        category: support_tickets.category,
+      }).from(support_tickets).where(eq(support_tickets.id, entry.ticketId)).limit(1);
+
+      const [user] = await db.select({ name: usersTable.name })
+        .from(usersTable).where(eq(usersTable.id, entry.userId)).limit(1);
+
+      const lastMsg = await db.select({
+        content: support_messages.content,
+        senderType: support_messages.senderType,
+        createdAt: support_messages.createdAt,
+      })
+        .from(support_messages)
+        .where(eq(support_messages.conversationId, entry.conversationId))
+        .orderBy(desc(support_messages.createdAt))
+        .limit(1);
+
+      const waitMinutes = Math.round((Date.now() - new Date(entry.joinedAt).getTime()) / 60000);
+
+      return {
+        ...entry,
+        position: idx + 1,
+        referenceId: ticket?.referenceId || '',
+        subject: ticket?.subject || '',
+        userName: user?.name || 'Unknown',
+        lastMessage: lastMsg[0] || null,
+        waitMinutes,
+      };
+    }));
+
+    const [totalStats] = await db.select({
+      totalWaiting: count(),
+      avgWaitMinutes: sql<number>`COALESCE(ROUND(EXTRACT(EPOCH FROM (NOW() - AVG(${support_queue.joinedAt})))/60), 0)`,
+    })
+      .from(support_queue)
+      .where(eq(support_queue.status, 'waiting'));
+
+    const [acceptedToday] = await db.select({ count: count() })
+      .from(support_queue)
+      .where(and(
+        eq(support_queue.status, 'accepted'),
+        sql`${support_queue.acceptedAt} >= CURRENT_DATE`
+      ));
+
+    res.json(formatResponse('success', 200, 'Queue retrieved', {
+      queue: enriched,
+      stats: {
+        totalWaiting: Number(totalStats?.totalWaiting || 0),
+        avgWaitMinutes: Number(totalStats?.avgWaitMinutes || 0),
+        acceptedToday: Number(acceptedToday?.count || 0),
+      },
+    }));
+  } catch (error: any) {
+    logger.error('Get queue error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get queue'));
+  }
+});
+
+router.post('/support/queue/:ticketId/accept', async (req: Request, res: Response) => {
+  try {
+    const { ticketId } = req.params;
+    const agentId = req.adminId!;
+    const now = new Date();
+
+    const [entry] = await db.select()
+      .from(support_queue)
+      .where(and(eq(support_queue.ticketId, ticketId), eq(support_queue.status, 'waiting')))
+      .limit(1);
+
+    if (!entry) {
+      return res.status(404).json(formatErrorResponse(404, 'Ticket not in queue'));
+    }
+
+    const [agent] = await db.select({ name: admin_users.name })
+      .from(admin_users).where(eq(admin_users.id, agentId)).limit(1);
+
+    await db.update(support_queue)
+      .set({ status: 'accepted', acceptedBy: agentId, acceptedAt: now, removedAt: now, removeReason: 'accepted' })
+      .where(eq(support_queue.id, entry.id));
+
+    await db.update(support_tickets)
+      .set({
+        assignedAgentId: agentId,
+        assignedAt: now,
+        status: 'assigned',
+        lastActivityAt: now,
+        updatedAt: now,
+      })
+      .where(eq(support_tickets.id, ticketId));
+
+    const [conv] = await db.select({ id: support_conversations.id })
+      .from(support_conversations)
+      .where(eq(support_conversations.ticketId, ticketId))
+      .limit(1);
+
+    if (conv) {
+      await db.insert(support_messages).values({
+        conversationId: conv.id,
+        senderType: 'system',
+        senderName: 'System',
+        content: `Agent ${agent?.name || 'Support Agent'} has accepted your ticket from the queue and will assist you now.`,
+      });
+    }
+
+    await db.insert(support_presence).values({
+      ticketId,
+      participantId: agentId,
+      participantType: 'agent',
+      participantName: agent?.name || 'Agent',
+      isOnline: true,
+      lastSeenAt: now,
+    }).onConflictDoNothing();
+
+    logger.info('Ticket accepted from queue', { ticketId, agentId, agentName: agent?.name });
+    res.json(formatResponse('success', 200, 'Ticket accepted from queue'));
+  } catch (error: any) {
+    logger.error('Accept from queue error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to accept ticket'));
+  }
+});
+
+router.post('/support/queue/accept-next', async (req: Request, res: Response) => {
+  try {
+    const agentId = req.adminId!;
+    const now = new Date();
+
+    const [nextEntry] = await db.select()
+      .from(support_queue)
+      .where(eq(support_queue.status, 'waiting'))
+      .orderBy(
+        sql`CASE ${support_queue.priority}
+          WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END`,
+        asc(support_queue.joinedAt)
+      )
+      .limit(1);
+
+    if (!nextEntry) {
+      return res.status(404).json(formatErrorResponse(404, 'Queue is empty'));
+    }
+
+    const [agent] = await db.select({ name: admin_users.name })
+      .from(admin_users).where(eq(admin_users.id, agentId)).limit(1);
+
+    await db.update(support_queue)
+      .set({ status: 'accepted', acceptedBy: agentId, acceptedAt: now, removedAt: now, removeReason: 'accepted' })
+      .where(eq(support_queue.id, nextEntry.id));
+
+    await db.update(support_tickets)
+      .set({
+        assignedAgentId: agentId,
+        assignedAt: now,
+        status: 'assigned',
+        lastActivityAt: now,
+        updatedAt: now,
+      })
+      .where(eq(support_tickets.id, nextEntry.ticketId));
+
+    const [conv] = await db.select({ id: support_conversations.id })
+      .from(support_conversations)
+      .where(eq(support_conversations.ticketId, nextEntry.ticketId))
+      .limit(1);
+
+    if (conv) {
+      await db.insert(support_messages).values({
+        conversationId: conv.id,
+        senderType: 'system',
+        senderName: 'System',
+        content: `Agent ${agent?.name || 'Support Agent'} has accepted your ticket and will assist you now.`,
+      });
+    }
+
+    await db.insert(support_presence).values({
+      ticketId: nextEntry.ticketId,
+      participantId: agentId,
+      participantType: 'agent',
+      participantName: agent?.name || 'Agent',
+      isOnline: true,
+      lastSeenAt: now,
+    }).onConflictDoNothing();
+
+    logger.info('Next ticket accepted from queue', { ticketId: nextEntry.ticketId, agentId });
+    res.json(formatResponse('success', 200, 'Next ticket accepted', {
+      ticketId: nextEntry.ticketId,
+      conversationId: nextEntry.conversationId,
+    }));
+  } catch (error: any) {
+    logger.error('Accept next error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to accept next ticket'));
   }
 });
 

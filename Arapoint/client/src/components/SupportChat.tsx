@@ -167,6 +167,13 @@ export default function SupportChat() {
   const [fileUploading, setFileUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [queueInfo, setQueueInfo] = useState<{
+    inQueue: boolean;
+    position: number;
+    estimatedWaitMinutes: number;
+    totalWaiting: number;
+  } | null>(null);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -250,17 +257,34 @@ export default function SupportChat() {
       setTicketStatus(data.ticketStatus || null);
       setReferenceId(data.referenceId || null);
       setAgentName(data.agentName || null);
+      if (data.agentName) setQueueInfo(null);
       return data.isActive;
     } catch { return true; }
   }, []);
 
-  const startPolling = useCallback((convId: string) => {
+  const fetchQueuePosition = useCallback(async (ticketId: string) => {
+    try {
+      const res = await apiClient.get(`/support/queue/position/${ticketId}`);
+      const data = res.data.data;
+      setQueueInfo(data);
+      if (!data.inQueue) setQueueInfo(null);
+    } catch {
+      setQueueInfo(null);
+    }
+  }, []);
+
+  const startPolling = useCallback((convId: string, ticketId?: string) => {
     if (pollingRef.current) clearInterval(pollingRef.current);
+    let queuePollCounter = 0;
     pollingRef.current = setInterval(async () => {
       const still = await loadMessages(convId, lastMessageTimestampRef.current || undefined);
       if (still === false) { if (pollingRef.current) clearInterval(pollingRef.current); pollingRef.current = null; }
+      queuePollCounter++;
+      if (ticketId && queuePollCounter % 3 === 0) {
+        fetchQueuePosition(ticketId);
+      }
     }, 4000);
-  }, [loadMessages]);
+  }, [loadMessages, fetchQueuePosition]);
 
   const stopPolling = useCallback(() => {
     if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
@@ -283,12 +307,16 @@ export default function SupportChat() {
     setConversationId(ticket.conversationId);
     setView("chat");
     setLoadingMessages(true);
+    setQueueInfo(null);
     lastMessageTimestampRef.current = null;
     await loadMessages(ticket.conversationId);
     setLoadingMessages(false);
-    startPolling(ticket.conversationId);
+    startPolling(ticket.conversationId, ticket.id);
     startHeartbeat(ticket.id);
-  }, [loadMessages, startPolling, startHeartbeat]);
+    if (ticket.status === "escalated" && !ticket.agentName) {
+      fetchQueuePosition(ticket.id);
+    }
+  }, [loadMessages, startPolling, startHeartbeat, fetchQueuePosition]);
 
   const goBack = useCallback(() => {
     setView("lobby");
@@ -443,6 +471,31 @@ export default function SupportChat() {
               )}
             </div>
           </div>
+
+          {queueInfo?.inQueue && (
+            <div className="px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
+              <div className="flex items-center gap-3">
+                <div className="relative flex items-center justify-center">
+                  <div className="h-10 w-10 rounded-full bg-amber-100 dark:bg-amber-800/40 flex items-center justify-center">
+                    <span className="text-lg font-bold text-amber-700 dark:text-amber-300">#{queueInfo.position}</span>
+                  </div>
+                  <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-amber-400 animate-ping" />
+                  <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-amber-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                    You are #{queueInfo.position} in the queue
+                  </p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                    <Clock className="h-3 w-3 inline mr-1 -mt-0.5" />
+                    Estimated wait: ~{queueInfo.estimatedWaitMinutes} min
+                    {queueInfo.totalWaiting > 1 && ` · ${queueInfo.totalWaiting} people waiting`}
+                  </p>
+                </div>
+                <Loader2 className="h-4 w-4 animate-spin text-amber-500 shrink-0" />
+              </div>
+            </div>
+          )}
 
           <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
             {loadingMessages ? (

@@ -6,6 +6,7 @@ import {
   supportConversations,
   supportMessages,
   supportPresence,
+  supportQueue,
   agentInternalMessages,
   fraudAlerts,
   users,
@@ -93,7 +94,7 @@ async function findAvailableAgent(): Promise<{ id: string; name: string } | null
   }
 }
 
-async function autoAssignTicket(ticketId: string, conversationId: string): Promise<{ agentName: string } | null> {
+async function autoAssignTicket(ticketId: string, conversationId: string): Promise<{ agentId: string; agentName: string } | null> {
   const agent = await findAvailableAgent();
   if (!agent) return null;
 
@@ -125,7 +126,90 @@ async function autoAssignTicket(ticketId: string, conversationId: string): Promi
   }).onConflictDoNothing();
 
   logger.info('Ticket auto-assigned', { ticketId, agentId: agent.id, agentName: agent.name });
-  return { agentName: agent.name };
+  return { agentId: agent.id, agentName: agent.name };
+}
+
+async function addToQueue(ticketId: string, userId: string, conversationId: string, priority: string, category: string): Promise<{ position: number; estimatedWaitMinutes: number }> {
+  try {
+    const [existing] = await db.select({ id: supportQueue.id })
+      .from(supportQueue)
+      .where(and(eq(supportQueue.ticketId, ticketId), eq(supportQueue.status, 'waiting')))
+      .limit(1);
+    if (existing) {
+      const position = await getQueuePosition(ticketId);
+      return { position, estimatedWaitMinutes: position * 3 };
+    }
+
+    const [waitingCount] = await db.select({ count: count() })
+      .from(supportQueue)
+      .where(eq(supportQueue.status, 'waiting'));
+    const currentCount = Number(waitingCount?.count || 0);
+    const estimatedWait = Math.max(2, (currentCount + 1) * 3);
+
+    await db.insert(supportQueue).values({
+      ticketId,
+      userId,
+      conversationId,
+      priority: priority || 'medium',
+      category: category || 'general',
+      status: 'waiting',
+      estimatedWaitMinutes: estimatedWait,
+    });
+
+    logger.info('Added to support queue', { ticketId, position: currentCount + 1, estimatedWait });
+    return { position: currentCount + 1, estimatedWaitMinutes: estimatedWait };
+  } catch (error) {
+    logger.error('Add to queue error', { error, ticketId });
+    return { position: 0, estimatedWaitMinutes: 5 };
+  }
+}
+
+async function removeFromQueue(ticketId: string, reason: string, agentId?: string): Promise<void> {
+  try {
+    const now = new Date();
+    await db.update(supportQueue)
+      .set({
+        status: reason === 'accepted' ? 'accepted' : 'removed',
+        removedAt: now,
+        removeReason: reason,
+        acceptedBy: agentId || null,
+        acceptedAt: reason === 'accepted' ? now : null,
+      })
+      .where(and(eq(supportQueue.ticketId, ticketId), eq(supportQueue.status, 'waiting')));
+    logger.info('Removed from queue', { ticketId, reason });
+  } catch (error) {
+    logger.error('Remove from queue error', { error, ticketId });
+  }
+}
+
+async function getQueuePosition(ticketId: string): Promise<number> {
+  try {
+    const [entry] = await db.select({ joinedAt: supportQueue.joinedAt, priority: supportQueue.priority })
+      .from(supportQueue)
+      .where(and(eq(supportQueue.ticketId, ticketId), eq(supportQueue.status, 'waiting')))
+      .limit(1);
+    if (!entry) return 0;
+
+    const [ahead] = await db.select({ count: count() })
+      .from(supportQueue)
+      .where(and(
+        eq(supportQueue.status, 'waiting'),
+        or(
+          sql`CASE ${supportQueue.priority}
+            WHEN 'urgent' THEN 4 WHEN 'high' THEN 3 WHEN 'medium' THEN 2 ELSE 1 END
+            > CASE '${sql.raw(entry.priority || 'medium')}'
+            WHEN 'urgent' THEN 4 WHEN 'high' THEN 3 WHEN 'medium' THEN 2 ELSE 1 END`,
+          and(
+            eq(supportQueue.priority, entry.priority || 'medium'),
+            lt(supportQueue.joinedAt, entry.joinedAt)
+          )
+        )
+      ));
+    return Number(ahead?.count || 0) + 1;
+  } catch (error) {
+    logger.error('Get queue position error', { error, ticketId });
+    return 0;
+  }
 }
 
 function generateReferenceId(): string {
@@ -208,19 +292,30 @@ router.post('/tickets', async (req: Request, res: Response) => {
       content: aiResponse,
     });
 
+    let queueInfo = null;
     if (aiResult.shouldEscalate) {
       await db.update(supportTickets)
         .set({ status: 'escalated', escalatedAt: new Date(), priority: 'high', lastActivityAt: new Date(), updatedAt: new Date() })
         .where(eq(supportTickets.id, ticket.id));
 
-      await db.insert(supportMessages).values({
-        conversationId: conversation.id,
-        senderType: 'system',
-        senderName: 'System',
-        content: 'Your ticket has been escalated. Finding an available support agent...',
-      });
+      const assigned = await autoAssignTicket(ticket.id, conversation.id);
 
-      await autoAssignTicket(ticket.id, conversation.id);
+      if (assigned) {
+        await db.insert(supportMessages).values({
+          conversationId: conversation.id,
+          senderType: 'system',
+          senderName: 'System',
+          content: 'Your ticket has been escalated and an agent has been assigned.',
+        });
+      } else {
+        queueInfo = await addToQueue(ticket.id, userId, conversation.id, 'high', category || 'general');
+        await db.insert(supportMessages).values({
+          conversationId: conversation.id,
+          senderType: 'system',
+          senderName: 'System',
+          content: `Your ticket has been escalated. You are #${queueInfo.position} in the queue. Estimated wait: ~${queueInfo.estimatedWaitMinutes} minutes.`,
+        });
+      }
     }
 
     logger.info('Support ticket created', { ticketId: ticket.id, referenceId, userId });
@@ -235,6 +330,7 @@ router.post('/tickets', async (req: Request, res: Response) => {
         createdAt: ticket.createdAt,
       },
       conversationId: conversation.id,
+      queue: queueInfo,
     }));
   } catch (error: any) {
     logger.error('Create ticket error', { error: error.message });
@@ -530,14 +626,25 @@ router.post('/conversations/:id/messages', async (req: Request, res: Response) =
         .set({ status: 'escalated', escalatedAt: now, priority: 'high', lastActivityAt: now, updatedAt: now })
         .where(eq(supportTickets.id, conv.ticketId));
 
-      await db.insert(supportMessages).values({
-        conversationId: id,
-        senderType: 'system',
-        senderName: 'System',
-        content: 'Your ticket has been escalated to a human support agent. Finding an available agent...',
-      });
-
       const assigned = await autoAssignTicket(conv.ticketId, id);
+
+      if (assigned) {
+        await removeFromQueue(conv.ticketId, 'accepted', assigned.agentId);
+        await db.insert(supportMessages).values({
+          conversationId: id,
+          senderType: 'system',
+          senderName: 'System',
+          content: `Your ticket has been escalated. Agent ${assigned.agentName} will assist you shortly.`,
+        });
+      } else {
+        const queueInfo = await addToQueue(conv.ticketId, userId, id, 'high', ticket?.category || 'general');
+        await db.insert(supportMessages).values({
+          conversationId: id,
+          senderType: 'system',
+          senderName: 'System',
+          content: `Your ticket has been escalated. You are #${queueInfo.position} in the queue. Estimated wait: ~${queueInfo.estimatedWaitMinutes} minutes.`,
+        });
+      }
 
       return res.status(201).json(formatResponse('success', 201, 'Message sent and ticket escalated', {
         message,
@@ -565,14 +672,25 @@ router.post('/conversations/:id/messages', async (req: Request, res: Response) =
         .set({ status: 'escalated', escalatedAt: now, priority: 'high', lastActivityAt: now, updatedAt: now })
         .where(eq(supportTickets.id, conv.ticketId));
 
-      await db.insert(supportMessages).values({
-        conversationId: id,
-        senderType: 'system',
-        senderName: 'System',
-        content: 'This issue requires human assistance. Finding an available support agent for you...',
-      });
-
       const assigned = await autoAssignTicket(conv.ticketId, id);
+
+      if (assigned) {
+        await removeFromQueue(conv.ticketId, 'accepted');
+        await db.insert(supportMessages).values({
+          conversationId: id,
+          senderType: 'system',
+          senderName: 'System',
+          content: `An agent has been assigned to help you. ${assigned.agentName} will be with you shortly.`,
+        });
+      } else {
+        const queueInfo = await addToQueue(conv.ticketId, userId, id, 'high', ticket?.category || 'general');
+        await db.insert(supportMessages).values({
+          conversationId: id,
+          senderType: 'system',
+          senderName: 'System',
+          content: `This issue requires human assistance. You are #${queueInfo.position} in the queue. Estimated wait: ~${queueInfo.estimatedWaitMinutes} minutes.`,
+        });
+      }
 
       return res.status(201).json(formatResponse('success', 201, 'Message processed and escalated', {
         message,
@@ -592,6 +710,7 @@ router.post('/conversations/:id/messages', async (req: Request, res: Response) =
 router.post('/conversations/:id/escalate', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const userId = req.userId!;
     const now = new Date();
 
     const [conv] = await db.select()
@@ -601,21 +720,39 @@ router.post('/conversations/:id/escalate', async (req: Request, res: Response) =
 
     if (!conv) return res.status(404).json(formatErrorResponse(404, 'Conversation not found'));
 
+    const [ticket] = await db.select()
+      .from(supportTickets)
+      .where(eq(supportTickets.id, conv.ticketId))
+      .limit(1);
+
     await db.update(supportTickets)
       .set({ status: 'escalated', escalatedAt: now, priority: 'high', lastActivityAt: now, updatedAt: now })
       .where(eq(supportTickets.id, conv.ticketId));
 
-    await db.insert(supportMessages).values({
-      conversationId: id,
-      senderType: 'system',
-      senderName: 'System',
-      content: 'Your ticket has been escalated to a human support agent. Finding an available agent...',
-    });
-
     const assigned = await autoAssignTicket(conv.ticketId, id);
+
+    let queueInfo = null;
+    if (assigned) {
+      await removeFromQueue(conv.ticketId, 'accepted');
+      await db.insert(supportMessages).values({
+        conversationId: id,
+        senderType: 'system',
+        senderName: 'System',
+        content: `Agent ${assigned.agentName} has been assigned to your ticket.`,
+      });
+    } else {
+      queueInfo = await addToQueue(conv.ticketId, userId, id, 'high', ticket?.category || 'general');
+      await db.insert(supportMessages).values({
+        conversationId: id,
+        senderType: 'system',
+        senderName: 'System',
+        content: `Your ticket has been escalated. You are #${queueInfo.position} in the queue. Estimated wait: ~${queueInfo.estimatedWaitMinutes} minutes.`,
+      });
+    }
 
     res.json(formatResponse('success', 200, 'Ticket escalated', {
       assignedAgent: assigned?.agentName || null,
+      queue: queueInfo,
     }));
   } catch (error: any) {
     res.status(500).json(formatErrorResponse(500, 'Failed to escalate'));
@@ -994,6 +1131,50 @@ router.post('/fraud-alerts/:id/dismiss', async (req: Request, res: Response) => 
     res.json(formatResponse('success', 200, 'Alert dismissed'));
   } catch (error: any) {
     res.status(500).json(formatErrorResponse(500, 'Failed to dismiss alert'));
+  }
+});
+
+router.get('/queue/position/:ticketId', async (req: Request, res: Response) => {
+  try {
+    const { ticketId } = req.params;
+    const userId = req.userId!;
+
+    const [ticket] = await db.select({ userId: supportTickets.userId })
+      .from(supportTickets)
+      .where(eq(supportTickets.id, ticketId))
+      .limit(1);
+
+    if (!ticket || ticket.userId !== userId) {
+      return res.status(404).json(formatErrorResponse(404, 'Ticket not found'));
+    }
+
+    const [entry] = await db.select()
+      .from(supportQueue)
+      .where(and(eq(supportQueue.ticketId, ticketId), eq(supportQueue.status, 'waiting')))
+      .limit(1);
+
+    if (!entry) {
+      return res.json(formatResponse('success', 200, 'Not in queue', { inQueue: false, position: 0, estimatedWaitMinutes: 0 }));
+    }
+
+    const position = await getQueuePosition(ticketId);
+    const estimatedWait = Math.max(2, position * 3);
+
+    const [totalWaiting] = await db.select({ count: count() })
+      .from(supportQueue)
+      .where(eq(supportQueue.status, 'waiting'));
+
+    res.json(formatResponse('success', 200, 'Queue position', {
+      inQueue: true,
+      position,
+      estimatedWaitMinutes: estimatedWait,
+      totalWaiting: Number(totalWaiting?.count || 0),
+      joinedAt: entry.joinedAt,
+      priority: entry.priority,
+    }));
+  } catch (error: any) {
+    logger.error('Get queue position error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get queue position'));
   }
 });
 

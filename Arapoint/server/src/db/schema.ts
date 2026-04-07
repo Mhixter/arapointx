@@ -979,6 +979,28 @@ export const sharedFiles = pgTable('shared_files', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+// Support Queue - Tracks users waiting for agent assignment
+export const supportQueue = pgTable('support_queue', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  ticketId: uuid('ticket_id').references(() => supportTickets.id).notNull().unique(),
+  userId: uuid('user_id').references(() => users.id).notNull(),
+  conversationId: uuid('conversation_id').references(() => supportConversations.id).notNull(),
+  priority: varchar('priority', { length: 20 }).default('medium').notNull(),
+  category: varchar('category', { length: 50 }).default('general'),
+  status: varchar('status', { length: 20 }).default('waiting').notNull(),
+  joinedAt: timestamp('joined_at').defaultNow().notNull(),
+  estimatedWaitMinutes: integer('estimated_wait_minutes').default(5),
+  acceptedBy: uuid('accepted_by').references(() => adminUsers.id),
+  acceptedAt: timestamp('accepted_at'),
+  removedAt: timestamp('removed_at'),
+  removeReason: varchar('remove_reason', { length: 50 }),
+}, (table) => [
+  index('sq_status_idx').on(table.status),
+  index('sq_ticket_idx').on(table.ticketId),
+  index('sq_joined_idx').on(table.joinedAt),
+  index('sq_priority_idx').on(table.priority),
+]);
+
 // AI Unresolved Queries - Queries the AI couldn't answer; agents review and teach the AI
 export const aiUnresolvedQueries = pgTable('ai_unresolved_queries', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
