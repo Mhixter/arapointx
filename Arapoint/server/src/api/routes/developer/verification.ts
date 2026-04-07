@@ -803,6 +803,427 @@ router.post('/verify/fraud-score', apiKeyAuth, async (req: Request, res: Respons
   }
 });
 
+router.post('/verify/identity-check', apiKeyAuth, async (req: Request, res: Response) => {
+  const start = Date.now();
+  const dev = (req as any).developer;
+  const apiKeyId = (req as any).apiKeyId;
+  const envMode: string = (dev as any).environmentMode || 'sandbox';
+  let statusCode = 202;
+  let responseData: any;
+  let totalCost = 0;
+
+  const {
+    reference, callbackUrl,
+    nin, bvn,
+    educationProvider,
+    registrationNumber, examYear, examType,
+    cardPin, cardSerialNumber,
+    candidateNumber,
+    token,
+    state: candidateState, schoolName, examMonth,
+  } = req.body || {};
+
+  const regNo = registrationNumber || candidateNumber;
+
+  try {
+    const missing: string[] = [];
+    if (!nin) missing.push('nin');
+    if (!bvn) missing.push('bvn');
+    if (!educationProvider) missing.push('educationProvider');
+
+    if (missing.length > 0) {
+      statusCode = 400;
+      responseData = { status: 'error', code: 400, message: `Missing required fields: ${missing.join(', ')}. All identity checks require nin, bvn, and educationProvider.` };
+      return res.status(400).json(responseData);
+    }
+
+    if (String(nin).replace(/\D/g, '').length !== 11) {
+      statusCode = 400;
+      responseData = { status: 'error', code: 400, message: 'NIN must be 11 digits' };
+      return res.status(400).json(responseData);
+    }
+    if (String(bvn).replace(/\D/g, '').length !== 11) {
+      statusCode = 400;
+      responseData = { status: 'error', code: 400, message: 'BVN must be 11 digits' };
+      return res.status(400).json(responseData);
+    }
+
+    const provider = educationProvider.toLowerCase();
+    const validProviders = ['waec', 'neco', 'nabteb', 'nbais'];
+    if (!validProviders.includes(provider)) {
+      statusCode = 400;
+      responseData = { status: 'error', code: 400, message: `educationProvider must be one of: ${validProviders.join(', ')}` };
+      return res.status(400).json(responseData);
+    }
+
+    const eduMissing: string[] = [];
+
+    if (provider === 'waec') {
+      if (!regNo) eduMissing.push('registrationNumber');
+      if (!examYear) eduMissing.push('examYear');
+      if (!examType) eduMissing.push('examType (Internal/GCE)');
+      if (!cardSerialNumber) eduMissing.push('cardSerialNumber');
+      if (!cardPin) eduMissing.push('cardPin');
+    } else if (provider === 'neco') {
+      if (!regNo) eduMissing.push('registrationNumber');
+      if (!examYear) eduMissing.push('examYear');
+      if (!examType) eduMissing.push('examType (Internal/GCE)');
+      if (!(cardPin || token)) eduMissing.push('token (NECO verification token)');
+    } else if (provider === 'nabteb') {
+      if (!(regNo || candidateNumber)) eduMissing.push('candidateNumber');
+      if (!examYear) eduMissing.push('examYear');
+      if (!examType) eduMissing.push('examType (MAY/JUN)');
+      if (!cardSerialNumber) eduMissing.push('cardSerialNumber');
+      if (!cardPin) eduMissing.push('cardPin');
+    } else if (provider === 'nbais') {
+      if (!regNo) eduMissing.push('registrationNumber');
+      if (!examYear) eduMissing.push('examYear');
+      if (!examMonth) eduMissing.push('examMonth (MAY or NOV)');
+      if (!candidateState) eduMissing.push('state (candidate state)');
+      if (!schoolName) eduMissing.push('schoolName');
+      if (!cardPin) eduMissing.push('cardPin');
+    }
+
+    if (eduMissing.length > 0) {
+      statusCode = 400;
+      responseData = {
+        status: 'error', code: 400,
+        message: `Missing required fields for ${provider.toUpperCase()} education verification: ${eduMissing.join(', ')}`,
+      };
+      return res.status(400).json(responseData);
+    }
+
+    const rawCost = API_PRICES.nin + API_PRICES.bvn + API_PRICES.education;
+    const bundleDiscount = 0.15;
+    totalCost = Math.round(rawCost * (1 - bundleDiscount));
+
+    await deductDeveloperBalance(dev.id, totalCost,
+      `Identity Check — NIN + BVN + ${provider.toUpperCase()} (15% bundle discount)`, envMode);
+
+    const requestId = 'IDC-' + crypto.randomBytes(8).toString('hex').toUpperCase();
+
+    if (envMode === 'sandbox') {
+      const ninData = sandboxNIN(nin).data;
+      const bvnData = sandboxBVN(bvn).data;
+      const nameScore = nameSimilarityScore(
+        `${ninData.firstName} ${ninData.lastName}`,
+        `${bvnData.firstName} ${bvnData.lastName}`
+      );
+
+      const eduResult = sandboxEducation(provider, regNo, String(examYear));
+
+      const identityMatch = nameScore >= 0.72;
+      const score = identityMatch ? 92 : 65;
+
+      statusCode = 200;
+      responseData = {
+        status: 'success', code: 200, message: 'Identity check completed (sandbox)',
+        data: {
+          requestId, reference: reference || null, status: 'completed',
+          decision: toDecision(score), score,
+          identityMatch,
+          nameMatchScore: Math.round(nameScore * 100),
+          nin: { status: 'verified', firstName: ninData.firstName, lastName: ninData.lastName, dateOfBirth: ninData.dateOfBirth, gender: ninData.gender },
+          bvn: { status: 'verified', firstName: bvnData.firstName, lastName: bvnData.lastName, dateOfBirth: bvnData.dateOfBirth },
+          education: {
+            provider: provider.toUpperCase(),
+            status: 'verified',
+            examYear,
+            registrationNumber: regNo,
+            ...eduResult.data,
+          },
+          pricing: { rawCost, bundleDiscount: '15%', totalCost },
+          completedAt: new Date().toISOString(),
+        }
+      };
+      return res.json(responseData);
+    }
+
+    const checksRequested = { nin: true, bvn: true, education: [{ type: provider, examYear }] };
+    const checksStatus: Record<string, string> = { nin: 'pending', bvn: 'pending', education_0: 'pending' };
+
+    await db.execute(sql`
+      INSERT INTO developer_unified_requests
+        (id, developer_id, reference, callback_url, identity_nin, identity_bvn,
+         checks_requested, options, status, checks_status, total_cost, environment)
+      VALUES
+        (${requestId}, ${dev.id}, ${reference || null}, ${callbackUrl || null},
+         ${nin.substring(0, 4) + '***'}, ${bvn.substring(0, 4) + '***'},
+         ${JSON.stringify(checksRequested)}::jsonb, ${JSON.stringify({ source: 'identity-check' })}::jsonb,
+         'queued', ${JSON.stringify(checksStatus)}::jsonb, ${totalCost}, ${envMode})
+    `);
+
+    responseData = {
+      status: 'accepted', code: 202,
+      message: 'Identity check started. NIN + BVN will be verified immediately, education results via RPA in 1-3 minutes.',
+      data: {
+        requestId, reference: reference || null, status: 'queued',
+        eta: '60–120 seconds',
+        checks: checksStatus,
+        pollUrl: `GET /verify/identity-check/result/${requestId}`,
+        webhookConfigured: !!callbackUrl,
+        pricing: { rawCost, bundleDiscount: '15%', totalCost },
+      }
+    };
+    res.status(202).json(responseData);
+
+    setImmediate(async () => {
+      try {
+        await db.execute(sql`UPDATE developer_unified_requests SET status = 'processing' WHERE id = ${requestId}`);
+
+        const { premblyService } = await import('../../../services/premblyService');
+        const [ninRes, bvnRes] = await Promise.allSettled([
+          premblyService.verifyNIN(nin),
+          premblyService.verifyBVN(bvn),
+        ]);
+
+        let ninData: any = null;
+        let bvnData: any = null;
+        const flags: string[] = [];
+        const updatedChecksStatus = { ...checksStatus };
+
+        if (ninRes.status === 'fulfilled') { ninData = ninRes.value?.data || null; updatedChecksStatus.nin = 'verified'; }
+        else { flags.push(`NIN lookup failed: ${ninRes.reason?.message}`); updatedChecksStatus.nin = 'failed'; }
+
+        if (bvnRes.status === 'fulfilled') { bvnData = bvnRes.value?.data || null; updatedChecksStatus.bvn = 'verified'; }
+        else { flags.push(`BVN lookup failed: ${bvnRes.reason?.message}`); updatedChecksStatus.bvn = 'failed'; }
+
+        const nameScore = (ninData && bvnData)
+          ? nameSimilarityScore(`${ninData.firstName} ${ninData.lastName}`, `${bvnData.firstName} ${bvnData.lastName}`)
+          : null;
+
+        if (nameScore !== null && nameScore < 0.72) {
+          flags.push(`Name mismatch between NIN and BVN records (score: ${(nameScore * 100).toFixed(0)}%)`);
+        }
+
+        const serviceTypeMap: Record<string, string> = { waec: 'waec_result', neco: 'neco_result', nabteb: 'nabteb_result', nbais: 'nbais_result' };
+        const defaultExamTypeMap: Record<string, string> = { waec: 'WASSCE', neco: 'ssce_int', nabteb: 'NBC/NTC', nbais: 'AISSCE' };
+
+        let educationResult: any = { status: 'processing' };
+        try {
+          const [job] = await db.insert(rpaJobs).values({
+            serviceType: serviceTypeMap[provider] || `${provider}_result`,
+            queryData: {
+              registrationNumber: regNo,
+              examYear: parseInt(String(examYear), 10),
+              examType: examType || defaultExamTypeMap[provider],
+              ...(cardPin ? { cardPin } : {}),
+              ...(token ? { cardPin: token } : {}),
+              ...(cardSerialNumber ? { cardSerialNumber } : {}),
+              ...(candidateState ? { state: candidateState } : {}),
+              ...(schoolName ? { schoolName } : {}),
+              ...(examMonth ? { examMonth } : {}),
+              source: 'developer_api_identity_check',
+              unifiedRequestId: requestId,
+            },
+            status: 'pending', priority: 5,
+          }).returning();
+          educationResult = { type: provider.toUpperCase(), registrationNumber: regNo, examYear, status: 'processing', jobId: job.id };
+          updatedChecksStatus.education_0 = 'processing';
+        } catch (rpaErr: any) {
+          educationResult = { type: provider.toUpperCase(), registrationNumber: regNo, examYear, status: 'failed', error: rpaErr.message };
+          updatedChecksStatus.education_0 = 'failed';
+          flags.push(`Education (${provider.toUpperCase()}) queue failed: ${rpaErr.message}`);
+        }
+
+        const ninVerified = !!ninData;
+        const bvnVerified = !!bvnData;
+        const identityPts = (ninVerified ? 20 : 0) + (bvnVerified ? 20 : 0);
+        const eduVerified = educationResult.status === 'verified' || educationResult.status === 'failed';
+        const eduPts = educationResult.status === 'verified' ? 25 : 0;
+        const maxPts = 65;
+        const rawScore = Math.max(0, identityPts + eduPts);
+        const score = eduVerified ? Math.round((rawScore / maxPts) * 100) : null;
+
+        const breakdown = {
+          nin: ninData ? { status: 'matched', data: { firstName: ninData.firstName, lastName: ninData.lastName, dateOfBirth: ninData.dateOfBirth } } : { status: 'failed' },
+          bvn: bvnData ? { status: 'matched', data: { firstName: bvnData.firstName, lastName: bvnData.lastName, dateOfBirth: bvnData.dateOfBirth } } : { status: 'failed' },
+          nameMatchScore: nameScore !== null ? Math.round(nameScore * 100) : null,
+          education: [educationResult],
+          employment: { status: 'not_requested' },
+          fraud: { status: 'not_requested' },
+        };
+
+        const hasRpaJobs = educationResult.status === 'processing';
+        const finalStatus = hasRpaJobs ? 'processing' : 'completed';
+
+        await db.execute(sql`
+          UPDATE developer_unified_requests SET
+            status = ${finalStatus},
+            checks_status = ${JSON.stringify(updatedChecksStatus)}::jsonb,
+            nin_data = ${ninData ? JSON.stringify(ninData) : null}::jsonb,
+            bvn_data = ${bvnData ? JSON.stringify(bvnData) : null}::jsonb,
+            education_results = ${JSON.stringify([educationResult])}::jsonb,
+            score = ${score}, decision = ${toDecision(score)},
+            flags = ${JSON.stringify(flags)}::jsonb,
+            breakdown = ${JSON.stringify(breakdown)}::jsonb,
+            ${hasRpaJobs ? sql`completed_at = null` : sql`completed_at = now()`}
+          WHERE id = ${requestId}
+        `);
+
+        if (callbackUrl && !hasRpaJobs) {
+          try {
+            const payload = { event: 'identity-check.completed', requestId, reference: reference || null, decision: toDecision(score), score, breakdown, flags, completedAt: new Date().toISOString() };
+            await fetch(callbackUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Arapoint-Event': 'identity-check.completed' }, body: JSON.stringify(payload) });
+            await db.execute(sql`UPDATE developer_unified_requests SET webhook_delivered = true WHERE id = ${requestId}`).catch(() => {});
+          } catch (whErr: any) {
+            logger.error('Identity check webhook delivery failed', { requestId, error: whErr.message });
+          }
+        }
+      } catch (bgErr: any) {
+        logger.error('Identity check background processing failed', { requestId, error: bgErr.message });
+        await db.execute(sql`UPDATE developer_unified_requests SET status = 'failed' WHERE id = ${requestId}`).catch(() => {});
+      }
+    });
+
+  } catch (e: any) {
+    if (e.message?.includes('Insufficient')) {
+      statusCode = 402;
+      responseData = { status: 'error', code: 402, message: 'Insufficient wallet balance. Please fund your developer wallet.' };
+      return res.status(402).json(responseData);
+    }
+    statusCode = 500;
+    responseData = { status: 'error', code: 500, message: 'Identity check failed', error: e.message };
+    res.status(500).json(responseData);
+  } finally {
+    await logApiCall(dev.id, apiKeyId, '/verify/identity-check', 'POST',
+      { reference, nin: '***', bvn: '***', educationProvider, examYear, registrationNumber: regNo || candidateNumber },
+      responseData, statusCode, [200, 202].includes(statusCode) ? totalCost : 0,
+      Date.now() - start, req.ip || '', envMode);
+  }
+});
+
+router.get('/verify/identity-check/result/:requestId', apiKeyAuth, async (req: Request, res: Response) => {
+  const start = Date.now();
+  const dev = (req as any).developer;
+  const apiKeyId = (req as any).apiKeyId;
+  const { requestId } = req.params;
+  let statusCode = 200;
+  let responseData: any;
+
+  try {
+    if (!requestId?.startsWith('IDC-')) {
+      statusCode = 400;
+      responseData = { status: 'error', code: 400, message: 'Invalid requestId. Identity check request IDs start with IDC-' };
+      return res.status(400).json(responseData);
+    }
+
+    const rows = await db.execute(sql`
+      SELECT * FROM developer_unified_requests WHERE id = ${requestId} AND developer_id = ${dev.id}
+    `);
+    const row: any = rows.rows?.[0];
+
+    if (!row) {
+      statusCode = 404;
+      responseData = { status: 'error', code: 404, message: 'Identity check request not found or does not belong to your account' };
+      return res.status(404).json(responseData);
+    }
+
+    let currentStatus = row.status;
+    let breakdown = row.breakdown || {};
+    let flags = row.flags || [];
+    let checksStatus = row.checks_status || {};
+    let score = row.score;
+    let decision = row.decision;
+
+    if (currentStatus === 'processing' && row.education_results) {
+      const eduResults = typeof row.education_results === 'string' ? JSON.parse(row.education_results) : row.education_results;
+      let allDone = true;
+
+      for (let i = 0; i < eduResults.length; i++) {
+        const edu = eduResults[i];
+        if (edu.status === 'processing' && edu.jobId) {
+          const jobRows = await db.execute(sql`SELECT status, result, error_message FROM rpa_jobs WHERE id = ${edu.jobId}`);
+          const job: any = jobRows.rows?.[0];
+          if (job) {
+            if (job.status === 'completed') {
+              edu.status = 'verified';
+              edu.result = typeof job.result === 'string' ? JSON.parse(job.result) : job.result;
+              checksStatus[`education_${i}`] = 'verified';
+            } else if (job.status === 'failed') {
+              edu.status = 'failed';
+              edu.error = job.error_message || 'Verification failed';
+              checksStatus[`education_${i}`] = 'failed';
+              flags.push(`Education (${edu.type}) verification failed: ${job.error_message || 'Unknown error'}`);
+            } else {
+              allDone = false;
+            }
+          } else {
+            allDone = false;
+          }
+        }
+      }
+
+      if (allDone) {
+        currentStatus = 'completed';
+        breakdown.education = eduResults;
+
+        const ninVerified = breakdown.nin?.status === 'matched';
+        const bvnVerified = breakdown.bvn?.status === 'matched';
+        const eduVerified = eduResults.some((e: any) => e.status === 'verified');
+        const identityPts = (ninVerified ? 20 : 0) + (bvnVerified ? 20 : 0);
+        const eduPts = eduVerified ? 25 : 0;
+        const maxPts = 65;
+        score = Math.round(((identityPts + eduPts) / maxPts) * 100);
+        decision = toDecision(score);
+
+        await db.execute(sql`
+          UPDATE developer_unified_requests SET
+            status = 'completed',
+            education_results = ${JSON.stringify(eduResults)}::jsonb,
+            checks_status = ${JSON.stringify(checksStatus)}::jsonb,
+            score = ${score}, decision = ${decision},
+            flags = ${JSON.stringify(flags)}::jsonb,
+            breakdown = ${JSON.stringify(breakdown)}::jsonb,
+            completed_at = now()
+          WHERE id = ${requestId}
+        `);
+      }
+    }
+
+    const ninData = row.nin_data ? (typeof row.nin_data === 'string' ? JSON.parse(row.nin_data) : row.nin_data) : null;
+    const bvnData = row.bvn_data ? (typeof row.bvn_data === 'string' ? JSON.parse(row.bvn_data) : row.bvn_data) : null;
+    const finalEduResults = (currentStatus === 'completed' && breakdown.education)
+      ? breakdown.education
+      : (row.education_results ? (typeof row.education_results === 'string' ? JSON.parse(row.education_results) : row.education_results) : []);
+
+    const nameScore = breakdown.nameMatchScore || null;
+
+    responseData = {
+      status: 'success', code: 200,
+      message: currentStatus === 'completed' ? 'Identity check completed' : 'Identity check still processing',
+      data: {
+        requestId,
+        reference: row.reference || null,
+        status: currentStatus,
+        decision: decision || null,
+        score: score || null,
+        identityMatch: nameScore !== null ? nameScore >= 72 : null,
+        nameMatchScore: nameScore,
+        nin: ninData
+          ? { status: 'verified', firstName: ninData.firstName, lastName: ninData.lastName, dateOfBirth: ninData.dateOfBirth, gender: ninData.gender }
+          : { status: checksStatus.nin || 'pending' },
+        bvn: bvnData
+          ? { status: 'verified', firstName: bvnData.firstName, lastName: bvnData.lastName, dateOfBirth: bvnData.dateOfBirth }
+          : { status: checksStatus.bvn || 'pending' },
+        education: finalEduResults.length > 0 ? finalEduResults[0] : { status: checksStatus.education_0 || 'pending' },
+        flags,
+        pricing: { rawCost: API_PRICES.nin + API_PRICES.bvn + API_PRICES.education, bundleDiscount: '15%', totalCost: row.total_cost },
+        completedAt: row.completed_at || null,
+      }
+    };
+    res.json(responseData);
+  } catch (e: any) {
+    statusCode = 500;
+    responseData = { status: 'error', code: 500, message: 'Failed to fetch identity check result', error: e.message };
+    res.status(500).json(responseData);
+  } finally {
+    await logApiCall(dev.id, apiKeyId, `/verify/identity-check/result/${requestId}`, 'GET',
+      { requestId }, responseData, statusCode, 0,
+      Date.now() - start, req.ip || '', (dev as any).environmentMode || 'sandbox');
+  }
+});
+
 export function validateTimeline(dob: string | null, ssceYear: number | null, employmentYear: number): {
   valid: boolean; ageAtEmployment: number | null; ageAtExam: number | null; issues: string[];
 } {

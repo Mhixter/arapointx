@@ -134,6 +134,20 @@ Preferred communication style: Simple, everyday language.
   - `security.ts` — IP allowlist management
 - **Route mount**: `routes.ts` imports `./src/api/routes/developer` which resolves to `developer/index.ts`
 
+### Identity Check API
+- **Endpoint**: `POST /api/v1/developer/verify/identity-check` — unified NIN + BVN + SSCE verification in one request
+- **Always Required**: `nin` (11 digits), `bvn` (11 digits), `educationProvider` (waec/neco/nabteb/nbais)
+- **Provider-specific fields**:
+  - WAEC: registrationNumber, examYear, examType, cardSerialNumber, cardPin
+  - NECO: registrationNumber, examYear, examType, token
+  - NABTEB: candidateNumber, examYear, examType, cardSerialNumber, cardPin
+  - NBAIS: registrationNumber, examYear, examMonth, state, schoolName, cardPin
+- **Pricing**: NIN(130) + BVN(80) + Education(250) = 460, with 15% bundle discount = 391
+- **Flow**: NIN+BVN verified immediately via Prembly, education queued as RPA job (1-3 min). Returns `requestId` (IDC-prefixed) for polling via `GET /verify/identity-check/result/:requestId`
+- **Sandbox**: Returns instant composed mock result. Live: async with polling
+- **Result**: Includes identity match score (NIN vs BVN name comparison), education results, overall decision score
+- **Stored in**: `developer_unified_requests` table (shared with existing unified endpoint)
+
 ### Support AI
 - **Location**: `Arapoint/server/src/services/localAiService.ts`
 - **Engine**: OpenAI (gpt-4o-mini) as primary, TF-IDF cosine similarity as fallback

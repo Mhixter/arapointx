@@ -429,6 +429,117 @@ paths:
         "404":
           description: Request not found
 
+  /verify/identity-check:
+    post:
+      summary: Identity Check (NIN + BVN + SSCE)
+      description: |
+        Unified identity verification endpoint that validates a person's NIN, BVN, and SSCE results
+        (WAEC, NECO, NABTEB, or NBAIS) in a single request. Always requires `nin`, `bvn`, and
+        `educationProvider`. Additional fields depend on the provider:
+
+        **WAEC**: registrationNumber, examYear, examType (Internal/GCE), cardSerialNumber, cardPin
+        **NECO**: registrationNumber, examYear, examType (Internal/GCE), token
+        **NABTEB**: candidateNumber, examYear, examType (MAY/JUN), cardSerialNumber, cardPin
+        **NBAIS**: registrationNumber, examYear, examMonth, state, schoolName, cardPin
+
+        NIN and BVN are verified immediately. Education results are processed via RPA (1-3 min).
+        Returns a `requestId` to poll for results. 15% bundle discount applied.
+      operationId: identityCheck
+      tags: [Verification]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nin, bvn, educationProvider]
+              properties:
+                nin:
+                  type: string
+                  example: "12345678901"
+                  description: National Identification Number (11 digits)
+                bvn:
+                  type: string
+                  example: "12345678901"
+                  description: Bank Verification Number (11 digits)
+                educationProvider:
+                  type: string
+                  enum: [waec, neco, nabteb, nbais]
+                  description: Education board to verify
+                registrationNumber:
+                  type: string
+                  description: Exam registration/candidate number
+                examYear:
+                  type: integer
+                  example: 2020
+                examType:
+                  type: string
+                  description: "Exam type (WAEC/NECO: Internal or GCE; NABTEB: MAY/JUN)"
+                cardSerialNumber:
+                  type: string
+                  description: Scratch card serial number (WAEC, NABTEB)
+                cardPin:
+                  type: string
+                  description: Scratch card PIN (WAEC, NABTEB, NBAIS)
+                token:
+                  type: string
+                  description: NECO verification token
+                candidateNumber:
+                  type: string
+                  description: NABTEB candidate number (alternative to registrationNumber)
+                examMonth:
+                  type: string
+                  description: NBAIS exam month (MAY or NOV)
+                state:
+                  type: string
+                  description: NBAIS candidate state
+                schoolName:
+                  type: string
+                  description: NBAIS candidate school
+                reference:
+                  type: string
+                  description: Your reference ID
+                callbackUrl:
+                  type: string
+                  format: uri
+                  description: Webhook URL for result delivery
+      responses:
+        "200":
+          description: Completed immediately (sandbox mode)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "202":
+          description: Accepted — poll for result
+        "400":
+          description: Missing required fields
+        "402":
+          description: Insufficient wallet balance
+
+  /verify/identity-check/result/{requestId}:
+    get:
+      summary: Poll Identity Check Result
+      description: Poll for the result of an identity check request. Returns NIN, BVN, and education verification status.
+      operationId: getIdentityCheckResult
+      tags: [Verification]
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The IDC-prefixed request ID from the identity-check response
+      responses:
+        "200":
+          description: Result available (may still be processing)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Request not found
+
   /webhook:
     get:
       summary: Get Webhook Config
