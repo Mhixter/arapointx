@@ -1,7 +1,9 @@
 import { Link } from "wouter";
 import {
   Code2, Key, Wallet, FileText, ShieldCheck, Webhook,
-  ArrowRight, Globe, Zap, Lock, CheckCircle
+  ArrowRight, Globe, Zap, Lock, CheckCircle, Users,
+  Building2, CreditCard, Search, BarChart3, Clock,
+  AlertTriangle, BadgeCheck, Briefcase, GraduationCap
 } from "lucide-react";
 
 const C = {
@@ -16,28 +18,67 @@ const C = {
 };
 
 const FEATURES = [
-  { icon: Key, title: "API Keys & Sandbox", desc: "Get sandbox and live keys instantly. Test free before going live.", accent: C.blue },
-  { icon: ShieldCheck, title: "Identity Verification", desc: "NIN, BVN checks in real-time via a single REST endpoint.", accent: C.green },
-  { icon: FileText, title: "Education Checks", desc: "Verify WAEC, NECO and JAMB results programmatically.", accent: C.amber },
-  { icon: Wallet, title: "Pay-as-you-go", desc: "No monthly fees. Fund your wallet and pay only for successful calls.", accent: C.green },
-  { icon: Webhook, title: "Webhooks", desc: "Receive signed real-time events for every verification result.", accent: "#8B5CF6" },
-  { icon: Zap, title: "Sub-2s Response", desc: "99.9% uptime SLA with fast, reliable responses.", accent: C.blue },
+  { icon: ShieldCheck, title: "Employment Screening API", desc: "Verify NIN + BVN + SSCE in a single request. Cross-reference names, DOB, and education credentials with intelligent scoring.", accent: C.green },
+  { icon: Key, title: "API Keys & Sandbox", desc: "Get sandbox and live keys instantly. Test every endpoint free before going live — no credit card required.", accent: C.blue },
+  { icon: GraduationCap, title: "SSCE Grade Analysis", desc: "Automated credit-level analysis for WAEC, NECO, NABTEB, NBAIS. Checks English, Maths, and 5-credit minimum requirement.", accent: C.amber },
+  { icon: Wallet, title: "Pay-as-you-go", desc: "No monthly fees, no contracts. Fund your wallet and pay only for successful API calls. 15% bundle discount on screening.", accent: C.green },
+  { icon: Webhook, title: "Webhooks & Polling", desc: "Get results pushed to your server in real time, or poll at your own pace. Signed events for every verification.", accent: "#8B5CF6" },
+  { icon: Zap, title: "Sub-2s Identity, 1-3 min SSCE", desc: "NIN and BVN verified instantly. SSCE results processed via our automation layer and delivered as soon as ready.", accent: C.blue },
 ];
 
 const PRICING = [
   { service: "NIN Verification", price: "₦130", accent: C.blue },
   { service: "BVN Lookup", price: "₦80", accent: C.green },
-  { service: "CAC / Business Check", price: "₦200", accent: C.amber },
-  { service: "Education Credential", price: "₦250", accent: "#8B5CF6" },
-  { service: "Employment Check", price: "₦350–450", accent: "#EC4899" },
+  { service: "SSCE Verification", price: "₦250", accent: C.amber },
+  { service: "Employment Screening", price: "₦391", note: "15% off bundle", accent: "#EC4899" },
   { service: "Fraud Score", price: "₦50", accent: "#EF4444" },
+  { service: "Unified Enterprise", price: "Dynamic", accent: "#8B5CF6" },
+];
+
+const USE_CASES = [
+  {
+    icon: Building2,
+    title: "Fintechs & Neobanks",
+    desc: "Meet CBN KYC requirements before onboarding customers. Verify NIN and BVN in real time, cross-reference names and dates of birth to flag identity inconsistencies before you issue a single naira.",
+    accent: C.blue,
+  },
+  {
+    icon: CreditCard,
+    title: "Lending & Credit Apps",
+    desc: "Reduce loan default risk by screening borrowers before disbursement. Confirm identity, validate education credentials, and check for name or DOB mismatches that signal fraudulent applications.",
+    accent: C.green,
+  },
+  {
+    icon: Briefcase,
+    title: "Recruiting Agencies",
+    desc: "Screen candidates at scale with one API call. Verify that SSCE results are genuine, confirm credit-level passes in English and Mathematics, and cross-check the candidate's name against government records.",
+    accent: C.amber,
+  },
+  {
+    icon: Users,
+    title: "HR & Corporate Hiring",
+    desc: "Automate pre-employment verification for your hiring pipeline. Replace manual certificate checking with a programmatic endpoint that returns a PASS, REVIEW, or FAIL decision in minutes.",
+    accent: "#8B5CF6",
+  },
+];
+
+const SCREENING_CHECKS = [
+  { label: "NIN Identity Verified", icon: BadgeCheck },
+  { label: "BVN Identity Verified", icon: BadgeCheck },
+  { label: "NIN ↔ BVN Name Match", icon: Search },
+  { label: "NIN ↔ BVN DOB Match", icon: Clock },
+  { label: "SSCE Name ↔ Identity Match", icon: Users },
+  { label: "SSCE DOB ↔ Identity Match", icon: Clock },
+  { label: "English Credit Check", icon: GraduationCap },
+  { label: "Mathematics Credit Check", icon: GraduationCap },
+  { label: "5-Credit Minimum Met", icon: CheckCircle },
+  { label: "Overall Score & Decision", icon: BarChart3 },
 ];
 
 export default function DevLanding() {
   return (
     <div className="min-h-screen" style={{ background: C.bg, color: C.text }}>
 
-      {/* ── Header ── */}
       <header className="sticky top-0 z-10 backdrop-blur-md" style={{ background: `${C.bg}E6`, borderBottom: `1px solid ${C.border}` }}>
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -63,21 +104,22 @@ export default function DevLanding() {
       </header>
 
       <main>
-        {/* ── Hero ── */}
         <section className="container mx-auto px-4 py-24 text-center">
-          <div className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full mb-8" style={{ background: `${C.blue}1A`, color: C.blue, border: `1px solid ${C.blue}33` }}>
-            <Globe className="w-3.5 h-3.5" /> Nigeria's Identity Verification API
+          <div className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full mb-8" style={{ background: `${C.green}1A`, color: C.green, border: `1px solid ${C.green}33` }}>
+            <ShieldCheck className="w-3.5 h-3.5" /> Employment Screening & Identity Verification API
           </div>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight mb-6 max-w-3xl mx-auto">
-            Build{" "}
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight mb-6 max-w-4xl mx-auto">
+            Screen employees.{" "}
             <span style={{ background: "linear-gradient(135deg,#0B5FFF,#12B76A)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-              identity-first
+              Verify identity.
             </span>{" "}
-            apps for Nigeria
+            Validate credentials.
           </h1>
-          <p className="text-lg max-w-2xl mx-auto mb-10 leading-relaxed" style={{ color: C.muted }}>
-            NIN, BVN, education, employment, and fraud checks — all through one simple REST API.
-            Start in sandbox for free. Go live in minutes.
+          <p className="text-lg max-w-2xl mx-auto mb-6 leading-relaxed" style={{ color: C.muted }}>
+            One API call to verify NIN, BVN, and SSCE results together. Cross-reference names and dates of birth across all three sources. Get a clear PASS, REVIEW, or FAIL decision — built for fintechs, recruiters, lenders, and HR teams operating in Nigeria.
+          </p>
+          <p className="text-sm max-w-xl mx-auto mb-10 leading-relaxed" style={{ color: C.muted }}>
+            Trusted by companies who need to know their candidates and customers are who they claim to be.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/developer/login">
@@ -87,18 +129,17 @@ export default function DevLanding() {
             </Link>
             <Link href="/developer/docs">
               <button className="flex items-center gap-2 text-base font-semibold px-8 py-3.5 rounded-xl transition-colors" style={{ border: `1px solid ${C.border}`, color: C.text }}>
-                <FileText className="w-5 h-5" /> Read the Docs
+                <FileText className="w-5 h-5" /> View API Documentation
               </button>
             </Link>
           </div>
 
-          {/* Trust row */}
           <div className="flex flex-wrap items-center justify-center gap-6 mt-12">
             {[
-              { icon: CheckCircle, label: "Free sandbox" },
-              { icon: CheckCircle, label: "No credit card" },
-              { icon: CheckCircle, label: "99.9% uptime SLA" },
-              { icon: CheckCircle, label: "Pay per call" },
+              { icon: CheckCircle, label: "Free sandbox testing" },
+              { icon: CheckCircle, label: "No credit card required" },
+              { icon: CheckCircle, label: "15% bundle discount" },
+              { icon: CheckCircle, label: "Results in minutes" },
             ].map(({ icon: Icon, label }) => (
               <span key={label} className="flex items-center gap-2 text-sm" style={{ color: C.muted }}>
                 <Icon className="w-4 h-4" style={{ color: C.green }} /> {label}
@@ -107,36 +148,98 @@ export default function DevLanding() {
           </div>
         </section>
 
-        {/* ── Code Preview ── */}
         <section className="container mx-auto px-4 pb-8">
           <div className="max-w-3xl mx-auto rounded-2xl overflow-hidden" style={{ background: C.card, border: `1px solid ${C.border}`, boxShadow: "0 25px 60px rgba(0,0,0,0.5)" }}>
             <div className="flex items-center gap-2 px-5 py-3" style={{ background: "#0A0A0A", borderBottom: `1px solid ${C.border}` }}>
               <span className="w-3 h-3 rounded-full bg-red-500" />
               <span className="w-3 h-3 rounded-full bg-amber-500" />
               <span className="w-3 h-3 rounded-full" style={{ background: C.green }} />
-              <span className="ml-2 text-xs font-mono" style={{ color: C.muted }}>verify-nin.js</span>
+              <span className="ml-2 text-xs font-mono" style={{ color: C.muted }}>employment-screening.js</span>
             </div>
             <pre className="p-6 text-sm font-mono overflow-x-auto leading-relaxed" style={{ color: "#E5E7EB" }}>{`const response = await fetch(
-  "https://arapoint.com.ng/api/v1/developer/verify/nin",
+  "https://arapoint.com.ng/api/v1/developer/verify/employment-screening",
   {
     method: "POST",
     headers: {
-      "X-API-Key": "ara_sand_your_api_key_here",
+      "X-API-Key": "ara_your_api_key_here",
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ nin: "12345678901" })
+    body: JSON.stringify({
+      nin: "12345678901",
+      bvn: "12345678901",
+      educationProvider: "waec",
+      registrationNumber: "WA2020/12345",
+      examYear: 2020,
+      examType: "Internal",
+      cardSerialNumber: "CS123456",
+      cardPin: "1234"
+    })
   }
 );
 const { data } = await response.json();
-// ✓ { firstName: "JOHN", lastName: "DOE", dateOfBirth: "1990-01-15" }`}</pre>
+// data.decision → "PASS"  |  data.score → 100
+// data.ssceAnalysis.meetsMinimumRequirement → true
+// data.crossCheck.allNamesConsistent → true`}</pre>
           </div>
         </section>
 
-        {/* ── Features ── */}
+        <section className="container mx-auto px-4 py-20">
+          <div className="text-center mb-6">
+            <h2 className="text-3xl font-extrabold text-white mb-3">Why businesses choose Arapoint</h2>
+            <p className="text-base max-w-2xl mx-auto" style={{ color: C.muted }}>
+              Whether you are onboarding borrowers, hiring staff, or meeting regulatory requirements, Arapoint gives you the data confidence to make informed decisions.
+            </p>
+          </div>
+          <p className="text-center text-sm mb-12 max-w-xl mx-auto" style={{ color: C.muted }}>
+            Every year, Nigerian businesses lose billions to identity fraud, falsified credentials, and bad hires. Arapoint helps you catch the problems before they cost you.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-5 max-w-4xl mx-auto">
+            {USE_CASES.map(({ icon: Icon, title, desc, accent }) => (
+              <div key={title} className="rounded-xl p-6 transition-all" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-5" style={{ background: `${accent}1A`, border: `1px solid ${accent}33` }}>
+                  <Icon className="w-5 h-5" style={{ color: accent }} />
+                </div>
+                <h3 className="font-bold text-white mb-2">{title}</h3>
+                <p className="text-sm leading-relaxed" style={{ color: C.muted }}>{desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="container mx-auto px-4 pb-20">
+          <div className="max-w-4xl mx-auto rounded-2xl p-8" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full mb-4" style={{ background: `${C.green}1A`, color: C.green, border: `1px solid ${C.green}33` }}>
+                <ShieldCheck className="w-3.5 h-3.5" /> Employment Screening Endpoint
+              </div>
+              <h2 className="text-2xl font-extrabold text-white mb-2">10 checks in one API call</h2>
+              <p className="text-sm max-w-xl mx-auto" style={{ color: C.muted }}>
+                Our employment screening endpoint runs a comprehensive battery of identity, consistency, and education checks — then returns a single, clear decision your system can act on.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              {SCREENING_CHECKS.map(({ label, icon: Icon }, i) => (
+                <div key={label} className="rounded-xl p-3 text-center" style={{ background: `${C.green}08`, border: `1px solid ${C.green}20` }}>
+                  <Icon className="w-4 h-4 mx-auto mb-2" style={{ color: C.green }} />
+                  <p className="text-xs leading-tight" style={{ color: C.muted }}>{label}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-6 rounded-xl p-4" style={{ background: `${C.blue}08`, border: `1px solid ${C.blue}20` }}>
+              <p className="text-xs text-center leading-relaxed" style={{ color: C.muted }}>
+                <span className="font-semibold text-white">Scoring:</span> Each check contributes to a 100-point score.{" "}
+                <span style={{ color: C.green }}>PASS (85+)</span> means all critical checks cleared.{" "}
+                <span style={{ color: C.amber }}>REVIEW (60–84)</span> means some flags require manual attention.{" "}
+                <span style={{ color: "#EF4444" }}>FAIL (&lt;60)</span> means significant identity or credential issues were found.
+              </p>
+            </div>
+          </div>
+        </section>
+
         <section className="container mx-auto px-4 py-20">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-extrabold text-white mb-3">Everything you need to ship fast</h2>
-            <p className="text-base" style={{ color: C.muted }}>One platform for all Nigeria identity checks</p>
+            <h2 className="text-3xl font-extrabold text-white mb-3">Everything you need to integrate</h2>
+            <p className="text-base" style={{ color: C.muted }}>Production-grade infrastructure with developer-first design</p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {FEATURES.map(({ icon: Icon, title, desc, accent }) => (
@@ -151,31 +254,73 @@ const { data } = await response.json();
           </div>
         </section>
 
-        {/* ── Pricing ── */}
         <section className="container mx-auto px-4 pb-20">
           <div className="max-w-3xl mx-auto rounded-2xl p-8" style={{ background: C.card, border: `1px solid ${C.border}` }}>
             <div className="text-center mb-8">
               <h2 className="text-2xl font-extrabold text-white mb-2">Simple, transparent pricing</h2>
-              <p className="text-sm" style={{ color: C.muted }}>Pay only for successful API calls. No subscription fees.</p>
+              <p className="text-sm" style={{ color: C.muted }}>Pay only for successful API calls. No subscription fees, no hidden charges.</p>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {PRICING.map(({ service, price, accent }) => (
+              {PRICING.map(({ service, price, accent, note }) => (
                 <div key={service} className="rounded-xl p-4" style={{ background: `${accent}0D`, border: `1px solid ${accent}30` }}>
                   <p className="text-xs mb-1.5" style={{ color: C.muted }}>{service}</p>
                   <p className="text-lg font-bold" style={{ color: accent }}>{price}</p>
+                  {note && <p className="text-xs mt-1" style={{ color: accent, opacity: 0.7 }}>{note}</p>}
+                </div>
+              ))}
+            </div>
+            <p className="text-center text-xs mt-6" style={{ color: C.muted }}>
+              Employment Screening bundles NIN + BVN + SSCE with an automatic 15% discount. Enterprise volume pricing available on request.
+            </p>
+          </div>
+        </section>
+
+        <section className="container mx-auto px-4 pb-20">
+          <div className="max-w-4xl mx-auto rounded-2xl p-8" style={{ background: `${C.card}`, border: `1px solid ${C.border}` }}>
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-extrabold text-white mb-2">The cost of not screening</h2>
+              <p className="text-sm" style={{ color: C.muted }}>These are real problems Nigerian businesses face every day.</p>
+            </div>
+            <div className="grid sm:grid-cols-3 gap-5">
+              {[
+                {
+                  icon: AlertTriangle,
+                  stat: "₦4.2B+",
+                  label: "Lost annually to identity fraud in Nigerian financial services",
+                  accent: "#EF4444",
+                },
+                {
+                  icon: Users,
+                  stat: "38%",
+                  label: "Of CVs in Nigeria contain falsified or exaggerated academic credentials",
+                  accent: C.amber,
+                },
+                {
+                  icon: Clock,
+                  stat: "5-14 days",
+                  label: "Average time for manual background checks — Arapoint does it in minutes",
+                  accent: C.green,
+                },
+              ].map(({ icon: Icon, stat, label, accent }) => (
+                <div key={stat} className="rounded-xl p-5 text-center" style={{ background: `${accent}08`, border: `1px solid ${accent}20` }}>
+                  <Icon className="w-6 h-6 mx-auto mb-3" style={{ color: accent }} />
+                  <p className="text-2xl font-extrabold mb-2" style={{ color: accent }}>{stat}</p>
+                  <p className="text-xs leading-relaxed" style={{ color: C.muted }}>{label}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* ── CTA ── */}
         <section className="container mx-auto px-4 pb-24">
           <div className="max-w-2xl mx-auto rounded-2xl p-10 text-center" style={{ background: "linear-gradient(135deg,#0B5FFF15,#12B76A15)", border: `1px solid ${C.blue}30` }}>
             <Lock className="w-10 h-10 mx-auto mb-5" style={{ color: C.blue }} />
-            <h2 className="text-2xl font-extrabold text-white mb-3">Start building in minutes</h2>
-            <p className="mb-8 leading-relaxed" style={{ color: C.muted }}>
-              Create a free account, get your sandbox key, and make your first API call — no credit card required.
+            <h2 className="text-2xl font-extrabold text-white mb-3">Start screening in minutes</h2>
+            <p className="mb-4 leading-relaxed" style={{ color: C.muted }}>
+              Create a free developer account, get your sandbox API key, and run your first employment screening — all without spending a naira. When you are ready to go live, fund your wallet and switch to production.
+            </p>
+            <p className="text-sm mb-8" style={{ color: C.muted }}>
+              No contracts. No minimum spend. Cancel anytime.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link href="/developer/login">
@@ -183,9 +328,9 @@ const { data } = await response.json();
                   Create Free Account
                 </button>
               </Link>
-              <Link href="/developer/login">
+              <Link href="/developer/docs">
                 <button className="font-semibold px-8 py-3 rounded-xl transition-colors" style={{ border: `1px solid ${C.border}`, color: C.text }}>
-                  Sign In
+                  Read the Docs
                 </button>
               </Link>
             </div>
@@ -194,7 +339,7 @@ const { data } = await response.json();
       </main>
 
       <footer className="text-center py-8 text-xs" style={{ borderTop: `1px solid ${C.border}`, color: C.muted }}>
-        <p className="mb-2">© {new Date().getFullYear()} Arapoint Technologies. All rights reserved.</p>
+        <p className="mb-2">&copy; {new Date().getFullYear()} Arapoint Technologies. All rights reserved.</p>
         <div className="flex justify-center gap-6">
           <a href="https://arapoint.com.ng/privacy" className="hover:text-white transition-colors">Privacy</a>
           <a href="https://arapoint.com.ng/terms" className="hover:text-white transition-colors">Terms</a>

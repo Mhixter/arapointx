@@ -1,15 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { CheckCircle2, Shield, GraduationCap, Building2, Zap, ChevronRight, Lock, ArrowRight, Code2, Terminal, Globe, Webhook } from "lucide-react";
+import { CheckCircle2, Shield, GraduationCap, Building2, Zap, ChevronRight, Lock, ArrowRight, Code2, Terminal, Globe, Webhook, Users, CreditCard, Briefcase, BarChart3, Clock, BadgeCheck } from "lucide-react";
 import { Link } from "wouter";
 import heroImage from "@/assets/avatar-illustration.jfif";
 
-const DEVELOPER_URL = "https://developer.arapoint.com.ng";
 
 export default function Home() {
   return (
     <div className="flex flex-col gap-20 pb-20">
-      {/* Hero Section */}
       <section className="relative pt-20 pb-32 overflow-hidden bg-mesh">
         <div className="container relative z-10 grid lg:grid-cols-2 gap-12 items-center px-4 sm:px-6 lg:px-8">
           <div className="space-y-8 animate-in slide-in-from-left-5 duration-700 fade-in justify-self-start max-w-lg">
@@ -20,7 +18,7 @@ export default function Home() {
               The Trusted Standard for <span className="text-primary">Identity</span> in Nigeria
             </h1>
             <p className="text-lg text-muted-foreground max-w-xl leading-relaxed">
-              Verify identities, validate education results, and access digital services securely. Arapoint is the all-in-one platform for individuals and businesses.
+              Verify identities, screen employees, validate education credentials, and detect fraud — all from one platform. Arapoint serves individuals, businesses, fintechs, and recruiters across Nigeria.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Link href="/auth/signup">
@@ -62,48 +60,97 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Features Grid */}
       <section id="features" className="container">
         <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
           <h2 className="text-3xl font-heading font-bold">Comprehensive Verification Suite</h2>
-          <p className="text-muted-foreground">Everything you need to verify customers, employees, and businesses in one place.</p>
+          <p className="text-muted-foreground">Everything you need to verify customers, screen employees, and protect your business — in one place.</p>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           <FeatureCard 
             icon={Shield}
             title="Identity Verification"
-            description="Instant NIN and BVN validation directly from source databases. Biometric facial matching included."
+            description="Instant NIN and BVN validation directly from government registries. Confirm a person's legal identity in seconds."
+          />
+          <FeatureCard 
+            icon={Briefcase}
+            title="Employment Screening"
+            description="Verify NIN + BVN + SSCE in one request. Cross-reference names, DOB, and grades with an automated PASS/REVIEW/FAIL decision."
           />
           <FeatureCard 
             icon={GraduationCap}
             title="Education Checks"
-            description="Verify JAMB admissions, WAEC, and NECO results. Generate official digital certificates."
+            description="Verify WAEC, NECO, NABTEB, and NBAIS results programmatically. Automated credit-level analysis for English, Maths, and minimum 5-credit requirement."
           />
           <FeatureCard 
             icon={Building2}
             title="Business Validation"
-            description="Confirm CAC registration status, Tax Identification Number (TIN), and IPE clearance."
-          />
-          <FeatureCard 
-            icon={Zap}
-            title="VTU & Utilities"
-            description="Purchase airtime, data bundles, and pay electricity bills instantly. Result checker pins available."
+            description="Confirm CAC registration status and Tax Identification Number. Essential for KYB compliance and vendor onboarding."
           />
           <FeatureCard 
             icon={Lock}
             title="Fraud Prevention"
-            description="Advanced risk scoring and AML checks to keep your business safe from bad actors."
+            description="Advanced risk scoring that detects name mismatches, DOB inconsistencies, and data anomalies across identity sources."
           />
           <FeatureCard 
-            icon={CheckCircle2}
-            title="API Integration"
-            description="Developer-friendly APIs to integrate verification directly into your own applications."
+            icon={Zap}
+            title="VTU & Utilities"
+            description="Purchase airtime, data bundles, and pay electricity bills instantly. Result checker PINs available for WAEC and NECO."
           />
         </div>
       </section>
 
-      {/* How It Works */}
+      <section className="container px-4">
+        <div className="bg-gradient-to-br from-primary/5 via-background to-primary/5 border border-border/50 rounded-2xl sm:rounded-3xl p-8 sm:p-12">
+          <div className="text-center max-w-2xl mx-auto mb-12 space-y-4">
+            <div className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold bg-primary/10 text-primary border-primary/30">
+              <BadgeCheck className="w-3 h-3 mr-1.5" /> Employment Screening API
+            </div>
+            <h2 className="text-3xl font-heading font-bold">One API call. Complete candidate screening.</h2>
+            <p className="text-muted-foreground leading-relaxed">
+              Our Employment Screening endpoint combines identity verification, credential validation, and intelligent cross-referencing into a single request. Purpose-built for businesses that need to verify candidates quickly and accurately.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+            {[
+              { icon: Building2, title: "Fintechs & Neobanks", desc: "Meet CBN KYC requirements. Verify customer identities and flag inconsistencies before onboarding." },
+              { icon: CreditCard, title: "Lending & Loan Apps", desc: "Screen borrowers before disbursement. Reduce default risk with identity and credential verification." },
+              { icon: Users, title: "Recruiting Agencies", desc: "Validate SSCE results at scale. Confirm credit-level passes and cross-check names against government records." },
+              { icon: Briefcase, title: "HR & Corporate", desc: "Automate pre-employment checks. Replace manual certificate verification with programmatic screening." },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="bg-card border border-border/50 rounded-xl p-5">
+                <Icon className="w-8 h-8 text-primary mb-3" />
+                <h3 className="font-heading font-bold mb-2">{title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid sm:grid-cols-3 gap-4 max-w-3xl mx-auto mb-8">
+            {[
+              { icon: BarChart3, stat: "100-point", label: "Intelligent scoring with PASS / REVIEW / FAIL decisions" },
+              { icon: Clock, stat: "Minutes", label: "NIN + BVN instant, SSCE results in 1-3 minutes" },
+              { icon: Shield, stat: "10 checks", label: "Identity, name matching, DOB, SSCE grades — in one call" },
+            ].map(({ icon: Icon, stat, label }) => (
+              <div key={stat} className="bg-card border border-border/50 rounded-xl p-4 text-center">
+                <Icon className="w-5 h-5 text-primary mx-auto mb-2" />
+                <p className="text-lg font-bold text-foreground">{stat}</p>
+                <p className="text-xs text-muted-foreground">{label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center">
+            <Link href="/developer">
+              <Button size="lg" className="h-12 px-8 text-base shadow-lg shadow-primary/20">
+                Explore the API <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <section id="how-it-works" className="bg-muted py-24 border-y border-border/50">
         <div className="container">
           <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
@@ -125,7 +172,7 @@ export default function Home() {
               <div className="flex flex-col items-center text-center">
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-6 text-primary text-2xl font-bold">2</div>
                 <h3 className="text-xl font-heading font-bold mb-3">Submit Details</h3>
-                <p className="text-muted-foreground">Provide your BVN, NIN, or education credentials. Your data is encrypted and secure.</p>
+                <p className="text-muted-foreground">Provide your BVN, NIN, or education credentials. Your data is encrypted end-to-end.</p>
               </div>
               <div className="hidden md:block absolute top-1/2 -right-4 w-8 h-0.5 bg-border/50 transform -translate-y-1/2"></div>
             </div>
@@ -149,7 +196,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* For Developers Introduction */}
       <section id="developers" className="container px-4">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           <div className="space-y-6">
@@ -160,14 +206,15 @@ export default function Home() {
               Build powerful apps with the <span className="text-primary">Arapoint API</span>
             </h2>
             <p className="text-muted-foreground text-lg leading-relaxed">
-              Integrate Nigeria's most comprehensive identity and verification infrastructure directly into your product. Our RESTful API is designed for speed, reliability, and developer experience — so you can go from key to production in minutes.
+              Integrate Nigeria's most comprehensive identity and employment screening infrastructure directly into your product. Our RESTful API is designed for speed, reliability, and developer experience — go from sandbox to production in minutes.
             </p>
             <ul className="space-y-3">
               {[
-                "Verify NIN, BVN, CAC, and education results in real-time",
-                "Pay-as-you-go pricing with no monthly commitment",
-                "99.9% uptime SLA with sub-2-second response times",
-                "Sandbox environment for testing at no cost",
+                "Employment Screening: NIN + BVN + SSCE in one API call with intelligent cross-referencing",
+                "SSCE grade analysis with English, Maths, and 5-credit minimum requirement check",
+                "100-point scoring with automated PASS / REVIEW / FAIL decisions",
+                "Pay-as-you-go pricing with 15% bundle discount on screening",
+                "Free sandbox environment — test every endpoint before you spend a naira",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-3 text-sm text-muted-foreground">
                   <CheckCircle2 className="text-primary h-4 w-4 mt-0.5 flex-shrink-0" />
@@ -176,16 +223,16 @@ export default function Home() {
               ))}
             </ul>
             <div className="flex flex-col sm:flex-row gap-4 pt-2">
-              <a href={DEVELOPER_URL} target="_blank" rel="noopener noreferrer">
+              <Link href="/developer">
                 <Button size="lg" className="h-12 px-8 text-base shadow-lg shadow-primary/20">
                   Visit Developer Portal <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
-              </a>
-              <a href={`${DEVELOPER_URL}/docs`} target="_blank" rel="noopener noreferrer">
+              </Link>
+              <Link href="/developer/docs">
                 <Button size="lg" variant="outline" className="h-12 px-8 text-base">
                   Read the Docs
                 </Button>
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -195,23 +242,31 @@ export default function Home() {
                 <div className="w-3 h-3 rounded-full bg-red-500" />
                 <div className="w-3 h-3 rounded-full bg-yellow-500" />
                 <div className="w-3 h-3 rounded-full bg-green-500" />
-                <span className="ml-2 text-xs text-gray-500 font-mono">verify-nin.js</span>
+                <span className="ml-2 text-xs text-gray-500 font-mono">employment-screening.js</span>
               </div>
               <pre className="text-sm text-gray-300 font-mono overflow-x-auto leading-relaxed">{`const response = await fetch(
-  "https://arapoint.com.ng/api/v1/developer/verify/nin",
+  "https://arapoint.com.ng/api/v1/developer/verify/employment-screening",
   {
     method: "POST",
     headers: {
       "X-API-Key": "ara_your_api_key",
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ nin: "12345678901" })
+    body: JSON.stringify({
+      nin: "12345678901",
+      bvn: "12345678901",
+      educationProvider: "waec",
+      registrationNumber: "WA2020/12345",
+      examYear: 2020, examType: "Internal",
+      cardSerialNumber: "CS123456",
+      cardPin: "1234"
+    })
   }
 );
-
 const { data } = await response.json();
-// { firstName: "JOHN", lastName: "DOE",
-//   dateOfBirth: "1990-01-15", ... }`}</pre>
+// data.decision → "PASS"
+// data.score → 100
+// data.ssceAnalysis.meetsMinimumRequirement → true`}</pre>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -231,7 +286,6 @@ const { data } = await response.json();
         </div>
       </section>
 
-      {/* Visit Developer Portal CTA */}
       <section className="container px-4">
         <div className="bg-gray-950 border border-indigo-900/50 rounded-2xl sm:rounded-3xl p-8 sm:p-12 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/40 via-transparent to-transparent" />
@@ -240,16 +294,16 @@ const { data } = await response.json();
               <div className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold bg-indigo-950/60 text-indigo-300 border-indigo-800">
                 <Code2 className="w-3 h-3 mr-1.5" /> developer.arapoint.com.ng
               </div>
-              <h2 className="text-2xl sm:text-3xl font-heading font-bold text-white">Start building in minutes</h2>
+              <h2 className="text-2xl sm:text-3xl font-heading font-bold text-white">Start screening in minutes</h2>
               <p className="text-gray-400 leading-relaxed">
-                The Arapoint Developer Portal gives you everything you need — API keys, live logs, interactive documentation, wallet top-ups, and a full sandbox — all in one place.
+                The Arapoint Developer Portal gives you everything you need — API keys, live logs, interactive documentation, wallet top-ups, and a full sandbox — all in one place. Built for developers who need reliable identity and credential verification in production.
               </p>
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: "Identity APIs", items: ["NIN Verification", "BVN Lookup", "CAC Check"] },
-                  { label: "Education APIs", items: ["WAEC Results", "NECO Results", "JAMB Status"] },
+                  { label: "Identity APIs", items: ["NIN Verification", "BVN Lookup", "Fraud Score"] },
+                  { label: "Screening APIs", items: ["Employment Screening", "SSCE Verification", "Grade Analysis"] },
                 ].map((group) => (
                   <div key={group.label} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
                     <p className="text-xs font-semibold text-indigo-400 mb-2">{group.label}</p>
@@ -263,23 +317,22 @@ const { data } = await response.json();
                   </div>
                 ))}
               </div>
-              <a href={DEVELOPER_URL} target="_blank" rel="noopener noreferrer" className="block">
+              <Link href="/developer">
                 <Button size="lg" className="w-full h-12 text-base bg-indigo-600 hover:bg-indigo-500">
                   Go to Developer Portal <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
-              </a>
+              </Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* CTA */}
       <section className="container mb-20 px-4">
         <div className="bg-primary rounded-2xl sm:rounded-3xl p-8 sm:p-12 md:p-20 text-center text-primary-foreground relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
           <div className="relative z-10 space-y-8 max-w-2xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-heading font-bold">Ready to get started?</h2>
-            <p className="text-primary-foreground/80 text-lg">Join thousands of Nigerian businesses using Arapoint to trust their customers.</p>
+            <p className="text-primary-foreground/80 text-lg">Join thousands of Nigerian businesses using Arapoint to verify customers, screen employees, and protect against fraud.</p>
             <Link href="/auth/signup">
               <Button size="lg" variant="secondary" className="h-14 px-10 text-lg shadow-xl hover:shadow-2xl transition-all">
                 Create Free Account
@@ -309,4 +362,3 @@ function FeatureCard({ icon: Icon, title, description }: { icon: any, title: str
     </Card>
   );
 }
-

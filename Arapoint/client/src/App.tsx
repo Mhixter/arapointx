@@ -270,6 +270,7 @@ function Router() {
         <Route path="/" component={DevLanding} />
       )}
 
+      <Route path="/developer" component={DevLanding} />
       {/* Developer Portal Routes */}
       <Route path="/developer/login" component={DevLogin} />
       <Route path="/developer/dashboard" component={DevDashboard} />
