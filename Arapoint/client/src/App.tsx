@@ -110,6 +110,7 @@ import DevAccount from "@/pages/developer/DevAccount";
 import DevKyb from "@/pages/developer/DevKyb";
 import DevWebhooks from "@/pages/developer/DevWebhooks";
 import DevNotFound from "@/pages/developer/DevNotFound";
+import DevApiTester from "@/pages/developer/DevApiTester";
 
 function Router() {
   return (
@@ -280,6 +281,7 @@ function Router() {
       <Route path="/developer/account" component={DevAccount} />
       <Route path="/developer/kyb" component={DevKyb} />
       <Route path="/developer/webhooks" component={DevWebhooks} />
+      <Route path="/developer/api-tester" component={DevApiTester} />
 
       {/* Developer 404 - catches any unmatched /developer/* path before main layout */}
       <Route path="/developer/:rest*" component={DevNotFound} />

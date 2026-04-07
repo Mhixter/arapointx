@@ -132,6 +132,14 @@ Preferred communication style: Simple, everyday language.
   - `security.ts` — IP allowlist management
 - **Route mount**: `routes.ts` imports `./src/api/routes/developer` which resolves to `developer/index.ts`
 
+### API Tester
+- **Location**: `Arapoint/client/src/pages/developer/DevApiTester.tsx`
+- **Route**: `/developer/api-tester`
+- **Purpose**: Standalone interactive API testing tool within the developer portal
+- **Features**: Covers all 35+ developer API endpoints (verification, auth, billing, webhooks, analytics, security, KYB), grouped by category with search, request history, cURL generation, auto-JWT capture on login, and response visualization with headers/timing
+- **Auth**: Supports API Key (X-API-Key), JWT (Bearer), and public endpoint modes
+- **Credentials**: Stored in sessionStorage (cleared on tab close) for security
+
 ### Frontend UI
 - **shadcn/ui**: Component library built on Radix UI primitives
 - **Lucide React**: Icon library
