@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Code2, Loader2, Mail, ArrowLeft, CheckCircle, Eye, EyeOff } from "lucide-react";
+import { Code2, Loader2, Mail, ArrowLeft, CheckCircle, Eye, EyeOff, KeyRound, Lock } from "lucide-react";
 
 const C = {
   bg: "var(--dev-bg)",
@@ -39,9 +39,12 @@ function StyledInput({ type = "text", ...props }: React.InputHTMLAttributes<HTML
 }
 
 type RegisterStep = "form" | "otp" | "done";
+type ForgotStep = "email" | "reset" | "done";
+type View = "auth" | "forgot";
 
 export default function DevLogin() {
   const { toast } = useToast();
+  const [view, setView] = useState<View>("auth");
   const [tab, setTab] = useState<"login" | "register">("login");
   const [loading, setLoading] = useState(false);
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
@@ -50,6 +53,13 @@ export default function DevLogin() {
   const [registerStep, setRegisterStep] = useState<RegisterStep>("form");
   const [otpCode, setOtpCode] = useState("");
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [forgotStep, setForgotStep] = useState<ForgotStep>("email");
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotOtp, setForgotOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [forgotResendCooldown, setForgotResendCooldown] = useState(0);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,6 +126,91 @@ export default function DevLogin() {
         return prev - 1;
       });
     }, 1000);
+  };
+
+  const startForgotResendCooldown = () => {
+    setForgotResendCooldown(60);
+    const interval = setInterval(() => {
+      setForgotResendCooldown(prev => {
+        if (prev <= 1) { clearInterval(interval); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const handleForgotSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail) {
+      toast({ title: "Email required", description: "Enter your registered email address", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    try {
+      await fetch("/api/v1/developer/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+      setForgotStep("reset");
+      startForgotResendCooldown();
+      toast({ title: "Code Sent", variant: "success", description: "If that email is registered, a 6-digit reset code has been sent." });
+    } catch {
+      toast({ title: "Error", description: "Network error. Try again.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotResendOtp = async () => {
+    if (forgotResendCooldown > 0) return;
+    setLoading(true);
+    try {
+      await fetch("/api/v1/developer/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+      startForgotResendCooldown();
+      toast({ title: "Code Resent", variant: "success", description: "A new reset code has been sent to your email." });
+    } catch {
+      toast({ title: "Error", description: "Network error", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotOtp || forgotOtp.length !== 6) {
+      toast({ title: "Invalid code", description: "Enter the 6-digit code from your email", variant: "destructive" });
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast({ title: "Password too short", description: "Minimum 8 characters", variant: "destructive" });
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      toast({ title: "Passwords don't match", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/v1/developer/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail, otp: forgotOtp, newPassword }),
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        setForgotStep("done");
+      } else {
+        toast({ title: "Reset failed", description: data.message || "Invalid or expired code.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error. Try again.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleResendOtp = async () => {
@@ -185,6 +280,134 @@ export default function DevLogin() {
     </button>
   );
 
+  if (view === "forgot") {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: C.bg }}>
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: "linear-gradient(135deg,#0B5FFF,#12B76A)", boxShadow: `0 8px 32px ${C.blue}40` }}>
+              <Code2 className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-extrabold text-white">Arapoint Developer Portal</h1>
+            <p className="text-sm mt-1" style={{ color: C.muted }}>Build with Nigeria's verification infrastructure</p>
+          </div>
+
+          <div className="rounded-2xl p-6" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+
+            {forgotStep === "done" && (
+              <div className="py-8 text-center">
+                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: `${C.green}1A` }}>
+                  <CheckCircle className="w-10 h-10" style={{ color: C.green }} />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Password Reset!</h3>
+                <p className="text-sm mb-6" style={{ color: C.muted }}>Your password has been updated. You can now sign in.</p>
+                <button onClick={() => { setView("auth"); setForgotStep("email"); setForgotEmail(""); setForgotOtp(""); setNewPassword(""); setConfirmNewPassword(""); }}
+                  className="w-full py-2.5 rounded-lg text-sm font-bold text-white transition-opacity hover:opacity-90"
+                  style={{ background: C.blue }}>
+                  Back to Sign In
+                </button>
+              </div>
+            )}
+
+            {forgotStep === "reset" && (
+              <>
+                <button onClick={() => setForgotStep("email")} className="flex items-center gap-1 text-sm mb-4" style={{ color: C.muted }}>
+                  <ArrowLeft className="w-4 h-4" /> Back
+                </button>
+                <div className="text-center mb-5">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: `${C.blue}1A` }}>
+                    <KeyRound className="w-6 h-6" style={{ color: C.blue }} />
+                  </div>
+                  <h2 className="text-lg font-bold text-white">Enter Reset Code</h2>
+                  <p className="text-sm mt-1" style={{ color: C.muted }}>
+                    We sent a 6-digit code to{" "}
+                    <span className="font-semibold" style={{ color: C.blue }}>{forgotEmail}</span>
+                  </p>
+                </div>
+                <form onSubmit={handleForgotResetPassword} className="space-y-4">
+                  <Field label="6-Digit Reset Code">
+                    <input
+                      required maxLength={6} inputMode="numeric"
+                      value={forgotOtp}
+                      onChange={e => setForgotOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      className="w-full px-3 py-3 rounded-lg text-center text-2xl tracking-[0.5em] font-mono outline-none"
+                      placeholder="000000"
+                      style={{ background: "#0A0A0A", border: `1px solid ${C.border}`, color: C.text }}
+                      onFocus={e => (e.currentTarget.style.borderColor = C.blue)}
+                      onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+                    />
+                  </Field>
+                  <Field label="New Password">
+                    <div className="relative">
+                      <StyledInput type={showNewPw ? "text" : "password"} required minLength={8} placeholder="Min 8 characters"
+                        value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                        style={{ paddingRight: "2.5rem" }} />
+                      <button type="button" onClick={() => setShowNewPw(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: C.muted }}>
+                        {showNewPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </Field>
+                  <Field label="Confirm New Password">
+                    <StyledInput type="password" required minLength={8} placeholder="••••••••"
+                      value={confirmNewPassword} onChange={e => setConfirmNewPassword(e.target.value)} />
+                  </Field>
+                  <button type="submit" disabled={loading || forgotOtp.length !== 6}
+                    className="w-full py-2.5 rounded-lg text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                    style={{ background: C.blue }}>
+                    {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                    <Lock className="w-4 h-4" />
+                    Reset Password
+                  </button>
+                  <p className="text-center text-sm" style={{ color: C.muted }}>
+                    Didn't receive the code?{" "}
+                    <button type="button" onClick={handleForgotResendOtp}
+                      disabled={forgotResendCooldown > 0 || loading}
+                      className="font-semibold disabled:opacity-50"
+                      style={{ color: C.blue }}>
+                      {forgotResendCooldown > 0 ? `Resend in ${forgotResendCooldown}s` : "Resend Code"}
+                    </button>
+                  </p>
+                </form>
+              </>
+            )}
+
+            {forgotStep === "email" && (
+              <>
+                <button onClick={() => setView("auth")} className="flex items-center gap-1 text-sm mb-4" style={{ color: C.muted }}>
+                  <ArrowLeft className="w-4 h-4" /> Back to Sign In
+                </button>
+                <div className="text-center mb-5">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: `${C.blue}1A` }}>
+                    <Mail className="w-6 h-6" style={{ color: C.blue }} />
+                  </div>
+                  <h2 className="text-lg font-bold text-white">Recover your account</h2>
+                  <p className="text-sm mt-1" style={{ color: C.muted }}>Enter your registered email and we'll send a reset code.</p>
+                </div>
+                <form onSubmit={handleForgotSendOtp} className="space-y-4">
+                  <Field label="Email">
+                    <StyledInput type="email" required placeholder="dev@company.com"
+                      value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} />
+                  </Field>
+                  <button type="submit" disabled={loading}
+                    className="w-full py-2.5 rounded-lg text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                    style={{ background: C.blue }}>
+                    {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Send Reset Code
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
+
+          <p className="text-center text-xs mt-4" style={{ color: C.muted }}>
+            <a href="/" style={{ color: C.blue }} className="hover:underline">← Back to Arapoint</a>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{ background: C.bg }}>
       <div className="w-full max-w-md">
@@ -237,6 +460,12 @@ export default function DevLogin() {
                     </button>
                   </div>
                 </Field>
+                <div className="flex justify-end -mt-1">
+                  <button type="button" onClick={() => { setView("forgot"); setForgotEmail(loginForm.email); setForgotStep("email"); }}
+                    className="text-xs hover:underline" style={{ color: C.blue }}>
+                    Forgot password?
+                  </button>
+                </div>
                 {submitBtn("Sign In")}
               </form>
             </>

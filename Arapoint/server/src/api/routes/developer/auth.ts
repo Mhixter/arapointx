@@ -123,4 +123,59 @@ router.post('/auth/login', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/auth/forgot-password', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'Email required' });
+    }
+    const [dev] = await db.select({ id: developerUsers.id })
+      .from(developerUsers)
+      .where(eq(developerUsers.email, email.toLowerCase()))
+      .limit(1);
+    if (dev) {
+      await otpService.sendOTP(email.toLowerCase(), 'password_reset');
+      logger.info('Developer password reset OTP sent', { email });
+    } else {
+      logger.info('Developer password reset requested for unknown email', { email });
+    }
+    res.json({ status: 'success', code: 200, message: 'If that email is registered, a reset code has been sent.' });
+  } catch (e: any) {
+    logger.error('Dev forgot-password error', { error: e.message });
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to process request' });
+  }
+});
+
+router.post('/auth/reset-password', async (req: Request, res: Response) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'Email, OTP code, and new password are required' });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'Password must be at least 8 characters' });
+    }
+    const isValid = await otpService.verifyOTP(email.toLowerCase(), otp, 'password_reset');
+    if (!isValid) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'Invalid or expired reset code' });
+    }
+    const [dev] = await db.select({ id: developerUsers.id })
+      .from(developerUsers)
+      .where(eq(developerUsers.email, email.toLowerCase()))
+      .limit(1);
+    if (!dev) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'Developer account not found' });
+    }
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await db.update(developerUsers)
+      .set({ passwordHash, updatedAt: new Date() })
+      .where(eq(developerUsers.id, dev.id));
+    logger.info('Developer password reset completed', { developerId: dev.id });
+    res.json({ status: 'success', code: 200, message: 'Password reset successfully' });
+  } catch (e: any) {
+    logger.error('Dev reset-password error', { error: e.message });
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to reset password' });
+  }
+});
+
 export default router;
