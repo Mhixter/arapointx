@@ -65,10 +65,180 @@ export function nameSimilarityScore(a: string, b: string): number {
   return parseFloat(Math.max(fullScore, tokenScore).toFixed(4));
 }
 
-export function toDecision(score: number): 'PASS' | 'REVIEW' | 'FAIL' {
+export function toDecision(score: number | null): 'PASS' | 'REVIEW' | 'FAIL' | 'PENDING' {
+  if (score === null || score === undefined) return 'PENDING';
   if (score >= 85) return 'PASS';
   if (score >= 60) return 'REVIEW';
   return 'FAIL';
+}
+
+const CREDIT_GRADES = ['A1', 'B2', 'B3', 'C4', 'C5', 'C6'];
+
+function gradeIsCredit(grade: unknown): boolean {
+  if (typeof grade !== 'string' || !grade) return false;
+  return CREDIT_GRADES.includes(grade.toUpperCase().trim());
+}
+
+function analyzeIdentityCheck(
+  ninData: any,
+  bvnData: any,
+  eduData: any,
+): {
+  crossCheck: {
+    ninBvnNameMatch: boolean;
+    ninBvnNameScore: number;
+    ninBvnDobMatch: boolean;
+    eduNameMatchesNin: boolean;
+    eduNameMatchesBvn: boolean;
+    eduNameScore: number;
+    eduDobMatchesNin: boolean | null;
+    eduDobMatchesBvn: boolean | null;
+    allNamesConsistent: boolean;
+    allDobConsistent: boolean;
+  };
+  ssceAnalysis: {
+    totalSubjects: number;
+    totalCredits: number;
+    englishGrade: string | null;
+    englishIsCredit: boolean;
+    mathGrade: string | null;
+    mathIsCredit: boolean;
+    otherCreditSubjects: { name: string; grade: string }[];
+    otherCreditCount: number;
+    meetsMinimumRequirement: boolean;
+    requirementSummary: string;
+    subjects: { name: string; grade: string; isCredit: boolean }[];
+  };
+  overallScore: number;
+  decision: 'PASS' | 'REVIEW' | 'FAIL';
+  summary: string;
+  flags: string[];
+} {
+  const flags: string[] = [];
+
+  const ninName = ninData ? `${ninData.firstName || ''} ${ninData.middleName || ''} ${ninData.lastName || ''}`.replace(/\s+/g, ' ').trim() : '';
+  const bvnName = bvnData ? `${bvnData.firstName || ''} ${bvnData.middleName || ''} ${bvnData.lastName || ''}`.replace(/\s+/g, ' ').trim() : '';
+  const ninDob = ninData?.dateOfBirth || null;
+  const bvnDob = bvnData?.dateOfBirth || null;
+
+  const ninBvnNameScore = (ninName && bvnName) ? nameSimilarityScore(ninName, bvnName) : 0;
+  const ninBvnNameMatch = ninBvnNameScore >= 0.72;
+  const ninBvnDobMatch = !!(ninDob && bvnDob && ninDob === bvnDob);
+
+  if (!ninBvnNameMatch) flags.push(`Name mismatch between NIN ("${ninName}") and BVN ("${bvnName}") — match score: ${Math.round(ninBvnNameScore * 100)}%`);
+  if (ninDob && bvnDob && !ninBvnDobMatch) flags.push(`Date of birth mismatch — NIN: ${ninDob}, BVN: ${bvnDob}`);
+
+  const eduCandidateName = eduData?.candidateName || '';
+  const eduDob = eduData?.candidateDateOfBirth || eduData?.dateOfBirth || null;
+
+  const eduNameScore = eduCandidateName
+    ? Math.max(
+        ninName ? nameSimilarityScore(eduCandidateName, ninName) : 0,
+        bvnName ? nameSimilarityScore(eduCandidateName, bvnName) : 0,
+      )
+    : 0;
+  const eduNameMatchesNin = eduCandidateName && ninName ? nameSimilarityScore(eduCandidateName, ninName) >= 0.72 : false;
+  const eduNameMatchesBvn = eduCandidateName && bvnName ? nameSimilarityScore(eduCandidateName, bvnName) >= 0.72 : false;
+
+  if (eduCandidateName && !eduNameMatchesNin && !eduNameMatchesBvn) {
+    flags.push(`SSCE candidate name ("${eduCandidateName}") does not match NIN or BVN names`);
+  }
+
+  const eduDobMatchesNin = (eduDob && ninDob) ? eduDob === ninDob : null;
+  const eduDobMatchesBvn = (eduDob && bvnDob) ? eduDob === bvnDob : null;
+  if (eduDob && ninDob && !eduDobMatchesNin) flags.push(`SSCE date of birth (${eduDob}) does not match NIN DOB (${ninDob})`);
+  if (eduDob && bvnDob && !eduDobMatchesBvn) flags.push(`SSCE date of birth (${eduDob}) does not match BVN DOB (${bvnDob})`);
+
+  const allNamesConsistent = ninBvnNameMatch && (eduNameMatchesNin || eduNameMatchesBvn || !eduCandidateName);
+  const allDobConsistent = ninBvnDobMatch && (eduDobMatchesNin !== false) && (eduDobMatchesBvn !== false);
+
+  const subjects: { name: string; grade: string }[] = eduData?.subjects || [];
+  const analyzedSubjects = subjects.map((s: { name: string; grade: string }) => ({
+    name: s.name,
+    grade: s.grade,
+    isCredit: gradeIsCredit(s.grade),
+  }));
+
+  const englishSubject = subjects.find((s: { name: string; grade: string }) =>
+    /english/i.test(s.name)
+  );
+  const mathSubject = subjects.find((s: { name: string; grade: string }) =>
+    /math/i.test(s.name)
+  );
+
+  const englishGrade = englishSubject?.grade || null;
+  const englishIsCredit = englishGrade ? gradeIsCredit(englishGrade) : false;
+  const mathGrade = mathSubject?.grade || null;
+  const mathIsCredit = mathGrade ? gradeIsCredit(mathGrade) : false;
+
+  const otherCreditSubjects = subjects
+    .filter((s: { name: string; grade: string }) => !/english/i.test(s.name) && !/math/i.test(s.name) && gradeIsCredit(s.grade))
+    .map((s: { name: string; grade: string }) => ({ name: s.name, grade: s.grade }));
+
+  const totalCredits = analyzedSubjects.filter(s => s.isCredit).length;
+  const meetsMinimumRequirement = englishIsCredit && mathIsCredit && otherCreditSubjects.length >= 3;
+
+  let requirementSummary: string;
+  if (meetsMinimumRequirement) {
+    requirementSummary = `PASS — ${totalCredits} credits including English (${englishGrade}) and Mathematics (${mathGrade}) plus ${otherCreditSubjects.length} other credit subject(s). Meets minimum 5-credit requirement.`;
+  } else {
+    const issues: string[] = [];
+    if (!englishGrade) issues.push('English Language not found in results');
+    else if (!englishIsCredit) issues.push(`English Language grade (${englishGrade}) is not a credit (C6 or above required)`);
+    if (!mathGrade) issues.push('Mathematics not found in results');
+    else if (!mathIsCredit) issues.push(`Mathematics grade (${mathGrade}) is not a credit (C6 or above required)`);
+    if (otherCreditSubjects.length < 3) issues.push(`Only ${otherCreditSubjects.length} other credit subjects (minimum 3 required besides English and Maths)`);
+    requirementSummary = `FAIL — ${issues.join('; ')}. Total credits: ${totalCredits}.`;
+  }
+
+  if (!englishIsCredit && englishGrade) flags.push(`English Language grade (${englishGrade}) is below credit level`);
+  if (!mathIsCredit && mathGrade) flags.push(`Mathematics grade (${mathGrade}) is below credit level`);
+
+  let overallScore = 0;
+  if (ninData) overallScore += 15;
+  if (bvnData) overallScore += 15;
+  if (ninBvnNameMatch) overallScore += 10;
+  if (ninBvnDobMatch) overallScore += 5;
+  if (subjects.length > 0) overallScore += 10;
+  if (eduNameMatchesNin || eduNameMatchesBvn) overallScore += 10;
+  if (allDobConsistent) overallScore += 5;
+  if (englishIsCredit) overallScore += 10;
+  if (mathIsCredit) overallScore += 10;
+  if (meetsMinimumRequirement) overallScore += 10;
+
+  const decision = toDecision(overallScore) as 'PASS' | 'REVIEW' | 'FAIL';
+
+  const summaryParts: string[] = [];
+  summaryParts.push(`Identity: NIN ${ninData ? '✓' : '✗'}, BVN ${bvnData ? '✓' : '✗'}`);
+  summaryParts.push(`Name match: NIN↔BVN ${ninBvnNameMatch ? '✓' : '✗'} (${Math.round(ninBvnNameScore * 100)}%)`);
+  summaryParts.push(`DOB match: NIN↔BVN ${ninBvnDobMatch ? '✓' : '✗'}`);
+  if (eduCandidateName) summaryParts.push(`SSCE name match: ${(eduNameMatchesNin || eduNameMatchesBvn) ? '✓' : '✗'} (${Math.round(eduNameScore * 100)}%)`);
+  summaryParts.push(`SSCE: ${totalCredits} credit(s), English ${englishIsCredit ? '✓' : '✗'} (${englishGrade || 'N/A'}), Maths ${mathIsCredit ? '✓' : '✗'} (${mathGrade || 'N/A'})`);
+  summaryParts.push(`Minimum requirement (5 credits incl. English & Maths): ${meetsMinimumRequirement ? 'MET' : 'NOT MET'}`);
+
+  return {
+    crossCheck: {
+      ninBvnNameMatch, ninBvnNameScore: Math.round(ninBvnNameScore * 100),
+      ninBvnDobMatch,
+      eduNameMatchesNin, eduNameMatchesBvn, eduNameScore: Math.round(eduNameScore * 100),
+      eduDobMatchesNin, eduDobMatchesBvn,
+      allNamesConsistent, allDobConsistent,
+    },
+    ssceAnalysis: {
+      totalSubjects: subjects.length,
+      totalCredits,
+      englishGrade, englishIsCredit,
+      mathGrade, mathIsCredit,
+      otherCreditSubjects,
+      otherCreditCount: otherCreditSubjects.length,
+      meetsMinimumRequirement,
+      requirementSummary,
+      subjects: analyzedSubjects,
+    },
+    overallScore, decision,
+    summary: summaryParts.join(' | '),
+    flags,
+  };
 }
 
 router.post('/verify/nin', apiKeyAuth, async (req: Request, res: Response) => {
@@ -905,32 +1075,38 @@ router.post('/verify/identity-check', apiKeyAuth, async (req: Request, res: Resp
     if (envMode === 'sandbox') {
       const ninData = sandboxNIN(nin).data;
       const bvnData = sandboxBVN(bvn).data;
-      const nameScore = nameSimilarityScore(
-        `${ninData.firstName} ${ninData.lastName}`,
-        `${bvnData.firstName} ${bvnData.lastName}`
-      );
-
       const eduResult = sandboxEducation(provider, regNo, String(examYear));
-
-      const identityMatch = nameScore >= 0.72;
-      const score = identityMatch ? 92 : 65;
+      const analysis = analyzeIdentityCheck(ninData, bvnData, eduResult.data);
 
       statusCode = 200;
       responseData = {
         status: 'success', code: 200, message: 'Identity check completed (sandbox)',
         data: {
           requestId, reference: reference || null, status: 'completed',
-          decision: toDecision(score), score,
-          identityMatch,
-          nameMatchScore: Math.round(nameScore * 100),
-          nin: { status: 'verified', firstName: ninData.firstName, lastName: ninData.lastName, dateOfBirth: ninData.dateOfBirth, gender: ninData.gender },
-          bvn: { status: 'verified', firstName: bvnData.firstName, lastName: bvnData.lastName, dateOfBirth: bvnData.dateOfBirth },
+          decision: analysis.decision,
+          score: analysis.overallScore,
+          summary: analysis.summary,
+          crossCheck: analysis.crossCheck,
+          ssceAnalysis: analysis.ssceAnalysis,
+          flags: analysis.flags,
+          nin: {
+            status: 'verified',
+            firstName: ninData.firstName, middleName: ninData.middleName || null,
+            lastName: ninData.lastName, dateOfBirth: ninData.dateOfBirth, gender: ninData.gender,
+          },
+          bvn: {
+            status: 'verified',
+            firstName: bvnData.firstName, middleName: bvnData.middleName || null,
+            lastName: bvnData.lastName, dateOfBirth: bvnData.dateOfBirth,
+          },
           education: {
             provider: provider.toUpperCase(),
             status: 'verified',
             examYear,
             registrationNumber: regNo,
-            ...eduResult.data,
+            candidateName: eduResult.data.candidateName,
+            candidateDateOfBirth: eduResult.data.candidateDateOfBirth || null,
+            subjects: analysis.ssceAnalysis.subjects,
           },
           pricing: { rawCost, bundleDiscount: '15%', totalCost },
           completedAt: new Date().toISOString(),
@@ -1026,26 +1202,25 @@ router.post('/verify/identity-check', apiKeyAuth, async (req: Request, res: Resp
           flags.push(`Education (${provider.toUpperCase()}) queue failed: ${rpaErr.message}`);
         }
 
-        const ninVerified = !!ninData;
-        const bvnVerified = !!bvnData;
-        const identityPts = (ninVerified ? 20 : 0) + (bvnVerified ? 20 : 0);
-        const eduVerified = educationResult.status === 'verified' || educationResult.status === 'failed';
-        const eduPts = educationResult.status === 'verified' ? 25 : 0;
-        const maxPts = 65;
-        const rawScore = Math.max(0, identityPts + eduPts);
-        const score = eduVerified ? Math.round((rawScore / maxPts) * 100) : null;
-
-        const breakdown = {
-          nin: ninData ? { status: 'matched', data: { firstName: ninData.firstName, lastName: ninData.lastName, dateOfBirth: ninData.dateOfBirth } } : { status: 'failed' },
-          bvn: bvnData ? { status: 'matched', data: { firstName: bvnData.firstName, lastName: bvnData.lastName, dateOfBirth: bvnData.dateOfBirth } } : { status: 'failed' },
-          nameMatchScore: nameScore !== null ? Math.round(nameScore * 100) : null,
-          education: [educationResult],
-          employment: { status: 'not_requested' },
-          fraud: { status: 'not_requested' },
-        };
-
         const hasRpaJobs = educationResult.status === 'processing';
         const finalStatus = hasRpaJobs ? 'processing' : 'completed';
+
+        let analysis: any = null;
+        let score: number | null = null;
+        if (!hasRpaJobs) {
+          analysis = analyzeIdentityCheck(ninData, bvnData, educationResult.result || null);
+          score = analysis.overallScore;
+          flags.push(...analysis.flags);
+        }
+
+        const breakdown = {
+          nin: ninData ? { status: 'matched', data: { firstName: ninData.firstName, middleName: ninData.middleName || null, lastName: ninData.lastName, dateOfBirth: ninData.dateOfBirth } } : { status: 'failed' },
+          bvn: bvnData ? { status: 'matched', data: { firstName: bvnData.firstName, middleName: bvnData.middleName || null, lastName: bvnData.lastName, dateOfBirth: bvnData.dateOfBirth } } : { status: 'failed' },
+          nameMatchScore: nameScore !== null ? Math.round(nameScore * 100) : null,
+          education: [educationResult],
+          crossCheck: analysis?.crossCheck || null,
+          ssceAnalysis: analysis?.ssceAnalysis || null,
+        };
 
         await db.execute(sql`
           UPDATE developer_unified_requests SET
@@ -1054,7 +1229,7 @@ router.post('/verify/identity-check', apiKeyAuth, async (req: Request, res: Resp
             nin_data = ${ninData ? JSON.stringify(ninData) : null}::jsonb,
             bvn_data = ${bvnData ? JSON.stringify(bvnData) : null}::jsonb,
             education_results = ${JSON.stringify([educationResult])}::jsonb,
-            score = ${score}, decision = ${toDecision(score)},
+            score = ${score}, decision = ${score !== null ? toDecision(score) : 'PENDING'},
             flags = ${JSON.stringify(flags)}::jsonb,
             breakdown = ${JSON.stringify(breakdown)}::jsonb,
             ${hasRpaJobs ? sql`completed_at = null` : sql`completed_at = now()`}
@@ -1063,7 +1238,7 @@ router.post('/verify/identity-check', apiKeyAuth, async (req: Request, res: Resp
 
         if (callbackUrl && !hasRpaJobs) {
           try {
-            const payload = { event: 'identity-check.completed', requestId, reference: reference || null, decision: toDecision(score), score, breakdown, flags, completedAt: new Date().toISOString() };
+            const payload = { event: 'identity-check.completed', requestId, reference: reference || null, decision: analysis?.decision || toDecision(score), score, breakdown, flags, completedAt: new Date().toISOString() };
             await fetch(callbackUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Arapoint-Event': 'identity-check.completed' }, body: JSON.stringify(payload) });
             await db.execute(sql`UPDATE developer_unified_requests SET webhook_delivered = true WHERE id = ${requestId}`).catch(() => {});
           } catch (whErr: any) {
@@ -1158,21 +1333,28 @@ router.get('/verify/identity-check/result/:requestId', apiKeyAuth, async (req: R
         currentStatus = 'completed';
         breakdown.education = eduResults;
 
-        const ninVerified = breakdown.nin?.status === 'matched';
-        const bvnVerified = breakdown.bvn?.status === 'matched';
-        const eduVerified = eduResults.some((e: any) => e.status === 'verified');
-        const identityPts = (ninVerified ? 20 : 0) + (bvnVerified ? 20 : 0);
-        const eduPts = eduVerified ? 25 : 0;
-        const maxPts = 65;
-        score = Math.round(((identityPts + eduPts) / maxPts) * 100);
-        decision = toDecision(score);
+        const ninDataParsed = row.nin_data ? (typeof row.nin_data === 'string' ? JSON.parse(row.nin_data) : row.nin_data) : null;
+        const bvnDataParsed = row.bvn_data ? (typeof row.bvn_data === 'string' ? JSON.parse(row.bvn_data) : row.bvn_data) : null;
+
+        const verifiedEdu = eduResults.find((e: any) => e.status === 'verified');
+        const eduResultData = verifiedEdu?.result || null;
+
+        if (eduResultData || ninDataParsed || bvnDataParsed) {
+          const analysis = analyzeIdentityCheck(ninDataParsed, bvnDataParsed, eduResultData);
+          score = analysis.overallScore;
+          decision = analysis.decision;
+          flags = [...flags, ...analysis.flags];
+          breakdown.crossCheck = analysis.crossCheck;
+          breakdown.ssceAnalysis = analysis.ssceAnalysis;
+          breakdown.summary = analysis.summary;
+        }
 
         await db.execute(sql`
           UPDATE developer_unified_requests SET
             status = 'completed',
             education_results = ${JSON.stringify(eduResults)}::jsonb,
             checks_status = ${JSON.stringify(checksStatus)}::jsonb,
-            score = ${score}, decision = ${decision},
+            score = ${score}, decision = ${decision || 'PENDING'},
             flags = ${JSON.stringify(flags)}::jsonb,
             breakdown = ${JSON.stringify(breakdown)}::jsonb,
             completed_at = now()
@@ -1187,7 +1369,25 @@ router.get('/verify/identity-check/result/:requestId', apiKeyAuth, async (req: R
       ? breakdown.education
       : (row.education_results ? (typeof row.education_results === 'string' ? JSON.parse(row.education_results) : row.education_results) : []);
 
-    const nameScore = breakdown.nameMatchScore || null;
+    if (currentStatus === 'completed' && !breakdown.crossCheck && (ninData || bvnData)) {
+      const verifiedEdu = finalEduResults.find((e: any) => e.status === 'verified');
+      const repairAnalysis = analyzeIdentityCheck(ninData, bvnData, verifiedEdu?.result || null);
+      score = repairAnalysis.overallScore;
+      decision = repairAnalysis.decision;
+      flags = [...flags, ...repairAnalysis.flags];
+      breakdown.crossCheck = repairAnalysis.crossCheck;
+      breakdown.ssceAnalysis = repairAnalysis.ssceAnalysis;
+      breakdown.summary = repairAnalysis.summary;
+      await db.execute(sql`
+        UPDATE developer_unified_requests SET
+          score = ${score}, decision = ${decision},
+          flags = ${JSON.stringify(flags)}::jsonb,
+          breakdown = ${JSON.stringify(breakdown)}::jsonb
+        WHERE id = ${requestId}
+      `).catch(() => {});
+    }
+
+    const eduEntry = finalEduResults.length > 0 ? finalEduResults[0] : { status: checksStatus.education_0 || 'pending' };
 
     responseData = {
       status: 'success', code: 200,
@@ -1196,17 +1396,26 @@ router.get('/verify/identity-check/result/:requestId', apiKeyAuth, async (req: R
         requestId,
         reference: row.reference || null,
         status: currentStatus,
-        decision: decision || null,
-        score: score || null,
-        identityMatch: nameScore !== null ? nameScore >= 72 : null,
-        nameMatchScore: nameScore,
+        decision: decision || 'PENDING',
+        score: score ?? null,
+        summary: breakdown.summary || null,
+        crossCheck: breakdown.crossCheck || null,
+        ssceAnalysis: breakdown.ssceAnalysis || null,
         nin: ninData
-          ? { status: 'verified', firstName: ninData.firstName, lastName: ninData.lastName, dateOfBirth: ninData.dateOfBirth, gender: ninData.gender }
+          ? { status: 'verified', firstName: ninData.firstName, middleName: ninData.middleName || null, lastName: ninData.lastName, dateOfBirth: ninData.dateOfBirth, gender: ninData.gender }
           : { status: checksStatus.nin || 'pending' },
         bvn: bvnData
-          ? { status: 'verified', firstName: bvnData.firstName, lastName: bvnData.lastName, dateOfBirth: bvnData.dateOfBirth }
+          ? { status: 'verified', firstName: bvnData.firstName, middleName: bvnData.middleName || null, lastName: bvnData.lastName, dateOfBirth: bvnData.dateOfBirth }
           : { status: checksStatus.bvn || 'pending' },
-        education: finalEduResults.length > 0 ? finalEduResults[0] : { status: checksStatus.education_0 || 'pending' },
+        education: eduEntry.status === 'verified' ? {
+          provider: eduEntry.type,
+          status: 'verified',
+          registrationNumber: eduEntry.registrationNumber,
+          examYear: eduEntry.examYear,
+          candidateName: eduEntry.result?.candidateName || null,
+          candidateDateOfBirth: eduEntry.result?.candidateDateOfBirth || eduEntry.result?.dateOfBirth || null,
+          subjects: breakdown.ssceAnalysis?.subjects || eduEntry.result?.subjects || [],
+        } : eduEntry,
         flags,
         pricing: { rawCost: API_PRICES.nin + API_PRICES.bvn + API_PRICES.education, bundleDiscount: '15%', totalCost: row.total_cost },
         completedAt: row.completed_at || null,

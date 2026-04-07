@@ -208,12 +208,17 @@ export function sandboxEducation(provider: string, registrationNumber: string, e
       registrationNumber,
       examYear,
       candidateName: 'ARAPOINT TEST SANDBOX',
+      candidateDateOfBirth: '1990-06-15',
       subjects: [
-        { name: 'Mathematics', grade: 'A1' },
         { name: 'English Language', grade: 'B2' },
+        { name: 'Mathematics', grade: 'A1' },
         { name: 'Physics', grade: 'A1' },
         { name: 'Chemistry', grade: 'B3' },
         { name: 'Biology', grade: 'C4' },
+        { name: 'Economics', grade: 'B2' },
+        { name: 'Civic Education', grade: 'C5' },
+        { name: 'Geography', grade: 'B3' },
+        { name: 'Agricultural Science', grade: 'C6' },
       ],
     },
   };

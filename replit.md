@@ -145,7 +145,14 @@ Preferred communication style: Simple, everyday language.
 - **Pricing**: NIN(130) + BVN(80) + Education(250) = 460, with 15% bundle discount = 391
 - **Flow**: NIN+BVN verified immediately via Prembly, education queued as RPA job (1-3 min). Returns `requestId` (IDC-prefixed) for polling via `GET /verify/identity-check/result/:requestId`
 - **Sandbox**: Returns instant composed mock result. Live: async with polling
-- **Result**: Includes identity match score (NIN vs BVN name comparison), education results, overall decision score
+- **Analysis**: Comprehensive `analyzeIdentityCheck()` function cross-references all data:
+  - NIN↔BVN name similarity (threshold 0.72) and DOB match
+  - SSCE candidate name vs NIN/BVN names and DOB
+  - SSCE grade analysis: credit = A1/B2/B3/C4/C5/C6; requires English credit + Math credit + 3 other credits
+  - Scoring: 100-point scale (NIN 15, BVN 15, name match 10, DOB match 5, edu found 10, edu name match 10, edu DOB match 5, English credit 10, Math credit 10, meets minimum 10)
+  - Decision: PASS (≥85), REVIEW (≥60), FAIL (<60)
+- **Response**: `crossCheck`, `ssceAnalysis`, `summary`, `flags`, `decision`, `score`
+- **Repair path**: Polling endpoint auto-repairs completed rows missing analysis data
 - **Stored in**: `developer_unified_requests` table (shared with existing unified endpoint)
 
 ### Support AI
