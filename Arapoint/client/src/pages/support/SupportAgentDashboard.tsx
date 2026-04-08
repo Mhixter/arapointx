@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { useIdleTimeout } from "@/hooks/useIdleTimeout";
 
 const statusColor = (s: string) => {
   switch (s) {
@@ -207,6 +208,21 @@ export default function SupportAgentDashboard() {
       setLocation("/support/agent/login");
     }
   }, [setLocation]);
+
+  useIdleTimeout({
+    timeoutMs: 300000,
+    onTimeout: () => {
+      tokenStorage.removeItem("adminToken");
+      tokenStorage.removeItem("adminRefreshToken");
+      tokenStorage.removeItem("adminUser");
+      toast({
+        title: "Session Expired",
+        description: "You were logged out due to inactivity.",
+        variant: "destructive",
+      });
+      setLocation("/support/agent/login");
+    },
+  });
 
   const fetchTickets = useCallback(async () => {
     try {

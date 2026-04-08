@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import {
   LayoutDashboard, Key, CreditCard, FileText, Book, User, LogOut, Menu, X, Code2, ShieldCheck, Webhook
 } from "lucide-react";
+import { useIdleTimeout } from "@/hooks/useIdleTimeout";
+import { useToast } from "@/hooks/use-toast";
 
 const navigate = (path: string) => { window.location.href = path; };
 
@@ -29,6 +31,7 @@ export function DevLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [developer, setDeveloper] = useState<DevUser | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     const stored = localStorage.getItem("dev_token");
@@ -44,11 +47,25 @@ export function DevLayout({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     localStorage.removeItem("dev_token");
     localStorage.removeItem("dev_user");
     navigate("/developer/login");
-  };
+  }, []);
+
+  useIdleTimeout({
+    timeoutMs: 300000,
+    onTimeout: () => {
+      localStorage.removeItem("dev_token");
+      localStorage.removeItem("dev_user");
+      toast({
+        title: "Session Expired",
+        description: "You were logged out due to inactivity.",
+        variant: "destructive",
+      });
+      navigate("/developer/login");
+    },
+  });
 
   if (!developer) return null;
 
