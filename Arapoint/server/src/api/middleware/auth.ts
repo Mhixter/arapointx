@@ -5,6 +5,7 @@ import { logger } from '../../utils/logger';
 import { db } from '../../config/database';
 import { adminUsers, users } from '../../db/schema';
 import { eq } from 'drizzle-orm';
+import { ErrorCodes } from '../../utils/errorCodes';
 
 declare global {
   namespace Express {
@@ -20,26 +21,29 @@ declare global {
 export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        status: 'error',
-        code: 401,
-        message: 'No token provided',
-      });
+      return res.status(401).json({ status: 'error', code: 401, error_code: ErrorCodes.UNAUTHORIZED, message: 'No token provided' });
     }
-    
+
     const token = authHeader.slice(7);
-    
+
     if (!token || token.trim() === '') {
+      return res.status(401).json({ status: 'error', code: 401, error_code: ErrorCodes.UNAUTHORIZED, message: 'No token provided' });
+    }
+
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, config.JWT_SECRET) as any;
+    } catch (jwtErr: any) {
+      const isExpired = jwtErr.name === 'TokenExpiredError';
       return res.status(401).json({
-        status: 'error',
-        code: 401,
-        message: 'No token provided',
+        status: 'error', code: 401,
+        error_code: isExpired ? ErrorCodes.TOKEN_EXPIRED : ErrorCodes.TOKEN_INVALID,
+        message: isExpired ? 'Token has expired' : 'Invalid token',
       });
     }
-    
-    const decoded = jwt.verify(token, config.JWT_SECRET) as any;
+
     req.userId = decoded.userId;
 
     const [user] = await db.select({ isSuspended: users.isSuspended, suspendReason: users.suspendReason })
@@ -48,13 +52,13 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
       .limit(1);
 
     if (!user) {
-      return res.status(401).json({ status: 'error', code: 401, message: 'Account not found' });
+      return res.status(401).json({ status: 'error', code: 401, error_code: ErrorCodes.UNAUTHORIZED, message: 'Account not found' });
     }
 
     if (user.isSuspended) {
       return res.status(403).json({
-        status: 'error',
-        code: 403,
+        status: 'error', code: 403,
+        error_code: ErrorCodes.ACCOUNT_SUSPENDED,
         message: 'Your account has been suspended. Please contact support.',
         reason: user.suspendReason || 'Account suspended by administrator',
         suspended: true,
@@ -64,11 +68,7 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     next();
   } catch (error) {
     logger.error('Auth error:', error);
-    res.status(401).json({
-      status: 'error',
-      code: 401,
-      message: 'Invalid token',
-    });
+    res.status(401).json({ status: 'error', code: 401, error_code: ErrorCodes.TOKEN_INVALID, message: 'Invalid token' });
   }
 };
 
@@ -77,46 +77,40 @@ export const adminAuthMiddleware = async (req: Request, res: Response, next: Nex
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        status: 'error',
-        code: 401,
-        message: 'No admin token provided',
-      });
+      return res.status(401).json({ status: 'error', code: 401, error_code: ErrorCodes.UNAUTHORIZED, message: 'No admin token provided' });
     }
-    
+
     const token = authHeader.slice(7);
-    
+
     if (!token || token.trim() === '') {
+      return res.status(401).json({ status: 'error', code: 401, error_code: ErrorCodes.UNAUTHORIZED, message: 'No admin token provided' });
+    }
+
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, config.JWT_SECRET) as any;
+    } catch (jwtErr: any) {
+      const isExpired = jwtErr.name === 'TokenExpiredError';
       return res.status(401).json({
-        status: 'error',
-        code: 401,
-        message: 'No admin token provided',
+        status: 'error', code: 401,
+        error_code: isExpired ? ErrorCodes.TOKEN_EXPIRED : ErrorCodes.TOKEN_INVALID,
+        message: isExpired ? 'Admin token has expired' : 'Invalid admin token',
       });
     }
-    
-    const decoded = jwt.verify(token, config.JWT_SECRET) as any;
-    
+
     if (!decoded.isAdmin) {
-      return res.status(403).json({
-        status: 'error',
-        code: 403,
-        message: 'Admin access required',
-      });
+      return res.status(403).json({ status: 'error', code: 403, error_code: ErrorCodes.FORBIDDEN, message: 'Admin access required' });
     }
-    
+
     const [admin] = await db.select({ id: adminUsers.id, isActive: adminUsers.isActive })
       .from(adminUsers)
       .where(eq(adminUsers.id, decoded.adminId))
       .limit(1);
-    
+
     if (!admin || !admin.isActive) {
-      return res.status(403).json({
-        status: 'error',
-        code: 403,
-        message: 'Admin account is inactive or not found',
-      });
+      return res.status(403).json({ status: 'error', code: 403, error_code: ErrorCodes.ACCOUNT_INACTIVE, message: 'Admin account is inactive or not found' });
     }
-    
+
     req.adminId = decoded.adminId;
     req.userId = decoded.adminId;
     req.isAdmin = true;
@@ -124,11 +118,7 @@ export const adminAuthMiddleware = async (req: Request, res: Response, next: Nex
     next();
   } catch (error) {
     logger.error('Admin auth error:', error);
-    res.status(401).json({
-      status: 'error',
-      code: 401,
-      message: 'Invalid admin token',
-    });
+    res.status(401).json({ status: 'error', code: 401, error_code: ErrorCodes.TOKEN_INVALID, message: 'Invalid admin token' });
   }
 };
 
@@ -138,10 +128,6 @@ export const requireAdminRole = (...allowedRoles: string[]) => {
     if (allowedRoles.includes(role) || role === 'super_admin' || role === 'admin') {
       return next();
     }
-    return res.status(403).json({
-      status: 'error',
-      code: 403,
-      message: 'You do not have permission to access this resource',
-    });
+    return res.status(403).json({ status: 'error', code: 403, error_code: ErrorCodes.FORBIDDEN, message: 'You do not have permission to access this resource' });
   };
 };

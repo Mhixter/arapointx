@@ -13,11 +13,13 @@ import {
 import { otpService } from '../../../services/otpService';
 import { rpaJobs } from '../../../db/schema';
 import { runWebhookMigrations, developerWebhookLogs, fireWebhookIfEnabled, startWebhookRetryProcessor } from '../../../services/webhookService';
+import { ErrorCodes } from '../../../utils/errorCodes';
 import * as paystackService from '../../../services/paystackService';
 import { objectStorageService, ObjectNotFoundError } from '../../../services/objectStorage';
 
 export { db, config, logger, sql, eq, ne, desc, and, count, crypto, bcrypt, jwt, multer };
 export { otpService, rpaJobs, runWebhookMigrations, developerWebhookLogs, fireWebhookIfEnabled, startWebhookRetryProcessor };
+export { ErrorCodes };
 export { paystackService, objectStorageService, ObjectNotFoundError };
 export type { Request, Response };
 
@@ -288,7 +290,7 @@ export async function logApiCall(
 export async function apiKeyAuth(req: Request, res: Response, next: Function) {
   const apiKey = (req.headers['x-api-key'] as string) || req.query.api_key as string;
   if (!apiKey) {
-    return res.status(401).json({ status: 'error', code: 401, message: 'API key required. Pass X-API-Key header.' });
+    return res.status(401).json({ status: 'error', code: 401, error_code: ErrorCodes.INVALID_API_KEY, message: 'API key required. Pass X-API-Key header.' });
   }
 
   const [keyRecord] = await db.select().from(developerApiKeys)
@@ -296,7 +298,7 @@ export async function apiKeyAuth(req: Request, res: Response, next: Function) {
     .limit(1);
 
   if (!keyRecord) {
-    return res.status(401).json({ status: 'error', code: 401, message: 'Invalid or revoked API key.' });
+    return res.status(401).json({ status: 'error', code: 401, error_code: ErrorCodes.INVALID_API_KEY, message: 'Invalid or revoked API key.' });
   }
 
   const [dev] = await db.select().from(developerUsers)
@@ -304,7 +306,7 @@ export async function apiKeyAuth(req: Request, res: Response, next: Function) {
     .limit(1);
 
   if (!dev) {
-    return res.status(401).json({ status: 'error', code: 401, message: 'Developer account not found or inactive.' });
+    return res.status(401).json({ status: 'error', code: 401, error_code: ErrorCodes.ACCOUNT_INACTIVE, message: 'Developer account not found or inactive.' });
   }
 
   const allowlist: string[] = (dev as any).ipAllowlist || [];
@@ -312,7 +314,7 @@ export async function apiKeyAuth(req: Request, res: Response, next: Function) {
     const clientIp = req.ip || req.headers['x-forwarded-for'] as string || '';
     const ipOk = allowlist.some(ip => clientIp.includes(ip));
     if (!ipOk) {
-      return res.status(403).json({ status: 'error', code: 403, message: 'IP address not on allowlist.' });
+      return res.status(403).json({ status: 'error', code: 403, error_code: ErrorCodes.IP_NOT_ALLOWED, message: 'IP address not on allowlist.' });
     }
   }
 

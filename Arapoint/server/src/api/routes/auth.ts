@@ -13,6 +13,7 @@ import { otpService } from '../../services/otpService';
 import jwt from 'jsonwebtoken';
 import { config } from '../../config/env';
 import { logLoginActivity } from '../../utils/loginActivity';
+import { ErrorCodes } from '../../utils/errorCodes';
 
 const router = Router();
 
@@ -44,7 +45,8 @@ router.post('/login', authRateLimiter, async (req: Request, res: Response) => {
     const validation = loginSchema.safeParse(req.body);
     if (!validation.success) {
       return res.status(400).json(formatErrorResponse(400, 'Validation error',
-        validation.error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
+        validation.error.errors.map(e => ({ field: e.path.join('.'), message: e.message })),
+        ErrorCodes.VALIDATION_ERROR
       ));
     }
 
@@ -60,7 +62,7 @@ router.post('/login', authRateLimiter, async (req: Request, res: Response) => {
     res.json(formatResponse('success', 200, 'Login successful', result));
   } catch (error: any) {
     logger.error('Login error', { error: error.message });
-    res.status(401).json(formatErrorResponse(401, 'Invalid credentials'));
+    res.status(401).json(formatErrorResponse(401, 'Invalid credentials', undefined, ErrorCodes.INVALID_CREDENTIALS));
   }
 });
 
@@ -69,7 +71,7 @@ router.post('/admin/login', authRateLimiter, async (req: Request, res: Response)
     const { email, password } = req.body;
     
     if (!email || !password) {
-      return res.status(400).json(formatErrorResponse(400, 'Email and password are required'));
+      return res.status(400).json(formatErrorResponse(400, 'Email and password are required', undefined, ErrorCodes.MISSING_REQUIRED_FIELD));
     }
 
     const [admin] = await db.select()
@@ -79,18 +81,18 @@ router.post('/admin/login', authRateLimiter, async (req: Request, res: Response)
 
     if (!admin) {
       logger.warn('Admin login failed: user not found', { email });
-      return res.status(401).json(formatErrorResponse(401, 'Invalid admin credentials'));
+      return res.status(401).json(formatErrorResponse(401, 'Invalid admin credentials', undefined, ErrorCodes.INVALID_CREDENTIALS));
     }
 
     if (!admin.isActive) {
       logger.warn('Admin login failed: account inactive', { email });
-      return res.status(401).json(formatErrorResponse(401, 'Admin account is inactive'));
+      return res.status(401).json(formatErrorResponse(401, 'Admin account is inactive', undefined, ErrorCodes.ACCOUNT_INACTIVE));
     }
 
     const isValidPassword = await bcrypt.compare(password, admin.passwordHash);
     if (!isValidPassword) {
       logger.warn('Admin login failed: invalid password', { email });
-      return res.status(401).json(formatErrorResponse(401, 'Invalid admin credentials'));
+      return res.status(401).json(formatErrorResponse(401, 'Invalid admin credentials', undefined, ErrorCodes.INVALID_CREDENTIALS));
     }
 
     // Block agent accounts from logging in through the admin portal
@@ -104,7 +106,7 @@ router.post('/admin/login', authRateLimiter, async (req: Request, res: Response)
 
     if (isAgentAccount) {
       logger.warn('Admin login blocked: account belongs to an agent', { email, adminId: admin.id });
-      return res.status(403).json(formatErrorResponse(403, 'Invalid admin credentials'));
+      return res.status(403).json(formatErrorResponse(403, 'Invalid admin credentials', undefined, ErrorCodes.FORBIDDEN));
     }
 
     await db.update(adminUsers)

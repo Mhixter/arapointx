@@ -25,10 +25,11 @@ export const formatResponse = (status: string, code: number, message: string, da
   };
 };
 
-export const formatErrorResponse = (code: number, message: string, errors?: any[]) => {
+export const formatErrorResponse = (code: number, message: string, errors?: any[], errorCode?: string) => {
   return {
     status: 'error',
     code,
+    ...(errorCode && { error_code: errorCode }),
     message,
     ...(errors && { errors }),
   };

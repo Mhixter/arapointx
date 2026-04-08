@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../middleware/auth';
 import { idempotencyMiddleware } from '../middleware/idempotency';
+import { ErrorCodes } from '../../utils/errorCodes';
 import { walletService } from '../../services/walletService';
 import { vtpassService } from '../../services/vtpassService';
 import { pricingService } from '../../services/pricingService';
@@ -40,20 +41,21 @@ router.post('/buy', async (req: Request, res: Response) => {
     const validation = airtimeBuySchema.safeParse(req.body);
     if (!validation.success) {
       return res.status(400).json(formatErrorResponse(400, 'Validation error',
-        validation.error.errors.map(e => ({ field: e.path.join('.'), message: e.message }))
+        validation.error.errors.map(e => ({ field: e.path.join('.'), message: e.message })),
+        ErrorCodes.VALIDATION_ERROR
       ));
     }
 
     const { network, phoneNumber, amount, type } = validation.data;
 
     if (!vtpassService.isConfigured()) {
-      return res.status(503).json(formatErrorResponse(503, 'VTU service is not configured'));
+      return res.status(503).json(formatErrorResponse(503, 'VTU service is not configured', undefined, ErrorCodes.SERVICE_UNAVAILABLE));
     }
 
     const balance = await walletService.getBalance(req.userId!);
-    const userChargedAmount = amount * 0.98; // 2% discount for user (User pays 98% of face value)
+    const userChargedAmount = amount * 0.98;
     if (balance.balance < userChargedAmount) {
-      return res.status(402).json(formatErrorResponse(402, 'Insufficient wallet balance'));
+      return res.status(402).json(formatErrorResponse(402, 'Insufficient wallet balance', undefined, ErrorCodes.INSUFFICIENT_BALANCE));
     }
 
     logger.info('Airtime purchase started', { userId: req.userId, network, amount, phone: phoneNumber.substring(0, 4) + '***' });
@@ -63,7 +65,7 @@ router.post('/buy', async (req: Request, res: Response) => {
 
     if (!result.success || !result.data) {
       logger.warn('Airtime purchase failed', { userId: req.userId, error: result.error });
-      return res.status(400).json(formatErrorResponse(400, result.error || 'Airtime purchase failed'));
+      return res.status(400).json(formatErrorResponse(400, result.error || 'Airtime purchase failed', undefined, ErrorCodes.PROVIDER_ERROR));
     }
 
     await walletService.deductBalance(req.userId!, userChargedAmount, `Airtime Purchase (2% Discount) - ${network.toUpperCase()}`, 'airtime_purchase');
@@ -91,16 +93,16 @@ router.post('/buy', async (req: Request, res: Response) => {
     }));
   } catch (error: any) {
     logger.error('Airtime purchase error', { error: error.message, userId: req.userId });
-    
+
     if (error.message === 'Insufficient wallet balance') {
-      return res.status(402).json(formatErrorResponse(402, error.message));
+      return res.status(402).json(formatErrorResponse(402, error.message, undefined, ErrorCodes.INSUFFICIENT_BALANCE));
     }
-    
+
     if (error.message === 'VTPASS_API_KEY and VTPASS_SECRET_KEY are not configured') {
-      return res.status(503).json(formatErrorResponse(503, 'VTU service is not configured'));
+      return res.status(503).json(formatErrorResponse(503, 'VTU service is not configured', undefined, ErrorCodes.SERVICE_UNAVAILABLE));
     }
-    
-    res.status(500).json(formatErrorResponse(500, 'Failed to process airtime purchase'));
+
+    res.status(500).json(formatErrorResponse(500, 'Failed to process airtime purchase', undefined, ErrorCodes.INTERNAL_ERROR));
   }
 });
 
