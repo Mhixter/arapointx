@@ -51,14 +51,19 @@ router.post('/buy', async (req: Request, res: Response) => {
       return res.status(400).json(formatErrorResponse(400, 'Invalid network provider'));
     }
 
+    // ATOMIC SAFETY: deduct wallet BEFORE calling VTpass so a crash after VTpass
+    // succeeds cannot deliver service for free. Refund immediately on any failure.
+    await walletService.deductBalance(req.userId!, amount, `Data Purchase - ${network.toUpperCase()}`, 'data_purchase');
+
     const result = await vtpassService.purchaseData(phoneNumber, planId, amount, serviceID);
 
     if (!result.success || !result.data) {
-      logger.warn('Data purchase failed', { userId: req.userId, error: result.error });
+      logger.warn('Data purchase failed — refunding wallet', { userId: req.userId, error: result.error });
+      await walletService.addBalance(req.userId!, amount, `Refund: Failed Data Purchase - ${network.toUpperCase()}`, 'data_refund').catch(
+        refundErr => logger.error('CRITICAL: Data refund failed', { userId: req.userId, amount, error: refundErr.message })
+      );
       return res.status(400).json(formatErrorResponse(400, result.error || 'Data purchase failed'));
     }
-
-    await walletService.deductBalance(req.userId!, amount, `Data Purchase - ${network.toUpperCase()}`, 'data_purchase');
 
     await db.insert(dataServices).values({
       userId: req.userId!,

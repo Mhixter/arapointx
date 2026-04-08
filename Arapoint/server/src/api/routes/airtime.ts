@@ -61,14 +61,20 @@ router.post('/buy', async (req: Request, res: Response) => {
     logger.info('Airtime purchase started', { userId: req.userId, network, amount, phone: phoneNumber.substring(0, 4) + '***' });
 
     const serviceID = NETWORK_SERVICE_IDS[network.toLowerCase()] || 'mtn';
+
+    // ATOMIC SAFETY: deduct wallet BEFORE calling VTpass so a crash after VTpass
+    // succeeds cannot deliver service for free. Refund immediately on any failure.
+    await walletService.deductBalance(req.userId!, userChargedAmount, `Airtime Purchase (2% Discount) - ${network.toUpperCase()}`, 'airtime_purchase');
+
     const result = await vtpassService.purchaseAirtime(phoneNumber, amount, serviceID);
 
     if (!result.success || !result.data) {
-      logger.warn('Airtime purchase failed', { userId: req.userId, error: result.error });
+      logger.warn('Airtime purchase failed — refunding wallet', { userId: req.userId, error: result.error });
+      await walletService.addBalance(req.userId!, userChargedAmount, `Refund: Failed Airtime Purchase - ${network.toUpperCase()}`, 'airtime_refund').catch(
+        refundErr => logger.error('CRITICAL: Airtime refund failed', { userId: req.userId, amount: userChargedAmount, error: refundErr.message })
+      );
       return res.status(400).json(formatErrorResponse(400, result.error || 'Airtime purchase failed', undefined, ErrorCodes.PROVIDER_ERROR));
     }
-
-    await walletService.deductBalance(req.userId!, userChargedAmount, `Airtime Purchase (2% Discount) - ${network.toUpperCase()}`, 'airtime_purchase');
 
     await db.insert(airtimeServices).values({
       userId: req.userId!,

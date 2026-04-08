@@ -6,7 +6,8 @@ import { sendEmail } from './emailService';
 
 export const otpService = {
   generateOTP(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    const { randomInt } = require('crypto');
+    return randomInt(100000, 1000000).toString();
   },
 
   async sendOTPEmail(email: string, otp: string, purpose: string = 'registration'): Promise<boolean> {

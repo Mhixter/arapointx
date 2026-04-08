@@ -67,6 +67,10 @@ router.post('/buy', async (req: Request, res: Response) => {
 
     logger.info('Electricity purchase started', { userId: req.userId, serviceID, meterNumber: meterNumber.substring(0, 4) + '***', amount });
 
+    // ATOMIC SAFETY: deduct wallet BEFORE calling VTpass so a crash after VTpass
+    // succeeds cannot deliver service for free. Refund immediately on any failure.
+    await walletService.deductBalance(req.userId!, amount, `Electricity - ${discoName.toUpperCase()}`, 'electricity_purchase');
+
     const result = await vtpassService.purchaseElectricity(
       meterNumber,
       amount,
@@ -76,11 +80,12 @@ router.post('/buy', async (req: Request, res: Response) => {
     );
 
     if (!result.success || !result.data) {
-      logger.warn('Electricity purchase failed', { userId: req.userId, error: result.error });
+      logger.warn('Electricity purchase failed — refunding wallet', { userId: req.userId, error: result.error });
+      await walletService.addBalance(req.userId!, amount, `Refund: Failed Electricity Purchase - ${discoName.toUpperCase()}`, 'electricity_refund').catch(
+        refundErr => logger.error('CRITICAL: Electricity refund failed', { userId: req.userId, amount, error: refundErr.message })
+      );
       return res.status(400).json(formatErrorResponse(400, result.error || 'Electricity purchase failed'));
     }
-
-    await walletService.deductBalance(req.userId!, amount, `Electricity - ${discoName.toUpperCase()}`, 'electricity_purchase');
 
     await db.insert(electricityServices).values({
       userId: req.userId!,

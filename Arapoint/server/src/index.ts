@@ -2,6 +2,7 @@ import express from 'express';
 import { config } from './config/env';
 import { logger } from './utils/logger';
 import { errorHandler } from './api/middleware/errorHandler';
+import { runStartupMigrations } from './utils/startupMigrations';
 
 // Import routes
 import authRoutes from './api/routes/auth';
@@ -55,10 +56,13 @@ app.use((req, res) => {
 // Start Server
 const PORT = config.PORT;
 
-app.listen(PORT, () => {
-  logger.info(`Server running on port ${PORT}`);
-  logger.info(`Environment: ${config.NODE_ENV}`);
-  logger.info('API server ready — RPA runs in a separate process (rpa-worker)');
-});
+(async () => {
+  await runStartupMigrations();
+  app.listen(PORT, () => {
+    logger.info(`Server running on port ${PORT}`);
+    logger.info(`Environment: ${config.NODE_ENV}`);
+    logger.info('API server ready — RPA runs in a separate process (rpa-worker)');
+  });
+})();
 
 export default app;

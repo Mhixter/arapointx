@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
+import { authRateLimiter } from '../middleware/rateLimit';
 import { db } from '../../config/database';
 import { 
   jambAgents,
@@ -61,7 +62,7 @@ const jambAgentAuthMiddleware = async (req: Request, res: Response, next: Functi
   }
 };
 
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', authRateLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 

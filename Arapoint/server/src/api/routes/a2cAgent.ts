@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { authRateLimiter } from '../middleware/rateLimit';
 import { db } from '../../config/database';
 import { adminUsers, a2cAgents, a2cRequests, a2cPhoneInventory, a2cStatusHistory, users, servicePricing, agentInternalMessages } from '../../db/schema';
 import { eq, and, desc, count, sql, isNull, or, gte } from 'drizzle-orm';
@@ -56,7 +57,7 @@ const a2cAgentAuthMiddleware = async (req: Request, res: Response, next: Functio
   }
 };
 
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', authRateLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 

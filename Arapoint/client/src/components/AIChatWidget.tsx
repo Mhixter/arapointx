@@ -18,11 +18,14 @@ const WELCOME_MESSAGE: Message = {
   createdAt: new Date(),
 };
 
-function formatMarkdown(text: string): string {
-  return text
-    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*(.+?)\*/g, "<em>$1</em>")
-    .replace(/\n/g, "<br/>");
+function sanitizeAndFormat(text: string): string {
+  const stripped = text
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<[^>]+>/g, '');
+  return stripped
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/\n/g, '<br/>');
 }
 
 function TypingDots() {
@@ -249,7 +252,7 @@ export default function AIChatWidget() {
                       ? "bg-blue-500 text-white rounded-tr-sm"
                       : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-tl-sm shadow-sm border border-gray-100 dark:border-gray-700"
                     }`}
-                  dangerouslySetInnerHTML={{ __html: formatMarkdown(msg.content) }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeAndFormat(msg.content) }}
                 />
               </div>
             ))}

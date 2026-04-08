@@ -205,6 +205,27 @@ router.get('/vtpass/webhook-info', authMiddleware, async (req: Request, res: Res
 
 router.post('/vtpass/webhook', async (req: Request, res: Response) => {
   try {
+    // Validate VTpass webhook authenticity before processing.
+    // VTpass sends the shared secret as a Bearer token in the Authorization header.
+    const webhookSecret = process.env.VTPASS_WEBHOOK_SECRET;
+    if (webhookSecret) {
+      const authHeader = req.headers['authorization'] || '';
+      const providedToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+      // Use constant-time comparison to prevent timing attacks
+      const expected = Buffer.from(webhookSecret);
+      const provided  = Buffer.from(providedToken);
+      const validLength = expected.length === provided.length;
+      if (!validLength || !crypto.timingSafeEqual(
+        Buffer.from(webhookSecret.padEnd(provided.length, '\0')),
+        Buffer.from(providedToken.padEnd(expected.length, '\0'))
+      ) || !validLength) {
+        logger.warn('VTpass webhook rejected — invalid signature', { ip: req.ip });
+        return res.status(401).json({ response: 'unauthorized' });
+      }
+    } else {
+      logger.warn('VTPASS_WEBHOOK_SECRET is not set — webhook signature validation is DISABLED');
+    }
+
     const payload = req.body;
     logger.info('VTpass webhook received', { type: payload.type });
 

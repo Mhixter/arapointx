@@ -1,6 +1,12 @@
 import * as crypto from 'crypto';
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'your-32-character-encryption-key!';
+const rawKey = process.env.ENCRYPTION_KEY;
+if (!rawKey || rawKey.trim() === '' || rawKey === 'your-32-character-encryption-key!') {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('FATAL: ENCRYPTION_KEY environment variable is not set. Cannot start in production.');
+  }
+}
+const ENCRYPTION_KEY = rawKey || 'dev-only-encryption-key-32chars!!!';
 
 export const encrypt = (text: string): string => {
   const iv = crypto.randomBytes(16);
