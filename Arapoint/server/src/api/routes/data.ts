@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../middleware/auth';
+import { idempotencyMiddleware } from '../middleware/idempotency';
 import { walletService } from '../../services/walletService';
 import { vtpassService } from '../../services/vtpassService';
 import { dataBuySchema } from '../validators/vtu';
@@ -11,6 +12,7 @@ import { eq, desc } from 'drizzle-orm';
 
 const router = Router();
 router.use(authMiddleware);
+router.use(idempotencyMiddleware);
 
 const NETWORK_SERVICE_IDS: Record<string, 'mtn-data' | 'airtel-data' | 'glo-data' | '9mobile-sme-data'> = {
   'mtn': 'mtn-data',

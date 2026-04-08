@@ -5,6 +5,19 @@ import { logger } from '../utils/logger';
 import { generateReferenceId } from '../utils/helpers';
 import { fraudService } from './fraudService';
 
+// ─── Idempotency: check if a payment reference was already processed ──────────
+async function isReferenceAlreadyProcessed(reference: string): Promise<boolean> {
+  try {
+    const [existing] = await db.select({ referenceId: transactions.referenceId })
+      .from(transactions)
+      .where(eq(transactions.referenceId, reference))
+      .limit(1);
+    return !!existing;
+  } catch {
+    return false;
+  }
+}
+
 export const walletService = {
   async getBalance(userId: string) {
     const [user] = await db.select({ walletBalance: users.walletBalance })
@@ -23,6 +36,15 @@ export const walletService = {
   },
 
   async addBalance(userId: string, amount: number, reference: string, paymentMethod: string = 'wallet_fund') {
+    // ── Idempotency guard: reject duplicate references ──────────────────────
+    const alreadyProcessed = await isReferenceAlreadyProcessed(reference);
+    if (alreadyProcessed) {
+      logger.warn('Duplicate wallet credit rejected — reference already processed', { userId, reference, amount });
+      const [user] = await db.select({ walletBalance: users.walletBalance }).from(users).where(eq(users.id, userId)).limit(1);
+      const currentBalance = parseFloat(user?.walletBalance || '0');
+      return { newBalance: currentBalance, amount, reference, duplicate: true };
+    }
+
     let newBalance: number;
 
     await db.transaction(async (tx) => {

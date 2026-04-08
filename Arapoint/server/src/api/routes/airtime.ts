@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../middleware/auth';
+import { idempotencyMiddleware } from '../middleware/idempotency';
 import { walletService } from '../../services/walletService';
 import { vtpassService } from '../../services/vtpassService';
 import { pricingService } from '../../services/pricingService';
@@ -13,6 +14,7 @@ import { eq, desc, and, sql, asc, gte, notInArray } from 'drizzle-orm';
 
 const router = Router();
 router.use(authMiddleware);
+router.use(idempotencyMiddleware);
 
 const AIRTIME_PRESETS = [
   { amount: 100, label: '100' },

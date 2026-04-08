@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { db, sql, logger, runWebhookMigrations } from './shared';
+import { db, sql, logger, runWebhookMigrations, startWebhookRetryProcessor } from './shared';
 
 import authRouter from './auth';
 import profileRouter from './profile';
@@ -234,6 +234,14 @@ const router = Router();
     `);
   } catch (e: any) {
     // Column already exists or minor error — safe to ignore
+  }
+
+  // Run webhook-specific migrations and start the DB-backed retry processor
+  try {
+    await runWebhookMigrations();
+    startWebhookRetryProcessor();
+  } catch (e: any) {
+    logger.warn('Webhook startup warning', { msg: e.message });
   }
 })();
 

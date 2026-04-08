@@ -12,12 +12,12 @@ import {
 } from 'drizzle-orm/pg-core';
 import { otpService } from '../../../services/otpService';
 import { rpaJobs } from '../../../db/schema';
-import { runWebhookMigrations, developerWebhookLogs, fireWebhookIfEnabled } from '../../../services/webhookService';
+import { runWebhookMigrations, developerWebhookLogs, fireWebhookIfEnabled, startWebhookRetryProcessor } from '../../../services/webhookService';
 import * as paystackService from '../../../services/paystackService';
 import { objectStorageService, ObjectNotFoundError } from '../../../services/objectStorage';
 
 export { db, config, logger, sql, eq, ne, desc, and, count, crypto, bcrypt, jwt, multer };
-export { otpService, rpaJobs, runWebhookMigrations, developerWebhookLogs, fireWebhookIfEnabled };
+export { otpService, rpaJobs, runWebhookMigrations, developerWebhookLogs, fireWebhookIfEnabled, startWebhookRetryProcessor };
 export { paystackService, objectStorageService, ObjectNotFoundError };
 export type { Request, Response };
 
@@ -99,10 +99,34 @@ export const API_PRICES: Record<string, number> = {
 };
 
 export const RATE_LIMITS: Record<string, number> = { sandbox: 100, live: 10000 };
+export const BURST_LIMITS: Record<string, number> = { sandbox: 10, live: 60 }; // per minute
 
-export async function checkRateLimit(apiKey: string, environment: string, developerId?: string): Promise<{ allowed: boolean; remaining: number; resetAt: number; limit: number }> {
-  const windowMs = 24 * 60 * 60 * 1000;
+async function upsertRateLimit(key: string, windowMs: number): Promise<{ count: number; resetAt: number }> {
+  const now = Date.now();
+  const resetTime = now + windowMs;
+  const result = await db.execute(sql`
+    INSERT INTO rate_limits (key, count, reset_time)
+    VALUES (${key}, 1, ${resetTime})
+    ON CONFLICT (key) DO UPDATE SET
+      count = CASE
+        WHEN rate_limits.reset_time < ${now} THEN 1
+        ELSE rate_limits.count + 1
+      END,
+      reset_time = CASE
+        WHEN rate_limits.reset_time < ${now} THEN ${resetTime}
+        ELSE rate_limits.reset_time
+      END
+    RETURNING count, reset_time
+  `);
+  const row = result.rows[0] as { count: number; reset_time: string };
+  return { count: Number(row.count), resetAt: Number(row.reset_time) };
+}
+
+export async function checkRateLimit(apiKey: string, environment: string, developerId?: string): Promise<{ allowed: boolean; remaining: number; resetAt: number; limit: number; burstExceeded?: boolean }> {
+  const dayMs = 24 * 60 * 60 * 1000;
+  const minuteMs = 60 * 1000;
   let limit = RATE_LIMITS[environment] || 100;
+  const burstLimit = BURST_LIMITS[environment] || 10;
 
   if (developerId) {
     try {
@@ -115,10 +139,6 @@ export async function checkRateLimit(apiKey: string, environment: string, develo
     } catch {}
   }
 
-  const now = Date.now();
-  const resetTime = now + windowMs;
-  const key = `dev_api_${apiKey}`;
-
   try {
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS rate_limits (
@@ -128,34 +148,24 @@ export async function checkRateLimit(apiKey: string, environment: string, develo
       )
     `);
 
-    const result = await db.execute(sql`
-      INSERT INTO rate_limits (key, count, reset_time)
-      VALUES (${key}, 1, ${resetTime})
-      ON CONFLICT (key) DO UPDATE SET
-        count = CASE
-          WHEN rate_limits.reset_time < ${now} THEN 1
-          ELSE rate_limits.count + 1
-        END,
-        reset_time = CASE
-          WHEN rate_limits.reset_time < ${now} THEN ${resetTime}
-          ELSE rate_limits.reset_time
-        END
-      RETURNING count, reset_time
-    `);
+    // Check per-minute burst first
+    const burst = await upsertRateLimit(`dev_burst_${apiKey}`, minuteMs);
+    if (burst.count > burstLimit) {
+      return { allowed: false, remaining: 0, resetAt: burst.resetAt, limit: burstLimit, burstExceeded: true };
+    }
 
-    const row = result.rows[0] as { count: number; reset_time: string };
-    const cnt = Number(row.count);
-    const storedReset = Number(row.reset_time);
-
+    // Check per-day limit
+    const daily = await upsertRateLimit(`dev_api_${apiKey}`, dayMs);
     return {
-      allowed: cnt <= limit,
-      remaining: Math.max(0, limit - cnt),
-      resetAt: storedReset,
+      allowed: daily.count <= limit,
+      remaining: Math.max(0, limit - daily.count),
+      resetAt: daily.resetAt,
       limit,
+      burstExceeded: false,
     };
   } catch (e: any) {
     logger.warn('Developer rate limit DB error, allowing request', { error: e.message });
-    return { allowed: true, remaining: limit, resetAt: now + windowMs, limit };
+    return { allowed: true, remaining: limit, resetAt: Date.now() + dayMs, limit };
   }
 }
 
@@ -312,8 +322,11 @@ export async function apiKeyAuth(req: Request, res: Response, next: Function) {
   res.setHeader('X-RateLimit-Remaining', rateCheck.remaining);
   res.setHeader('X-RateLimit-Reset', Math.floor(rateCheck.resetAt / 1000));
   if (!rateCheck.allowed) {
+    const message = rateCheck.burstExceeded
+      ? 'Burst limit exceeded. Maximum 60 requests per minute on live, 10 on sandbox.'
+      : 'Daily rate limit exceeded. Upgrade your plan or wait for the window to reset.';
     return res.status(429).json({
-      status: 'error', code: 429, message: 'Rate limit exceeded',
+      status: 'error', code: 429, message,
       retry_after: Math.ceil((rateCheck.resetAt - Date.now()) / 1000),
     });
   }
