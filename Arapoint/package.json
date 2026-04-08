@@ -11,7 +11,7 @@
     "start:production": "npm run db:push && npm run seed:admin && npm run start",
     "seed:admin": "tsx scripts/seed-admin.ts",
     "check": "tsc",
-    "db:push": "drizzle-kit push --accept-data-loss"
+    "db:push": "drizzle-kit push --force"
   },
   "dependencies": {
     "@google-cloud/storage": "^7.18.0",

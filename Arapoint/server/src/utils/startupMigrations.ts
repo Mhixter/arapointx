@@ -8,6 +8,25 @@ import { sql } from 'drizzle-orm';
  */
 export async function runStartupMigrations(): Promise<void> {
   const indexes: Array<{ name: string; ddl: string }> = [
+    // Schema constraints (must run before plain indexes)
+    {
+      name: 'ai_chat_sessions_session_token_unique',
+      ddl: `DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conname = 'ai_chat_sessions_session_token_unique'
+          ) THEN
+            -- Remove duplicate session_tokens keeping the most recent row
+            DELETE FROM ai_chat_sessions a
+            USING ai_chat_sessions b
+            WHERE a.session_token = b.session_token
+              AND a.created_at < b.created_at;
+            ALTER TABLE ai_chat_sessions
+              ADD CONSTRAINT ai_chat_sessions_session_token_unique UNIQUE (session_token);
+          END IF;
+        END $$`,
+    },
     {
       name: 'idx_transactions_reference_id',
       ddl: `CREATE INDEX IF NOT EXISTS idx_transactions_reference_id
