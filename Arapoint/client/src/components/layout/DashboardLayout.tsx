@@ -1,4 +1,5 @@
 import { tokenStorage } from '@/lib/tokenStorage';
+import AIChatWidget from "@/components/AIChatWidget";
 import { Link, useLocation } from "wouter";
 import { 
   LayoutDashboard, 
@@ -347,6 +348,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </main>
       </div>
+      <AIChatWidget />
     </div>
   );
 }

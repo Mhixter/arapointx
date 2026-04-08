@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import arapointLogo from "@assets/generated_images/arapoint_solution_logo.png";
 import { useSettings } from "@/contexts/SettingsContext";
+import AIChatWidget from "@/components/AIChatWidget";
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -84,6 +85,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       <main className="flex-1">
         {children}
       </main>
+      <AIChatWidget />
 
       <footer className="border-t border-border/50 bg-muted/20">
         <div className="container mx-auto py-14 px-4 sm:px-6 lg:px-8">

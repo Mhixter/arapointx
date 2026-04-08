@@ -30,7 +30,7 @@ Preferred communication style: Simple, everyday language.
 - **Database**: PostgreSQL (Neon serverless)
 - **ORM**: Drizzle ORM with schema defined in `Arapoint/shared/schema.ts` and `Arapoint/server/src/db/schema.ts`
 - **Migrations**: Drizzle Kit with migrations stored in `Arapoint/migrations/`
-- **Key Tables**: users, otp_verifications, rpa_jobs, transactions, identity_verifications, education_services, virtual_accounts, support_tickets, support_conversations, support_messages, support_internal_notes, support_presence
+- **Key Tables**: users, otp_verifications, rpa_jobs, transactions, identity_verifications, education_services, virtual_accounts, support_tickets, support_conversations, support_messages, support_internal_notes, support_presence, ai_chat_sessions, ai_chat_messages
 
 ### RPA (Robotic Process Automation) Layer
 - **Purpose**: Automates queries to third-party Nigerian government and institutional portals that lack APIs

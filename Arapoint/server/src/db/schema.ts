@@ -1014,3 +1014,33 @@ export const aiUnresolvedQueries = pgTable('ai_unresolved_queries', {
   resolvedBy: uuid('resolved_by').references(() => adminUsers.id),
   createdAt: timestamp('created_at').defaultNow(),
 });
+
+// AI Chat Sessions - Every user chat session with Ara (AI assistant)
+export const aiChatSessions = pgTable('ai_chat_sessions', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  sessionToken: varchar('session_token', { length: 64 }).unique().notNull(),
+  userId: uuid('user_id').references(() => users.id),
+  status: varchar('status', { length: 20 }).default('active'),
+  escalatedTicketId: uuid('escalated_ticket_id').references(() => supportTickets.id),
+  userAgent: text('user_agent'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => [
+  index('acs_user_idx').on(table.userId),
+  index('acs_token_idx').on(table.sessionToken),
+  index('acs_status_idx').on(table.status),
+]);
+
+// AI Chat Messages - Individual messages in each AI chat session
+export const aiChatMessages = pgTable('ai_chat_messages', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: uuid('session_id').references(() => aiChatSessions.id).notNull(),
+  role: varchar('role', { length: 20 }).notNull(),
+  content: text('content'),
+  toolCalls: jsonb('tool_calls'),
+  toolCallId: varchar('tool_call_id', { length: 100 }),
+  name: varchar('name', { length: 50 }),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => [
+  index('acm_session_idx').on(table.sessionId),
+]);
