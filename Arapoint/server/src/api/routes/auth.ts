@@ -12,6 +12,7 @@ import bcrypt from 'bcryptjs';
 import { otpService } from '../../services/otpService';
 import jwt from 'jsonwebtoken';
 import { config } from '../../config/env';
+import { logLoginActivity } from '../../utils/loginActivity';
 
 const router = Router();
 
@@ -48,7 +49,14 @@ router.post('/login', authRateLimiter, async (req: Request, res: Response) => {
     }
 
     const result = await userService.login(validation.data);
-    
+
+    logLoginActivity(req, {
+      actorType: 'user',
+      actorId: result.user.id,
+      actorEmail: result.user.email,
+      actorName: result.user.name || result.user.email,
+    });
+
     res.json(formatResponse('success', 200, 'Login successful', result));
   } catch (error: any) {
     logger.error('Login error', { error: error.message });
@@ -125,6 +133,13 @@ router.post('/admin/login', authRateLimiter, async (req: Request, res: Response)
     );
 
     logger.info('Admin login successful', { adminId: admin.id, email: admin.email, role: roleName });
+
+    logLoginActivity(req, {
+      actorType: roleName === 'support_agent' ? 'agent' : 'admin',
+      actorId: admin.id,
+      actorEmail: admin.email,
+      actorName: admin.name || admin.email,
+    });
 
     res.json(formatResponse('success', 200, 'Admin login successful', {
       accessToken,

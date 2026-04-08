@@ -98,6 +98,7 @@ import AdminActivityLog from "@/pages/admin/AdminActivityLog";
 import AdminRPAJobs from "@/pages/admin/AdminRPAJobs";
 import AdminDeveloperPortal from "@/pages/admin/AdminDeveloperPortal";
 import AdminQueueMonitor from "@/pages/admin/AdminQueueMonitor";
+import AdminLoginActivity from "@/pages/admin/AdminLoginActivity";
 import AdminCRUDLayout from "@/components/layout/AdminCRUDLayout";
 
 // Developer Portal Imports
@@ -264,6 +265,11 @@ function Router() {
       <Route path="/admin/employment-queue">
         <AdminCRUDLayout>
           <AdminQueueMonitor />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/login-activity">
+        <AdminCRUDLayout>
+          <AdminLoginActivity />
         </AdminCRUDLayout>
       </Route>
 

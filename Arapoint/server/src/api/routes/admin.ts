@@ -66,6 +66,7 @@ import {
   sharedFiles,
   adminActivityLogs,
   otpVerifications,
+  loginActivities,
 } from '../../db/schema';
 import { sendEmail } from '../../services/emailService';
 import { agentWelcomeEmailHtml } from '../../utils/agentEmailTemplates';
@@ -4683,6 +4684,55 @@ router.post('/support/queue/accept-next', async (req: Request, res: Response) =>
   } catch (error: any) {
     logger.error('Accept next error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to accept next ticket'));
+  }
+});
+
+router.get('/login-activities', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, parseInt(req.query.limit as string) || 50);
+    const offset = (page - 1) * limit;
+    const actorType = req.query.actorType as string | undefined;
+    const search = req.query.search as string | undefined;
+    const from = req.query.from as string | undefined;
+    const to = req.query.to as string | undefined;
+
+    const conditions: any[] = [];
+    if (actorType && actorType !== 'all') {
+      conditions.push(eq(loginActivities.actorType, actorType as any));
+    }
+    if (search) {
+      conditions.push(
+        or(
+          ilike(loginActivities.actorEmail, `%${search}%`),
+          ilike(loginActivities.actorName, `%${search}%`),
+          ilike(loginActivities.ipAddress, `%${search}%`),
+        )
+      );
+    }
+    if (from) {
+      conditions.push(gte(loginActivities.createdAt, new Date(from)));
+    }
+    if (to) {
+      conditions.push(lte(loginActivities.createdAt, new Date(to)));
+    }
+
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [rows, countResult] = await Promise.all([
+      db.select().from(loginActivities).where(where).orderBy(desc(loginActivities.createdAt)).limit(limit).offset(offset),
+      db.select({ count: count() }).from(loginActivities).where(where),
+    ]);
+
+    const total = Number(countResult[0]?.count ?? 0);
+
+    res.json(formatResponse('success', 200, 'Login activities fetched', {
+      data: rows,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    }));
+  } catch (error: any) {
+    logger.error('Login activities fetch error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to fetch login activities'));
   }
 });
 

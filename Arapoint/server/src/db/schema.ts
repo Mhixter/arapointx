@@ -1031,7 +1031,26 @@ export const aiChatSessions = pgTable('ai_chat_sessions', {
   index('acs_status_idx').on(table.status),
 ]);
 
-// AI Chat Messages - Individual messages in each AI chat session
+export const loginActivities = pgTable('login_activities', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  actorType: varchar('actor_type', { length: 20 }).notNull(),
+  actorId: varchar('actor_id', { length: 255 }),
+  actorEmail: varchar('actor_email', { length: 255 }).notNull(),
+  actorName: varchar('actor_name', { length: 255 }),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  userAgent: text('user_agent'),
+  device: varchar('device', { length: 100 }),
+  browser: varchar('browser', { length: 100 }),
+  os: varchar('os', { length: 100 }),
+  status: varchar('status', { length: 20 }).default('success').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index('la_actor_type_idx').on(table.actorType),
+  index('la_actor_id_idx').on(table.actorId),
+  index('la_created_idx').on(table.createdAt),
+  index('la_status_idx').on(table.status),
+]);
+
 export const aiChatMessages = pgTable('ai_chat_messages', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   sessionId: uuid('session_id').references(() => aiChatSessions.id).notNull(),

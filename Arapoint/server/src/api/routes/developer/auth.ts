@@ -4,6 +4,7 @@ import {
   developerUsers, developerApiKeys, eq,
   otpService, generateApiKey, generateSecretKey, devBalance,
 } from './shared';
+import { logLoginActivity } from '../../../utils/loginActivity';
 
 const router = Router();
 
@@ -106,6 +107,14 @@ router.post('/auth/login', async (req: Request, res: Response) => {
       return res.status(401).json({ status: 'error', code: 401, message: 'Invalid credentials' });
     }
     const token = jwt.sign({ developerId: dev.id }, config.JWT_SECRET, { expiresIn: '7d' });
+
+    logLoginActivity(req, {
+      actorType: 'developer',
+      actorId: dev.id,
+      actorEmail: dev.email,
+      actorName: dev.name || dev.email,
+    });
+
     res.json({
       status: 'success', code: 200, message: 'Login successful',
       data: {
