@@ -5,7 +5,7 @@ import {
   supportConversations, supportMessages, supportQueue, transactions,
   virtualAccounts,
 } from '../../db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, sql } from 'drizzle-orm';
 import { logger } from '../../utils/logger';
 import jwt from 'jsonwebtoken';
 import { config } from '../../config/env';
@@ -13,6 +13,41 @@ import { randomUUID } from 'crypto';
 import OpenAI from 'openai';
 
 const router = Router();
+
+(async () => {
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS ai_chat_sessions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        session_token VARCHAR(64) UNIQUE NOT NULL,
+        user_id UUID REFERENCES users(id),
+        status VARCHAR(20) DEFAULT 'active',
+        escalated_ticket_id UUID REFERENCES support_tickets(id),
+        user_agent TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS acs_user_idx ON ai_chat_sessions(user_id);
+      CREATE INDEX IF NOT EXISTS acs_token_idx ON ai_chat_sessions(session_token);
+      CREATE INDEX IF NOT EXISTS acs_status_idx ON ai_chat_sessions(status);
+
+      CREATE TABLE IF NOT EXISTS ai_chat_messages (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        session_id UUID REFERENCES ai_chat_sessions(id) NOT NULL,
+        role VARCHAR(20) NOT NULL,
+        content TEXT,
+        tool_calls JSONB,
+        tool_call_id VARCHAR(100),
+        name VARCHAR(50),
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS acm_session_idx ON ai_chat_messages(session_id);
+    `);
+    logger.info('AI chat tables ready');
+  } catch (e: any) {
+    logger.error('AI chat table migration error', { error: e.message });
+  }
+})();
 
 function getOpenAI(): OpenAI | null {
   const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
