@@ -207,8 +207,8 @@ export default function AIChatWidget() {
           style={{
             width: "min(380px, calc(100vw - 24px))",
             height: "min(560px, calc(100vh - 120px))",
-            background: "var(--background, #fff)",
-            border: "1px solid var(--border, #e5e7eb)",
+            background: "#ffffff",
+            border: "1px solid #e5e7eb",
           }}
         >
           {/* Header */}
@@ -236,7 +236,7 @@ export default function AIChatWidget() {
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3"
-            style={{ background: "var(--muted, #f9fafb)" }}>
+            style={{ background: "#f9fafb" }}>
             {messages.map(msg => (
               <div key={msg.id} className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
                 <div className={`w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold
