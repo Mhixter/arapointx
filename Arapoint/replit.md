@@ -19,6 +19,36 @@ Arapoint is a production-ready Nigerian Identity Verification and Management Pla
 - **Email**: SendGrid (for OTP delivery)
 - **Identity Verification**: YouVerify API (NIN/BVN)
 
+## Recent Updates (April 2026 — Phase 2 Infrastructure Hardening)
+
+### Circuit Breaker — All External Providers Protected
+A `CircuitBreaker` class (`server/src/utils/circuitBreaker.ts`) now wraps every external HTTP call. State machine: `CLOSED → OPEN (after N failures) → HALF_OPEN (retry after 60s) → CLOSED`.
+
+Pre-registered breakers with individual thresholds and timeouts:
+| Circuit | Failure threshold | Request timeout |
+|---|---|---|
+| `vtpass` | 4 | 60s |
+| `youverify` | 3 | 30s |
+| `prembly` | 3 | 30s |
+| `paystack` | 5 | 20s |
+| `payvessel` | 5 | 20s |
+| `paymentpoint` | 5 | 20s |
+| `smtp` | 3 | 10s |
+
+All VTpass methods (airtime, data, electricity, cable, meter/smartcard verify, requery) now use `vtpassCircuit.call(...)`. When the circuit is OPEN, requests return `{ success: false, errorCode: 'CIRCUIT_OPEN' }` instantly rather than hanging the server.
+
+### Persistent DB-backed Cache Service
+`cacheService` (`server/src/services/cacheService.ts`) stores key-value data in a `server_cache` PostgreSQL table with per-entry TTL. Survives server restarts. Used for infrastructure data. API: `get(key)`, `set(key, value, ttlSeconds)`, `del(key)`, `flush(prefix)`, `stats()`. Eviction runs every 5 minutes.
+
+### Enhanced Health Endpoints
+- `GET /api/health` — public, shows DB status + circuit breaker summary (open circuits listed by name)
+- `GET /api/health/detailed` — admin-only, full circuit states + cache stats + memory breakdown
+- `POST /api/admin/reload-credentials` — admin endpoint to hot-reload gateway credentials from DB into `process.env` + reset VTpass HTTP client, **no server restart required**
+- `POST /api/admin/circuits/:name/reset` — admin endpoint to manually force a circuit from OPEN → CLOSED
+
+### Machine-readable Error Codes (Phase 1 completion)
+All API errors now include `error_code` string (e.g. `INVALID_CREDENTIALS`, `TOKEN_EXPIRED`, `CIRCUIT_OPEN`). Defined in `server/src/utils/errorCodes.ts`. Applied to: user auth, admin auth, developer API key auth, airtime/VTU routes, idempotency middleware.
+
 ## Recent Updates (April 2026 — Employment Queue + Admin Monitor + RPA Fixes)
 
 ### Employment Endpoint — Fully Async Queue Architecture

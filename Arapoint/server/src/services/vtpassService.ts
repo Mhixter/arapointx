@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { logger } from '../utils/logger';
 import { generateReferenceId } from '../utils/helpers';
+import { vtpassCircuit } from '../utils/circuitBreaker';
 
 const VTPASS_LIVE_URL = 'https://vtpass.com/api';
 const VTPASS_SANDBOX_URL = 'https://sandbox.vtpass.com/api';
@@ -97,12 +98,12 @@ class VTpassService {
     try {
       logger.info('VTpass airtime purchase started', { phone: phone.substring(0, 4) + '***', amount, network, reference });
 
-      const response = await this.getClient().post('/pay', {
+      const response = await vtpassCircuit.call(() => this.getClient().post('/pay', {
         request_id: reference,
         serviceID: network,
         amount: amount,
         phone: phone,
-      });
+      }));
 
       if (response.data.code === '000') {
         const tx = response.data.content?.transactions || {};
@@ -121,32 +122,16 @@ class VTpassService {
       } else {
         const errorMsg = response.data.response_description || 'Airtime purchase failed';
         logger.warn('VTpass airtime purchase failed', { error: errorMsg, reference, code: response.data.code });
-        return { 
-          success: false, 
-          error: errorMsg, 
-          reference,
-          errorCode: response.data.code,
-        };
+        return { success: false, error: errorMsg, reference, errorCode: response.data.code };
       }
     } catch (error: any) {
-      logger.error('VTpass airtime purchase error', { 
-        error: error.message, 
-        reference,
-        status: error.response?.status,
-        responseData: error.response?.data,
-      });
-      
-      const errorMsg = error.response?.data?.response_description || 
-                       error.response?.data?.message || 
-                       error.message || 
-                       'Airtime purchase failed';
-      
-      return { 
-        success: false, 
-        error: errorMsg, 
-        reference,
-        errorCode: error.response?.data?.code,
-      };
+      if (error.circuitOpen) {
+        logger.warn('VTpass circuit OPEN — airtime purchase blocked', { name: error.circuitName });
+        return { success: false, error: 'VTpass service is temporarily unavailable. Please try again shortly.', reference, errorCode: 'CIRCUIT_OPEN' };
+      }
+      logger.error('VTpass airtime purchase error', { error: error.message, reference, status: error.response?.status });
+      const errorMsg = error.response?.data?.response_description || error.response?.data?.message || error.message || 'Airtime purchase failed';
+      return { success: false, error: errorMsg, reference, errorCode: error.response?.data?.code };
     }
   }
 
@@ -154,7 +139,7 @@ class VTpassService {
     try {
       logger.info('VTpass fetching data plans', { network });
 
-      const response = await this.getClient().get(`/service-variations?serviceID=${network}`);
+      const response = await vtpassCircuit.call(() => this.getClient().get(`/service-variations?serviceID=${network}`));
 
       if (response.data.response_description === '000' || response.data.content?.variations) {
         const plans = response.data.content?.variations || [];
@@ -166,15 +151,9 @@ class VTpassService {
         return { success: false, error: errorMsg };
       }
     } catch (error: any) {
-      logger.error('VTpass get data plans error', { 
-        error: error.message, 
-        network,
-      });
-      
-      return { 
-        success: false, 
-        error: error.message || 'Failed to get data plans',
-      };
+      if (error.circuitOpen) return { success: false, error: 'VTpass service is temporarily unavailable.' };
+      logger.error('VTpass get data plans error', { error: error.message, network });
+      return { success: false, error: error.message || 'Failed to get data plans' };
     }
   }
 
@@ -189,18 +168,17 @@ class VTpassService {
     try {
       logger.info('VTpass data purchase started', { phone: phone.substring(0, 4) + '***', variationCode, network, reference });
 
-      const response = await this.getClient().post('/pay', {
+      const response = await vtpassCircuit.call(() => this.getClient().post('/pay', {
         request_id: reference,
         serviceID: network,
         billersCode: phone,
         variation_code: variationCode,
         amount: amount,
         phone: phone,
-      });
+      }));
 
       if (response.data.code === '000') {
         const tx = response.data.content?.transactions || {};
-        
         const transactionData: TransactionData = {
           transactionId: tx.transactionId || response.data.requestId || reference,
           status: tx.status || 'delivered',
@@ -209,38 +187,21 @@ class VTpassService {
           commission: tx.commission || 0,
           phone: phone,
         };
-
         logger.info('VTpass data purchase successful', { reference, transactionId: transactionData.transactionId });
         return { success: true, data: transactionData, reference };
       } else {
         const errorMsg = response.data.response_description || 'Data purchase failed';
         logger.warn('VTpass data purchase failed', { error: errorMsg, reference, code: response.data.code });
-        return { 
-          success: false, 
-          error: errorMsg, 
-          reference,
-          errorCode: response.data.code,
-        };
+        return { success: false, error: errorMsg, reference, errorCode: response.data.code };
       }
     } catch (error: any) {
-      logger.error('VTpass data purchase error', { 
-        error: error.message, 
-        reference,
-        status: error.response?.status,
-        responseData: error.response?.data,
-      });
-      
-      const errorMsg = error.response?.data?.response_description || 
-                       error.response?.data?.message || 
-                       error.message || 
-                       'Data purchase failed';
-      
-      return { 
-        success: false, 
-        error: errorMsg, 
-        reference,
-        errorCode: error.response?.data?.code,
-      };
+      if (error.circuitOpen) {
+        logger.warn('VTpass circuit OPEN — data purchase blocked');
+        return { success: false, error: 'VTpass service is temporarily unavailable. Please try again shortly.', reference, errorCode: 'CIRCUIT_OPEN' };
+      }
+      logger.error('VTpass data purchase error', { error: error.message, reference, status: error.response?.status });
+      const errorMsg = error.response?.data?.response_description || error.response?.data?.message || error.message || 'Data purchase failed';
+      return { success: false, error: errorMsg, reference, errorCode: error.response?.data?.code };
     }
   }
 
@@ -252,18 +213,17 @@ class VTpassService {
     try {
       logger.info('VTpass meter verification started', { meterNumber: meterNumber.substring(0, 4) + '***', serviceID, meterType });
 
-      const response = await this.getClient().post('/merchant-verify', {
+      const response = await vtpassCircuit.call(() => this.getClient().post('/merchant-verify', {
         billersCode: meterNumber,
         serviceID: serviceID,
         type: meterType,
-      });
+      }));
 
       if (response.data.code === '000' && response.data.content) {
         const content = response.data.content;
-        
         logger.info('VTpass meter verification successful', { customerName: content.Customer_Name });
-        return { 
-          success: true, 
+        return {
+          success: true,
           data: {
             customerName: content.Customer_Name || '',
             address: content.Address || '',
@@ -278,14 +238,9 @@ class VTpassService {
         return { success: false, error: errorMsg };
       }
     } catch (error: any) {
-      logger.error('VTpass meter verification error', { 
-        error: error.message,
-      });
-      
-      return { 
-        success: false, 
-        error: error.message || 'Meter verification failed',
-      };
+      if (error.circuitOpen) return { success: false, error: 'VTpass service is temporarily unavailable.' };
+      logger.error('VTpass meter verification error', { error: error.message });
+      return { success: false, error: error.message || 'Meter verification failed' };
     }
   }
 
@@ -301,18 +256,17 @@ class VTpassService {
     try {
       logger.info('VTpass electricity purchase started', { meterNumber: meterNumber.substring(0, 4) + '***', amount, serviceID, reference });
 
-      const response = await this.getClient().post('/pay', {
+      const response = await vtpassCircuit.call(() => this.getClient().post('/pay', {
         request_id: reference,
         serviceID: serviceID,
         billersCode: meterNumber,
         variation_code: meterType,
         amount: amount,
         phone: phone,
-      });
+      }));
 
       if (response.data.code === '000') {
         const tx = response.data.content?.transactions || {};
-        
         const transactionData: TransactionData = {
           transactionId: tx.transactionId || response.data.requestId || reference,
           status: tx.status || 'delivered',
@@ -324,38 +278,21 @@ class VTpassService {
           units: response.data.units || '',
           customerName: response.data.customerName || '',
         };
-
         logger.info('VTpass electricity purchase successful', { reference, transactionId: transactionData.transactionId, token: transactionData.token ? '***' : 'N/A' });
         return { success: true, data: transactionData, reference };
       } else {
         const errorMsg = response.data.response_description || 'Electricity purchase failed';
         logger.warn('VTpass electricity purchase failed', { error: errorMsg, reference, code: response.data.code });
-        return { 
-          success: false, 
-          error: errorMsg, 
-          reference,
-          errorCode: response.data.code,
-        };
+        return { success: false, error: errorMsg, reference, errorCode: response.data.code };
       }
     } catch (error: any) {
-      logger.error('VTpass electricity purchase error', { 
-        error: error.message, 
-        reference,
-        status: error.response?.status,
-        responseData: error.response?.data,
-      });
-      
-      const errorMsg = error.response?.data?.response_description || 
-                       error.response?.data?.message || 
-                       error.message || 
-                       'Electricity purchase failed';
-      
-      return { 
-        success: false, 
-        error: errorMsg, 
-        reference,
-        errorCode: error.response?.data?.code,
-      };
+      if (error.circuitOpen) {
+        logger.warn('VTpass circuit OPEN — electricity purchase blocked');
+        return { success: false, error: 'VTpass service is temporarily unavailable. Please try again shortly.', reference, errorCode: 'CIRCUIT_OPEN' };
+      }
+      logger.error('VTpass electricity purchase error', { error: error.message, reference, status: error.response?.status });
+      const errorMsg = error.response?.data?.response_description || error.response?.data?.message || error.message || 'Electricity purchase failed';
+      return { success: false, error: errorMsg, reference, errorCode: error.response?.data?.code };
     }
   }
 
@@ -363,13 +300,12 @@ class VTpassService {
     try {
       logger.info('VTpass transaction requery', { requestId });
 
-      const response = await this.getClient().post('/requery', {
+      const response = await vtpassCircuit.call(() => this.getClient().post('/requery', {
         request_id: requestId,
-      });
+      }));
 
       if (response.data.code === '000') {
         const tx = response.data.content?.transactions || {};
-        
         const transactionData: TransactionData = {
           transactionId: tx.transactionId || requestId,
           status: tx.status || 'unknown',
@@ -377,30 +313,17 @@ class VTpassService {
           amount: parseFloat(tx.amount || 0),
           commission: tx.commission || 0,
         };
-
         logger.info('VTpass transaction requery successful', { requestId, status: transactionData.status });
         return { success: true, data: transactionData, reference: requestId };
       } else {
         const errorMsg = response.data.response_description || 'Transaction query failed';
         logger.warn('VTpass transaction requery failed', { error: errorMsg, requestId });
-        return { 
-          success: false, 
-          error: errorMsg, 
-          reference: requestId,
-          errorCode: response.data.code,
-        };
+        return { success: false, error: errorMsg, reference: requestId, errorCode: response.data.code };
       }
     } catch (error: any) {
-      logger.error('VTpass transaction requery error', { 
-        error: error.message, 
-        requestId,
-      });
-      
-      return { 
-        success: false, 
-        error: error.message || 'Transaction query failed',
-        reference: requestId,
-      };
+      if (error.circuitOpen) return { success: false, error: 'VTpass service is temporarily unavailable.', reference: requestId };
+      logger.error('VTpass transaction requery error', { error: error.message, requestId });
+      return { success: false, error: error.message || 'Transaction query failed', reference: requestId };
     }
   }
 
@@ -421,17 +344,16 @@ class VTpassService {
     try {
       logger.info('VTpass smartcard verification started', { smartcardNumber: smartcardNumber.substring(0, 4) + '***', serviceID });
 
-      const response = await this.getClient().post('/merchant-verify', {
+      const response = await vtpassCircuit.call(() => this.getClient().post('/merchant-verify', {
         billersCode: smartcardNumber,
         serviceID: serviceID,
-      });
+      }));
 
       if (response.data.code === '000' && response.data.content) {
         const content = response.data.content;
-        
         logger.info('VTpass smartcard verification successful', { customerName: content.Customer_Name });
-        return { 
-          success: true, 
+        return {
+          success: true,
           data: {
             customerName: content.Customer_Name || content.customerName || '',
             currentPackage: content.Current_Bouquet || content.currentBouquet || 'N/A',
@@ -446,6 +368,7 @@ class VTpassService {
         return { success: false, error: errorMsg };
       }
     } catch (error: any) {
+      if (error.circuitOpen) return { success: false, error: 'VTpass service is temporarily unavailable.' };
       logger.error('VTpass smartcard verification error', { error: error.message });
       return { success: false, error: error.message || 'Smartcard verification failed' };
     }
@@ -464,7 +387,7 @@ class VTpassService {
     try {
       logger.info('VTpass fetching cable plans', { serviceID });
 
-      const response = await this.getClient().get(`/service-variations?serviceID=${serviceID}`);
+      const response = await vtpassCircuit.call(() => this.getClient().get(`/service-variations?serviceID=${serviceID}`));
 
       if (response.data.response_description === '000' || response.data.content?.variations) {
         const plans = response.data.content?.variations || [];
@@ -476,6 +399,7 @@ class VTpassService {
         return { success: false, error: errorMsg };
       }
     } catch (error: any) {
+      if (error.circuitOpen) return { success: false, error: 'VTpass service is temporarily unavailable.' };
       logger.error('VTpass get cable plans error', { error: error.message, serviceID });
       return { success: false, error: error.message || 'Failed to get cable plans' };
     }
@@ -499,7 +423,7 @@ class VTpassService {
         reference 
       });
 
-      const response = await this.getClient().post('/pay', {
+      const response = await vtpassCircuit.call(() => this.getClient().post('/pay', {
         request_id: reference,
         serviceID: serviceID,
         billersCode: smartcardNumber,
@@ -507,11 +431,10 @@ class VTpassService {
         amount: amount,
         phone: phone,
         subscription_type: subscriptionType,
-      });
+      }));
 
       if (response.data.code === '000') {
         const tx = response.data.content?.transactions || {};
-        
         const transactionData: TransactionData = {
           transactionId: tx.transactionId || response.data.requestId || reference,
           status: tx.status || 'delivered',
@@ -520,39 +443,27 @@ class VTpassService {
           commission: tx.commission || 0,
           phone: phone,
         };
-
         logger.info('VTpass cable purchase successful', { reference, transactionId: transactionData.transactionId });
         return { success: true, data: transactionData, reference };
       } else {
         const errorMsg = response.data.response_description || 'Cable subscription failed';
         logger.warn('VTpass cable purchase failed', { error: errorMsg, reference, code: response.data.code });
-        return { 
-          success: false, 
-          error: errorMsg, 
-          reference,
-          errorCode: response.data.code,
-        };
+        return { success: false, error: errorMsg, reference, errorCode: response.data.code };
       }
     } catch (error: any) {
-      logger.error('VTpass cable purchase error', { 
-        error: error.message, 
-        reference,
-        status: error.response?.status,
-        responseData: error.response?.data,
-      });
-      
-      const errorMsg = error.response?.data?.response_description || 
-                       error.response?.data?.message || 
-                       error.message || 
-                       'Cable subscription failed';
-      
-      return { 
-        success: false, 
-        error: errorMsg, 
-        reference,
-        errorCode: error.response?.data?.code,
-      };
+      if (error.circuitOpen) {
+        logger.warn('VTpass circuit OPEN — cable purchase blocked');
+        return { success: false, error: 'VTpass service is temporarily unavailable. Please try again shortly.', reference, errorCode: 'CIRCUIT_OPEN' };
+      }
+      logger.error('VTpass cable purchase error', { error: error.message, reference, status: error.response?.status });
+      const errorMsg = error.response?.data?.response_description || error.response?.data?.message || error.message || 'Cable subscription failed';
+      return { success: false, error: errorMsg, reference, errorCode: error.response?.data?.code };
     }
+  }
+
+  resetClient(): void {
+    this.client = null;
+    logger.info('VTpass HTTP client reset — will use new credentials on next call');
   }
 
   isConfigured(): boolean {

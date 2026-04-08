@@ -50,6 +50,10 @@ export const ErrorCodes = {
   RATE_LIMIT_EXCEEDED:       'RATE_LIMIT_EXCEEDED',
   BURST_LIMIT_EXCEEDED:      'BURST_LIMIT_EXCEEDED',
 
+  // ── Infrastructure ────────────────────────────────────────────────────────
+  CIRCUIT_OPEN:              'CIRCUIT_OPEN',
+  SERVICE_DEGRADED:          'SERVICE_DEGRADED',
+
   // ── General ───────────────────────────────────────────────────────────────
   NOT_FOUND:                 'NOT_FOUND',
   CONFLICT:                  'CONFLICT',

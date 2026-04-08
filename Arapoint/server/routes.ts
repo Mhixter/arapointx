@@ -37,8 +37,12 @@ import chatRoutes from "./src/api/routes/chat";
 
 import { publicRateLimiter, authenticatedRateLimiter } from "./src/api/middleware/rateLimit";
 import { errorHandler } from "./src/api/middleware/errorHandler";
-import { authMiddleware } from "./src/api/middleware/auth";
+import { authMiddleware, adminAuthMiddleware } from "./src/api/middleware/auth";
 import { logger } from "./src/utils/logger";
+import { getAllCircuitStats, resetCircuit } from "./src/utils/circuitBreaker";
+import { cacheService } from "./src/services/cacheService";
+import { loadGatewayCredentials } from "./src/config/loadGatewayCredentials";
+import { vtpassService } from "./src/services/vtpassService";
 
 import { registerObjectStorageRoutes } from "./src/replit_integrations/object_storage";
 
@@ -95,16 +99,80 @@ export async function registerRoutes(
       dbStatus = 'disconnected';
     }
     const memUsage = process.memoryUsage();
+    const circuits = getAllCircuitStats();
+    const openCircuits = circuits.filter(c => c.state === 'OPEN').map(c => c.name);
+
+    const overallStatus =
+      dbStatus !== 'connected' ? 'degraded' :
+      openCircuits.length > 0  ? 'degraded' :
+      'ok';
+
     res.json({
-      status: dbStatus === 'connected' ? 'ok' : 'degraded',
+      status: overallStatus,
       timestamp: new Date().toISOString(),
       uptime: Math.floor((Date.now() - serverStartTime) / 1000),
       database: dbStatus,
+      circuits: {
+        total: circuits.length,
+        open:  openCircuits,
+      },
       memory: {
         heapUsedMB: Math.round(memUsage.heapUsed / 1024 / 1024),
         rssMB: Math.round(memUsage.rss / 1024 / 1024),
       },
     });
+  });
+
+  app.get('/api/health/detailed', adminAuthMiddleware, async (req, res) => {
+    let dbStatus = 'unknown';
+    try {
+      await db.execute(sql`SELECT 1`);
+      dbStatus = 'connected';
+    } catch {
+      dbStatus = 'disconnected';
+    }
+    const memUsage = process.memoryUsage();
+    const circuits = getAllCircuitStats();
+    const cacheStats = await cacheService.stats();
+
+    res.json({
+      status: dbStatus === 'connected' ? 'ok' : 'degraded',
+      timestamp: new Date().toISOString(),
+      uptime: Math.floor((Date.now() - serverStartTime) / 1000),
+      database: dbStatus,
+      circuits,
+      cache: cacheStats,
+      memory: {
+        heapUsedMB:      Math.round(memUsage.heapUsed  / 1024 / 1024),
+        heapTotalMB:     Math.round(memUsage.heapTotal / 1024 / 1024),
+        rssMB:           Math.round(memUsage.rss       / 1024 / 1024),
+        externalMB:      Math.round(memUsage.external  / 1024 / 1024),
+      },
+      node: process.version,
+      pid:  process.pid,
+    });
+  });
+
+  app.post('/api/admin/reload-credentials', adminAuthMiddleware, async (req, res) => {
+    try {
+      await loadGatewayCredentials();
+      vtpassService.resetClient();
+      logger.info('Gateway credentials reloaded by admin', { adminId: (req as any).adminId });
+      res.json({ status: 'success', code: 200, message: 'Gateway credentials reloaded successfully. All provider clients have been refreshed.' });
+    } catch (err: any) {
+      logger.error('Failed to reload gateway credentials', { error: err.message });
+      res.status(500).json({ status: 'error', code: 500, message: 'Failed to reload credentials' });
+    }
+  });
+
+  app.post('/api/admin/circuits/:name/reset', adminAuthMiddleware, async (req, res) => {
+    const { name } = req.params;
+    const ok = resetCircuit(name);
+    if (!ok) {
+      return res.status(404).json({ status: 'error', code: 404, message: `Circuit "${name}" not found` });
+    }
+    logger.info(`Circuit breaker "${name}" reset by admin`, { adminId: (req as any).adminId });
+    res.json({ status: 'success', code: 200, message: `Circuit "${name}" has been reset to CLOSED` });
   });
 
   app.get('/api/settings/public', publicRateLimiter, async (req, res) => {
