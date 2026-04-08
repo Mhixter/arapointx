@@ -42,6 +42,26 @@ const router = Router();
         created_at TIMESTAMP DEFAULT NOW()
       );
       CREATE INDEX IF NOT EXISTS acm_session_idx ON ai_chat_messages(session_id);
+
+      CREATE TABLE IF NOT EXISTS support_queue (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        ticket_id UUID REFERENCES support_tickets(id) NOT NULL UNIQUE,
+        user_id UUID REFERENCES users(id) NOT NULL,
+        conversation_id UUID REFERENCES support_conversations(id) NOT NULL,
+        priority VARCHAR(20) DEFAULT 'medium' NOT NULL,
+        category VARCHAR(50) DEFAULT 'general',
+        status VARCHAR(20) DEFAULT 'waiting' NOT NULL,
+        joined_at TIMESTAMP DEFAULT NOW() NOT NULL,
+        estimated_wait_minutes INTEGER DEFAULT 5,
+        accepted_by UUID REFERENCES admin_users(id),
+        accepted_at TIMESTAMP,
+        removed_at TIMESTAMP,
+        remove_reason VARCHAR(50)
+      );
+      CREATE INDEX IF NOT EXISTS sq_status_idx ON support_queue(status);
+      CREATE INDEX IF NOT EXISTS sq_ticket_idx ON support_queue(ticket_id);
+      CREATE INDEX IF NOT EXISTS sq_joined_idx ON support_queue(joined_at);
+      CREATE INDEX IF NOT EXISTS sq_priority_idx ON support_queue(priority);
     `);
     logger.info('AI chat tables ready');
   } catch (e: any) {
