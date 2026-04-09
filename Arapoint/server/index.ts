@@ -44,6 +44,19 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
+// ── Subdomain → path redirect ──────────────────────────────────────────────────
+// developer.arapoint.com.ng/anything  →  arapoint.com.ng/developer/anything
+// This lets the single-page app handle all developer portal routes normally.
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const host = (req.headers.host || '').toLowerCase();
+  if (host === 'developer.arapoint.com.ng' || host.startsWith('developer.arapoint.com.ng:')) {
+    const subPath = req.path === '/' ? '' : req.path;
+    const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    return res.redirect(301, `https://arapoint.com.ng/developer${subPath}${qs}`);
+  }
+  next();
+});
+
 app.use((req: Request, res: Response, next: NextFunction) => {
   const id = (req.headers['x-request-id'] as string) || crypto.randomUUID();
   req.requestId = id;
