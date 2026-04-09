@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Request, type Response, type NextFunction } from 'express';
 import { db, sql, logger, runWebhookMigrations, startWebhookRetryProcessor } from './shared';
 
 import authRouter from './auth';
@@ -256,5 +256,24 @@ router.use(adminRouter);
 router.use(webhooksRouter);
 router.use(analyticsRouter);
 router.use(securityRouter);
+
+// ── Developer API error handler ────────────────────────────────────────────────
+// Catches body-parser SyntaxErrors (invalid JSON body) and returns a proper
+// 400 in the standard developer API format instead of a generic 500.
+router.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  if (err instanceof SyntaxError && (err as any).status === 400 && 'body' in err) {
+    return res.status(400).json({
+      status: 'error',
+      code: 400,
+      message: 'Invalid JSON in request body. Ensure your request body is valid JSON (no comments, no trailing commas, all keys must be double-quoted).',
+      detail: err.message,
+    });
+  }
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || 'Internal server error';
+  if (!res.headersSent) {
+    res.status(status).json({ status: 'error', code: status, message });
+  }
+});
 
 export default router;
