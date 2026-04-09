@@ -11,6 +11,15 @@ import { loadGatewayCredentials } from "./src/config/loadGatewayCredentials";
 import { rpaBot } from "./src/rpa/bot";
 import { cacheService } from "./src/services/cacheService";
 
+// ── Process-level crash guards ─────────────────────────────────────────────────
+// Prevents a single unhandled error from taking down the entire server process.
+process.on('uncaughtException', (err: Error) => {
+  console.error('[Process] Uncaught exception (server stays up):', err.message, err.stack);
+});
+process.on('unhandledRejection', (reason: any) => {
+  console.error('[Process] Unhandled promise rejection (server stays up):', reason);
+});
+
 const app = express();
 const httpServer = createServer(app);
 
@@ -114,9 +123,12 @@ app.use((req, res, next) => {
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
+    if (!res.headersSent) {
+      res.status(status).json({ message });
+    }
+    // Log the error but do NOT re-throw — re-throwing after a response is sent
+    // triggers an uncaughtException that can crash the process under load.
+    console.error(`[Express] ${status} error on ${_req.method} ${_req.path}:`, err.message);
   });
 
   // importantly only setup vite in development and after
@@ -143,11 +155,17 @@ app.use((req, res, next) => {
     () => {
       log(`serving on port ${port}`);
 
-      // In production the RPA Worker is not a separate process, so start the bot inline
+      // In production the RPA Worker is not a separate process, so start the bot inline.
+      // Defer by 60 s so Chromium browser pool initialisation does not compete with
+      // cold-start web traffic — browser launch can take 30 s+ per instance.
       if (process.env.NODE_ENV === 'production' || process.env.ENABLE_EMBEDDED_RPA === 'true') {
-        rpaBot.start().catch((err: Error) => {
-          console.error('[RPA Bot] Failed to start:', err.message);
-        });
+        const rpaDelay = parseInt(process.env.RPA_START_DELAY_MS || '60000', 10);
+        setTimeout(() => {
+          rpaBot.start().catch((err: Error) => {
+            console.error('[RPA Bot] Failed to start:', err.message);
+          });
+        }, rpaDelay);
+        log(`RPA bot will start in ${rpaDelay / 1000}s (after server warm-up)`);
       }
 
       // Recover any unified requests that got stuck before the finalizer was deployed
