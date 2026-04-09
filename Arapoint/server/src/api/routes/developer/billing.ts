@@ -227,8 +227,39 @@ router.get('/billing/verify/:reference', devJwtAuth, async (req: Request, res: R
       SELECT * FROM developer_paystack_transactions
       WHERE reference = ${reference} AND developer_id = ${dev.id}
     `);
-    const tx = result.rows[0] as any;
+    let tx = result.rows[0] as any;
     if (!tx) return res.status(404).json({ status: 'error', code: 404, message: 'Transaction not found' });
+
+    if (tx.status !== 'successful') {
+      try {
+        const verified = await paystackService.verifyTransaction(reference);
+        if (verified.status === 'success') {
+          const amtNgn = Math.round(verified.amount) / 100;
+          await db.execute(sql`
+            UPDATE developer_users
+            SET wallet_balance = wallet_balance + ${amtNgn}, updated_at = now()
+            WHERE id = ${dev.id}
+              AND NOT EXISTS (
+                SELECT 1 FROM developer_paystack_transactions
+                WHERE reference = ${reference} AND status = 'successful'
+              )
+          `);
+          await db.execute(sql`
+            UPDATE developer_paystack_transactions
+            SET status = 'successful', paystack_status = 'success', paid_at = now()
+            WHERE reference = ${reference}
+          `);
+          const updated = await db.execute(sql`
+            SELECT * FROM developer_paystack_transactions WHERE reference = ${reference}
+          `);
+          tx = updated.rows[0] || tx;
+          logger.info('Developer wallet funded via verify endpoint', { developerId: dev.id, amtNgn, reference });
+        }
+      } catch (verifyErr: any) {
+        logger.warn('Paystack direct verify failed in verify endpoint', { reference, error: verifyErr.message });
+      }
+    }
+
     res.json({ status: 'success', code: 200, data: tx });
   } catch (e: any) {
     res.status(500).json({ status: 'error', code: 500, message: 'Failed to verify payment' });

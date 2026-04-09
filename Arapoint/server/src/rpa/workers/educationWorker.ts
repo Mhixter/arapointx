@@ -359,8 +359,9 @@ export class EducationWorker extends BaseWorker {
     }
 
     const apiBody = apiResult.body;
-    const candidateName: string =
+    const rawCandidateName: string =
       apiBody?.data?.candidate?.name || apiBody?.candidate?.name || apiBody?.name || apiBody?.candidateName || '';
+    const candidateName: string = rawCandidateName.replace(/[\n\r\t]/g, ' ').replace(/\s+/g, ' ').trim();
     const rawSubjects: any[] = apiBody?.data?.results || apiBody?.results || apiBody?.data?.subjects || apiBody?.subjects || [];
     const subjects: ExamSubject[] = rawSubjects.map((r: any) => ({
       subject: r.subject || r.name || r.subjectName || String(r.subject_name || ''),
@@ -1251,8 +1252,8 @@ export class EducationWorker extends BaseWorker {
         }
         
         const text = document.body.innerText;
-        const nameMatch = text.match(/Name[:\s]+([A-Z][A-Za-z\s]+)/);
-        return nameMatch ? nameMatch[1].trim() : undefined;
+        const nameMatch = text.match(/(?:Candidate\s+)?Name[:\s]+([A-Z][A-Za-z ]{2,50})/m);
+        return nameMatch ? nameMatch[1].replace(/\s+/g, ' ').trim() : undefined;
       });
     } catch {
       return undefined;

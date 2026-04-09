@@ -2,6 +2,85 @@ import { db } from '../config/database';
 import { sql } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 
+const MONTH_MAP: Record<string, string> = {
+  jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+  jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+  january: '01', february: '02', march: '03', april: '04', june: '06',
+  july: '07', august: '08', september: '09', october: '10', november: '11', december: '12',
+};
+
+/**
+ * Normalises any Nigerian date format to YYYY-MM-DD for safe comparison.
+ * Handles: 10-Nov-2001, 10-11-2001, 2001-11-10, November 10 2001, etc.
+ */
+export function normalizeDob(dob: string | null | undefined): string | null {
+  if (!dob) return null;
+  const d = dob.trim();
+  const dl = d.toLowerCase();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+  const m1 = dl.match(/^(\d{1,2})[-\/\s]([a-z]+)[-\/\s](\d{4})$/);
+  if (m1 && MONTH_MAP[m1[2]]) return `${m1[3]}-${MONTH_MAP[m1[2]]}-${m1[1].padStart(2, '0')}`;
+  const m2 = dl.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+  if (m2) return `${m2[3]}-${m2[2].padStart(2, '0')}-${m2[1].padStart(2, '0')}`;
+  const m3 = dl.match(/^(\d{4})\/(\d{2})\/(\d{2})$/);
+  if (m3) return `${m3[1]}-${m3[2]}-${m3[3]}`;
+  const m4 = dl.match(/^([a-z]+)\s+(\d{1,2})[,\s]+(\d{4})$/);
+  if (m4 && MONTH_MAP[m4[1]]) return `${m4[3]}-${MONTH_MAP[m4[1]]}-${m4[2].padStart(2, '0')}`;
+  const m5 = dl.match(/^(\d{1,2})\s+([a-z]+)[,\s]+(\d{4})$/);
+  if (m5 && MONTH_MAP[m5[2]]) return `${m5[3]}-${MONTH_MAP[m5[2]]}-${m5[1].padStart(2, '0')}`;
+  return d;
+}
+
+/**
+ * Compares two ID photos using GPT-4o Vision to detect if they show the same person.
+ * Returns null if photos are unavailable or the API call fails.
+ */
+async function comparePhotos(
+  photo1Base64: string | null | undefined,
+  photo2Base64: string | null | undefined,
+  label1: string,
+  label2: string,
+): Promise<{ match: boolean | null; confidence: string; note: string } | null> {
+  if (!photo1Base64 || !photo2Base64) return null;
+  try {
+    const baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+    const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+    if (!baseURL || !apiKey) return null;
+
+    const { default: OpenAI } = await import('openai');
+    const client = new OpenAI({ apiKey, baseURL });
+
+    const toUrl = (b64: string) =>
+      b64.startsWith('data:') ? b64 : `data:image/jpeg;base64,${b64}`;
+
+    const response = await client.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: `You are a biometric verification assistant. Compare these two identity document photos (${label1} and ${label2}). Do they show the same person? Reply with exactly one of: MATCH, NO_MATCH, UNCLEAR. Then add a single sentence explaining why. Format: "MATCH: <reason>" or "NO_MATCH: <reason>" or "UNCLEAR: <reason>".`,
+            },
+            { type: 'image_url', image_url: { url: toUrl(photo1Base64) } },
+            { type: 'image_url', image_url: { url: toUrl(photo2Base64) } },
+          ],
+        },
+      ],
+      max_tokens: 120,
+    });
+
+    const text = (response.choices[0]?.message?.content || '').trim();
+    if (text.startsWith('MATCH')) return { match: true, confidence: 'ai_vision', note: text };
+    if (text.startsWith('NO_MATCH')) return { match: false, confidence: 'ai_vision', note: text };
+    return { match: null, confidence: 'ai_vision', note: text };
+  } catch (err: any) {
+    logger.warn('Photo comparison failed', { error: err.message });
+    return null;
+  }
+}
+
 function normaliseName(s: string = ''): string {
   return s.toLowerCase().replace(/[^a-z\s]/g, '').replace(/\s+/g, ' ').trim();
 }
@@ -80,8 +159,10 @@ function analyzeIdentityCheck(ninData: any, bvnData: any, eduData: any) {
   const bvnName = bvnData
     ? `${bvnData.firstName || ''} ${bvnData.middleName || ''} ${bvnData.lastName || ''}`.replace(/\s+/g, ' ').trim()
     : '';
-  const ninDob = ninData?.dateOfBirth || null;
-  const bvnDob = bvnData?.dateOfBirth || null;
+  const ninDobRaw = ninData?.dateOfBirth || null;
+  const bvnDobRaw = bvnData?.dateOfBirth || null;
+  const ninDob = normalizeDob(ninDobRaw);
+  const bvnDob = normalizeDob(bvnDobRaw);
 
   const ninBvnNameScore = ninName && bvnName ? nameSimilarityScore(ninName, bvnName) : 0;
   const ninBvnNameMatch = ninBvnNameScore >= 0.72;
@@ -92,8 +173,8 @@ function analyzeIdentityCheck(ninData: any, bvnData: any, eduData: any) {
   if (ninDob && bvnDob && !ninBvnDobMatch)
     flags.push(`Date of birth mismatch — NIN: ${ninDob}, BVN: ${bvnDob}`);
 
-  const eduCandidateName = eduData?.candidateName || '';
-  const eduDob = eduData?.candidateDateOfBirth || eduData?.dateOfBirth || null;
+  const eduCandidateName = (eduData?.candidateName || '').replace(/[\n\r\t]/g, ' ').replace(/\s+/g, ' ').trim();
+  const eduDob = normalizeDob(eduData?.candidateDateOfBirth || eduData?.dateOfBirth || null);
 
   const eduNameScore = eduCandidateName
     ? Math.max(
@@ -112,9 +193,9 @@ function analyzeIdentityCheck(ninData: any, bvnData: any, eduData: any) {
   const eduDobMatchesNin = eduDob && ninDob ? eduDob === ninDob : null;
   const eduDobMatchesBvn = eduDob && bvnDob ? eduDob === bvnDob : null;
   if (eduDob && ninDob && !eduDobMatchesNin)
-    flags.push(`SSCE date of birth (${eduDob}) does not match NIN DOB (${ninDob})`);
+    flags.push(`SSCE date of birth (${eduDob}) does not match NIN DOB (${ninDob}) — normalised from raw values`);
   if (eduDob && bvnDob && !eduDobMatchesBvn)
-    flags.push(`SSCE date of birth (${eduDob}) does not match BVN DOB (${bvnDob})`);
+    flags.push(`SSCE date of birth (${eduDob}) does not match BVN DOB (${bvnDob}) — normalised from raw values`);
 
   const allNamesConsistent =
     ninBvnNameMatch && (eduNameMatchesNin || eduNameMatchesBvn || !eduCandidateName);
@@ -295,6 +376,33 @@ export async function finalizeUnifiedRequest(
     const analysis = analyzeIdentityCheck(ninData, bvnData, verifiedEdu);
     const { overallScore, decision, flags, crossCheck, ssceAnalysis, summary } = analysis;
 
+    // ── Photo / biometric face comparison ─────────────────────────────────────
+    const photoComparison: Record<string, any> = {};
+    const ninPhoto: string | null = ninData?.photo || null;
+    const bvnPhoto: string | null = bvnData?.photo || null;
+    const sscePhoto: string | null = verifiedEdu?.photo || verifiedEdu?.passportPhoto || null;
+
+    if (ninPhoto && bvnPhoto) {
+      const ninBvnFace = await comparePhotos(ninPhoto, bvnPhoto, 'NIN', 'BVN');
+      if (ninBvnFace) {
+        photoComparison.ninVsBvn = ninBvnFace;
+        if (ninBvnFace.match === false)
+          flags.push(`PHOTO MISMATCH — NIN and BVN photos appear to be different people. ${ninBvnFace.note}`);
+        else if (ninBvnFace.match === null)
+          flags.push(`PHOTO UNCLEAR — Could not conclusively compare NIN and BVN photos. ${ninBvnFace.note}`);
+      }
+    }
+    if (sscePhoto && (ninPhoto || bvnPhoto)) {
+      const ssceVsId = await comparePhotos(sscePhoto, ninPhoto || bvnPhoto, 'SSCE', ninPhoto ? 'NIN' : 'BVN');
+      if (ssceVsId) {
+        photoComparison.ssceVsId = ssceVsId;
+        if (ssceVsId.match === false)
+          flags.push(`PHOTO MISMATCH — SSCE result photo does not match identity document photos. ${ssceVsId.note}`);
+        else if (ssceVsId.match === null)
+          flags.push(`PHOTO UNCLEAR — Could not conclusively compare SSCE and identity photos. ${ssceVsId.note}`);
+      }
+    }
+
     const breakdown = {
       nin: ninData ? { status: 'matched', data: ninData } : { status: 'not_checked' },
       bvn: bvnData ? { status: 'matched', data: bvnData } : { status: 'not_checked' },
@@ -303,6 +411,7 @@ export async function finalizeUnifiedRequest(
       fraud: row.fraud_result || null,
       crossCheck,
       ssceAnalysis,
+      photoComparison: Object.keys(photoComparison).length > 0 ? photoComparison : { note: 'No photos available for comparison' },
       summary,
     };
 
