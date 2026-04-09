@@ -150,6 +150,15 @@ app.use((req, res, next) => {
         });
       }
 
+      // Recover any unified requests that got stuck before the finalizer was deployed
+      setTimeout(() => {
+        import('./src/services/unifiedFinalizer').then(({ recoverStuckUnifiedRequests }) => {
+          recoverStuckUnifiedRequests().catch((e: any) =>
+            console.error('[Unified Recovery] failed:', e.message),
+          );
+        }).catch(() => {});
+      }, 5000);
+
       // Self-ping every 3 minutes via the public URL to keep Autoscale from sleeping
       if (process.env.NODE_ENV === 'production') {
         const siteUrl = (process.env.SITE_URL || 'https://arapoint.com.ng').replace(/\/$/, '');

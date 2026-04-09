@@ -182,6 +182,24 @@ class RPABot {
         this.fireDeveloperWebhook(queryData.developerId as string, job.id, finalStatus, result).catch(() => {});
       }
 
+      // ── Finalise unified verification request when education job completes ──
+      if (queryData.source === 'developer_api_unified' && queryData.unifiedRequestId) {
+        import('../services/unifiedFinalizer').then(({ finalizeUnifiedRequest }) => {
+          finalizeUnifiedRequest(
+            queryData.unifiedRequestId as string,
+            job.id,
+            result,
+            hasError,
+          ).catch((e: any) => {
+            logger.error('Unified finalizer error', {
+              requestId: queryData.unifiedRequestId,
+              jobId: job.id,
+              error: e.message,
+            });
+          });
+        }).catch(() => {});
+      }
+
       if (hasError) {
         logger.warn('Job completed with errors', { jobId: job.id, error: result.error || (result.data as any)?.errorMessage });
       } else {

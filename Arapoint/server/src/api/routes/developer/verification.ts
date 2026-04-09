@@ -707,6 +707,7 @@ router.post('/verify/unified', apiKeyAuth, async (req: Request, res: Response) =
                 ...(edu.card?.serial ? { cardSerialNumber: edu.card.serial } : {}),
                 source: 'developer_api_unified',
                 unifiedRequestId: requestId,
+                educationIndex: i,
               },
               status: 'pending', priority: 5,
             }).returning();
