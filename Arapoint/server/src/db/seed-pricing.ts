@@ -29,6 +29,7 @@ const pricingRecords = [
   { serviceType: 'neco_pin', serviceName: 'NECO PIN', price: '1500.00', description: 'NECO examination PIN - Instant Delivery', isActive: true },
   { serviceType: 'nabteb_pin', serviceName: 'NABTEB PIN', price: '3000.00', description: 'NABTEB examination PIN - Instant Delivery', isActive: true },
   { serviceType: 'nbais_pin', serviceName: 'NBAIS PIN', price: '2500.00', description: 'NBAIS examination PIN - Instant Delivery', isActive: true },
+  { serviceType: 'jamb_exam_slip', serviceName: 'JAMB Exam Slip Printing', price: '400.00', description: 'Print JAMB examination slip from the JAMB portal', isActive: true },
 ];
 
 export async function seedPricing() {
