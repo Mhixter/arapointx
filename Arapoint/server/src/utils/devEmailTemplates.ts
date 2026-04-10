@@ -1,7 +1,32 @@
 const YEAR = new Date().getFullYear();
 const SITE_URL = "https://arapoint.com.ng";
 const DEV_PORTAL_URL = `${SITE_URL}/developer`;
-const BLUE_LOGO_URL = "https://arapoint.com.ng/email-logo-blue.png";
+
+const BLUE_HEADER = `
+<tr>
+  <td style="background:#1e3a8a;padding:22px 28px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+      <tr>
+        <td valign="middle" width="56" style="padding-right:15px;">
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr>
+              <td align="center" valign="middle" style="width:50px;height:50px;background:#ffffff;border-radius:9px;text-align:center;">
+                <span style="display:block;font-size:26px;font-weight:900;color:#1e3a8a;font-family:Georgia,'Times New Roman',serif;line-height:50px;text-align:center;">A</span>
+              </td>
+            </tr>
+          </table>
+        </td>
+        <td valign="middle">
+          <p style="margin:0;font-size:21px;font-weight:900;color:#ffffff;letter-spacing:3px;font-family:Arial,Helvetica,sans-serif;line-height:1.1;">ARAPOINT</p>
+          <p style="margin:5px 0 0;font-size:10px;color:#93c5fd;letter-spacing:1.5px;font-weight:700;font-family:Arial,Helvetica,sans-serif;line-height:1;">DEVELOPER PLATFORM &middot; SECURE IDENTITY INFRASTRUCTURE</p>
+        </td>
+        <td valign="middle" align="right">
+          <p style="margin:0;font-size:10px;color:#60a5fa;font-weight:700;letter-spacing:1px;font-family:Arial,Helvetica,sans-serif;">API PORTAL</p>
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>`;
 
 function devBase(previewText: string, accentColor: string, body: string): string {
   return `<!DOCTYPE html>
@@ -18,12 +43,8 @@ function devBase(previewText: string, accentColor: string, body: string): string
   <tr><td align="center" style="padding:0 12px;">
     <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#161B27;border-radius:8px;overflow:hidden;border:1px solid #21293A;">
 
-      <!-- Logo Header — full bleed, zero padding -->
-      <tr>
-        <td style="padding:0;margin:0;font-size:0;line-height:0;mso-line-height-rule:exactly;">
-          <img src="${BLUE_LOGO_URL}" alt="Arapoint — Secure Identity Infrastructure" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;outline:none;text-decoration:none;" />
-        </td>
-      </tr>
+      <!-- Branded Header -->
+      ${BLUE_HEADER}
 
       <!-- Accent bar -->
       <tr>

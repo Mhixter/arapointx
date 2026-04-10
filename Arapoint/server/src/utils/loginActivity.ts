@@ -82,7 +82,37 @@ function loginAlertEmailHtml(opts: {
   const YEAR = new Date().getFullYear();
 
   const isDeveloper = opts.actorType === 'developer';
-  const logoUrl = isDeveloper ? "https://arapoint.com.ng/email-logo-blue.png" : "https://arapoint.com.ng/email-logo-green.png";
+  const headerBg   = isDeveloper ? '#1e3a8a' : '#166534';
+  const headerMark = isDeveloper ? '#1e3a8a' : '#166534';
+  const headerSub  = isDeveloper ? '#93c5fd' : '#86efac';
+  const headerTag  = isDeveloper ? 'DEVELOPER PLATFORM &middot; SECURE IDENTITY INFRASTRUCTURE' : 'DIGITAL IDENTITY &amp; VERIFICATION &middot; NIGERIA';
+  const headerRight = isDeveloper ? 'API PORTAL' : 'SECURITY ALERT';
+  const headerRightColor = isDeveloper ? '#60a5fa' : '#4ade80';
+  const brandedHeader = `
+<tr>
+  <td style="background:${headerBg};padding:22px 28px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+      <tr>
+        <td valign="middle" width="56" style="padding-right:15px;">
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr>
+              <td align="center" valign="middle" style="width:50px;height:50px;background:#ffffff;border-radius:9px;text-align:center;">
+                <span style="display:block;font-size:26px;font-weight:900;color:${headerMark};font-family:Georgia,'Times New Roman',serif;line-height:50px;text-align:center;">A</span>
+              </td>
+            </tr>
+          </table>
+        </td>
+        <td valign="middle">
+          <p style="margin:0;font-size:21px;font-weight:900;color:#ffffff;letter-spacing:3px;font-family:Arial,Helvetica,sans-serif;line-height:1.1;">ARAPOINT</p>
+          <p style="margin:5px 0 0;font-size:10px;color:${headerSub};letter-spacing:1.5px;font-weight:700;font-family:Arial,Helvetica,sans-serif;line-height:1;">${headerTag}</p>
+        </td>
+        <td valign="middle" align="right">
+          <p style="margin:0;font-size:10px;color:${headerRightColor};font-weight:700;letter-spacing:1px;font-family:Arial,Helvetica,sans-serif;">${headerRight}</p>
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>`;
 
   const typeLabel: Record<string, string> = {
     user: 'User Account',
@@ -147,12 +177,8 @@ function loginAlertEmailHtml(opts: {
   <tr><td align="center" style="padding:0 12px;">
     <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:${cardBg};border-radius:8px;overflow:hidden;${cardBorder}">
 
-      <!-- Logo Header -->
-      <tr>
-        <td style="padding:0;margin:0;font-size:0;line-height:0;mso-line-height-rule:exactly;">
-          <img src="${logoUrl}" alt="Arapoint" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;outline:none;text-decoration:none;" />
-        </td>
-      </tr>
+      <!-- Branded Header -->
+      ${brandedHeader}
 
       <!-- Accent bar -->
       <tr>

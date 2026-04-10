@@ -1,6 +1,28 @@
 const YEAR = new Date().getFullYear();
 const PLATFORM_URL = "https://arapoint.com.ng";
-const GREEN_LOGO_URL = "https://arapoint.com.ng/email-logo-green.png";
+
+const GREEN_HEADER = `
+<tr>
+  <td style="background:#166534;padding:22px 28px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+      <tr>
+        <td valign="middle" width="56" style="padding-right:15px;">
+          <table role="presentation" cellpadding="0" cellspacing="0">
+            <tr>
+              <td align="center" valign="middle" style="width:50px;height:50px;background:#ffffff;border-radius:9px;text-align:center;">
+                <span style="display:block;font-size:26px;font-weight:900;color:#166534;font-family:Georgia,'Times New Roman',serif;line-height:50px;text-align:center;">A</span>
+              </td>
+            </tr>
+          </table>
+        </td>
+        <td valign="middle">
+          <p style="margin:0;font-size:21px;font-weight:900;color:#ffffff;letter-spacing:3px;font-family:Arial,Helvetica,sans-serif;line-height:1.1;">ARAPOINT</p>
+          <p style="margin:5px 0 0;font-size:10px;color:#86efac;letter-spacing:1.5px;font-weight:700;font-family:Arial,Helvetica,sans-serif;line-height:1;">DIGITAL IDENTITY &amp; VERIFICATION &middot; NIGERIA</p>
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>`;
 
 const G = {
   dark:   "#166534",
@@ -26,12 +48,8 @@ function userBase(previewText: string, accentColor: string, body: string): strin
   <tr><td align="center" style="padding:0 12px;">
     <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#FFFFFF;border-radius:8px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
 
-      <!-- Logo Header — full bleed, zero padding -->
-      <tr>
-        <td style="padding:0;margin:0;font-size:0;line-height:0;mso-line-height-rule:exactly;">
-          <img src="${GREEN_LOGO_URL}" alt="Arapoint Solutions" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;outline:none;text-decoration:none;" />
-        </td>
-      </tr>
+      <!-- Branded Header -->
+      ${GREEN_HEADER}
 
       <!-- Accent bar -->
       <tr>
