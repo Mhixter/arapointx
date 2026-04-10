@@ -1,6 +1,8 @@
+import { EMAIL_LOGO_GREEN } from './emailLogos';
+
 const YEAR = new Date().getFullYear();
 const SITE_URL = "https://arapoint.com.ng";
-const GREEN_LOGO_URL = `${SITE_URL}/email-logo-green.png`;
+const GREEN_LOGO_URL = EMAIL_LOGO_GREEN;
 
 function agentBase(previewText: string, accentColor: string, body: string): string {
   return `<!DOCTYPE html>

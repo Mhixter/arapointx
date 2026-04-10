@@ -1,7 +1,9 @@
+import { EMAIL_LOGO_BLUE } from './emailLogos';
+
 const YEAR = new Date().getFullYear();
 const SITE_URL = "https://arapoint.com.ng";
 const DEV_PORTAL_URL = `${SITE_URL}/developer`;
-const BLUE_LOGO_URL = `${SITE_URL}/email-logo-blue.png`;
+const BLUE_LOGO_URL = EMAIL_LOGO_BLUE;
 
 function devBase(previewText: string, accentColor: string, body: string): string {
   return `<!DOCTYPE html>
