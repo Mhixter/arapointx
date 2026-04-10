@@ -26,7 +26,8 @@ import {
   Cpu,
   Code2,
   ListTodo,
-  Activity
+  Activity,
+  Mail
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -85,6 +86,7 @@ const ALL_NAV_ITEMS = [
   { href: "/admin/developer-portal", label: "Developer Portal", icon: Code2, permission: "settings" },
   { href: "/admin/employment-queue", label: "Employment Queue", icon: ListTodo, permission: "settings" },
   { href: "/admin/login-activity", label: "Login Activity", icon: Activity, permission: "settings" },
+  { href: "/admin/broadcast", label: "Email Broadcast", icon: Mail, permission: "settings" },
   { href: "/admin/whatsapp", label: "WhatsApp", icon: MessageSquare, permission: "whatsapp" },
   { href: "/admin/roles", label: "Role Management", icon: Shield, permission: "roles" },
   { href: "/admin/settings", label: "Settings", icon: Settings, permission: "settings" },
