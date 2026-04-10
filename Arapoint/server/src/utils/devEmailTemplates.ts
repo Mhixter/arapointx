@@ -1,7 +1,7 @@
 const YEAR = new Date().getFullYear();
 const SITE_URL = "https://arapoint.com.ng";
 const DEV_PORTAL_URL = `${SITE_URL}/developer`;
-const BLUE_LOGO_URL = "cid:email-logo-blue";
+const BLUE_LOGO_URL = "https://arapoint.com.ng/email-logo-blue.png";
 
 function devBase(previewText: string, accentColor: string, body: string): string {
   return `<!DOCTYPE html>

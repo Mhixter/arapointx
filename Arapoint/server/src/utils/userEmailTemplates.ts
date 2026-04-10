@@ -1,6 +1,6 @@
 const YEAR = new Date().getFullYear();
 const PLATFORM_URL = "https://arapoint.com.ng";
-const GREEN_LOGO_URL = "cid:email-logo-green";
+const GREEN_LOGO_URL = "https://arapoint.com.ng/email-logo-green.png";
 
 const G = {
   dark:   "#166534",

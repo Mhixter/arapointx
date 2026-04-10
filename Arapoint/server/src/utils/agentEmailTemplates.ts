@@ -1,6 +1,6 @@
 const YEAR = new Date().getFullYear();
 const SITE_URL = "https://arapoint.com.ng";
-const GREEN_LOGO_URL = "cid:email-logo-green";
+const GREEN_LOGO_URL = "https://arapoint.com.ng/email-logo-green.png";
 
 function agentBase(previewText: string, accentColor: string, body: string): string {
   return `<!DOCTYPE html>

@@ -82,7 +82,7 @@ function loginAlertEmailHtml(opts: {
   const YEAR = new Date().getFullYear();
 
   const isDeveloper = opts.actorType === 'developer';
-  const logoUrl = isDeveloper ? "cid:email-logo-blue" : "cid:email-logo-green";
+  const logoUrl = isDeveloper ? "https://arapoint.com.ng/email-logo-blue.png" : "https://arapoint.com.ng/email-logo-green.png";
 
   const typeLabel: Record<string, string> = {
     user: 'User Account',

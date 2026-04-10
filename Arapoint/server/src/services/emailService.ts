@@ -1,6 +1,4 @@
 import nodemailer from 'nodemailer';
-import * as fs from 'fs';
-import * as path from 'path';
 import { logger } from '../utils/logger';
 import { config } from '../config/env';
 import { db } from '../config/database';
@@ -9,20 +7,6 @@ import { inArray } from 'drizzle-orm';
 
 let transporter: nodemailer.Transporter | null = null;
 let lastSmtpConfig: string = '';
-
-// Pre-load logo images from disk for CID inline embedding.
-// CID attachments are the only approach that works reliably in all email
-// clients (including Gmail which strips base64 data: URIs and blocks external URLs).
-function loadLogoBuf(filename: string): Buffer | null {
-  try {
-    const p = path.resolve(__dirname, '../../../client/public', filename);
-    return fs.readFileSync(p);
-  } catch {
-    return null;
-  }
-}
-const GREEN_LOGO_BUF = loadLogoBuf('email-logo-green.png');
-const BLUE_LOGO_BUF  = loadLogoBuf('email-logo-blue.png');
 
 async function getSmtpConfig() {
   let smtpHost = config.SMTP_HOST;
@@ -142,29 +126,7 @@ export async function sendEmail(
       .replace(/\n{3,}/g, '\n\n')
       .trim();
 
-    // Auto-attach logo images as CID inline attachments when the HTML references them.
-    // This is the only method that works reliably in all email clients including Gmail.
-    const cidAttachments: nodemailer.Attachment[] = [];
-    if (html.includes('cid:email-logo-green') && GREEN_LOGO_BUF) {
-      cidAttachments.push({
-        filename: 'email-logo-green.png',
-        content: GREEN_LOGO_BUF,
-        contentType: 'image/png',
-        cid: 'email-logo-green',
-        contentDisposition: 'inline',
-      });
-    }
-    if (html.includes('cid:email-logo-blue') && BLUE_LOGO_BUF) {
-      cidAttachments.push({
-        filename: 'email-logo-blue.png',
-        content: BLUE_LOGO_BUF,
-        contentType: 'image/png',
-        cid: 'email-logo-blue',
-        contentDisposition: 'inline',
-      });
-    }
-
-    const extraAttachments = attachments?.map(a => ({
+    const mailAttachments = attachments?.map(a => ({
       filename: a.filename,
       content: a.content,
       contentType: a.contentType,
@@ -185,7 +147,7 @@ export async function sendEmail(
         'Precedence': 'first-class',
         'X-Auto-Response-Suppress': 'OOF, DR, RN, NRN, AutoReply',
       },
-      attachments: [...cidAttachments, ...extraAttachments],
+      attachments: mailAttachments,
     });
 
     logger.info('Email sent successfully via SMTP', { to });
