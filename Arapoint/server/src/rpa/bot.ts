@@ -6,7 +6,7 @@ import { jambSlipWorker } from './workers/jambSlipWorker';
 import { EducationWorkerFactory } from './workers/educationWorker';
 import { vtpassScraperWorker } from './workers/vtpassScraperWorker';
 import { db } from '../config/database';
-import { rpaJobs, educationServices, servicePricing, adminSettings, transactions } from '../db/schema';
+import { rpaJobs, educationServices, servicePricing, adminSettings, transactions, jambServiceRequests } from '../db/schema';
 import { eq, asc, and, lt, sql } from 'drizzle-orm';
 import { browserPool } from './browserPool';
 import { walletService } from '../services/walletService';
@@ -170,7 +170,10 @@ class RPABot {
         })
         .where(eq(rpaJobs.id, job.id));
 
-      if (job.service_type.includes('jamb') || job.service_type.includes('waec') || 
+      if (job.service_type === 'jamb_exam_slip') {
+        const errorMsg = hasError ? (result.error || (result.data as any)?.errorMessage || 'Failed to retrieve slip') : undefined;
+        await this.updateJambSlipService(job, !hasError, result.data as any, errorMsg);
+      } else if (job.service_type.includes('jamb') || job.service_type.includes('waec') || 
           job.service_type.includes('neco') || job.service_type.includes('nabteb') ||
           job.service_type.includes('nbais')) {
         const errorMsg = hasError ? (result.error || (result.data as any)?.errorMessage || 'Verification failed') : undefined;
@@ -230,7 +233,9 @@ class RPABot {
           })
           .where(eq(rpaJobs.id, job.id));
 
-        if (job.service_type.includes('jamb') || job.service_type.includes('waec') || 
+        if (job.service_type === 'jamb_exam_slip') {
+          await this.updateJambSlipService(job, false, null, error.message);
+        } else if (job.service_type.includes('jamb') || job.service_type.includes('waec') || 
             job.service_type.includes('neco') || job.service_type.includes('nabteb') ||
             job.service_type.includes('nbais')) {
           await this.updateEducationService(job, { success: false }, error.message);
@@ -353,9 +358,44 @@ class RPABot {
     }
   }
 
+  private async updateJambSlipService(
+    job: RPAJob,
+    success: boolean,
+    data: Record<string, any> | null,
+    errorMessage?: string
+  ): Promise<void> {
+    try {
+      const queryData = job.query_data || {};
+      const serviceRequestId = queryData.serviceRequestId as string;
+      if (!serviceRequestId) return;
+
+      const status = success ? 'completed' : 'failed';
+      await db.update(jambServiceRequests)
+        .set({
+          status,
+          resultData: data || null,
+          resultUrl: data?.slipUrl || null,
+          updatedAt: new Date(),
+          ...(success ? { completedAt: new Date() } : {}),
+        })
+        .where(eq(jambServiceRequests.id, serviceRequestId));
+
+      if (!success && job.user_id) {
+        await this.refundFailedJob(job.user_id, job.id, 'jamb_exam_slip');
+      }
+
+      logger.info('JAMB slip service request updated', { serviceRequestId, status });
+    } catch (err: any) {
+      logger.error('Failed to update JAMB slip service request', { jobId: job.id, error: err.message });
+    }
+  }
+
   private async getServicePrice(serviceType: string): Promise<number> {
     try {
-      const baseType = serviceType.replace('_result', '').replace('_service', '').replace('_score', '');
+      const baseType = serviceType
+        .replace('_result', '')
+        .replace('_service', '')
+        .replace('_score', '');
       const [pricing] = await db.select()
         .from(servicePricing)
         .where(and(

@@ -49,12 +49,14 @@ export class RPAEngine {
     try {
       const launchOptions: LaunchOptions = {
         headless: this.config.headless,
+        timeout: this.config.timeout || 90000,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--disable-gpu',
           '--disable-software-rasterizer',
+          '--single-process',
         ],
       };
 
