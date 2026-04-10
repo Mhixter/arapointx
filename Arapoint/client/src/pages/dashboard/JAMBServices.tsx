@@ -95,8 +95,8 @@ const SERVICE_LABELS: Record<string, string> = {
   'olevel-upload': "O'Level Upload",
   'admission-letter': "Admission Letter",
   'original-result': "Original Result",
-
   'reprinting-caps': "Reprinting & Caps",
+  'exam-slip': "Exam Slip Printing",
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -427,6 +427,7 @@ export default function JAMBServices() {
         case 'admission-letter': return FileText;
         case 'original-result': return FileCheck;
         case 'reprinting-caps': return RotateCw;
+        case 'exam-slip': return Printer;
         default: return FileText;
       }
     };
@@ -453,6 +454,9 @@ export default function JAMBServices() {
         case 'reprinting-caps':
           if (form['jamb-reg'] || req.registrationNumber) fields.push({ label: 'JAMB Reg. No.', value: form['jamb-reg'] || req.registrationNumber });
           if (form.itemType) fields.push({ label: 'Item Type', value: form.itemType });
+          break;
+        case 'exam-slip':
+          if (req.registrationNumber) fields.push({ label: 'Registration No.', value: req.registrationNumber });
           break;
       }
       return fields;
@@ -535,10 +539,20 @@ export default function JAMBServices() {
                             <span className="text-muted-foreground/40">·</span>
                             <span className="font-medium text-foreground">₦{parseFloat(req.fee || '0').toLocaleString()}</span>
                           </div>
-                          <Button variant="outline" size="sm" className="h-7 text-xs px-3" onClick={() => openHistoryDetail(req)}>
-                            <Eye className="h-3.5 w-3.5 mr-1" />
-                            View Details
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            {req.serviceType === 'exam-slip' && req.status === 'completed' && req.resultUrl && (
+                              <Button size="sm" className="h-7 text-xs px-3" asChild>
+                                <a href={req.resultUrl} download={`JAMB_Slip_${req.registrationNumber}.pdf`} target="_blank" rel="noopener noreferrer">
+                                  <Download className="h-3.5 w-3.5 mr-1" />
+                                  Download
+                                </a>
+                              </Button>
+                            )}
+                            <Button variant="outline" size="sm" className="h-7 text-xs px-3" onClick={() => openHistoryDetail(req)}>
+                              <Eye className="h-3.5 w-3.5 mr-1" />
+                              View Details
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -613,6 +627,37 @@ export default function JAMBServices() {
                   </div>
                 </div>
 
+                {selectedHistoryRequest.serviceType === 'exam-slip' && selectedHistoryRequest.status === 'completed' && selectedHistoryRequest.resultUrl && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Exam Slip</p>
+                    <div className="flex items-center justify-between bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium text-green-800 dark:text-green-300">Slip ready</p>
+                          <p className="text-xs text-green-600 dark:text-green-400">{selectedHistoryRequest.registrationNumber}</p>
+                        </div>
+                      </div>
+                      <Button size="sm" asChild>
+                        <a href={selectedHistoryRequest.resultUrl} download={`JAMB_Slip_${selectedHistoryRequest.registrationNumber}.pdf`} target="_blank" rel="noopener noreferrer">
+                          <Download className="h-4 w-4 mr-1.5" />
+                          Download PDF
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {selectedHistoryRequest.serviceType === 'exam-slip' && selectedHistoryRequest.status === 'failed' && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Exam Slip</p>
+                    <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                      <p className="text-sm font-medium text-red-700 dark:text-red-400">Retrieval failed</p>
+                      <p className="text-xs text-red-600 dark:text-red-500 mt-0.5">Your ₦{parseFloat(selectedHistoryRequest.fee || '0').toLocaleString()} has been refunded. Please try again from the services page.</p>
+                    </div>
+                  </div>
+                )}
+
                 {selectedHistoryRequest.agentNotes && (
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Agent Notes</p>
@@ -622,6 +667,7 @@ export default function JAMBServices() {
                   </div>
                 )}
 
+                {selectedHistoryRequest.serviceType !== 'exam-slip' && (
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                     Documents ({historyDetailLoading ? '…' : historyDocuments.length})
@@ -662,6 +708,7 @@ export default function JAMBServices() {
                     </div>
                   )}
                 </div>
+                )}
 
                 <Button variant="outline" className="w-full" onClick={() => setShowHistoryDetail(false)}>Close</Button>
               </div>

@@ -171,8 +171,9 @@ class RPABot {
         .where(eq(rpaJobs.id, job.id));
 
       if (job.service_type === 'jamb_exam_slip') {
-        const errorMsg = hasError ? (result.error || (result.data as any)?.errorMessage || 'Failed to retrieve slip') : undefined;
-        await this.updateJambSlipService(job, !hasError, result.data as any, errorMsg);
+        const slipSuccess: boolean = result.success && !(result.data as any)?.error;
+        const errorMsg = !slipSuccess ? (result.error || (result.data as any)?.errorMessage || 'Failed to retrieve slip') : undefined;
+        await this.updateJambSlipService(job, slipSuccess, result.data as any, errorMsg);
       } else if (job.service_type.includes('jamb') || job.service_type.includes('waec') || 
           job.service_type.includes('neco') || job.service_type.includes('nabteb') ||
           job.service_type.includes('nbais')) {

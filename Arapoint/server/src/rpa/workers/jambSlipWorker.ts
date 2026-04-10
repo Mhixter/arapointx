@@ -102,11 +102,12 @@ export class JAMBSlipWorker extends BaseWorker {
       }
 
       logger.info('Generating slip PDF...');
-      const pdfBuffer = await page.pdf({
+      const pdfRaw = await page.pdf({
         format: 'A4',
         printBackground: true,
         margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' },
       });
+      const pdfBuffer = Buffer.from(pdfRaw);
 
       const slipUrl = await this.storePdf(pdfBuffer, data.registrationNumber);
 
