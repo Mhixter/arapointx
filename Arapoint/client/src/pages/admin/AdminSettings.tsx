@@ -9,7 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Shield, Database, Globe, Save, Mail, Loader2, Send, CreditCard, CheckCircle2, XCircle, Eye, EyeOff, Headset, Phone, MessageCircle, Trash2, AlertTriangle, Cloud, Upload, Image } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Bell, Shield, Database, Globe, Save, Mail, Loader2, Send, CreditCard, CheckCircle2, XCircle, Eye, EyeOff, Headset, Phone, MessageCircle, Trash2, AlertTriangle, Cloud, Upload, Image, Download, RefreshCw, FileDown, Activity, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/contexts/SettingsContext";
 
@@ -52,6 +55,14 @@ export default function AdminSettings() {
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   const [clearingTestData, setClearingTestData] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [clearCacheLoading, setClearCacheLoading] = useState(false);
+  const [clearCacheConfirm, setClearCacheConfirm] = useState(false);
+  const [showLogsDialog, setShowLogsDialog] = useState(false);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logsPage, setLogsPage] = useState(1);
+  const [logsPagination, setLogsPagination] = useState<{ total: number; pages: number }>({ total: 0, pages: 1 });
   const [cloudinary, setCloudinary] = useState({ cloudName: '', apiKey: '', apiSecret: '' });
   const [cloudinaryStatus, setCloudinaryStatus] = useState<{ greenUrl?: string; blueUrl?: string; cloudName?: string }>({});
   const [uploadingLogos, setUploadingLogos] = useState(false);
@@ -327,6 +338,79 @@ export default function AdminSettings() {
     } finally {
       setClearingTestData(false);
     }
+  };
+
+  const handleBackup = async () => {
+    setBackupLoading(true);
+    try {
+      const token = tokenStorage.getItem('adminToken');
+      const res = await fetch('/api/admin/db/backup', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Backup failed');
+      const blob = await res.blob();
+      const disposition = res.headers.get('Content-Disposition') || '';
+      const match = disposition.match(/filename="([^"]+)"/);
+      const filename = match?.[1] || `arapoint-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "Backup Downloaded", description: `${filename} has been saved to your device.` });
+    } catch {
+      toast({ title: "Backup Failed", description: "Could not generate the backup. Please try again.", variant: "destructive" });
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  const handleClearCache = async () => {
+    if (!clearCacheConfirm) { setClearCacheConfirm(true); return; }
+    setClearCacheLoading(true);
+    setClearCacheConfirm(false);
+    try {
+      const token = tokenStorage.getItem('adminToken');
+      const res = await fetch('/api/admin/db/clear-cache', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed');
+      toast({ title: "Cache Cleared", description: data.message || 'Server cache has been cleared.' });
+    } catch (err: any) {
+      toast({ title: "Clear Cache Failed", description: err.message || "Please try again.", variant: "destructive" });
+    } finally {
+      setClearCacheLoading(false);
+    }
+  };
+
+  const fetchLogs = async (page = 1) => {
+    setLogsLoading(true);
+    try {
+      const token = tokenStorage.getItem('adminToken');
+      const res = await fetch(`/api/admin/db/logs?page=${page}&limit=50`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed');
+      setLogs(data.data?.logs || []);
+      setLogsPagination({
+        total: data.data?.pagination?.total || 0,
+        pages: data.data?.pagination?.pages || 1,
+      });
+      setLogsPage(page);
+    } catch {
+      toast({ title: "Error", description: "Failed to load activity logs.", variant: "destructive" });
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
+  const handleViewLogs = () => {
+    setShowLogsDialog(true);
+    fetchLogs(1);
   };
 
   return (
@@ -1066,17 +1150,89 @@ export default function AdminSettings() {
           <Card>
             <CardHeader className="p-4 sm:p-6">
               <CardTitle className="text-base sm:text-lg">Database Management</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Database maintenance options</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">Database maintenance — backup data, clear server cache, and review admin activity logs</CardDescription>
             </CardHeader>
             <CardContent className="p-4 sm:p-6 pt-0 space-y-3 sm:space-y-4">
-              <div className="flex flex-wrap gap-2 sm:gap-3">
-                <Button variant="outline" size="sm" className="h-8 sm:h-9 text-xs sm:text-sm">
-                  <Database className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
-                  Backup
+
+              {/* Backup */}
+              <div className="rounded-md border p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <p className="text-xs sm:text-sm font-medium mb-0.5">Database Backup</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">
+                    Download a JSON snapshot of users, transactions, service requests, pricing, and admin settings.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 sm:h-9 text-xs sm:text-sm shrink-0"
+                  onClick={handleBackup}
+                  disabled={backupLoading}
+                >
+                  {backupLoading
+                    ? <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 animate-spin" />
+                    : <FileDown className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5" />}
+                  {backupLoading ? 'Exporting…' : 'Download Backup'}
                 </Button>
-                <Button variant="outline" size="sm" className="h-8 sm:h-9 text-xs sm:text-sm">Clear Cache</Button>
-                <Button variant="outline" size="sm" className="h-8 sm:h-9 text-xs sm:text-sm">View Logs</Button>
               </div>
+
+              {/* Clear Cache */}
+              <div className="rounded-md border p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <p className="text-xs sm:text-sm font-medium mb-0.5">Clear Server Cache</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">
+                    Remove all cached responses from the server cache. The platform will re-fetch fresh data on next requests.
+                  </p>
+                </div>
+                {clearCacheConfirm ? (
+                  <div className="flex gap-2 shrink-0">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="h-8 sm:h-9 text-xs sm:text-sm"
+                      onClick={handleClearCache}
+                      disabled={clearCacheLoading}
+                    >
+                      {clearCacheLoading ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                      Confirm Clear
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-8 sm:h-9 text-xs sm:text-sm" onClick={() => setClearCacheConfirm(false)}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 sm:h-9 text-xs sm:text-sm shrink-0"
+                    onClick={handleClearCache}
+                    disabled={clearCacheLoading}
+                  >
+                    <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5" />
+                    Clear Cache
+                  </Button>
+                )}
+              </div>
+
+              {/* View Logs */}
+              <div className="rounded-md border p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <p className="text-xs sm:text-sm font-medium mb-0.5">Admin Activity Logs</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">
+                    Browse a full audit trail of all admin actions taken on the platform.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 sm:h-9 text-xs sm:text-sm shrink-0"
+                  onClick={handleViewLogs}
+                >
+                  <Activity className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5" />
+                  View Logs
+                </Button>
+              </div>
+
             </CardContent>
           </Card>
 
@@ -1139,6 +1295,96 @@ export default function AdminSettings() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Activity Logs Dialog */}
+      <Dialog open={showLogsDialog} onOpenChange={setShowLogsDialog}>
+        <DialogContent className="max-w-4xl w-full max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Admin Activity Logs
+            </DialogTitle>
+            <DialogDescription>
+              {logsPagination.total > 0
+                ? `${logsPagination.total} total records — page ${logsPage} of ${logsPagination.pages}`
+                : 'Recent admin actions on the platform'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <ScrollArea className="flex-1 -mx-1 px-1">
+            {logsLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : logs.length === 0 ? (
+              <div className="text-center py-16 text-muted-foreground text-sm">No activity logs found.</div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs w-36">Time</TableHead>
+                    <TableHead className="text-xs">Admin</TableHead>
+                    <TableHead className="text-xs">Action</TableHead>
+                    <TableHead className="text-xs">Resource</TableHead>
+                    <TableHead className="text-xs">IP</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {logs.map((log) => (
+                    <TableRow key={log.id}>
+                      <TableCell className="text-[11px] text-muted-foreground whitespace-nowrap">
+                        {new Date(log.createdAt).toLocaleString('en-NG', { dateStyle: 'short', timeStyle: 'short' })}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        <div className="font-medium">{log.adminName || 'Unknown'}</div>
+                        <div className="text-[10px] text-muted-foreground">{log.adminEmail}</div>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        <Badge variant="outline" className="text-[10px] font-normal">{log.action}</Badge>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {log.resourceType && (
+                          <span className="text-muted-foreground">
+                            {log.resourceType}{log.resourceId ? ` #${String(log.resourceId).slice(0, 8)}` : ''}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-[11px] text-muted-foreground">{log.ipAddress || '—'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </ScrollArea>
+
+          {logsPagination.pages > 1 && (
+            <div className="flex items-center justify-between pt-3 border-t">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                disabled={logsPage <= 1 || logsLoading}
+                onClick={() => fetchLogs(logsPage - 1)}
+              >
+                <ChevronLeft className="h-3.5 w-3.5 mr-1" />
+                Previous
+              </Button>
+              <span className="text-xs text-muted-foreground">Page {logsPage} of {logsPagination.pages}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                disabled={logsPage >= logsPagination.pages || logsLoading}
+                onClick={() => fetchLogs(logsPage + 1)}
+              >
+                Next
+                <ChevronRight className="h-3.5 w-3.5 ml-1" />
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

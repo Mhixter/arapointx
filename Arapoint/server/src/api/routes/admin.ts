@@ -4920,4 +4920,130 @@ router.post('/broadcast/send', adminAuthMiddleware, async (req: Request, res: Re
   }
 });
 
+// ─── Database Management ──────────────────────────────────────────────────────
+
+router.get('/db/backup', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const [
+      userRows,
+      txRows,
+      rpaJobRows,
+      jambRows,
+      identityRows,
+      eduRows,
+      pricingRows,
+      settingRows,
+    ] = await Promise.all([
+      db.select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        phone: users.phone,
+        isVerified: users.isVerified,
+        isSuspended: users.isSuspended,
+        walletBalance: users.walletBalance,
+        createdAt: users.createdAt,
+      }).from(users).limit(5000),
+      db.select({
+        id: transactions.id,
+        userId: transactions.userId,
+        transactionType: transactions.transactionType,
+        amount: transactions.amount,
+        status: transactions.status,
+        referenceId: transactions.referenceId,
+        description: transactions.description,
+        createdAt: transactions.createdAt,
+      }).from(transactions).limit(10000),
+      db.select({
+        id: rpaJobs.id,
+        userId: rpaJobs.userId,
+        serviceType: rpaJobs.serviceType,
+        status: rpaJobs.status,
+        retryCount: rpaJobs.retryCount,
+        createdAt: rpaJobs.createdAt,
+        completedAt: rpaJobs.completedAt,
+      }).from(rpaJobs).limit(5000),
+      db.select().from(jambServiceRequests).limit(2000),
+      db.select().from(identityServiceRequests).limit(2000),
+      db.select().from(educationServiceRequests).limit(2000),
+      db.select().from(servicePricing),
+      db.select().from(adminSettings),
+    ]);
+
+    const backup = {
+      exportedAt: new Date().toISOString(),
+      version: '1.0',
+      tables: {
+        users: { count: userRows.length, data: userRows },
+        transactions: { count: txRows.length, data: txRows },
+        rpaJobs: { count: rpaJobRows.length, data: rpaJobRows },
+        jambServiceRequests: { count: jambRows.length, data: jambRows },
+        identityServiceRequests: { count: identityRows.length, data: identityRows },
+        educationServiceRequests: { count: eduRows.length, data: eduRows },
+        servicePricing: { count: pricingRows.length, data: pricingRows },
+        adminSettings: { count: settingRows.length, data: settingRows },
+      },
+    };
+
+    const filename = `arapoint-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(JSON.stringify(backup, null, 2));
+    logger.info('Database backup exported', { adminId: req.userId });
+  } catch (error: any) {
+    logger.error('DB backup error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to generate backup'));
+  }
+});
+
+router.post('/db/clear-cache', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const result = await db.execute(sql`DELETE FROM server_cache`);
+    const count = (result as any).rowCount ?? 0;
+    logger.info('Server cache cleared', { adminId: req.userId, rowsDeleted: count });
+    res.json(formatResponse('success', 200, `Cache cleared — ${count} entr${count === 1 ? 'y' : 'ies'} removed`, { cleared: count }));
+  } catch (error: any) {
+    logger.error('Clear cache error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to clear cache'));
+  }
+});
+
+router.get('/db/logs', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+    const offset = (page - 1) * limit;
+
+    const [logs, countResult] = await Promise.all([
+      db.select({
+        id: adminActivityLogs.id,
+        action: adminActivityLogs.action,
+        resourceType: adminActivityLogs.resourceType,
+        resourceId: adminActivityLogs.resourceId,
+        details: adminActivityLogs.details,
+        ipAddress: adminActivityLogs.ipAddress,
+        createdAt: adminActivityLogs.createdAt,
+        adminName: adminUsers.name,
+        adminEmail: adminUsers.email,
+      })
+        .from(adminActivityLogs)
+        .leftJoin(adminUsers, eq(adminActivityLogs.adminId, adminUsers.id))
+        .orderBy(desc(adminActivityLogs.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db.select({ count: count() }).from(adminActivityLogs),
+    ]);
+
+    const total = countResult[0]?.count ?? 0;
+    res.json(formatResponse('success', 200, 'Activity logs retrieved', {
+      logs,
+      pagination: { page, limit, total, pages: Math.ceil(Number(total) / limit) },
+    }));
+  } catch (error: any) {
+    logger.error('DB logs error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to fetch logs'));
+  }
+});
+
 export default router;
