@@ -954,6 +954,8 @@ router.post('/cloudinary/upload-logos', async (req: Request, res: Response) => {
 
     const settingsToSave = [
       { settingKey: 'cloudinaryCloudName', settingValue: cloudName },
+      { settingKey: 'cloudinaryApiKey', settingValue: apiKey },
+      { settingKey: 'cloudinaryApiSecret', settingValue: apiSecret },
       { settingKey: 'emailLogoGreenUrl', settingValue: greenResult.secure_url },
       { settingKey: 'emailLogoBlueUrl', settingValue: blueResult.secure_url },
     ];
