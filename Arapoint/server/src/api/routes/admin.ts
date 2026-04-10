@@ -915,6 +915,79 @@ router.get('/settings', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/cloudinary/upload-logos', async (req: Request, res: Response) => {
+  try {
+    const { cloudName, apiKey, apiSecret } = req.body;
+    if (!cloudName || !apiKey || !apiSecret) {
+      return res.status(400).json(formatErrorResponse(400, 'cloudName, apiKey, and apiSecret are required'));
+    }
+
+    const { v2: cloudinary } = await import('cloudinary');
+    cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret, secure: true });
+
+    const fs = await import('fs');
+    const path = await import('path');
+    const publicDir = path.resolve(process.cwd(), 'client', 'public');
+
+    const greenPath = path.join(publicDir, 'email-logo-green.png');
+    const bluePath  = path.join(publicDir, 'email-logo-blue.png');
+
+    if (!fs.existsSync(greenPath) || !fs.existsSync(bluePath)) {
+      return res.status(500).json(formatErrorResponse(500, 'Logo image files not found on server'));
+    }
+
+    const [greenResult, blueResult] = await Promise.all([
+      cloudinary.uploader.upload(greenPath, {
+        public_id: 'arapoint/email-logo-green',
+        overwrite: true,
+        resource_type: 'image',
+        format: 'png',
+      }),
+      cloudinary.uploader.upload(bluePath, {
+        public_id: 'arapoint/email-logo-blue',
+        overwrite: true,
+        resource_type: 'image',
+        format: 'png',
+      }),
+    ]);
+
+    const settingsToSave = [
+      { settingKey: 'cloudinaryCloudName', settingValue: cloudName },
+      { settingKey: 'emailLogoGreenUrl', settingValue: greenResult.secure_url },
+      { settingKey: 'emailLogoBlueUrl', settingValue: blueResult.secure_url },
+    ];
+
+    for (const s of settingsToSave) {
+      await db.insert(adminSettings)
+        .values({ ...s, updatedAt: new Date() })
+        .onConflictDoUpdate({ target: adminSettings.settingKey, set: { settingValue: s.settingValue, updatedAt: new Date() } });
+    }
+
+    logger.info('Cloudinary logos uploaded', { greenUrl: greenResult.secure_url, blueUrl: blueResult.secure_url });
+
+    res.json(formatResponse('success', 200, 'Logos uploaded to Cloudinary', {
+      greenUrl: greenResult.secure_url,
+      blueUrl: blueResult.secure_url,
+    }));
+  } catch (error: any) {
+    logger.error('Cloudinary upload error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, error.message || 'Failed to upload logos to Cloudinary'));
+  }
+});
+
+router.get('/cloudinary/status', async (req: Request, res: Response) => {
+  try {
+    const keys = ['cloudinaryCloudName', 'emailLogoGreenUrl', 'emailLogoBlueUrl'];
+    const rows = await db.select().from(adminSettings)
+      .where(inArray(adminSettings.settingKey, keys));
+    const result: Record<string, string> = {};
+    rows.forEach(r => { result[r.settingKey] = r.settingValue || ''; });
+    res.json(formatResponse('success', 200, 'Cloudinary status', result));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to get Cloudinary status'));
+  }
+});
+
 router.get('/payment-gateways/status', async (req: Request, res: Response) => {
   try {
     const settingsList = await db.select().from(adminSettings);

@@ -3,7 +3,41 @@ import { logger } from '../utils/logger';
 import { config } from '../config/env';
 import { db } from '../config/database';
 import { adminSettings } from '../db/schema';
-import { inArray } from 'drizzle-orm';
+import { inArray, eq } from 'drizzle-orm';
+
+async function getCloudinaryLogoUrl(color: 'green' | 'blue'): Promise<string | null> {
+  try {
+    const key = color === 'green' ? 'emailLogoGreenUrl' : 'emailLogoBlueUrl';
+    const rows = await db.select().from(adminSettings).where(eq(adminSettings.settingKey, key)).limit(1);
+    return rows[0]?.settingValue || null;
+  } catch {
+    return null;
+  }
+}
+
+function makeImgRow(url: string, alt: string): string {
+  return `<tr><td style="padding:0;font-size:0;line-height:0;mso-line-height-rule:exactly;"><a href="https://arapoint.com.ng" style="display:block;"><img src="${url}" alt="${alt}" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;outline:none;text-decoration:none;"></a></td></tr>`;
+}
+
+async function injectCloudinaryLogos(html: string): Promise<string> {
+  const [greenUrl, blueUrl] = await Promise.all([
+    getCloudinaryLogoUrl('green'),
+    getCloudinaryLogoUrl('blue'),
+  ]);
+  if (greenUrl) {
+    html = html.replace(
+      /<!-- arapoint-logo-green-start -->[\s\S]*?<!-- arapoint-logo-green-end -->/,
+      makeImgRow(greenUrl, 'Arapoint Solutions'),
+    );
+  }
+  if (blueUrl) {
+    html = html.replace(
+      /<!-- arapoint-logo-blue-start -->[\s\S]*?<!-- arapoint-logo-blue-end -->/,
+      makeImgRow(blueUrl, 'Arapoint Developer Platform'),
+    );
+  }
+  return html;
+}
 
 let transporter: nodemailer.Transporter | null = null;
 let lastSmtpConfig: string = '';
@@ -107,6 +141,8 @@ export async function sendEmail(
     const replyTo = effectiveFromEmail;
     const domain = effectiveFromEmail.split('@')[1] || 'arapoint.com.ng';
     const messageId = `<${Date.now()}.${Math.random().toString(36).substring(2, 11)}@${domain}>`;
+
+    html = await injectCloudinaryLogos(html);
 
     const plainText = text || html
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')

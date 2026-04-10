@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Shield, Database, Globe, Save, Mail, Loader2, Send, CreditCard, CheckCircle2, XCircle, Eye, EyeOff, Headset, Phone, MessageCircle, Trash2, AlertTriangle } from "lucide-react";
+import { Bell, Shield, Database, Globe, Save, Mail, Loader2, Send, CreditCard, CheckCircle2, XCircle, Eye, EyeOff, Headset, Phone, MessageCircle, Trash2, AlertTriangle, Cloud, Upload, Image } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/contexts/SettingsContext";
 
@@ -51,6 +51,10 @@ export default function AdminSettings() {
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   const [clearingTestData, setClearingTestData] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [cloudinary, setCloudinary] = useState({ cloudName: '', apiKey: '', apiSecret: '' });
+  const [cloudinaryStatus, setCloudinaryStatus] = useState<{ greenUrl?: string; blueUrl?: string; cloudName?: string }>({});
+  const [uploadingLogos, setUploadingLogos] = useState(false);
+  const [showCloudinarySecret, setShowCloudinarySecret] = useState(false);
 
   const settingsMap: Record<string, string> = {
     waecUrl: 'rpa_provider_url_waec',
@@ -96,6 +100,56 @@ export default function AdminSettings() {
     };
     fetchSettings();
   }, []);
+
+  useEffect(() => {
+    const fetchCloudinaryStatus = async () => {
+      try {
+        const token = tokenStorage.getItem('adminToken');
+        const res = await fetch('/api/admin/cloudinary/status', { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.data) {
+            setCloudinaryStatus({
+              greenUrl: data.data.emailLogoGreenUrl,
+              blueUrl: data.data.emailLogoBlueUrl,
+              cloudName: data.data.cloudinaryCloudName,
+            });
+            if (data.data.cloudinaryCloudName) {
+              setCloudinary(prev => ({ ...prev, cloudName: data.data.cloudinaryCloudName }));
+            }
+          }
+        }
+      } catch {}
+    };
+    fetchCloudinaryStatus();
+  }, []);
+
+  const handleUploadLogos = async () => {
+    if (!cloudinary.cloudName || !cloudinary.apiKey || !cloudinary.apiSecret) {
+      toast({ title: "Missing Fields", description: "Please fill in all three Cloudinary fields.", variant: "destructive" });
+      return;
+    }
+    setUploadingLogos(true);
+    try {
+      const token = tokenStorage.getItem('adminToken');
+      const res = await fetch('/api/admin/cloudinary/upload-logos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(cloudinary),
+      });
+      const data = await res.json();
+      if (res.ok && data.data) {
+        setCloudinaryStatus({ greenUrl: data.data.greenUrl, blueUrl: data.data.blueUrl, cloudName: cloudinary.cloudName });
+        toast({ title: "Logos Uploaded", description: "Both email logo images are now live on Cloudinary CDN.", variant: "success" });
+      } else {
+        toast({ title: "Upload Failed", description: data.message || "Failed to upload logos.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error while uploading.", variant: "destructive" });
+    } finally {
+      setUploadingLogos(false);
+    }
+  };
 
   const fetchGateways = async () => {
     setGatewayLoading(true);
@@ -667,6 +721,99 @@ export default function AdminSettings() {
                   />
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <Cloud className="h-4 w-4 text-blue-500" />
+                Cloudinary Email Logo
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Host email header images on Cloudinary CDN so they display instantly in Gmail and all email clients without any blocking.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
+              {(cloudinaryStatus.greenUrl || cloudinaryStatus.blueUrl) && (
+                <div className="rounded-md border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/20 p-3 space-y-2">
+                  <p className="text-xs font-semibold text-green-700 dark:text-green-400 flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Logos active on Cloudinary CDN
+                  </p>
+                  {cloudinaryStatus.greenUrl && (
+                    <div className="flex items-center gap-2">
+                      <Image className="h-3 w-3 text-green-600 shrink-0" />
+                      <a href={cloudinaryStatus.greenUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-green-700 dark:text-green-400 truncate hover:underline">
+                        {cloudinaryStatus.greenUrl}
+                      </a>
+                    </div>
+                  )}
+                  {cloudinaryStatus.blueUrl && (
+                    <div className="flex items-center gap-2">
+                      <Image className="h-3 w-3 text-blue-600 shrink-0" />
+                      <a href={cloudinaryStatus.blueUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-700 dark:text-blue-400 truncate hover:underline">
+                        {cloudinaryStatus.blueUrl}
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label htmlFor="cld-cloud-name" className="text-xs sm:text-sm">Cloud Name</Label>
+                  <Input
+                    id="cld-cloud-name"
+                    placeholder="your-cloud-name"
+                    value={cloudinary.cloudName}
+                    onChange={(e) => setCloudinary(prev => ({ ...prev, cloudName: e.target.value }))}
+                    className="h-8 sm:h-9 text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="cld-api-key" className="text-xs sm:text-sm">API Key</Label>
+                  <Input
+                    id="cld-api-key"
+                    placeholder="123456789012345"
+                    value={cloudinary.apiKey}
+                    onChange={(e) => setCloudinary(prev => ({ ...prev, apiKey: e.target.value }))}
+                    className="h-8 sm:h-9 text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="cld-api-secret" className="text-xs sm:text-sm">API Secret</Label>
+                  <div className="relative">
+                    <Input
+                      id="cld-api-secret"
+                      type={showCloudinarySecret ? 'text' : 'password'}
+                      placeholder="••••••••••••••••••••"
+                      value={cloudinary.apiSecret}
+                      onChange={(e) => setCloudinary(prev => ({ ...prev, apiSecret: e.target.value }))}
+                      className="h-8 sm:h-9 text-sm pr-9"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCloudinarySecret(p => !p)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showCloudinarySecret ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Get your credentials from <a href="https://console.cloudinary.com" target="_blank" rel="noopener noreferrer" className="underline">console.cloudinary.com</a> &rarr; Settings &rarr; API Keys. The free plan is sufficient.
+              </p>
+              <Button
+                onClick={handleUploadLogos}
+                disabled={uploadingLogos}
+                size="sm"
+                className="h-9 text-xs sm:text-sm w-full sm:w-auto"
+              >
+                {uploadingLogos
+                  ? <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> Uploading Logos...</>
+                  : <><Upload className="h-3.5 w-3.5 mr-2" /> Save & Upload Logos to Cloudinary</>
+                }
+              </Button>
             </CardContent>
           </Card>
 

@@ -2,7 +2,7 @@ const YEAR = new Date().getFullYear();
 const SITE_URL = "https://arapoint.com.ng";
 const DEV_PORTAL_URL = `${SITE_URL}/developer`;
 
-const BLUE_HEADER = `
+const BLUE_HEADER = `<!-- arapoint-logo-blue-start -->
 <tr>
   <td style="background:#1e3a8a;padding:22px 28px;">
     <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
@@ -26,7 +26,8 @@ const BLUE_HEADER = `
       </tr>
     </table>
   </td>
-</tr>`;
+</tr>
+<!-- arapoint-logo-blue-end -->`;
 
 function devBase(previewText: string, accentColor: string, body: string): string {
   return `<!DOCTYPE html>

@@ -1,7 +1,7 @@
 const YEAR = new Date().getFullYear();
 const SITE_URL = "https://arapoint.com.ng";
 
-const GREEN_HEADER = `
+const GREEN_HEADER = `<!-- arapoint-logo-green-start -->
 <tr>
   <td style="background:#166534;padding:22px 28px;">
     <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
@@ -25,7 +25,8 @@ const GREEN_HEADER = `
       </tr>
     </table>
   </td>
-</tr>`;
+</tr>
+<!-- arapoint-logo-green-end -->`;
 
 function agentBase(previewText: string, accentColor: string, body: string): string {
   return `<!DOCTYPE html>

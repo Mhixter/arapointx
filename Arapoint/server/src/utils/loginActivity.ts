@@ -88,7 +88,9 @@ function loginAlertEmailHtml(opts: {
   const headerTag  = isDeveloper ? 'DEVELOPER PLATFORM &middot; SECURE IDENTITY INFRASTRUCTURE' : 'DIGITAL IDENTITY &amp; VERIFICATION &middot; NIGERIA';
   const headerRight = isDeveloper ? 'API PORTAL' : 'SECURITY ALERT';
   const headerRightColor = isDeveloper ? '#60a5fa' : '#4ade80';
-  const brandedHeader = `
+  const logoMarkerStart = isDeveloper ? '<!-- arapoint-logo-blue-start -->' : '<!-- arapoint-logo-green-start -->';
+  const logoMarkerEnd   = isDeveloper ? '<!-- arapoint-logo-blue-end -->'   : '<!-- arapoint-logo-green-end -->';
+  const brandedHeader = `${logoMarkerStart}
 <tr>
   <td style="background:${headerBg};padding:22px 28px;">
     <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
@@ -112,7 +114,8 @@ function loginAlertEmailHtml(opts: {
       </tr>
     </table>
   </td>
-</tr>`;
+</tr>
+${logoMarkerEnd}`;
 
   const typeLabel: Record<string, string> = {
     user: 'User Account',
