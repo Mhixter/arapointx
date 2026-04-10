@@ -1,8 +1,6 @@
-import { EMAIL_LOGO_GREEN } from './emailLogos';
-
 const YEAR = new Date().getFullYear();
 const PLATFORM_URL = "https://arapoint.com.ng";
-const GREEN_LOGO_URL = EMAIL_LOGO_GREEN;
+const GREEN_LOGO_URL = "cid:email-logo-green";
 
 const G = {
   dark:   "#166534",

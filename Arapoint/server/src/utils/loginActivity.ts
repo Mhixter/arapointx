@@ -5,7 +5,6 @@ import { sendEmail } from '../services/emailService';
 import { logger } from './logger';
 import { sql } from 'drizzle-orm';
 import { desc, eq, and, gte, ilike, or } from 'drizzle-orm';
-import { EMAIL_LOGO_GREEN, EMAIL_LOGO_BLUE } from './emailLogos';
 
 (async () => {
   try {
@@ -83,7 +82,7 @@ function loginAlertEmailHtml(opts: {
   const YEAR = new Date().getFullYear();
 
   const isDeveloper = opts.actorType === 'developer';
-  const logoUrl = isDeveloper ? EMAIL_LOGO_BLUE : EMAIL_LOGO_GREEN;
+  const logoUrl = isDeveloper ? "cid:email-logo-blue" : "cid:email-logo-green";
 
   const typeLabel: Record<string, string> = {
     user: 'User Account',
