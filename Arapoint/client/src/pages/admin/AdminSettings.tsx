@@ -33,6 +33,7 @@ export default function AdminSettings() {
     necoUrl: "",
     nabtebUrl: "",
     mbaisUrl: "",
+    jambSlipUrl: "",
     smtpHost: "smtp.gmail.com",
     smtpPort: "587",
     smtpUser: "",
@@ -61,6 +62,7 @@ export default function AdminSettings() {
     necoUrl: 'rpa_provider_url_neco',
     nabtebUrl: 'rpa_provider_url_nabteb',
     mbaisUrl: 'rpa_provider_url_mbais',
+    jambSlipUrl: 'rpa_provider_url_jamb_slip',
   };
 
   const booleanKeys = ['maintenanceMode', 'emailNotifications', 'smsNotifications', 'twoFactorAuth'];
@@ -295,6 +297,7 @@ export default function AdminSettings() {
       [settingsMap.necoUrl]: settings.necoUrl,
       [settingsMap.nabtebUrl]: settings.nabtebUrl,
       [settingsMap.mbaisUrl]: settings.mbaisUrl,
+      [settingsMap.jambSlipUrl]: settings.jambSlipUrl,
     }, "Education");
   };
 
@@ -1016,6 +1019,17 @@ export default function AdminSettings() {
                     onChange={(e) => setSettings(prev => ({ ...prev, mbaisUrl: e.target.value }))}
                     className="h-8 sm:h-9 text-sm"
                   />
+                </div>
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label htmlFor="jamb-slip-url" className="text-xs sm:text-sm">JAMB Exam Slip Portal URL</Label>
+                  <Input
+                    id="jamb-slip-url"
+                    placeholder="https://slipsprinting.jamb.gov.ng/PrintExaminationSlip"
+                    value={settings.jambSlipUrl || ""}
+                    onChange={(e) => setSettings(prev => ({ ...prev, jambSlipUrl: e.target.value }))}
+                    className="h-8 sm:h-9 text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">Leave blank to use the default JAMB slip printing portal URL.</p>
                 </div>
               </div>
             </CardContent>
