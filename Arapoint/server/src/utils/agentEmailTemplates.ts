@@ -13,59 +13,46 @@ function agentBase(previewText: string, accentColor: string, body: string): stri
 <body style="margin:0;padding:0;background:#F0F4F8;font-family:Arial,Helvetica,sans-serif;">
 <div style="display:none;max-height:0;overflow:hidden;font-size:1px;color:#F0F4F8;">${previewText}&nbsp;&zwnj;&nbsp;&zwnj;</div>
 
-<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#F0F4F8;padding:40px 0;">
-  <tr><td align="center">
-    <table width="600" cellpadding="0" cellspacing="0" role="presentation" style="max-width:600px;width:100%;background:#FFFFFF;border-radius:8px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F0F4F8;padding:32px 0;">
+  <tr><td align="center" style="padding:0 12px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#FFFFFF;border-radius:8px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
 
-      <!-- Logo Header -->
+      <!-- Logo Header — full bleed, zero padding -->
       <tr>
-        <td style="padding:0;margin:0;line-height:0;">
-          <img src="${GREEN_LOGO_URL}" alt="Arapoint Solutions" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;" />
+        <td style="padding:0;margin:0;font-size:0;line-height:0;mso-line-height-rule:exactly;">
+          <img src="${GREEN_LOGO_URL}" alt="Arapoint Solutions" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;outline:none;text-decoration:none;" />
         </td>
       </tr>
 
       <!-- Accent bar -->
-      <tr><td style="height:4px;background:${accentColor};font-size:0;line-height:0;">&nbsp;</td></tr>
+      <tr>
+        <td style="height:4px;font-size:0;line-height:0;mso-line-height-rule:exactly;background:${accentColor};">&nbsp;</td>
+      </tr>
 
       <!-- Body -->
       <tr>
-        <td style="padding:40px 36px;">
+        <td style="padding:36px 32px;">
           ${body}
         </td>
       </tr>
 
       <!-- Footer -->
       <tr>
-        <td style="background:#F8FAFC;padding:28px 36px;border-top:1px solid #E5E7EB;">
-          <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
-            <tr>
-              <td style="border-bottom:1px solid #E5E7EB;padding-bottom:16px;margin-bottom:16px;">
-                <p style="margin:0;color:#374151;font-size:13px;font-weight:700;font-family:Arial,sans-serif;">Arapoint Solutions</p>
-                <p style="margin:4px 0 0;color:#6B7280;font-size:12px;font-family:Arial,sans-serif;">Nigeria's Digital Identity &amp; Verification Platform</p>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding-top:16px;">
-                <table cellpadding="0" cellspacing="0" role="presentation">
-                  <tr>
-                    <td style="padding-right:16px;">
-                      <a href="${SITE_URL}" style="color:#166534;font-size:12px;text-decoration:none;font-family:Arial,sans-serif;">arapoint.com.ng</a>
-                    </td>
-                    <td style="padding:0 16px;border-left:1px solid #D1D5DB;">
-                      <a href="mailto:support@arapoint.com.ng" style="color:#166534;font-size:12px;text-decoration:none;font-family:Arial,sans-serif;">support@arapoint.com.ng</a>
-                    </td>
-                    <td style="padding:0 16px;border-left:1px solid #D1D5DB;">
-                      <a href="mailto:hello@arapoint.com.ng" style="color:#166534;font-size:12px;text-decoration:none;font-family:Arial,sans-serif;">hello@arapoint.com.ng</a>
-                    </td>
-                  </tr>
-                </table>
-                <p style="margin:14px 0 0;color:#9CA3AF;font-size:11px;line-height:1.6;font-family:Arial,sans-serif;">
-                  &copy; ${YEAR} Arapoint Solutions. All rights reserved.<br>
-                  This is an official internal notification from the Arapoint Agent Network. It is intended solely for the named recipient. If you received this in error, please contact your supervisor or email support@arapoint.com.ng immediately.
-                </p>
-              </td>
-            </tr>
-          </table>
+        <td style="background:#F8FAFC;padding:24px 32px;border-top:1px solid #E5E7EB;text-align:center;">
+          <p style="margin:0 0 4px;color:#374151;font-size:13px;font-weight:700;font-family:Arial,sans-serif;">Arapoint Solutions</p>
+          <p style="margin:0 0 14px;color:#6B7280;font-size:11px;font-family:Arial,sans-serif;">Nigeria's Digital Identity &amp; Verification Platform</p>
+          <p style="margin:0 0 10px;font-size:12px;font-family:Arial,sans-serif;">
+            <a href="${SITE_URL}" style="color:#166534;text-decoration:none;">arapoint.com.ng</a>
+            &nbsp;&nbsp;|&nbsp;&nbsp;
+            <a href="mailto:support@arapoint.com.ng" style="color:#166534;text-decoration:none;">support@arapoint.com.ng</a>
+            &nbsp;&nbsp;|&nbsp;&nbsp;
+            <a href="mailto:hello@arapoint.com.ng" style="color:#166534;text-decoration:none;">hello@arapoint.com.ng</a>
+          </p>
+          <p style="margin:0;color:#9CA3AF;font-size:10px;line-height:1.7;font-family:Arial,sans-serif;">
+            &copy; ${YEAR} Arapoint Solutions. All rights reserved.<br>
+            This is an official internal notification from the Arapoint Agent Network. It is intended solely for the named recipient.<br>
+            If you received this in error, contact your supervisor or email support@arapoint.com.ng immediately.
+          </p>
         </td>
       </tr>
 
@@ -85,14 +72,14 @@ function agentInfoCard(items: { label: string; value: string }[]): string {
       </td>
     </tr>`).join('');
   return `
-    <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;margin-bottom:28px;overflow:hidden;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:8px;margin-bottom:28px;overflow:hidden;">
       ${rows}
     </table>`;
 }
 
 function agentAlertBox(text: string, borderColor: string, bgColor: string): string {
   return `
-    <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-bottom:24px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
       <tr>
         <td style="background:${bgColor};border:1px solid ${borderColor}44;border-left:4px solid ${borderColor};border-radius:0 6px 6px 0;padding:14px 18px;">
           <p style="margin:0;color:#374151;font-size:13px;line-height:1.7;font-family:Arial,sans-serif;">${text}</p>
@@ -103,7 +90,7 @@ function agentAlertBox(text: string, borderColor: string, bgColor: string): stri
 
 function agentCTA(label: string, url: string, color = "#166534"): string {
   return `
-    <table cellpadding="0" cellspacing="0" role="presentation" style="margin-bottom:28px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
       <tr>
         <td style="background:${color};border-radius:6px;">
           <a href="${url}" style="display:block;padding:14px 32px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;font-family:Arial,sans-serif;letter-spacing:0.3px;">${label}</a>
@@ -136,12 +123,12 @@ export function agentWelcomeEmailHtml({
   ];
 
   const body = `
-    <h1 style="margin:0 0 8px;color:#111827;font-size:24px;font-weight:800;font-family:Arial,sans-serif;">Welcome, ${name}</h1>
-    <p style="margin:0 0 28px;color:#6B7280;font-size:15px;line-height:1.7;font-family:Arial,sans-serif;">
+    <h1 style="margin:0 0 8px;color:#111827;font-size:22px;font-weight:800;font-family:Arial,sans-serif;">Welcome, ${name}</h1>
+    <p style="margin:0 0 24px;color:#6B7280;font-size:14px;line-height:1.7;font-family:Arial,sans-serif;">
       Your <strong style="color:#111827;">${role}</strong> account has been set up on the Arapoint Agent Portal. Please keep your login credentials confidential and do not share them with anyone.
     </p>
 
-    <p style="margin:0 0 12px;color:#374151;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;font-family:Arial,sans-serif;">Your Account Details</p>
+    <p style="margin:0 0 10px;color:#374151;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;font-family:Arial,sans-serif;">Your Account Details</p>
     ${agentInfoCard(infoItems)}
 
     ${agentCTA("Log In to Agent Dashboard", loginUrl)}
@@ -174,12 +161,12 @@ export function agentNewRequestEmailHtml({
   dashboardUrl: string;
 }): string {
   const body = `
-    <h1 style="margin:0 0 8px;color:#111827;font-size:24px;font-weight:800;font-family:Arial,sans-serif;">New Request Assigned to You</h1>
-    <p style="margin:0 0 28px;color:#6B7280;font-size:15px;line-height:1.7;font-family:Arial,sans-serif;">
+    <h1 style="margin:0 0 8px;color:#111827;font-size:22px;font-weight:800;font-family:Arial,sans-serif;">New Request Assigned to You</h1>
+    <p style="margin:0 0 24px;color:#6B7280;font-size:14px;line-height:1.7;font-family:Arial,sans-serif;">
       Dear <strong style="color:#111827;">${agentName}</strong>, a new <strong style="color:#111827;">${serviceLabel}</strong> request has been submitted and assigned to you for processing. Please review the details below and action it promptly.
     </p>
 
-    <p style="margin:0 0 12px;color:#374151;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;font-family:Arial,sans-serif;">Request Details</p>
+    <p style="margin:0 0 10px;color:#374151;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;font-family:Arial,sans-serif;">Request Details</p>
     ${agentInfoCard([
       { label: "Tracking ID", value: trackingId },
       { label: "Service Type", value: serviceLabel },

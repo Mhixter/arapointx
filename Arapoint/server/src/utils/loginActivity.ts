@@ -78,90 +78,136 @@ function loginAlertEmailHtml(opts: {
   device: string;
   time: string;
 }): string {
+  const SITE_URL = "https://arapoint.com.ng";
+  const YEAR = new Date().getFullYear();
+
+  const isDeveloper = opts.actorType === 'developer';
+  const logoUrl = isDeveloper
+    ? `${SITE_URL}/email-logo-blue.png`
+    : `${SITE_URL}/email-logo-green.png`;
+
   const typeLabel: Record<string, string> = {
     user: 'User Account',
     admin: 'Admin Account',
     developer: 'Developer Account',
     agent: 'Agent Account',
   };
-  const typeColor: Record<string, string> = {
-    user: '#059669',
-    admin: '#dc2626',
-    developer: '#0B5FFF',
-    agent: '#7c3aed',
+  const accentColor: Record<string, string> = {
+    user: '#16a34a',
+    admin: '#16a34a',
+    developer: '#1D4ED8',
+    agent: '#16a34a',
   };
   const label = typeLabel[opts.actorType] || 'Account';
-  const color = typeColor[opts.actorType] || '#059669';
+  const accent = accentColor[opts.actorType] || '#16a34a';
 
-  return `
-<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#F3F4F6;font-family:'Segoe UI',Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#F3F4F6;padding:32px 0;">
-  <tr><td align="center">
-    <table width="580" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);max-width:95%;">
+  const outerBg = isDeveloper ? '#0D1117' : '#EEF2F7';
+  const cardBg  = isDeveloper ? '#161B27' : '#FFFFFF';
+  const cardBorder = isDeveloper ? 'border:1px solid #21293A;' : '';
+  const rowBg   = isDeveloper ? '#1F2937' : '#F9FAFB';
+  const rowBorderColor = isDeveloper ? '#21293A' : '#E5E7EB';
+  const labelColor = isDeveloper ? '#9CA3AF' : '#6B7280';
+  const valueColor = isDeveloper ? '#E5E7EB' : '#111827';
+  const bodyText   = isDeveloper ? '#9CA3AF' : '#6B7280';
+  const headingColor = isDeveloper ? '#F9FAFB' : '#111827';
+  const footerBg   = isDeveloper ? '#0D1117' : '#F8FAFC';
+  const footerBorderTop = isDeveloper ? '1px solid #21293A' : '1px solid #E5E7EB';
+  const footerHeadColor  = isDeveloper ? '#E5E7EB' : '#374151';
+  const footerSubColor   = isDeveloper ? '#6B7280' : '#6B7280';
+  const footerLinkColor  = isDeveloper ? '#3B82F6' : '#166534';
+  const footerTextColor  = isDeveloper ? '#4B5563' : '#9CA3AF';
+  const alertBg    = isDeveloper ? '#1F2937' : '#FEF2F2';
+  const alertBorder = isDeveloper ? '#21293A' : '#FECACA';
+  const alertLeft  = '#EF4444';
+  const alertText  = isDeveloper ? '#E5E7EB' : '#991B1B';
+
+  const infoRows = [
+    { label: "Account Email", value: opts.email },
+    { label: "Time (WAT)",    value: opts.time },
+    { label: "IP Address",    value: `<span style="font-family:'Courier New',monospace;">${opts.ip}</span>` },
+    { label: "Device",        value: opts.device },
+    { label: "Operating System", value: opts.os },
+    { label: "Browser",       value: opts.browser },
+  ].map(row => `
+    <tr>
+      <td style="padding:12px 16px;border-bottom:1px solid ${rowBorderColor};">
+        <p style="margin:0;color:${labelColor};font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;font-family:Arial,sans-serif;">${row.label}</p>
+        <p style="margin:4px 0 0;color:${valueColor};font-size:14px;font-weight:600;font-family:Arial,sans-serif;">${row.value}</p>
+      </td>
+    </tr>`).join('');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>New Login Detected — Arapoint</title>
+</head>
+<body style="margin:0;padding:0;background:${outerBg};font-family:Arial,Helvetica,sans-serif;">
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${outerBg};padding:32px 0;">
+  <tr><td align="center" style="padding:0 12px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:${cardBg};border-radius:8px;overflow:hidden;${cardBorder}">
+
+      <!-- Logo Header -->
       <tr>
-        <td style="background:${color};padding:28px 32px;text-align:center;">
-          <div style="font-size:28px;margin-bottom:8px;">🔐</div>
-          <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">New Login Detected</h1>
-          <p style="margin:6px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">${label} · Arapoint</p>
+        <td style="padding:0;margin:0;font-size:0;line-height:0;mso-line-height-rule:exactly;">
+          <img src="${logoUrl}" alt="Arapoint" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;outline:none;text-decoration:none;" />
         </td>
       </tr>
+
+      <!-- Accent bar -->
       <tr>
-        <td style="padding:32px;">
-          <p style="margin:0 0 8px;color:#374151;font-size:15px;">Hi <strong>${opts.name}</strong>,</p>
-          <p style="margin:0 0 24px;color:#6B7280;font-size:14px;line-height:1.6;">
-            A new login was just detected on your Arapoint <strong>${label.toLowerCase()}</strong>. 
-            If this was you, no action is needed. If you didn't sign in, please change your password immediately.
+        <td style="height:4px;font-size:0;line-height:0;mso-line-height-rule:exactly;background:${accent};">&nbsp;</td>
+      </tr>
+
+      <!-- Body -->
+      <tr>
+        <td style="padding:36px 32px;">
+          <h1 style="margin:0 0 8px;color:${headingColor};font-size:22px;font-weight:800;font-family:Arial,sans-serif;">New Login Detected</h1>
+          <p style="margin:0 0 24px;color:${bodyText};font-size:14px;line-height:1.7;font-family:Arial,sans-serif;">
+            Dear <strong style="color:${headingColor};">${opts.name}</strong>, a new login was detected on your Arapoint <strong style="color:${headingColor};">${label}</strong>. If this was you, no action is needed. If you did not sign in, please change your password immediately and contact our support team.
           </p>
 
-          <table width="100%" cellpadding="0" cellspacing="0" style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;margin-bottom:24px;">
-            <tr style="background:#F3F4F6;">
-              <td colspan="2" style="padding:12px 16px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#6B7280;">Login Details</td>
-            </tr>
-            <tr>
-              <td style="padding:12px 16px;color:#6B7280;font-size:13px;border-top:1px solid #E5E7EB;width:140px;">📧 Account</td>
-              <td style="padding:12px 16px;color:#111827;font-size:13px;font-weight:600;border-top:1px solid #E5E7EB;">${opts.email}</td>
-            </tr>
-            <tr>
-              <td style="padding:12px 16px;color:#6B7280;font-size:13px;border-top:1px solid #E5E7EB;">🕐 Time</td>
-              <td style="padding:12px 16px;color:#111827;font-size:13px;font-weight:600;border-top:1px solid #E5E7EB;">${opts.time} (WAT)</td>
-            </tr>
-            <tr>
-              <td style="padding:12px 16px;color:#6B7280;font-size:13px;border-top:1px solid #E5E7EB;">🌐 IP Address</td>
-              <td style="padding:12px 16px;color:#111827;font-size:13px;font-weight:600;border-top:1px solid #E5E7EB;font-family:monospace;">${opts.ip}</td>
-            </tr>
-            <tr>
-              <td style="padding:12px 16px;color:#6B7280;font-size:13px;border-top:1px solid #E5E7EB;">💻 Device</td>
-              <td style="padding:12px 16px;color:#111827;font-size:13px;font-weight:600;border-top:1px solid #E5E7EB;">${opts.device}</td>
-            </tr>
-            <tr>
-              <td style="padding:12px 16px;color:#6B7280;font-size:13px;border-top:1px solid #E5E7EB;">🌍 Operating System</td>
-              <td style="padding:12px 16px;color:#111827;font-size:13px;font-weight:600;border-top:1px solid #E5E7EB;">${opts.os}</td>
-            </tr>
-            <tr>
-              <td style="padding:12px 16px;color:#6B7280;font-size:13px;border-top:1px solid #E5E7EB;">🔎 Browser</td>
-              <td style="padding:12px 16px;color:#111827;font-size:13px;font-weight:600;border-top:1px solid #E5E7EB;">${opts.browser}</td>
-            </tr>
+          <p style="margin:0 0 10px;color:${labelColor};font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;font-family:Arial,sans-serif;">Login Details</p>
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${rowBg};border:1px solid ${rowBorderColor};border-radius:8px;margin-bottom:24px;overflow:hidden;">
+            ${infoRows}
           </table>
 
-          <table width="100%" cellpadding="0" cellspacing="0" style="background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;margin-bottom:24px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${alertBg};border:1px solid ${alertBorder};border-left:4px solid ${alertLeft};border-radius:0 6px 6px 0;margin-bottom:24px;">
             <tr>
-              <td style="padding:14px 16px;">
-                <p style="margin:0;color:#991B1B;font-size:13px;font-weight:600;">⚠️ Didn't recognise this login?</p>
-                <p style="margin:4px 0 0;color:#B91C1C;font-size:13px;">Change your password immediately and contact Arapoint support.</p>
+              <td style="padding:14px 18px;">
+                <p style="margin:0 0 4px;color:${alertText};font-size:13px;font-weight:700;font-family:Arial,sans-serif;">Did not recognise this login?</p>
+                <p style="margin:0;color:${alertText};font-size:13px;line-height:1.6;font-family:Arial,sans-serif;">Change your password immediately and contact Arapoint support at <a href="mailto:support@arapoint.com.ng" style="color:${alertLeft};text-decoration:none;">support@arapoint.com.ng</a>.</p>
               </td>
             </tr>
           </table>
+
+          <p style="margin:0;color:${bodyText};font-size:12px;line-height:1.6;font-family:Arial,sans-serif;">
+            This is an automated security notification. No action is required if you initiated this login.
+          </p>
         </td>
       </tr>
+
+      <!-- Footer -->
       <tr>
-        <td style="background:#F9FAFB;padding:20px 32px;border-top:1px solid #E5E7EB;text-align:center;">
-          <p style="margin:0;color:#9CA3AF;font-size:12px;">Arapoint Digital Platform · arapoint.com.ng</p>
-          <p style="margin:4px 0 0;color:#9CA3AF;font-size:11px;">This is an automated security notification.</p>
+        <td style="background:${footerBg};padding:24px 32px;border-top:${footerBorderTop};text-align:center;">
+          <p style="margin:0 0 4px;color:${footerHeadColor};font-size:13px;font-weight:700;font-family:Arial,sans-serif;">Arapoint Solutions</p>
+          <p style="margin:0 0 14px;color:${footerSubColor};font-size:11px;font-family:Arial,sans-serif;">Nigeria's Digital Identity &amp; Verification Platform</p>
+          <p style="margin:0 0 10px;font-size:12px;font-family:Arial,sans-serif;">
+            <a href="${SITE_URL}" style="color:${footerLinkColor};text-decoration:none;">arapoint.com.ng</a>
+            &nbsp;&nbsp;|&nbsp;&nbsp;
+            <a href="mailto:support@arapoint.com.ng" style="color:${footerLinkColor};text-decoration:none;">support@arapoint.com.ng</a>
+            &nbsp;&nbsp;|&nbsp;&nbsp;
+            <a href="mailto:hello@arapoint.com.ng" style="color:${footerLinkColor};text-decoration:none;">hello@arapoint.com.ng</a>
+          </p>
+          <p style="margin:0;color:${footerTextColor};font-size:10px;line-height:1.7;font-family:Arial,sans-serif;">
+            &copy; ${YEAR} Arapoint Solutions. All rights reserved.<br>
+            This is an automated security notification. If you have concerns about your account, contact support immediately.
+          </p>
         </td>
       </tr>
+
     </table>
   </td></tr>
 </table>
@@ -218,7 +264,7 @@ export async function logLoginActivity(
 
       sendEmail(
         data.actorEmail,
-        '🔐 New Login Detected — Arapoint',
+        'New Login Detected — Arapoint Security Alert',
         html,
       ).catch((e: any) => logger.error('Login alert email failed', { error: e.message }));
     }
