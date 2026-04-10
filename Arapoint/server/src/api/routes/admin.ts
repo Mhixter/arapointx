@@ -70,6 +70,7 @@ import {
 } from '../../db/schema';
 import { sendEmail } from '../../services/emailService';
 import { agentWelcomeEmailHtml } from '../../utils/agentEmailTemplates';
+import { buildBroadcastEmail } from '../../utils/broadcastEmailTemplates';
 import { getSiteUrl } from '../../utils/helpers';
 import { generateAgentSlaPdf } from '../../utils/generateAgentSla';
 import { fraudService } from '../../services/fraudService';
@@ -4806,6 +4807,114 @@ router.get('/login-activities', adminAuthMiddleware, async (req: Request, res: R
   } catch (error: any) {
     logger.error('Login activities fetch error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to fetch login activities'));
+  }
+});
+
+// ─── Email Broadcast ─────────────────────────────────────────────────────────
+
+router.get('/broadcast/counts', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const [userCount, agentCount, devCount] = await Promise.all([
+      db.execute(sql`SELECT COUNT(*)::int AS total FROM users`),
+      db.execute(sql`SELECT COUNT(*)::int AS total FROM admin_users WHERE is_active = true`),
+      db.execute(sql`SELECT COUNT(*)::int AS total FROM developer_users WHERE is_active = true`),
+    ]);
+    res.json(formatResponse('success', 200, 'Recipient counts', {
+      users: Number((userCount.rows[0] as any)?.total ?? 0),
+      agents: Number((agentCount.rows[0] as any)?.total ?? 0),
+      developers: Number((devCount.rows[0] as any)?.total ?? 0),
+    }));
+  } catch (error: any) {
+    logger.error('Broadcast count error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to fetch recipient counts'));
+  }
+});
+
+const broadcastBannerUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+
+router.post('/broadcast/upload-banner', adminAuthMiddleware, broadcastBannerUpload.single('banner'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) return res.status(400).json(formatErrorResponse(400, 'No file uploaded'));
+
+    const cloudNameRow = await db.select().from(adminSettings).where(eq(adminSettings.settingKey, 'cloudinaryCloudName')).limit(1);
+    const apiKeyRow = await db.select().from(adminSettings).where(eq(adminSettings.settingKey, 'cloudinaryApiKey')).limit(1);
+    const apiSecretRow = await db.select().from(adminSettings).where(eq(adminSettings.settingKey, 'cloudinaryApiSecret')).limit(1);
+
+    const cloudName = cloudNameRow[0]?.settingValue;
+    const apiKey = apiKeyRow[0]?.settingValue;
+    const apiSecret = apiSecretRow[0]?.settingValue;
+
+    if (!cloudName || !apiKey || !apiSecret) {
+      return res.status(400).json(formatErrorResponse(400, 'Cloudinary not configured. Please set up Cloudinary in Settings first.'));
+    }
+
+    const { v2: cloudinary } = await import('cloudinary');
+    cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret, secure: true });
+
+    const result: any = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'arapoint/broadcast-banners', resource_type: 'image' },
+        (error, result) => { if (error) reject(error); else resolve(result); }
+      );
+      stream.end(req.file!.buffer);
+    });
+
+    res.json(formatResponse('success', 200, 'Banner uploaded', { url: result.secure_url }));
+  } catch (error: any) {
+    logger.error('Broadcast banner upload error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, error.message || 'Failed to upload banner'));
+  }
+});
+
+router.post('/broadcast/send', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { recipients, subject, body, bannerUrl, bannerPosition } = req.body as {
+      recipients: string[];
+      subject: string;
+      body: string;
+      bannerUrl?: string;
+      bannerPosition?: 'top' | 'middle' | 'bottom';
+    };
+
+    if (!recipients?.length) return res.status(400).json(formatErrorResponse(400, 'Select at least one recipient group'));
+    if (!subject?.trim()) return res.status(400).json(formatErrorResponse(400, 'Subject is required'));
+    if (!body?.trim()) return res.status(400).json(formatErrorResponse(400, 'Email body is required'));
+
+    let sent = 0;
+    let failed = 0;
+
+    const sendToList = async (emails: string[], recipientType: 'users' | 'agents' | 'developers') => {
+      for (const email of emails) {
+        const html = buildBroadcastEmail({ subject, bodyText: body, bannerUrl, bannerPosition, recipientType });
+        const ok = await sendEmail(email, subject, html);
+        if (ok) sent++; else failed++;
+        await new Promise(r => setTimeout(r, 120));
+      }
+    };
+
+    if (recipients.includes('users')) {
+      const rows = await db.execute(sql`SELECT email FROM users`);
+      const emails = (rows.rows as any[]).map(r => r.email).filter(Boolean);
+      await sendToList(emails, 'users');
+    }
+
+    if (recipients.includes('agents')) {
+      const rows = await db.execute(sql`SELECT email FROM admin_users WHERE is_active = true`);
+      const emails = (rows.rows as any[]).map(r => r.email).filter(Boolean);
+      await sendToList(emails, 'agents');
+    }
+
+    if (recipients.includes('developers')) {
+      const rows = await db.execute(sql`SELECT email FROM developer_users WHERE is_active = true`);
+      const emails = (rows.rows as any[]).map(r => r.email).filter(Boolean);
+      await sendToList(emails, 'developers');
+    }
+
+    logger.info('Broadcast email completed', { subject, sent, failed, recipients });
+    res.json(formatResponse('success', 200, `Broadcast complete: ${sent} sent, ${failed} failed`, { sent, failed }));
+  } catch (error: any) {
+    logger.error('Broadcast send error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, error.message || 'Failed to send broadcast'));
   }
 });
 

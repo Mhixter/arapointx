@@ -99,6 +99,7 @@ import AdminRPAJobs from "@/pages/admin/AdminRPAJobs";
 import AdminDeveloperPortal from "@/pages/admin/AdminDeveloperPortal";
 import AdminQueueMonitor from "@/pages/admin/AdminQueueMonitor";
 import AdminLoginActivity from "@/pages/admin/AdminLoginActivity";
+import AdminBroadcast from "@/pages/admin/AdminBroadcast";
 import AdminCRUDLayout from "@/components/layout/AdminCRUDLayout";
 
 // Developer Portal Imports
@@ -270,6 +271,11 @@ function Router() {
       <Route path="/admin/login-activity">
         <AdminCRUDLayout>
           <AdminLoginActivity />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/broadcast">
+        <AdminCRUDLayout>
+          <AdminBroadcast />
         </AdminCRUDLayout>
       </Route>
 
