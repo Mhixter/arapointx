@@ -1146,4 +1146,96 @@ router.get('/nbais/schools-count', async (req: Request, res: Response) => {
   }
 });
 
+// ─── JAMB Exam Slip Printing (RPA) ───────────────────────────────────────────
+
+router.post('/jamb-exam-slip', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { registrationNumber } = req.body as { registrationNumber: string };
+
+    if (!registrationNumber?.trim()) {
+      return res.status(400).json(formatErrorResponse(400, 'JAMB registration number is required'));
+    }
+
+    const cleanReg = registrationNumber.trim().toUpperCase();
+
+    const price = await pricingService.getPrice('jamb_exam_slip').catch(() => 500);
+
+    const trackingId = `JSL${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 100)}`;
+
+    const [jambReq] = await db.insert(jambServiceRequests).values({
+      userId: req.userId!,
+      trackingId,
+      serviceType: 'exam-slip',
+      registrationNumber: cleanReg,
+      fee: price.toFixed(2),
+      status: 'pending',
+      isPaid: false,
+    }).returning();
+
+    if (price > 0) {
+      await walletService.deductBalance(req.userId!, price, 'JAMB Exam Slip Print', 'jamb_exam_slip');
+      await db.update(jambServiceRequests)
+        .set({ isPaid: true })
+        .where(eq(jambServiceRequests.id, jambReq.id));
+    } else {
+      await db.update(jambServiceRequests)
+        .set({ isPaid: true })
+        .where(eq(jambServiceRequests.id, jambReq.id));
+    }
+
+    const [rpaJob] = await db.insert(rpaJobs).values({
+      userId: req.userId!,
+      serviceType: 'jamb_exam_slip',
+      queryData: { registrationNumber: cleanReg, serviceRequestId: jambReq.id, trackingId },
+      status: 'pending',
+      priority: 1,
+      maxRetries: 2,
+    }).returning();
+
+    logger.info('JAMB exam slip job queued', { userId: req.userId, trackingId, jobId: rpaJob.id });
+
+    res.status(202).json(formatResponse('success', 202, 'Exam slip request queued — we are retrieving it from the JAMB portal now.', {
+      trackingId,
+      requestId: jambReq.id,
+      jobId: rpaJob.id,
+      price,
+    }));
+  } catch (error: any) {
+    logger.error('JAMB exam slip error', { error: error.message, userId: req.userId });
+    if (error.message === 'Insufficient wallet balance') {
+      return res.status(402).json(formatErrorResponse(402, error.message));
+    }
+    res.status(500).json(formatErrorResponse(500, 'Failed to queue exam slip request'));
+  }
+});
+
+router.get('/jamb-slip-status/:jobId', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { jobId } = req.params;
+
+    const [job] = await db.select()
+      .from(rpaJobs)
+      .where(and(eq(rpaJobs.id, jobId), eq(rpaJobs.userId, req.userId!)))
+      .limit(1);
+
+    if (!job) {
+      return res.status(404).json(formatErrorResponse(404, 'Job not found'));
+    }
+
+    const result = (job.result || {}) as any;
+    const slipUrl = result.slipUrl || null;
+
+    res.json(formatResponse('success', 200, 'Job status retrieved', {
+      jobId: job.id,
+      status: job.status,
+      slipUrl,
+      errorMessage: job.errorMessage || null,
+      registrationNumber: result.registrationNumber || null,
+    }));
+  } catch (error: any) {
+    logger.error('JAMB slip status error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get job status'));
+  }
+});
+
 export default router;

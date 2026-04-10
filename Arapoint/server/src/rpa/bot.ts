@@ -2,6 +2,7 @@ import { jobQueue, RPAJob } from './queue';
 import { logger } from '../utils/logger';
 import { config } from '../config/env';
 import { jambWorker } from './workers/jambWorker';
+import { jambSlipWorker } from './workers/jambSlipWorker';
 import { EducationWorkerFactory } from './workers/educationWorker';
 import { vtpassScraperWorker } from './workers/vtpassScraperWorker';
 import { db } from '../config/database';
@@ -250,6 +251,9 @@ class RPABot {
       case 'jamb_score':
       case 'jamb_service':
         return await jambWorker.execute(queryData);
+
+      case 'jamb_exam_slip':
+        return await jambSlipWorker.execute(queryData);
 
       case 'waec':
       case 'waec_result':

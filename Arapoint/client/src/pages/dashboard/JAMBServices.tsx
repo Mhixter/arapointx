@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
 
-import { Loader2, CheckCircle2, FileUp, FileText, FileCheck, RotateCw, ArrowRight, ArrowLeft, Clock, Upload, Download, Eye } from "lucide-react";
+import { Loader2, CheckCircle2, FileUp, FileText, FileCheck, RotateCw, ArrowRight, ArrowLeft, Clock, Upload, Download, Eye, Printer, XCircle, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { servicesApi } from "@/lib/api/services";
 import { handleApiError } from "@/lib/api/client";
@@ -124,6 +125,99 @@ export default function JAMBServices() {
   const [showHistoryDetail, setShowHistoryDetail] = useState(false);
   const [downloadingDocId, setDownloadingDocId] = useState<string | null>(null);
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
+
+  const [slipRegNo, setSlipRegNo] = useState('');
+  const [slipLoading, setSlipLoading] = useState(false);
+  const [slipJobId, setSlipJobId] = useState<string | null>(null);
+  const [slipStatus, setSlipStatus] = useState<'idle' | 'polling' | 'completed' | 'failed'>('idle');
+  const [slipUrl, setSlipUrl] = useState<string | null>(null);
+  const [slipError, setSlipError] = useState<string | null>(null);
+  const [slipProgress, setSlipProgress] = useState(0);
+  const slipPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopSlipPolling = useCallback(() => {
+    if (slipPollRef.current) {
+      clearInterval(slipPollRef.current);
+      slipPollRef.current = null;
+    }
+  }, []);
+
+  const pollSlipStatus = useCallback(async (jobId: string) => {
+    try {
+      const token = tokenStorage.getItem('accessToken') || '';
+      const res = await fetch(`/api/education/jamb-slip-status/${jobId}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const job = data?.data;
+      if (!job) return;
+
+      setSlipProgress(prev => Math.min(prev + 8, 90));
+
+      if (job.status === 'completed' && job.slipUrl) {
+        stopSlipPolling();
+        setSlipUrl(job.slipUrl);
+        setSlipStatus('completed');
+        setSlipProgress(100);
+        toast({ title: 'Exam Slip Ready!', description: 'Your JAMB examination slip has been retrieved. Click Download to save it.' });
+      } else if (job.status === 'failed') {
+        stopSlipPolling();
+        setSlipStatus('failed');
+        setSlipError(job.errorMessage || 'The JAMB portal could not retrieve your slip. Please check your registration number and try again.');
+        setSlipProgress(0);
+      }
+    } catch {}
+  }, [stopSlipPolling, toast]);
+
+  const handleSlipSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!slipRegNo.trim()) return;
+
+    setSlipLoading(true);
+    setSlipStatus('idle');
+    setSlipUrl(null);
+    setSlipError(null);
+    setSlipProgress(5);
+    stopSlipPolling();
+
+    try {
+      const token = tokenStorage.getItem('accessToken') || '';
+      const res = await fetch('/api/education/jamb-exam-slip', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ registrationNumber: slipRegNo.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to submit request');
+
+      const jobId = data?.data?.jobId;
+      setSlipJobId(jobId);
+      setSlipStatus('polling');
+      setSlipProgress(15);
+
+      slipPollRef.current = setInterval(() => pollSlipStatus(jobId), 5000);
+    } catch (err: any) {
+      setSlipStatus('failed');
+      setSlipError(err.message || 'Failed to submit request');
+      setSlipProgress(0);
+      toast({ title: 'Request Failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setSlipLoading(false);
+    }
+  };
+
+  const resetSlip = () => {
+    stopSlipPolling();
+    setSlipRegNo('');
+    setSlipJobId(null);
+    setSlipStatus('idle');
+    setSlipUrl(null);
+    setSlipError(null);
+    setSlipProgress(0);
+  };
+
+  useEffect(() => stopSlipPolling, [stopSlipPolling]);
 
   useEffect(() => {
     const fetchPrices = async () => {
@@ -700,6 +794,101 @@ export default function JAMBServices() {
           My Requests
         </Button>
       </div>
+
+      {/* ── Exam Slip Printing ── */}
+      <Card className="border-primary/30 bg-primary/5">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
+              <Printer className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                Exam Slip Printing
+                <Badge className="bg-primary/10 text-primary border-primary/20 text-xs font-normal">Automated</Badge>
+              </CardTitle>
+              <CardDescription>Print your JAMB examination slip instantly from the JAMB portal.</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {slipStatus === 'idle' && (
+            <form onSubmit={handleSlipSubmit} className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1 space-y-1.5">
+                <Label htmlFor="slip-reg-no">JAMB Registration Number</Label>
+                <Input
+                  id="slip-reg-no"
+                  placeholder="e.g. 12345678EF"
+                  value={slipRegNo}
+                  onChange={e => setSlipRegNo(e.target.value.toUpperCase())}
+                  className="h-10 uppercase"
+                  required
+                />
+              </div>
+              <div className="flex items-end">
+                <Button type="submit" disabled={slipLoading || !slipRegNo.trim()} className="w-full sm:w-auto h-10">
+                  {slipLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2" />}
+                  Get Slip
+                </Button>
+              </div>
+            </form>
+          )}
+
+          {slipStatus === 'polling' && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <Loader2 className="h-5 w-5 animate-spin text-primary flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Retrieving your slip from the JAMB portal…</p>
+                  <p className="text-xs text-muted-foreground">Registration No: {slipRegNo} · This usually takes 30–90 seconds</p>
+                </div>
+              </div>
+              <Progress value={slipProgress} className="h-2" />
+              <Button variant="ghost" size="sm" onClick={resetSlip} className="text-muted-foreground text-xs h-7">
+                Cancel
+              </Button>
+            </div>
+          )}
+
+          {slipStatus === 'completed' && slipUrl && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <div className="flex items-center gap-2 flex-1">
+                <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-green-700">Exam slip ready for {slipRegNo}</p>
+                  <p className="text-xs text-muted-foreground">Click the button to download your PDF slip.</p>
+                </div>
+              </div>
+              <div className="flex gap-2 flex-shrink-0">
+                <Button size="sm" asChild>
+                  <a href={slipUrl} download={`JAMB_Slip_${slipRegNo}.pdf`} target="_blank" rel="noopener noreferrer">
+                    <Download className="h-4 w-4 mr-1.5" />
+                    Download PDF
+                  </a>
+                </Button>
+                <Button size="sm" variant="outline" onClick={resetSlip}>
+                  New Slip
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {slipStatus === 'failed' && (
+            <div className="space-y-3">
+              <div className="flex items-start gap-2">
+                <XCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-red-700">Could not retrieve slip</p>
+                  <p className="text-xs text-muted-foreground">{slipError}</p>
+                </div>
+              </div>
+              <Button size="sm" variant="outline" onClick={resetSlip}>
+                Try Again
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {JAMB_SERVICES.map((svc) => {
