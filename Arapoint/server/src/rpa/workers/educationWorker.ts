@@ -538,40 +538,6 @@ export class EducationWorker extends BaseWorker {
   // ─────────────────────────────────────────────────────────────────────────────
   // NBAIS 2-step flow: Step 1 (details) → Proceed → Step 2 (PIN) → Submit
   // ─────────────────────────────────────────────────────────────────────────────
-  // ── Content-based select helper (identifies select by its option content) ──
-  private async nbaisSelectByContent(
-    page: Page,
-    matcher: (optionTexts: string[]) => boolean,
-    targetValue: string,
-    fieldName: string
-  ): Promise<boolean> {
-    return page.evaluate((matcher: string, targetValue: string, fieldName: string) => {
-      const matchFn = new Function('optionTexts', `return (${matcher})(optionTexts);`) as (t: string[]) => boolean;
-      const selects = Array.from(document.querySelectorAll('select'));
-      for (const sel of selects) {
-        const el = sel as HTMLSelectElement;
-        const optTexts = Array.from(el.options).map(o => o.text.trim());
-        if (!matchFn(optTexts)) continue;
-
-        // Try to find matching option
-        const lower = targetValue.toLowerCase();
-        for (let i = 0; i < el.options.length; i++) {
-          const opt = el.options[i];
-          if (opt.text.toLowerCase().includes(lower) || opt.value.toLowerCase().includes(lower)) {
-            el.selectedIndex = i;
-            el.dispatchEvent(new Event('change', { bubbles: true }));
-            console.log(`[NBAIS] Selected ${fieldName}: ${opt.text} (index ${i})`);
-            return true;
-          }
-        }
-        console.log(`[NBAIS] Field ${fieldName}: select found but value "${targetValue}" not in options:`, optTexts.slice(0, 10).join(', '));
-        return false;
-      }
-      console.log(`[NBAIS] Field ${fieldName}: no matching select found on page`);
-      return false;
-    }, matcher.toString(), targetValue, fieldName);
-  }
-
   private async executeNbaisFlow(page: Page, portalUrl: string, data: EducationQueryData): Promise<ExamResult> {
     logger.info('NBAIS 2-step flow starting', {
       registrationNumber: data.registrationNumber,
@@ -612,58 +578,137 @@ export class EducationWorker extends BaseWorker {
 
     // ── STEP 1: Fill the details form ─────────────────────────────────────────
 
-    // 1. Select State (finds select whose options contain Nigerian state names)
+    // 1. Select State — find the select that contains Nigerian state names in its options
     if (data.state) {
-      const NIGERIAN_STATE_KEYWORDS = ['abia', 'adamawa', 'akwa', 'anambra', 'bauchi', 'borno', 'cross river', 'delta', 'enugu', 'gombe', 'imo', 'jigawa', 'kaduna', 'kano', 'katsina', 'kebbi', 'kogi', 'kwara', 'lagos', 'nasarawa', 'niger', 'ogun', 'ondo', 'osun', 'oyo', 'plateau', 'rivers', 'sokoto', 'taraba', 'yobe', 'zamfara', 'fct', 'abuja'];
-      await this.nbaisSelectByContent(
-        page,
-        (opts) => opts.some(o => NIGERIAN_STATE_KEYWORDS.some(k => o.toLowerCase().includes(k))),
-        data.state,
-        'state'
-      );
+      const stateResult = await page.evaluate((stateVal: string) => {
+        const stateKeywords = ['abia','adamawa','akwa','anambra','bauchi','borno','cross river','delta',
+          'enugu','gombe','imo','jigawa','kaduna','kano','katsina','kebbi','kogi','kwara','lagos',
+          'nasarawa','niger','ogun','ondo','osun','oyo','plateau','rivers','sokoto','taraba',
+          'yobe','zamfara','fct','abuja'];
+        const selects = Array.from(document.querySelectorAll('select'));
+        for (const sel of selects) {
+          const el = sel as HTMLSelectElement;
+          const optTexts = Array.from(el.options).map(o => o.text.trim().toLowerCase());
+          if (!stateKeywords.some(k => optTexts.some(t => t.includes(k)))) continue;
+          const lower = stateVal.toLowerCase();
+          for (let i = 0; i < el.options.length; i++) {
+            const opt = el.options[i];
+            if (opt.text.toLowerCase().includes(lower) || opt.value.toLowerCase().includes(lower)) {
+              el.selectedIndex = i;
+              el.dispatchEvent(new Event('change', { bubbles: true }));
+              return `ok:${opt.text}`;
+            }
+          }
+          return `notfound:${optTexts.slice(0,6).join(',')}`;
+        }
+        return 'noselect';
+      }, data.state);
+      logger.info('NBAIS state select', { result: stateResult });
       logger.info('NBAIS waiting for school dropdown AJAX...');
       await this.sleep(3000);
     }
 
-    // 2. Select School (finds select with >5 options that just populated)
+    // 2. Select School — find the select that has >5 options and is not year/month/examtype
     if (data.schoolName) {
-      await this.nbaisSelectByContent(
-        page,
-        (opts) => opts.length > 5 && !opts.some(o => /^\d{4}$/.test(o.trim())) && !opts.some(o => ['june', 'july', 'november', 'january', 'saissce', 'science', 'tahfeez'].some(k => o.toLowerCase().includes(k))),
-        data.schoolName,
-        'school'
-      );
+      const schoolResult = await page.evaluate((schoolVal: string) => {
+        const monthKeywords = ['june','july','november','january','march','april'];
+        const typeKeywords = ['saissce','science','tahfeez','tahfiz'];
+        const selects = Array.from(document.querySelectorAll('select'));
+        for (const sel of selects) {
+          const el = sel as HTMLSelectElement;
+          if (el.options.length <= 5) continue;
+          const optTexts = Array.from(el.options).map(o => o.text.trim().toLowerCase());
+          if (optTexts.some(o => /^20\d{2}$/.test(o))) continue;
+          if (optTexts.some(o => monthKeywords.some(k => o.includes(k)))) continue;
+          if (optTexts.some(o => typeKeywords.some(k => o.includes(k)))) continue;
+          const lower = schoolVal.toLowerCase();
+          for (let i = 0; i < el.options.length; i++) {
+            const opt = el.options[i];
+            if (opt.text.toLowerCase().includes(lower) || opt.value.toLowerCase().includes(lower)) {
+              el.selectedIndex = i;
+              el.dispatchEvent(new Event('change', { bubbles: true }));
+              return `ok:${opt.text}`;
+            }
+          }
+          return `notfound:${optTexts.slice(0,6).join(',')}`;
+        }
+        return 'noselect';
+      }, data.schoolName);
+      logger.info('NBAIS school select', { result: schoolResult });
       await this.sleep(500);
     }
 
-    // 3. Select Year (finds select whose options are 4-digit years)
-    await this.nbaisSelectByContent(
-      page,
-      (opts) => opts.filter(o => /^20\d{2}$/.test(o.trim())).length >= 3,
-      String(data.examYear),
-      'year'
-    );
+    // 3. Select Year — find the select whose options are 4-digit year numbers
+    const yearResult = await page.evaluate((yearVal: string) => {
+      const selects = Array.from(document.querySelectorAll('select'));
+      for (const sel of selects) {
+        const el = sel as HTMLSelectElement;
+        const optTexts = Array.from(el.options).map(o => o.text.trim());
+        if (optTexts.filter(o => /^20\d{2}$/.test(o)).length < 3) continue;
+        for (let i = 0; i < el.options.length; i++) {
+          const opt = el.options[i];
+          if (opt.text.trim() === yearVal || opt.value.trim() === yearVal) {
+            el.selectedIndex = i;
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            return `ok:${opt.text}`;
+          }
+        }
+        return `notfound:${optTexts.join(',')}`;
+      }
+      return 'noselect';
+    }, String(data.examYear));
+    logger.info('NBAIS year select', { result: yearResult });
     await this.sleep(400);
 
-    // 4. Select Month (finds select with month/season values)
+    // 4. Select Month — find the select whose options contain season/month names
     if (data.examMonth) {
-      await this.nbaisSelectByContent(
-        page,
-        (opts) => opts.some(o => ['june', 'july', 'november', 'january', 'march'].some(k => o.toLowerCase().includes(k))),
-        data.examMonth,
-        'month'
-      );
+      const monthResult = await page.evaluate((monthVal: string) => {
+        const monthKeywords = ['june','july','november','january','march','april','october'];
+        const selects = Array.from(document.querySelectorAll('select'));
+        for (const sel of selects) {
+          const el = sel as HTMLSelectElement;
+          const optTexts = Array.from(el.options).map(o => o.text.trim().toLowerCase());
+          if (!monthKeywords.some(k => optTexts.some(t => t.includes(k)))) continue;
+          const lower = monthVal.toLowerCase();
+          for (let i = 0; i < el.options.length; i++) {
+            const opt = el.options[i];
+            if (opt.text.toLowerCase().includes(lower) || opt.value.toLowerCase().includes(lower)) {
+              el.selectedIndex = i;
+              el.dispatchEvent(new Event('change', { bubbles: true }));
+              return `ok:${opt.text}`;
+            }
+          }
+          return `notfound:${optTexts.join(',')}`;
+        }
+        return 'noselect';
+      }, data.examMonth);
+      logger.info('NBAIS month select', { result: monthResult });
       await this.sleep(400);
     }
 
-    // 5. Select Exam Type (finds select with SAISSCE/SCIENCE/TAHFEEZ)
+    // 5. Select Exam Type — find the select that contains SAISSCE/SCIENCE/TAHFEEZ
     const examType = data.examType || 'SAISSCE';
-    await this.nbaisSelectByContent(
-      page,
-      (opts) => opts.some(o => ['saissce', 'science', 'tahfeez', 'tahfiz'].some(k => o.toLowerCase().includes(k))),
-      examType,
-      'exam type'
-    );
+    const typeResult = await page.evaluate((typeVal: string) => {
+      const typeKeywords = ['saissce','science','tahfeez','tahfiz'];
+      const selects = Array.from(document.querySelectorAll('select'));
+      for (const sel of selects) {
+        const el = sel as HTMLSelectElement;
+        const optTexts = Array.from(el.options).map(o => o.text.trim().toLowerCase());
+        if (!typeKeywords.some(k => optTexts.some(t => t.includes(k)))) continue;
+        const lower = typeVal.toLowerCase();
+        for (let i = 0; i < el.options.length; i++) {
+          const opt = el.options[i];
+          if (opt.text.toLowerCase().includes(lower) || opt.value.toLowerCase().includes(lower)) {
+            el.selectedIndex = i;
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            return `ok:${opt.text}`;
+          }
+        }
+        return `notfound:${optTexts.join(',')}`;
+      }
+      return 'noselect';
+    }, examType);
+    logger.info('NBAIS exam type select', { result: typeResult });
     await this.sleep(400);
 
     // 6. Enter Registration Number in text input
