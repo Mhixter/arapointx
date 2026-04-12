@@ -736,32 +736,61 @@ export class EducationWorker extends BaseWorker {
     logger.info('NBAIS exam type select', { result: typeResult });
     await this.sleep(400);
 
-    // 6. Enter Registration Number in text input
-    // Only skip inputs that are clearly inside custom dropdown search widgets (selectize/select2)
-    // Do NOT skip based on autocomplete="off" — exam portals commonly set this on their inputs
-    const regFilled = await page.evaluate((regNo: string) => {
-      const inputs = Array.from(document.querySelectorAll('input[type="text"], input:not([type])'));
-      for (const inp of inputs) {
-        const el = inp as HTMLInputElement;
-        if (el.disabled || el.readOnly || el.type === 'hidden') continue;
-        // Skip only obvious selectize/select2/chosen search boxes
-        const cls = el.className.toLowerCase();
-        if (cls.includes('selectize-input') || cls.includes('select2-search') || cls.includes('chosen-search')) continue;
-        if (el.closest('.selectize-control, .select2-container, .chosen-container')) continue;
-        el.focus();
-        el.value = regNo;
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-        console.log('[NBAIS] Filled reg number in input:', el.id || el.name || el.placeholder);
-        return true;
+    // 6. Enter Registration Number using Puppeteer native typing (simulates real keyboard events)
+    // This satisfies HTML5 required validation, unlike el.value = assignment in evaluate()
+    const examInputSelectors = [
+      'input[placeholder*="Exam Number"]',
+      'input[placeholder*="exam number"]',
+      'input[placeholder*="Exam"]',
+      'input[placeholder*="Number"]',
+      'input[name*="exam_no"]',
+      'input[name*="exam_number"]',
+      'input[name*="examno"]',
+      'input[name*="reg_no"]',
+      'input[name*="regno"]',
+      'input[id*="exam_no"]',
+      'input[id*="exam"]',
+    ];
+    let regFilled = false;
+    for (const sel of examInputSelectors) {
+      try {
+        const el = await page.$(sel);
+        if (el) {
+          await el.click({ clickCount: 3 });
+          await el.type(data.registrationNumber, { delay: 40 });
+          logger.info('NBAIS filled registration number via typed selector', { selector: sel, value: data.registrationNumber });
+          regFilled = true;
+          break;
+        }
+      } catch { /* try next */ }
+    }
+
+    // Fallback: find the first visible text input not inside a dropdown widget
+    if (!regFilled) {
+      const inputHandle = await page.evaluateHandle(() => {
+        const inputs = Array.from(document.querySelectorAll('input[type="text"], input:not([type])'));
+        for (const inp of inputs) {
+          const el = inp as HTMLInputElement;
+          if (el.disabled || el.readOnly || el.type === 'hidden' || !el.offsetParent) continue;
+          const cls = el.className.toLowerCase();
+          if (cls.includes('selectize-input') || cls.includes('select2-search') || cls.includes('chosen-search')) continue;
+          if (el.closest('.selectize-control, .select2-container, .chosen-container')) continue;
+          return el;
+        }
+        return null;
+      });
+      if (inputHandle && inputHandle.asElement()) {
+        const el = inputHandle.asElement()!;
+        await el.click({ clickCount: 3 });
+        await el.type(data.registrationNumber, { delay: 40 });
+        logger.info('NBAIS filled registration number via fallback handle', { value: data.registrationNumber });
+        regFilled = true;
       }
-      return false;
-    }, data.registrationNumber);
+    }
 
     if (!regFilled) {
       throw new Error('Could not find registration number input on NBAIS portal.');
     }
-    logger.info('NBAIS filled registration number', { value: data.registrationNumber });
 
     await this.sleep(600);
 
@@ -779,22 +808,32 @@ export class EducationWorker extends BaseWorker {
     }));
     logger.info('NBAIS Step 1 state before submit', { step1State: JSON.stringify(step1State) });
 
-    // 7. Click Proceed (find the submit button on the Step 1 form)
-    const clickedProceed = await page.evaluate(() => {
-      const btns = Array.from(document.querySelectorAll('button[type="submit"], input[type="submit"]'));
-      for (const btn of btns) {
-        const el = btn as HTMLElement;
-        if (!el.offsetParent) continue; // skip hidden buttons
-        el.click();
-        console.log('[NBAIS] Clicked Proceed:', el.tagName, (el as any).value || el.innerText);
-        return true;
-      }
-      // fallback: submit any form
-      const form = document.querySelector('form') as HTMLFormElement | null;
-      if (form) { form.submit(); return true; }
-      return false;
-    });
-    logger.info('NBAIS Step 1 submitted', { clickedProceed });
+    // 7. Click Proceed using Puppeteer native click (triggers real browser click + form validation)
+    let clickedProceed = false;
+    const proceedSelectors = [
+      'button[type="submit"]',
+      'input[type="submit"]',
+      'button.btn-success',
+      'button.btn-primary',
+      '.btn-success',
+      '.btn-primary',
+    ];
+    for (const sel of proceedSelectors) {
+      try {
+        const btn = await page.$(sel);
+        if (btn) {
+          await btn.click();
+          logger.info('NBAIS clicked Proceed button', { selector: sel });
+          clickedProceed = true;
+          break;
+        }
+      } catch { /* try next */ }
+    }
+    if (!clickedProceed) {
+      // Last resort: submit via keyboard Enter on the input
+      await page.keyboard.press('Enter');
+      logger.info('NBAIS submitted via Enter key');
+    }
 
     // ── Wait for Step 2 (results-1.php) ───────────────────────────────────────
     try {
@@ -844,45 +883,44 @@ export class EducationWorker extends BaseWorker {
 
     if (!data.cardPin) throw new Error('PIN is required to retrieve NBAIS results.');
 
-    // Fill PIN input
-    const pinFilled = await page.evaluate((pin: string) => {
-      const candidates = [
-        document.querySelector('input[name="pin"]'),
-        document.querySelector('input[name="Pin"]'),
-        document.querySelector('input[name="PIN"]'),
-        document.querySelector('input[type="password"]'),
-        ...Array.from(document.querySelectorAll('input[placeholder*="Pin"],input[placeholder*="pin"],input[placeholder*="PIN"]')),
-        ...Array.from(document.querySelectorAll('input[type="text"],input:not([type])')),
-      ].filter(Boolean);
-      for (const inp of candidates) {
-        const el = inp as HTMLInputElement;
-        if (el.disabled || el.readOnly) continue;
-        el.focus();
-        el.value = pin;
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-        return true;
-      }
-      return false;
-    }, data.cardPin);
-
+    // Fill PIN using Puppeteer native typing
+    const pinSelectors = [
+      'input[name="pin"]', 'input[name="Pin"]', 'input[name="PIN"]',
+      'input[type="password"]',
+      'input[placeholder*="Pin"]', 'input[placeholder*="pin"]', 'input[placeholder*="PIN"]',
+      'input[type="text"]', 'input:not([type])',
+    ];
+    let pinFilled = false;
+    for (const sel of pinSelectors) {
+      try {
+        const el = await page.$(sel);
+        if (el) {
+          await el.click({ clickCount: 3 });
+          await el.type(data.cardPin, { delay: 40 });
+          logger.info('NBAIS PIN entered via selector', { selector: sel });
+          pinFilled = true;
+          break;
+        }
+      } catch { /* try next */ }
+    }
     if (!pinFilled) throw new Error('Could not find PIN input on NBAIS step 2 page.');
-    logger.info('NBAIS PIN entered');
     await this.sleep(400);
 
-    // Submit Step 2
+    // Submit Step 2 using Puppeteer native click
     const textBeforeStep2Submit = await page.evaluate(() => document.body.innerText);
-    await page.evaluate(() => {
-      const btns = Array.from(document.querySelectorAll('button[type="submit"],input[type="submit"]'));
-      for (const b of btns) {
-        const el = b as HTMLElement;
-        if (!el.offsetParent) continue;
-        el.click();
-        return;
-      }
-      const form = document.querySelector('form') as HTMLFormElement | null;
-      if (form) form.submit();
-    });
+    let step2Submitted = false;
+    for (const sel of ['button[type="submit"]', 'input[type="submit"]', '.btn-success', '.btn-primary']) {
+      try {
+        const btn = await page.$(sel);
+        if (btn) {
+          await btn.click();
+          logger.info('NBAIS Step 2 submitted', { selector: sel });
+          step2Submitted = true;
+          break;
+        }
+      } catch { /* try next */ }
+    }
+    if (!step2Submitted) await page.keyboard.press('Enter');
 
     // Wait for results page
     try {
