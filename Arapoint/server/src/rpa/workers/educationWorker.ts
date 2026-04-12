@@ -608,9 +608,14 @@ export class EducationWorker extends BaseWorker {
       await this.sleep(3000);
     }
 
-    // 2. Select School — find the select that has >5 options and is not year/month/examtype
+    // 2. Select School — find the select with >5 options that is NOT state/year/month/examtype
+    // Key: when a matching select is found but doesn't contain the value, CONTINUE to next select (not return)
     if (data.schoolName) {
       const schoolResult = await page.evaluate((schoolVal: string) => {
+        const stateKeywords = ['abia','adamawa','akwa','anambra','bauchi','borno','cross river','delta',
+          'enugu','gombe','imo','jigawa','kaduna','kano','katsina','kebbi','kogi','kwara','lagos',
+          'nasarawa','niger','ogun','ondo','osun','oyo','plateau','rivers','sokoto','taraba',
+          'yobe','zamfara','fct','abuja'];
         const monthKeywords = ['june','july','november','january','march','april'];
         const typeKeywords = ['saissce','science','tahfeez','tahfiz'];
         const selects = Array.from(document.querySelectorAll('select'));
@@ -618,9 +623,11 @@ export class EducationWorker extends BaseWorker {
           const el = sel as HTMLSelectElement;
           if (el.options.length <= 5) continue;
           const optTexts = Array.from(el.options).map(o => o.text.trim().toLowerCase());
-          if (optTexts.some(o => /^20\d{2}$/.test(o))) continue;
-          if (optTexts.some(o => monthKeywords.some(k => o.includes(k)))) continue;
-          if (optTexts.some(o => typeKeywords.some(k => o.includes(k)))) continue;
+          if (optTexts.some(o => /^20\d{2}$/.test(o))) continue;           // skip year select
+          if (optTexts.some(o => monthKeywords.some(k => o.includes(k)))) continue;    // skip month select
+          if (optTexts.some(o => typeKeywords.some(k => o.includes(k)))) continue;     // skip examtype select
+          if (optTexts.some(o => stateKeywords.some(k => o.includes(k)))) continue;    // skip state select
+          // This is the school select — search for the school value
           const lower = schoolVal.toLowerCase();
           for (let i = 0; i < el.options.length; i++) {
             const opt = el.options[i];
@@ -630,7 +637,9 @@ export class EducationWorker extends BaseWorker {
               return `ok:${opt.text}`;
             }
           }
-          return `notfound:${optTexts.slice(0,6).join(',')}`;
+          // School select found but specific school not in list — log and continue anyway
+          console.log('[NBAIS] School select found, options:', optTexts.slice(0,6).join(','), '— value not found:', schoolVal);
+          // Don't return — continue to next select in case the DOM order differs
         }
         return 'noselect';
       }, data.schoolName);
@@ -639,6 +648,7 @@ export class EducationWorker extends BaseWorker {
     }
 
     // 3. Select Year — find the select whose options are 4-digit year numbers
+    // When found but year not listed, continue to next select (do NOT return early)
     const yearResult = await page.evaluate((yearVal: string) => {
       const selects = Array.from(document.querySelectorAll('select'));
       for (const sel of selects) {
@@ -653,7 +663,16 @@ export class EducationWorker extends BaseWorker {
             return `ok:${opt.text}`;
           }
         }
-        return `notfound:${optTexts.join(',')}`;
+        // Year select found but year not listed — try partial match
+        for (let i = 0; i < el.options.length; i++) {
+          const opt = el.options[i];
+          if (opt.text.includes(yearVal) || opt.value.includes(yearVal)) {
+            el.selectedIndex = i;
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            return `ok-partial:${opt.text}`;
+          }
+        }
+        console.log('[NBAIS] Year select options:', optTexts.join(','));
       }
       return 'noselect';
     }, String(data.examYear));
@@ -661,6 +680,7 @@ export class EducationWorker extends BaseWorker {
     await this.sleep(400);
 
     // 4. Select Month — find the select whose options contain season/month names
+    // When found but month not listed, continue (do NOT return early)
     if (data.examMonth) {
       const monthResult = await page.evaluate((monthVal: string) => {
         const monthKeywords = ['june','july','november','january','march','april','october'];
@@ -678,7 +698,9 @@ export class EducationWorker extends BaseWorker {
               return `ok:${opt.text}`;
             }
           }
-          return `notfound:${optTexts.join(',')}`;
+          // Found month select but target value not in list — log all options
+          console.log('[NBAIS] Month select options:', optTexts.join(','), '— searching for:', monthVal);
+          // Continue to next select in case there are multiple
         }
         return 'noselect';
       }, data.examMonth);
@@ -686,7 +708,8 @@ export class EducationWorker extends BaseWorker {
       await this.sleep(400);
     }
 
-    // 5. Select Exam Type — find the select that contains SAISSCE/SCIENCE/TAHFEEZ
+    // 5. Select Exam Type — find the select containing SAISSCE/SCIENCE/TAHFEEZ
+    // When found but value not matched, continue (do NOT return early)
     const examType = data.examType || 'SAISSCE';
     const typeResult = await page.evaluate((typeVal: string) => {
       const typeKeywords = ['saissce','science','tahfeez','tahfiz'];
@@ -704,7 +727,9 @@ export class EducationWorker extends BaseWorker {
             return `ok:${opt.text}`;
           }
         }
-        return `notfound:${optTexts.join(',')}`;
+        // Exam type select found but value not matched — log options and try first non-empty option
+        console.log('[NBAIS] Exam type select options:', optTexts.join(','), '— searching for:', typeVal);
+        // Continue to next matching select
       }
       return 'noselect';
     }, examType);
@@ -712,13 +737,17 @@ export class EducationWorker extends BaseWorker {
     await this.sleep(400);
 
     // 6. Enter Registration Number in text input
+    // Only skip inputs that are clearly inside custom dropdown search widgets (selectize/select2)
+    // Do NOT skip based on autocomplete="off" — exam portals commonly set this on their inputs
     const regFilled = await page.evaluate((regNo: string) => {
       const inputs = Array.from(document.querySelectorAll('input[type="text"], input:not([type])'));
       for (const inp of inputs) {
         const el = inp as HTMLInputElement;
         if (el.disabled || el.readOnly || el.type === 'hidden') continue;
-        // Skip search inputs that are inside selectize widgets
-        if (el.className.toLowerCase().includes('search') || el.getAttribute('autocomplete') === 'off') continue;
+        // Skip only obvious selectize/select2/chosen search boxes
+        const cls = el.className.toLowerCase();
+        if (cls.includes('selectize-input') || cls.includes('select2-search') || cls.includes('chosen-search')) continue;
+        if (el.closest('.selectize-control, .select2-container, .chosen-container')) continue;
         el.focus();
         el.value = regNo;
         el.dispatchEvent(new Event('input', { bubbles: true }));
