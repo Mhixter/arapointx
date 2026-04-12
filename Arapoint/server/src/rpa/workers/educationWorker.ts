@@ -563,14 +563,44 @@ export class EducationWorker extends BaseWorker {
       examType: data.examType,
     });
 
-    await page.goto(portalUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+    // Always target the root form page (strip any path so we don't land on newonsite.htm)
+    const nabtebOrigin = (() => { try { return new URL(portalUrl).origin; } catch { return portalUrl; } })();
+    const formUrl = nabtebOrigin + '/';
+
+    await page.goto(formUrl, { waitUntil: 'networkidle2', timeout: 25000 });
     await this.sleep(800);
+
+    // If the portal redirected us to newonsite.htm (announcement page), go back to the form
+    const landedUrl = page.url();
+    if (landedUrl.includes('newonsite') || landedUrl.includes('newsite') || !landedUrl.includes(nabtebOrigin.replace('https://', '').replace('http://', ''))) {
+      logger.info('NABTEB redirected away from form — navigating back', { landedUrl, formUrl });
+      await page.goto(formUrl, { waitUntil: 'networkidle2', timeout: 20000 });
+      await this.sleep(600);
+    }
+
+    // Close any announcement popup / cookie notice
     await this.closePrivacyPopup(page);
+    // Also dismiss any visible modal with an OK/Close/Continue button
+    await page.evaluate(() => {
+      const btns = Array.from(document.querySelectorAll('button, a'));
+      for (const btn of btns) {
+        const t = ((btn as HTMLElement).innerText || '').toLowerCase().trim();
+        if (t === 'ok' || t === 'close' || t === 'continue' || t === 'dismiss' || t === 'proceed') {
+          const style = window.getComputedStyle(btn as HTMLElement);
+          if (style.display !== 'none' && style.visibility !== 'hidden') {
+            (btn as HTMLElement).click();
+            return;
+          }
+        }
+      }
+    });
 
     try {
       await page.waitForSelector('#candid, input[name="candid"]', { timeout: 10000 });
     } catch {
-      throw new Error('Could not find NABTEB form. The portal page may have changed.');
+      const currentUrl = page.url();
+      const pageText = await page.evaluate(() => document.body.innerText.slice(0, 200));
+      throw new Error(`Could not find NABTEB form. Current page: ${currentUrl}. Content: ${pageText}`);
     }
 
     const examTypeValue = this.mapNabtebExamType(data.examType);
