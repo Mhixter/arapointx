@@ -578,7 +578,7 @@ export class EducationWorker extends BaseWorker {
 
     // ── STEP 1: Fill the details form ─────────────────────────────────────────
 
-    // 1. Select State — find the select that contains Nigerian state names in its options
+    // 1. Select State — triggers AJAX to load the school dropdown
     if (data.state) {
       const stateResult = await page.evaluate((stateVal: string) => {
         const stateKeywords = ['abia','adamawa','akwa','anambra','bauchi','borno','cross river','delta',
@@ -595,7 +595,10 @@ export class EducationWorker extends BaseWorker {
             const opt = el.options[i];
             if (opt.text.toLowerCase().includes(lower) || opt.value.toLowerCase().includes(lower)) {
               el.selectedIndex = i;
+              // Fire both vanilla and jQuery change events to ensure AJAX fires regardless of binding style
               el.dispatchEvent(new Event('change', { bubbles: true }));
+              const jq = (window as any).jQuery || (window as any).$;
+              if (jq) { try { jq(el).trigger('change'); } catch(_) {} }
               return `ok:${opt.text}`;
             }
           }
@@ -604,8 +607,49 @@ export class EducationWorker extends BaseWorker {
         return 'noselect';
       }, data.state);
       logger.info('NBAIS state select', { result: stateResult });
-      logger.info('NBAIS waiting for school dropdown AJAX...');
-      await this.sleep(5000);
+
+      // Wait for the school dropdown to ACTUALLY populate (up to 10s) instead of a fixed sleep
+      logger.info('NBAIS waiting for school dropdown to populate via AJAX...');
+      try {
+        await page.waitForFunction(() => {
+          const stateKeywords = ['abia','adamawa','akwa','taraba','yobe','sokoto'];
+          const monthKeywords = ['june','july','november','january'];
+          const typeKeywords = ['saissce','science','tahfeez'];
+          const selects = Array.from(document.querySelectorAll('select'));
+          return selects.some(sel => {
+            const optTexts = Array.from(sel.options).map(o => o.text.trim().toLowerCase());
+            if (optTexts.some(o => /^20\d{2}$/.test(o))) return false;
+            if (optTexts.some(o => monthKeywords.some(k => o.includes(k)))) return false;
+            if (optTexts.some(o => typeKeywords.some(k => o.includes(k)))) return false;
+            if (optTexts.some(o => stateKeywords.some(k => o.includes(k)))) return false;
+            return sel.options.length > 10; // school dropdown has many options
+          });
+        }, { timeout: 10000 });
+        logger.info('NBAIS school dropdown populated via AJAX');
+      } catch {
+        logger.warn('NBAIS school dropdown AJAX timeout — will inspect what is available');
+        await this.sleep(2000);
+      }
+
+      // Log all available school options for diagnostics
+      const availableSchools = await page.evaluate(() => {
+        const stateKeywords = ['abia','adamawa','akwa','taraba','yobe','sokoto','kano','lagos','abuja'];
+        const monthKeywords = ['june','july','november','january'];
+        const typeKeywords = ['saissce','science','tahfeez'];
+        const selects = Array.from(document.querySelectorAll('select'));
+        for (const sel of selects) {
+          const optTexts = Array.from(sel.options).map(o => o.text.trim().toLowerCase());
+          if (optTexts.some(o => /^20\d{2}$/.test(o))) continue;
+          if (optTexts.some(o => monthKeywords.some(k => o.includes(k)))) continue;
+          if (optTexts.some(o => typeKeywords.some(k => o.includes(k)))) continue;
+          if (optTexts.some(o => stateKeywords.some(k => o.includes(k)))) continue;
+          if (sel.options.length > 5) {
+            return Array.from(sel.options).map(o => o.text.trim());
+          }
+        }
+        return [];
+      });
+      logger.info('NBAIS available schools in dropdown', { count: availableSchools.length, first5: availableSchools.slice(0, 5) });
     }
 
     // 2. Select School — find the select with >5 options that is NOT state/year/month/examtype
@@ -831,6 +875,10 @@ export class EducationWorker extends BaseWorker {
       }),
     }));
     logger.info('NBAIS Step 1 state before submit', { step1State: JSON.stringify(step1State) });
+
+    // Take a diagnostic screenshot right before submit so admin can see exactly what was filled
+    const preSubmitScreenshot = await page.screenshot({ encoding: 'base64', fullPage: false });
+    logger.info('NBAIS pre-submit screenshot captured', { size: preSubmitScreenshot.length });
 
     // 7. Click Proceed using Puppeteer native click (triggers real browser click + form validation)
     let clickedProceed = false;
