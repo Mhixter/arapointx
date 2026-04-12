@@ -578,287 +578,205 @@ export class EducationWorker extends BaseWorker {
 
     // ── STEP 1: Fill the details form ─────────────────────────────────────────
 
-    // 1. Select State — triggers AJAX to load the school dropdown
+    // 1. Select State using Puppeteer native page.select() — most reliable, fires all browser events
     if (data.state) {
-      const stateResult = await page.evaluate((stateVal: string) => {
+      // Find the state select's CSS selector and the correct option value
+      const stateSelectInfo = await page.evaluate((stateVal: string) => {
         const stateKeywords = ['abia','adamawa','akwa','anambra','bauchi','borno','cross river','delta',
           'enugu','gombe','imo','jigawa','kaduna','kano','katsina','kebbi','kogi','kwara','lagos',
           'nasarawa','niger','ogun','ondo','osun','oyo','plateau','rivers','sokoto','taraba',
           'yobe','zamfara','fct','abuja'];
         const selects = Array.from(document.querySelectorAll('select'));
-        for (const sel of selects) {
-          const el = sel as HTMLSelectElement;
+        const lower = stateVal.toLowerCase();
+        for (let si = 0; si < selects.length; si++) {
+          const el = selects[si] as HTMLSelectElement;
           const optTexts = Array.from(el.options).map(o => o.text.trim().toLowerCase());
           if (!stateKeywords.some(k => optTexts.some(t => t.includes(k)))) continue;
-          const lower = stateVal.toLowerCase();
           for (let i = 0; i < el.options.length; i++) {
             const opt = el.options[i];
             if (opt.text.toLowerCase().includes(lower) || opt.value.toLowerCase().includes(lower)) {
-              el.selectedIndex = i;
-              // Fire both vanilla and jQuery change events to ensure AJAX fires regardless of binding style
-              el.dispatchEvent(new Event('change', { bubbles: true }));
-              const jq = (window as any).jQuery || (window as any).$;
-              if (jq) { try { jq(el).trigger('change'); } catch(_) {} }
-              return `ok:${opt.text}`;
+              // Build a CSS selector for this select element
+              const selector = el.id ? `#${el.id}` : el.name ? `select[name="${el.name}"]` : `select:nth-of-type(${si + 1})`;
+              return { found: true, selector, optionValue: opt.value, optionText: opt.text };
             }
           }
-          return `notfound:${optTexts.slice(0,6).join(',')}`;
+          return { found: false, selector: '', optionValue: '', optionText: '', options: optTexts.slice(0, 6) };
         }
-        return 'noselect';
+        return { found: false, selector: '', optionValue: '', optionText: '' };
       }, data.state);
-      logger.info('NBAIS state select', { result: stateResult });
 
-      // Wait for the school dropdown to ACTUALLY populate (up to 10s) instead of a fixed sleep
-      logger.info('NBAIS waiting for school dropdown to populate via AJAX...');
+      logger.info('NBAIS state select info', { stateSelectInfo });
+
+      if (stateSelectInfo.found && stateSelectInfo.selector && stateSelectInfo.optionValue) {
+        // Use Puppeteer's native page.select() — properly fires input + change events triggering AJAX
+        try {
+          await page.select(stateSelectInfo.selector, stateSelectInfo.optionValue);
+          logger.info('NBAIS state selected via page.select()', { selector: stateSelectInfo.selector, value: stateSelectInfo.optionValue, text: stateSelectInfo.optionText });
+        } catch (err: any) {
+          logger.warn('NBAIS page.select() failed, falling back to evaluate', { err: err.message });
+          // Fallback: direct DOM manipulation + jQuery trigger
+          await page.evaluate((sel: string, val: string) => {
+            const el = document.querySelector(sel) as HTMLSelectElement | null;
+            if (!el) return;
+            const idx = Array.from(el.options).findIndex(o => o.value === val);
+            if (idx >= 0) el.selectedIndex = idx;
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            const jq = (window as any).jQuery || (window as any).$;
+            if (jq) { try { jq(el).trigger('change'); } catch(_) {} }
+          }, stateSelectInfo.selector, stateSelectInfo.optionValue);
+        }
+      } else {
+        logger.warn('NBAIS state select not found', { stateSelectInfo });
+      }
+
+      // Wait for school dropdown to populate (AJAX response) — threshold ≥ 2 options (small states may have few schools)
+      logger.info('NBAIS waiting for school dropdown to populate...');
       try {
         await page.waitForFunction(() => {
-          const stateKeywords = ['abia','adamawa','akwa','taraba','yobe','sokoto'];
+          const stateKeywords = ['abia','adamawa','akwa','taraba','yobe','sokoto','kano','lagos'];
           const monthKeywords = ['june','july','november','january'];
           const typeKeywords = ['saissce','science','tahfeez'];
           const selects = Array.from(document.querySelectorAll('select'));
           return selects.some(sel => {
+            if (sel.options.length < 2) return false;
             const optTexts = Array.from(sel.options).map(o => o.text.trim().toLowerCase());
             if (optTexts.some(o => /^20\d{2}$/.test(o))) return false;
             if (optTexts.some(o => monthKeywords.some(k => o.includes(k)))) return false;
             if (optTexts.some(o => typeKeywords.some(k => o.includes(k)))) return false;
             if (optTexts.some(o => stateKeywords.some(k => o.includes(k)))) return false;
-            return sel.options.length > 10; // school dropdown has many options
+            // Has at least 1 non-placeholder option
+            const realOpts = Array.from(sel.options).filter(o => o.value && !o.text.toLowerCase().includes('select') && !o.text.toLowerCase().includes('choose'));
+            return realOpts.length >= 1;
           });
-        }, { timeout: 10000 });
-        logger.info('NBAIS school dropdown populated via AJAX');
+        }, { timeout: 12000 });
+        logger.info('NBAIS school dropdown populated');
       } catch {
-        logger.warn('NBAIS school dropdown AJAX timeout — will inspect what is available');
+        logger.warn('NBAIS school dropdown did not populate within 12s');
         await this.sleep(2000);
       }
 
-      // Log all available school options for diagnostics
-      const availableSchools = await page.evaluate(() => {
-        const stateKeywords = ['abia','adamawa','akwa','taraba','yobe','sokoto','kano','lagos','abuja'];
+      // Log ALL available school options for diagnostics
+      const allSchoolOptions = await page.evaluate(() => {
+        const stateKeywords = ['abia','adamawa','akwa','taraba','yobe','sokoto','kano','lagos','abuja','borno'];
         const monthKeywords = ['june','july','november','january'];
         const typeKeywords = ['saissce','science','tahfeez'];
         const selects = Array.from(document.querySelectorAll('select'));
         for (const sel of selects) {
+          if (sel.options.length < 2) continue;
           const optTexts = Array.from(sel.options).map(o => o.text.trim().toLowerCase());
           if (optTexts.some(o => /^20\d{2}$/.test(o))) continue;
           if (optTexts.some(o => monthKeywords.some(k => o.includes(k)))) continue;
           if (optTexts.some(o => typeKeywords.some(k => o.includes(k)))) continue;
           if (optTexts.some(o => stateKeywords.some(k => o.includes(k)))) continue;
-          if (sel.options.length > 5) {
-            return Array.from(sel.options).map(o => o.text.trim());
-          }
+          return Array.from(sel.options).map(o => ({ text: o.text.trim(), value: o.value }));
         }
         return [];
       });
-      logger.info('NBAIS available schools in dropdown', { count: availableSchools.length, first5: availableSchools.slice(0, 5) });
+      logger.info('NBAIS portal school options', { count: allSchoolOptions.length, schools: allSchoolOptions });
     }
 
-    // 2. Select School — find the select with >5 options that is NOT state/year/month/examtype
-    // Key: when a matching select is found but doesn't contain the value, CONTINUE to next select (not return)
+    // 2. Select School from #sub_cat (AJAX-populated after state selection)
+    // Portal: #sub_cat, starts empty, fills after state AJAX
     if (data.schoolName) {
-      const schoolResult = await page.evaluate((schoolVal: string) => {
-        const stateKeywords = ['abia','adamawa','akwa','anambra','bauchi','borno','cross river','delta',
-          'enugu','gombe','imo','jigawa','kaduna','kano','katsina','kebbi','kogi','kwara','lagos',
-          'nasarawa','niger','ogun','ondo','osun','oyo','plateau','rivers','sokoto','taraba',
-          'yobe','zamfara','fct','abuja'];
-        const monthKeywords = ['june','july','november','january','march','april'];
-        const typeKeywords = ['saissce','science','tahfeez','tahfiz'];
-        const selects = Array.from(document.querySelectorAll('select'));
-        const lower = schoolVal.toLowerCase();
-        // Split into keywords for partial matching (handles long school names)
+      const schoolMatch = await page.evaluate((schoolName: string) => {
+        const sub = document.querySelector('#sub_cat') as HTMLSelectElement | null;
+        if (!sub || sub.options.length === 0) return { value: null, options: [] };
+        const lower = schoolName.toLowerCase();
         const keywords = lower.split(/\s+/).filter(w => w.length > 3);
-        for (const sel of selects) {
-          const el = sel as HTMLSelectElement;
-          if (el.options.length <= 5) continue;
-          const optTexts = Array.from(el.options).map(o => o.text.trim().toLowerCase());
-          if (optTexts.some(o => /^20\d{2}$/.test(o))) continue;
-          if (optTexts.some(o => monthKeywords.some(k => o.includes(k)))) continue;
-          if (optTexts.some(o => typeKeywords.some(k => o.includes(k)))) continue;
-          if (optTexts.some(o => stateKeywords.some(k => o.includes(k)))) continue;
-          // This is the school select
-          // Pass 1: exact text match
-          for (let i = 0; i < el.options.length; i++) {
-            const opt = el.options[i];
-            if (opt.text.toLowerCase() === lower) {
-              el.selectedIndex = i; el.dispatchEvent(new Event('change', { bubbles: true }));
-              return `ok-exact:${opt.text}`;
-            }
-          }
-          // Pass 2: substring text match
-          for (let i = 0; i < el.options.length; i++) {
-            const opt = el.options[i];
-            if (opt.text.toLowerCase().includes(lower)) {
-              el.selectedIndex = i; el.dispatchEvent(new Event('change', { bubbles: true }));
-              return `ok-substr:${opt.text}`;
-            }
-          }
-          // Pass 3: keyword scoring — select option with most keyword hits
-          let bestIdx = -1, bestScore = 0;
-          for (let i = 1; i < el.options.length; i++) { // skip index 0 (placeholder)
-            const txt = el.options[i].text.toLowerCase();
-            const score = keywords.filter(k => txt.includes(k)).length;
-            if (score > bestScore) { bestScore = score; bestIdx = i; }
-          }
-          if (bestScore >= Math.ceil(keywords.length * 0.6) && bestIdx >= 0) {
-            el.selectedIndex = bestIdx; el.dispatchEvent(new Event('change', { bubbles: true }));
-            return `ok-fuzzy:${el.options[bestIdx].text}`;
-          }
-          // Not found in this select — log all options for diagnostics
-          console.log('[NBAIS] School select found but no match. options:', optTexts.slice(0,10).join('|'), '— searching:', schoolVal);
-          return `notfound:${optTexts.slice(0,5).join('|')}`;
+        const allOpts = Array.from(sub.options).map(o => ({ text: o.text.trim(), value: o.value }));
+        // Pass 1: exact match
+        const exact = allOpts.find(o => o.text.toLowerCase() === lower);
+        if (exact) return { value: exact.value, matched: exact.text, options: allOpts };
+        // Pass 2: substring
+        const substr = allOpts.find(o => o.text.toLowerCase().includes(lower));
+        if (substr) return { value: substr.value, matched: substr.text, options: allOpts };
+        // Pass 3: keyword scoring (≥60% of keywords match)
+        const threshold = Math.ceil(keywords.length * 0.6);
+        let best = { value: '', text: '', score: 0 };
+        for (const o of allOpts) {
+          const score = keywords.filter(k => o.text.toLowerCase().includes(k)).length;
+          if (score > best.score) best = { value: o.value, text: o.text, score };
         }
-        return 'noselect';
+        if (best.score >= threshold) return { value: best.value, matched: best.text, options: allOpts };
+        return { value: null, options: allOpts };
       }, data.schoolName);
-      logger.info('NBAIS school select', { result: schoolResult });
-      if (schoolResult.startsWith('notfound')) {
-        throw new Error(`Your school was not found in the portal dropdown. Portal schools: ${schoolResult.replace('notfound:', '')}. Please check the school name matches exactly.`);
+
+      logger.info('NBAIS school match result', { matched: schoolMatch.matched, value: schoolMatch.value, allSchools: schoolMatch.options });
+
+      if (!schoolMatch.value) {
+        const available = (schoolMatch.options as any[]).map((o: any) => o.text).join(' | ');
+        throw new Error(`Your school "${data.schoolName}" was not found in the portal. Available schools: ${available || 'none (AJAX may not have loaded)'}`);
       }
-      await this.sleep(500);
+      await page.select('#sub_cat', schoolMatch.value);
+      logger.info('NBAIS school selected via page.select()', { value: schoolMatch.value, text: schoolMatch.matched });
+      await this.sleep(300);
     }
 
-    // 3. Select Year — find the select whose options are 4-digit year numbers
-    // When found but year not listed, continue to next select (do NOT return early)
-    const yearResult = await page.evaluate((yearVal: string) => {
-      const selects = Array.from(document.querySelectorAll('select'));
-      for (const sel of selects) {
-        const el = sel as HTMLSelectElement;
-        const optTexts = Array.from(el.options).map(o => o.text.trim());
-        if (optTexts.filter(o => /^20\d{2}$/.test(o)).length < 3) continue;
-        for (let i = 0; i < el.options.length; i++) {
-          const opt = el.options[i];
-          if (opt.text.trim() === yearVal || opt.value.trim() === yearVal) {
-            el.selectedIndex = i;
-            el.dispatchEvent(new Event('change', { bubbles: true }));
-            return `ok:${opt.text}`;
-          }
-        }
-        // Year select found but year not listed — try partial match
-        for (let i = 0; i < el.options.length; i++) {
-          const opt = el.options[i];
-          if (opt.text.includes(yearVal) || opt.value.includes(yearVal)) {
-            el.selectedIndex = i;
-            el.dispatchEvent(new Event('change', { bubbles: true }));
-            return `ok-partial:${opt.text}`;
-          }
-        }
-        console.log('[NBAIS] Year select options:', optTexts.join(','));
-      }
-      return 'noselect';
-    }, String(data.examYear));
-    logger.info('NBAIS year select', { result: yearResult });
-    await this.sleep(400);
-
-    // 4. Select Month — find the select whose options contain season/month names
-    // When found but month not listed, continue (do NOT return early)
-    if (data.examMonth) {
-      const monthResult = await page.evaluate((monthVal: string) => {
-        const monthKeywords = ['june','july','november','january','march','april','october'];
-        const selects = Array.from(document.querySelectorAll('select'));
-        for (const sel of selects) {
-          const el = sel as HTMLSelectElement;
-          const optTexts = Array.from(el.options).map(o => o.text.trim().toLowerCase());
-          if (!monthKeywords.some(k => optTexts.some(t => t.includes(k)))) continue;
-          const lower = monthVal.toLowerCase();
-          for (let i = 0; i < el.options.length; i++) {
-            const opt = el.options[i];
-            if (opt.text.toLowerCase().includes(lower) || opt.value.toLowerCase().includes(lower)) {
-              el.selectedIndex = i;
-              el.dispatchEvent(new Event('change', { bubbles: true }));
-              return `ok:${opt.text}`;
-            }
-          }
-          // Found month select but target value not in list — log all options
-          console.log('[NBAIS] Month select options:', optTexts.join(','), '— searching for:', monthVal);
-          // Continue to next select in case there are multiple
-        }
-        return 'noselect';
-      }, data.examMonth);
-      logger.info('NBAIS month select', { result: monthResult });
-      await this.sleep(400);
+    // 3. Select Year — portal: #year-select, option values are 4-digit year strings
+    const examYear = String(data.examYear);
+    try {
+      await page.select('#year-select', examYear);
+      logger.info('NBAIS year selected', { year: examYear });
+    } catch {
+      logger.warn('NBAIS #year-select page.select() failed, trying fallback');
+      await page.evaluate((yr: string) => {
+        const el = document.querySelector('#year-select') as HTMLSelectElement | null;
+        if (!el) return;
+        const idx = Array.from(el.options).findIndex(o => o.value === yr || o.text.trim() === yr);
+        if (idx >= 0) { el.selectedIndex = idx; el.dispatchEvent(new Event('change', { bubbles: true })); }
+      }, examYear);
     }
+    await this.sleep(300);
 
-    // 5. Select Exam Type — find the select containing SAISSCE/SCIENCE/TAHFEEZ
-    // When found but value not matched, continue (do NOT return early)
+    // 4. Select Month — portal: #month-select, values: "June/July", "Nov/Dec"
+    const examMonth = data.examMonth || 'June/July';
+    try {
+      await page.select('#month-select', examMonth);
+      logger.info('NBAIS month selected', { month: examMonth });
+    } catch {
+      // Fallback: try matching by text
+      await page.evaluate((mo: string) => {
+        const el = document.querySelector('#month-select') as HTMLSelectElement | null;
+        if (!el) return;
+        const lower = mo.toLowerCase();
+        const idx = Array.from(el.options).findIndex(o => o.value.toLowerCase().includes(lower) || o.text.toLowerCase().includes(lower));
+        if (idx >= 0) { el.selectedIndex = idx; el.dispatchEvent(new Event('change', { bubbles: true })); }
+      }, examMonth);
+    }
+    await this.sleep(300);
+
+    // 5. Select Exam Type — portal: #exam_type, values: "SAISSCE", "SCIENCE", "TAHFEEZ"
     const examType = data.examType || 'SAISSCE';
-    const typeResult = await page.evaluate((typeVal: string) => {
-      const typeKeywords = ['saissce','science','tahfeez','tahfiz'];
-      const selects = Array.from(document.querySelectorAll('select'));
-      for (const sel of selects) {
-        const el = sel as HTMLSelectElement;
-        const optTexts = Array.from(el.options).map(o => o.text.trim().toLowerCase());
-        if (!typeKeywords.some(k => optTexts.some(t => t.includes(k)))) continue;
-        const lower = typeVal.toLowerCase();
-        for (let i = 0; i < el.options.length; i++) {
-          const opt = el.options[i];
-          if (opt.text.toLowerCase().includes(lower) || opt.value.toLowerCase().includes(lower)) {
-            el.selectedIndex = i;
-            el.dispatchEvent(new Event('change', { bubbles: true }));
-            return `ok:${opt.text}`;
-          }
-        }
-        // Exam type select found but value not matched — log options and try first non-empty option
-        console.log('[NBAIS] Exam type select options:', optTexts.join(','), '— searching for:', typeVal);
-        // Continue to next matching select
-      }
-      return 'noselect';
-    }, examType);
-    logger.info('NBAIS exam type select', { result: typeResult });
-    await this.sleep(400);
+    try {
+      await page.select('#exam_type', examType);
+      logger.info('NBAIS exam type selected', { examType });
+    } catch {
+      await page.evaluate((et: string) => {
+        const el = document.querySelector('#exam_type') as HTMLSelectElement | null;
+        if (!el) return;
+        const idx = Array.from(el.options).findIndex(o => o.value === et || o.text.trim() === et);
+        if (idx >= 0) { el.selectedIndex = idx; el.dispatchEvent(new Event('change', { bubbles: true })); }
+      }, examType);
+    }
+    await this.sleep(300);
 
-    // 6. Enter Registration Number using Puppeteer native typing (simulates real keyboard events)
-    // This satisfies HTML5 required validation, unlike el.value = assignment in evaluate()
-    const examInputSelectors = [
-      'input[placeholder*="Exam Number"]',
-      'input[placeholder*="exam number"]',
-      'input[placeholder*="Exam"]',
-      'input[placeholder*="Number"]',
-      'input[name*="exam_no"]',
-      'input[name*="exam_number"]',
-      'input[name*="examno"]',
-      'input[name*="reg_no"]',
-      'input[name*="regno"]',
-      'input[id*="exam_no"]',
-      'input[id*="exam"]',
-    ];
+    // 6. Enter Registration Number — portal: input[name="exam_no"], placeholder "Your Exam Number"
+    // Use Puppeteer native type() for real keyboard events (satisfies HTML5 required validation)
     let regFilled = false;
-    for (const sel of examInputSelectors) {
+    const regSelectors = ['input[name="exam_no"]', 'input[placeholder*="Exam Number"]', 'input[placeholder*="exam"]'];
+    for (const sel of regSelectors) {
       try {
         const el = await page.$(sel);
         if (el) {
           await el.click({ clickCount: 3 });
-          await el.type(data.registrationNumber, { delay: 40 });
-          logger.info('NBAIS filled registration number via typed selector', { selector: sel, value: data.registrationNumber });
+          await el.type(data.registrationNumber.trim(), { delay: 40 });
+          logger.info('NBAIS registration number typed', { selector: sel, value: data.registrationNumber });
           regFilled = true;
           break;
         }
       } catch { /* try next */ }
     }
-
-    // Fallback: find the first visible text input not inside a dropdown widget
-    if (!regFilled) {
-      const inputHandle = await page.evaluateHandle(() => {
-        const inputs = Array.from(document.querySelectorAll('input[type="text"], input:not([type])'));
-        for (const inp of inputs) {
-          const el = inp as HTMLInputElement;
-          if (el.disabled || el.readOnly || el.type === 'hidden' || !el.offsetParent) continue;
-          const cls = el.className.toLowerCase();
-          if (cls.includes('selectize-input') || cls.includes('select2-search') || cls.includes('chosen-search')) continue;
-          if (el.closest('.selectize-control, .select2-container, .chosen-container')) continue;
-          return el;
-        }
-        return null;
-      });
-      if (inputHandle && inputHandle.asElement()) {
-        const el = inputHandle.asElement()!;
-        await el.click({ clickCount: 3 });
-        await el.type(data.registrationNumber, { delay: 40 });
-        logger.info('NBAIS filled registration number via fallback handle', { value: data.registrationNumber });
-        regFilled = true;
-      }
-    }
-
-    if (!regFilled) {
-      throw new Error('Could not find registration number input on NBAIS portal.');
-    }
+    if (!regFilled) throw new Error('Could not find exam number input on NBAIS portal.');
 
     await this.sleep(600);
 
@@ -880,15 +798,14 @@ export class EducationWorker extends BaseWorker {
     const preSubmitScreenshot = await page.screenshot({ encoding: 'base64', fullPage: false });
     logger.info('NBAIS pre-submit screenshot captured', { size: preSubmitScreenshot.length });
 
-    // 7. Click Proceed using Puppeteer native click (triggers real browser click + form validation)
+    // 7. Click Proceed — portal uses: button.submit[type="submit"]
     let clickedProceed = false;
     const proceedSelectors = [
+      'button.submit',
       'button[type="submit"]',
       'input[type="submit"]',
       'button.btn-success',
       'button.btn-primary',
-      '.btn-success',
-      '.btn-primary',
     ];
     for (const sel of proceedSelectors) {
       try {
