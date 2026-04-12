@@ -200,7 +200,6 @@ export default function ElectricityServices() {
           <Card className="w-full">
             <CardHeader>
               <CardTitle>Buy Electricity Token</CardTitle>
-              <CardDescription>Sandbox: Prepaid - 1111111111111, Postpaid - 1010101010101</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">

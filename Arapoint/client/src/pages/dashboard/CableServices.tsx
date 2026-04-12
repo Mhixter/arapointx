@@ -226,7 +226,6 @@ export default function CableServices() {
           <Card className="w-full">
             <CardHeader>
               <CardTitle>Buy Cable Subscription</CardTitle>
-              <CardDescription>Select a provider and choose your package. Sandbox test smartcard: 1212121212</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
