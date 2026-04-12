@@ -139,6 +139,9 @@ export const jobService = {
     cardSerialNumber?: string;
     cardPin?: string;
     examType?: string;
+    state?: string;
+    schoolName?: string;
+    examMonth?: string;
   }) {
     const jobResult = await this.createJob({
       userId,

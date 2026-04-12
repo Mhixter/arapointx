@@ -30,8 +30,12 @@ export const nabtebSchema = z.object({
 export const nbaisSchema = z.object({
   registrationNumber: z.string().min(5, 'Registration number is required'),
   examYear: z.number().min(2000).max(new Date().getFullYear()),
-  cardSerialNumber: z.string().min(5, 'Card serial number is required').optional(),
-  cardPin: z.string().min(5, 'Card PIN is required').optional(),
+  examType: z.string().optional(),
+  state: z.string().optional(),
+  schoolName: z.string().optional(),
+  examMonth: z.string().optional(),
+  cardSerialNumber: z.string().optional(),
+  cardPin: z.string().min(4, 'Card PIN is required'),
 });
 
 export type JambInput = z.infer<typeof jambSchema>;

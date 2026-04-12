@@ -126,7 +126,7 @@ export const servicesApi = {
       const response = await apiClient.post<ApiResponse<{ jobId: string; price: number }>>('/education/nabteb', data);
       return response.data.data;
     },
-    checkNBAIS: async (data: { registrationNumber: string; examYear?: number; state?: string; schoolName?: string; examMonth?: string; cardPin?: string }): Promise<{ jobId: string; price: number }> => {
+    checkNBAIS: async (data: { registrationNumber: string; examYear?: number; examType?: string; state?: string; schoolName?: string; examMonth?: string; cardPin?: string }): Promise<{ jobId: string; price: number }> => {
       const response = await apiClient.post<ApiResponse<{ jobId: string; price: number }>>('/education/nbais', data);
       return response.data.data;
     },

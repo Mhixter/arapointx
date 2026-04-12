@@ -35,7 +35,7 @@ export default function AdminSettings() {
     waecUrl: "",
     necoUrl: "",
     nabtebUrl: "",
-    mbaisUrl: "",
+    nbaisUrl: "",
     jambSlipUrl: "",
     smtpHost: "smtp.gmail.com",
     smtpPort: "587",
@@ -72,7 +72,7 @@ export default function AdminSettings() {
     waecUrl: 'rpa_provider_url_waec',
     necoUrl: 'rpa_provider_url_neco',
     nabtebUrl: 'rpa_provider_url_nabteb',
-    mbaisUrl: 'rpa_provider_url_mbais',
+    nbaisUrl: 'rpa_provider_url_nbais',
     jambSlipUrl: 'rpa_provider_url_jamb_slip',
   };
 
@@ -307,7 +307,7 @@ export default function AdminSettings() {
       [settingsMap.waecUrl]: settings.waecUrl,
       [settingsMap.necoUrl]: settings.necoUrl,
       [settingsMap.nabtebUrl]: settings.nabtebUrl,
-      [settingsMap.mbaisUrl]: settings.mbaisUrl,
+      [settingsMap.nbaisUrl]: settings.nbaisUrl,
       [settingsMap.jambSlipUrl]: settings.jambSlipUrl,
     }, "Education");
   };
@@ -1095,12 +1095,12 @@ export default function AdminSettings() {
                   />
                 </div>
                 <div className="space-y-1.5 sm:space-y-2">
-                  <Label htmlFor="mbais-url" className="text-xs sm:text-sm">MBAIS Portal URL</Label>
+                  <Label htmlFor="nbais-url" className="text-xs sm:text-sm">NBAIS Portal URL</Label>
                   <Input
-                    id="mbais-url"
-                    placeholder="https://result.mbais.gov.ng"
-                    value={settings.mbaisUrl || ""}
-                    onChange={(e) => setSettings(prev => ({ ...prev, mbaisUrl: e.target.value }))}
+                    id="nbais-url"
+                    placeholder="https://resultchecker.nbais.com.ng"
+                    value={settings.nbaisUrl || ""}
+                    onChange={(e) => setSettings(prev => ({ ...prev, nbaisUrl: e.target.value }))}
                     className="h-8 sm:h-9 text-sm"
                   />
                 </div>

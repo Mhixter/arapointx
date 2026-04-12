@@ -141,7 +141,8 @@ export default function EducationServices() {
   const [nabtebYear, setNabtebYear] = useState(new Date().getFullYear().toString());
   const [nabtebType, setNabtebType] = useState('may');
   const [nbaisYear, setNbaisYear] = useState(new Date().getFullYear().toString());
-  const [nbaisMonth, setNbaisMonth] = useState('06');
+  const [nbaisMonth, setNbaisMonth] = useState('June/July');
+  const [nbaisExamType, setNbaisExamType] = useState('AISSCE');
   const [nbaisState, setNbaisState] = useState('');
   const [nbaisSchool, setNbaisSchool] = useState('');
   const [nbaisSchools, setNbaisSchools] = useState<{ schoolName: string; schoolValue: string }[]>([]);
@@ -398,6 +399,7 @@ export default function EducationServices() {
           jobResponse = await servicesApi.education.checkNBAIS({
             registrationNumber: examNumber,
             examYear: parseInt(nbaisYear),
+            examType: nbaisExamType,
             state: nbaisState,
             schoolName: nbaisSchool || schoolFromInput,
             examMonth: nbaisMonth,
@@ -1383,13 +1385,13 @@ export default function EducationServices() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="nbais-month">Exam Month</Label>
-                      <Select defaultValue="06">
+                      <Select value={nbaisMonth} onValueChange={setNbaisMonth}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"].map((m, i) => (
-                            <SelectItem key={i} value={(i + 1).toString().padStart(2, '0')}>{m}</SelectItem>
+                          {["June/July", "November/December", "January", "March"].map((m) => (
+                            <SelectItem key={m} value={m}>{m}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -1397,12 +1399,27 @@ export default function EducationServices() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="nbais-number">Exam Number</Label>
-                      <Input id="nbais-number" placeholder="e.g., 1234567890" required />
+                      <Label htmlFor="nbais-exam-type">Exam Type</Label>
+                      <Select value={nbaisExamType} onValueChange={setNbaisExamType}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["AISSCE", "SCIENCE", "TAHFIZ", "ISLAMIC STUDIES", "ARTS", "COMMERCIAL"].map((t) => (
+                            <SelectItem key={t} value={t}>{t}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
+                      <Label htmlFor="nbais-number">Exam / Registration Number</Label>
+                      <Input id="nbais-number" placeholder="e.g., 03635018TR" required />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
                       <Label htmlFor="nbais-pin">PIN</Label>
-                      <Input id="nbais-pin" placeholder="Enter PIN" required />
+                      <Input id="nbais-pin" placeholder="Enter your PIN" required />
                     </div>
                   </div>
                 </>

@@ -180,8 +180,12 @@ export class EducationWorker extends BaseWorker {
         timeoutHandle = setTimeout(() => reject(new Error('Request timeout exceeded')), requestTimeout);
       });
 
+      const verifyFn = this.provider === 'nbais'
+        ? this.executeNbaisFlow(page, portalUrl, data)
+        : this.performVerification(page, portalUrl, data, selectors);
+
       const result = await Promise.race([
-        this.performVerification(page, portalUrl, data, selectors),
+        verifyFn,
         timeoutPromise
       ]);
 
@@ -529,6 +533,318 @@ export class EducationWorker extends BaseWorker {
   </div>
 </body>
 </html>`;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // NBAIS 2-step flow: Step 1 (details) → Proceed → Step 2 (PIN) → Submit
+  // ─────────────────────────────────────────────────────────────────────────────
+  private async executeNbaisFlow(page: Page, portalUrl: string, data: EducationQueryData): Promise<ExamResult> {
+    logger.info('NBAIS 2-step flow starting', {
+      registrationNumber: data.registrationNumber,
+      state: data.state,
+      school: data.schoolName,
+      year: data.examYear,
+      month: data.examMonth,
+      examType: data.examType,
+    });
+
+    // Navigate to portal
+    await page.goto(portalUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+    await this.sleep(1000);
+    await this.closePrivacyPopup(page);
+
+    try {
+      await page.waitForSelector('select, input', { timeout: 10000 });
+    } catch {
+      throw new Error('Could not find form on NBAIS portal. The page may have changed.');
+    }
+
+    // ── STEP 1: Fill the details form ─────────────────────────────────────────
+
+    // Helper: select an option by visible text (case-insensitive partial match)
+    const selectByVisibleText = async (selectors: string[], value: string, fieldName: string) => {
+      for (const sel of selectors) {
+        try {
+          const selected = await page.evaluate((sel: string, value: string) => {
+            const el = document.querySelector(sel) as HTMLSelectElement | null;
+            if (!el) return false;
+            const lower = value.toLowerCase();
+            for (const opt of Array.from(el.options)) {
+              if (opt.text.toLowerCase().includes(lower) || opt.value.toLowerCase().includes(lower)) {
+                el.value = opt.value;
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+                return true;
+              }
+            }
+            return false;
+          }, sel, value);
+          if (selected) {
+            logger.info(`NBAIS selected ${fieldName}`, { selector: sel, value });
+            return true;
+          }
+        } catch { /* try next */ }
+      }
+      logger.warn(`NBAIS could not select ${fieldName}`, { value });
+      return false;
+    };
+
+    // 1. Select State
+    if (data.state) {
+      await selectByVisibleText(
+        ['select[name="state"]', 'select[name="State"]', 'select#state', 'select#State', 'select:first-of-type'],
+        data.state,
+        'state'
+      );
+      // Wait for school dropdown to populate via AJAX
+      await this.sleep(1500);
+      try {
+        await page.waitForFunction(() => {
+          const selects = Array.from(document.querySelectorAll('select'));
+          return selects.some(s => s.options.length > 2);
+        }, { timeout: 6000 });
+      } catch {
+        logger.warn('NBAIS school dropdown did not populate within timeout');
+      }
+      await this.sleep(500);
+    }
+
+    // 2. Select School
+    if (data.schoolName) {
+      await selectByVisibleText(
+        ['select[name="school_name"]', 'select[name="school"]', 'select[name="School"]', 'select#school_name', 'select#school', 'select:nth-of-type(2)'],
+        data.schoolName,
+        'school'
+      );
+      await this.sleep(400);
+    }
+
+    // 3. Select Exam Year
+    await selectByVisibleText(
+      ['select[name="year"]', 'select[name="Year"]', 'select[name="exam_year"]', 'select#year', 'select#exam_year'],
+      String(data.examYear),
+      'year'
+    );
+    await this.sleep(400);
+
+    // 4. Select Exam Month (e.g. "June/July")
+    if (data.examMonth) {
+      await selectByVisibleText(
+        ['select[name="month"]', 'select[name="Month"]', 'select[name="exam_month"]', 'select#month'],
+        data.examMonth,
+        'month'
+      );
+      await this.sleep(400);
+    }
+
+    // 5. Select Exam Type (e.g. "SCIENCE", "AISSCE", "TAHFIZ")
+    if (data.examType) {
+      await selectByVisibleText(
+        ['select[name="type"]', 'select[name="Type"]', 'select[name="exam_type"]', 'select[name="ExamType"]', 'select#type', 'select#exam_type'],
+        data.examType,
+        'exam type'
+      );
+      await this.sleep(400);
+    }
+
+    // 6. Enter Registration Number
+    const regSelectors = [
+      'input[name="reg_no"]', 'input[name="RegNo"]', 'input[name="registration_number"]',
+      'input[name="reg"]', 'input[name="Reg"]', 'input[name="regno"]',
+      'input[placeholder*="Registration"]', 'input[placeholder*="Reg"]',
+      'input[placeholder*="Number"]', 'input[type="text"]',
+    ];
+    let regFilled = false;
+    for (const sel of regSelectors) {
+      try {
+        const el = await page.$(sel);
+        if (el) {
+          await el.click({ clickCount: 3 });
+          await el.type(data.registrationNumber, { delay: 50 });
+          logger.info('NBAIS filled registration number', { selector: sel });
+          regFilled = true;
+          break;
+        }
+      } catch { /* try next */ }
+    }
+    if (!regFilled) {
+      throw new Error('Could not find registration number input on NBAIS portal.');
+    }
+
+    await this.sleep(500);
+
+    // Log form state before submitting Step 1
+    const step1State = await page.evaluate(() => ({
+      url: location.href,
+      selects: Array.from(document.querySelectorAll('select')).map(s => ({
+        name: s.name, value: s.value, optCount: s.options.length,
+      })),
+      inputs: Array.from(document.querySelectorAll('input[type="text"]')).map(i => ({
+        name: (i as HTMLInputElement).name, value: (i as HTMLInputElement).value,
+      })),
+    }));
+    logger.info('NBAIS Step 1 form state', { step1State });
+
+    // 7. Click Proceed button
+    const currentUrl = page.url();
+    const proceedSelectors = [
+      'button[type="submit"]', 'input[type="submit"]',
+      'button.btn-success', 'button.btn-primary', 'button.proceed',
+    ];
+    let proceeded = false;
+    for (const sel of proceedSelectors) {
+      try {
+        const btn = await page.$(sel);
+        if (btn) {
+          await btn.click();
+          logger.info('NBAIS clicked Proceed', { selector: sel });
+          proceeded = true;
+          break;
+        }
+      } catch { /* try next */ }
+    }
+    if (!proceeded) {
+      // Fallback: submit the form directly
+      await page.evaluate(() => {
+        const form = document.querySelector('form') as HTMLFormElement | null;
+        if (form) form.submit();
+      });
+    }
+
+    // Wait for navigation to step 2
+    try {
+      await Promise.race([
+        page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }),
+        page.waitForFunction(() => document.body.innerText.toLowerCase().includes('welcome') || document.body.innerText.toLowerCase().includes('pin'), { timeout: 15000 }),
+      ]);
+    } catch {
+      logger.warn('NBAIS Step 1 navigation timeout — checking page state');
+    }
+    await this.sleep(800);
+
+    const step2Url = page.url();
+    const step2Text = await page.evaluate(() => document.body.innerText);
+    logger.info('NBAIS Step 2 page', { url: step2Url, preview: step2Text.slice(0, 300) });
+
+    // Check if step 1 failed (still on same page with an error)
+    if (!step2Url.includes('results') && !step2Text.toLowerCase().includes('welcome') && !step2Text.toLowerCase().includes('pin')) {
+      const errorMsg = await page.evaluate(() => {
+        const alerts = document.querySelectorAll('.alert, .error, .alert-danger, .text-danger');
+        for (const el of Array.from(alerts)) {
+          const t = (el as HTMLElement).innerText?.trim();
+          if (t && t.length > 5) return t;
+        }
+        return null;
+      });
+      throw new Error(errorMsg || 'NBAIS portal did not proceed to step 2. Please verify the entered details and try again.');
+    }
+
+    // ── STEP 2: Enter PIN and submit ──────────────────────────────────────────
+
+    // Extract candidate name from "Welcome, NAME | REG_NO"
+    const candidateName = await page.evaluate(() => {
+      const bodyText = document.body.innerText;
+      const match = bodyText.match(/Welcome[,\s]+([A-Z\s]+)\s*\|/i);
+      return match?.[1]?.trim() || '';
+    });
+    logger.info('NBAIS candidate name', { candidateName });
+
+    // Enter PIN
+    if (data.cardPin) {
+      const pinSelectors = [
+        'input[name="pin"]', 'input[name="Pin"]', 'input[name="PIN"]',
+        'input[type="password"]', 'input[placeholder*="Pin"]', 'input[placeholder*="pin"]',
+      ];
+      let pinFilled = false;
+      for (const sel of pinSelectors) {
+        try {
+          const el = await page.$(sel);
+          if (el) {
+            await el.click({ clickCount: 3 });
+            await el.type(data.cardPin, { delay: 50 });
+            logger.info('NBAIS filled PIN', { selector: sel });
+            pinFilled = true;
+            break;
+          }
+        } catch { /* try next */ }
+      }
+      if (!pinFilled) {
+        throw new Error('Could not find PIN input on NBAIS results page.');
+      }
+    } else {
+      throw new Error('PIN is required to retrieve NBAIS results.');
+    }
+
+    await this.sleep(400);
+
+    // Submit Step 2
+    const textBeforeSubmit = await page.evaluate(() => document.body.innerText);
+    const submitSelectors = ['button[type="submit"]', 'input[type="submit"]', 'button.btn-success', 'button.btn-primary'];
+    for (const sel of submitSelectors) {
+      try {
+        const btn = await page.$(sel);
+        if (btn) {
+          await btn.click();
+          logger.info('NBAIS clicked Submit', { selector: sel });
+          break;
+        }
+      } catch { /* try next */ }
+    }
+
+    // Wait for results
+    try {
+      await Promise.race([
+        page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }),
+        page.waitForFunction((before: string) => {
+          const curr = document.body.innerText;
+          return curr !== before && (
+            curr.includes('Subject') || curr.includes('Grade') || curr.includes('Score') ||
+            curr.includes('SUBJECT') || curr.includes('GRADE') || curr.includes('Result') ||
+            curr.includes('Correct') || curr.includes('CORRECT')
+          );
+        }, { timeout: 15000 }, textBeforeSubmit),
+      ]);
+    } catch {
+      logger.warn('NBAIS Step 2 navigation timeout');
+    }
+    await this.sleep(1000);
+
+    const resultsUrl = page.url();
+    const resultsText = await page.evaluate(() => document.body.innerText);
+    logger.info('NBAIS results page', { url: resultsUrl, preview: resultsText.slice(0, 400) });
+
+    // Check for PIN error
+    const pinError = await page.evaluate(() => {
+      const alerts = document.querySelectorAll('.alert-danger, .alert-error, .error, .text-danger');
+      for (const el of Array.from(alerts)) {
+        const t = (el as HTMLElement).innerText?.trim();
+        if (t && (t.toLowerCase().includes('pin') || t.toLowerCase().includes('incorrect') || t.toLowerCase().includes('invalid'))) return t;
+      }
+      return null;
+    });
+    if (pinError) throw new Error(`NBAIS PIN error: ${pinError}`);
+
+    // Extract subjects / results
+    const subjects = await this.extractSubjects(page);
+
+    // Screenshot of results
+    let screenshotBase64: string | undefined;
+    try {
+      const shot = await page.screenshot({ encoding: 'base64', fullPage: true });
+      screenshotBase64 = shot as string;
+    } catch { /* non-critical */ }
+
+    return {
+      verificationStatus: 'verified',
+      candidateName,
+      registrationNumber: data.registrationNumber,
+      examYear: data.examYear,
+      examType: data.examType || '',
+      provider: 'NBAIS',
+      subjects,
+      message: `NBAIS result retrieved successfully${candidateName ? ` for ${candidateName}` : ''}.`,
+      screenshot: screenshotBase64,
+      resultsUrl,
+    } as unknown as ExamResult;
   }
 
   private async performVerification(

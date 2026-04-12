@@ -649,6 +649,10 @@ router.post('/nbais', async (req: Request, res: Response) => {
       serviceType: 'nbais',
       registrationNumber: validation.data.registrationNumber,
       examYear: validation.data.examYear,
+      examType: validation.data.examType,
+      state: validation.data.state,
+      schoolName: validation.data.schoolName,
+      examMonth: validation.data.examMonth,
       cardSerialNumber: validation.data.cardSerialNumber,
       cardPin: validation.data.cardPin,
     });
