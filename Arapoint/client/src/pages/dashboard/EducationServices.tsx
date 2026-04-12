@@ -142,7 +142,7 @@ export default function EducationServices() {
   const [nabtebType, setNabtebType] = useState('may');
   const [nbaisYear, setNbaisYear] = useState(new Date().getFullYear().toString());
   const [nbaisMonth, setNbaisMonth] = useState('June/July');
-  const [nbaisExamType, setNbaisExamType] = useState('AISSCE');
+  const [nbaisExamType, setNbaisExamType] = useState('SAISSCE');
   const [nbaisState, setNbaisState] = useState('');
   const [nbaisSchool, setNbaisSchool] = useState('');
   const [nbaisSchools, setNbaisSchools] = useState<{ schoolName: string; schoolValue: string }[]>([]);
@@ -1405,7 +1405,7 @@ export default function EducationServices() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {["AISSCE", "SCIENCE", "TAHFIZ", "ISLAMIC STUDIES", "ARTS", "COMMERCIAL"].map((t) => (
+                          {["SAISSCE", "SCIENCE", "TAHFEEZ"].map((t) => (
                             <SelectItem key={t} value={t}>{t}</SelectItem>
                           ))}
                         </SelectContent>
