@@ -612,6 +612,7 @@ router.post('/nabteb', async (req: Request, res: Response) => {
       serviceType: 'nabteb',
       registrationNumber: validation.data.registrationNumber,
       examYear: validation.data.examYear,
+      examType: validation.data.examType,
       cardSerialNumber: validation.data.cardSerialNumber,
       cardPin: validation.data.cardPin,
     });

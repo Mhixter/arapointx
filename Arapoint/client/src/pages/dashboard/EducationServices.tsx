@@ -139,7 +139,9 @@ export default function EducationServices() {
   const [necoYear, setNecoYear] = useState((new Date().getFullYear() - 1).toString());
   const [necoType, setNecoType] = useState('school_candidate');
   const [nabtebYear, setNabtebYear] = useState(new Date().getFullYear().toString());
-  const [nabtebType, setNabtebType] = useState('may');
+  const [nabtebType, setNabtebType] = useState('01');
+  const [nabtebSerial, setNabtebSerial] = useState('');
+  const [nabtebPin, setNabtebPin] = useState('');
   const [nbaisYear, setNbaisYear] = useState(new Date().getFullYear().toString());
   const [nbaisMonth, setNbaisMonth] = useState('June/July');
   const [nbaisExamType, setNbaisExamType] = useState('SAISSCE');
@@ -389,6 +391,9 @@ export default function EducationServices() {
           jobResponse = await servicesApi.education.checkNABTEB({
             registrationNumber: candNumber,
             examYear: parseInt(nabtebYear),
+            examType: nabtebType,
+            cardSerialNumber: nabtebSerial || undefined,
+            cardPin: nabtebPin || undefined,
           });
           break;
         }
@@ -1295,13 +1300,18 @@ export default function EducationServices() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="nabteb-type">Examination Type</Label>
-                      <Select defaultValue="may">
+                      <Select value={nabtebType} onValueChange={setNabtebType}>
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="may">MAY/JUN</SelectItem>
-                          <SelectItem value="nov">NOV/DEC</SelectItem>
+                          <SelectItem value="01">MAY/JUN</SelectItem>
+                          <SelectItem value="02">NOV/DEC</SelectItem>
+                          <SelectItem value="03">Modular (March)</SelectItem>
+                          <SelectItem value="04">Modular (December)</SelectItem>
+                          <SelectItem value="05">Modular (June)</SelectItem>
+                          <SelectItem value="06">GCE (A-Level)</SelectItem>
+                          <SelectItem value="07">Common Entrance</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1314,7 +1324,7 @@ export default function EducationServices() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {Array.from({length: 12}, (_, i) => new Date().getFullYear() + 1 - i).map(year => (
+                          {Array.from({length: 29}, (_, i) => new Date().getFullYear() + 1 - i).map(year => (
                             <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
                           ))}
                         </SelectContent>
@@ -1322,12 +1332,25 @@ export default function EducationServices() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="nabteb-serial">Card Serial Number</Label>
-                      <Input id="nabteb-serial" placeholder="Enter Serial Number" required />
+                      <Input
+                        id="nabteb-serial"
+                        placeholder="Enter Serial Number"
+                        value={nabtebSerial}
+                        onChange={e => setNabtebSerial(e.target.value)}
+                        required
+                      />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="nabteb-pin">PIN</Label>
-                    <Input id="nabteb-pin" placeholder="Enter PIN" required />
+                    <Input
+                      id="nabteb-pin"
+                      type="password"
+                      placeholder="Enter PIN"
+                      value={nabtebPin}
+                      onChange={e => setNabtebPin(e.target.value)}
+                      required
+                    />
                   </div>
                 </>
               )}

@@ -99,18 +99,18 @@ const PROVIDER_PROFILES: Record<string, ProviderProfile> = {
     name: 'NABTEB',
     settingsKey: 'rpa_provider_url_nabteb',
     selectors: {
-      examYearSelect: 'select[name="ExamYear"], select#ExamYear',
-      examTypeSelect: 'select[name="ExamType"], select#ExamType',
-      examNumberInput: 'input[name="ExamNumber"], input#ExamNumber, input[name="CandNo"], input[placeholder*="Registration"]',
-      serialInput: 'input[name="SerialNumber"], input#SerialNumber',
-      pinInput: 'input[name="Pin"], input#Pin, input[type="password"]',
+      examYearSelect: 'select#examyear, select[name="examyear"]',
+      examTypeSelect: 'select#examtype, select[name="examtype"]',
+      examNumberInput: 'input#candid, input[name="candid"]',
+      serialInput: 'input#serial, input[name="serial"]',
+      pinInput: 'input#pin, input[name="pin"], input[type="password"]',
       tokenInput: 'input[name="token"], input#token',
     },
     examTypeNormalizer: (examType: string) => {
       const t = examType.toLowerCase();
       return { isInternal: !t.includes('gce') && !t.includes('private') };
     },
-    defaultExamType: 'NBC/NTC',
+    defaultExamType: '01',
     usesToken: false,
     requiresSerial: true,
   },
@@ -182,7 +182,9 @@ export class EducationWorker extends BaseWorker {
 
       const verifyFn = this.provider === 'nbais'
         ? this.executeNbaisFlow(page, portalUrl, data)
-        : this.performVerification(page, portalUrl, data, selectors);
+        : this.provider === 'nabteb'
+          ? this.executeNabtebFlow(page, portalUrl, data)
+          : this.performVerification(page, portalUrl, data, selectors);
 
       const result = await Promise.race([
         verifyFn,
@@ -533,6 +535,190 @@ export class EducationWorker extends BaseWorker {
   </div>
 </body>
 </html>`;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // NABTEB dedicated flow — uses exact portal selectors from eworld.nabteb.gov.ng
+  // Form: #candid (text), #examtype (select), #examyear (select), #serial (text), #pin (password)
+  // Submit: input[name="Submit"]
+  // ─────────────────────────────────────────────────────────────────────────────
+  private mapNabtebExamType(examType?: string): string {
+    const t = (examType || '01').trim();
+    if (/^0[1-7]$/.test(t)) return t;
+    const lower = t.toLowerCase();
+    if (lower.includes('may') || lower.includes('jun')) return '01';
+    if (lower.includes('nov') || (lower.includes('dec') && !lower.includes('modular'))) return '02';
+    if (lower.includes('march') || lower.includes('mar')) return '03';
+    if (lower.includes('modular') && lower.includes('dec')) return '04';
+    if (lower.includes('modular') && lower.includes('jun')) return '05';
+    if (lower.includes('gce') || lower.includes('a-level') || lower.includes('a level')) return '06';
+    if (lower.includes('common') || lower.includes('entrance')) return '07';
+    return '01';
+  }
+
+  private async executeNabtebFlow(page: Page, portalUrl: string, data: EducationQueryData): Promise<ExamResult> {
+    logger.info('NABTEB flow starting', {
+      registrationNumber: data.registrationNumber,
+      examYear: data.examYear,
+      examType: data.examType,
+    });
+
+    await page.goto(portalUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+    await this.sleep(800);
+    await this.closePrivacyPopup(page);
+
+    try {
+      await page.waitForSelector('#candid, input[name="candid"]', { timeout: 10000 });
+    } catch {
+      throw new Error('Could not find NABTEB form. The portal page may have changed.');
+    }
+
+    const examTypeValue = this.mapNabtebExamType(data.examType);
+    const examYearStr = String(data.examYear);
+
+    logger.info('NABTEB filling form', { candid: data.registrationNumber, examType: examTypeValue, examYear: examYearStr });
+
+    // 1. Select Examination Type
+    try {
+      await page.select('#examtype', examTypeValue);
+      logger.info('NABTEB exam type selected', { value: examTypeValue });
+    } catch (e: any) {
+      logger.warn('NABTEB #examtype select failed', { error: e.message });
+    }
+
+    // 2. Select Examination Year
+    try {
+      await page.select('#examyear', examYearStr);
+      logger.info('NABTEB exam year selected', { year: examYearStr });
+    } catch (e: any) {
+      logger.warn('NABTEB #examyear select failed', { error: e.message });
+    }
+
+    // 3. Enter Candidate Number
+    const candidHandle = await page.$('#candid, input[name="candid"]');
+    if (!candidHandle) throw new Error('Could not find Candidate Number input on NABTEB portal.');
+    await candidHandle.click({ clickCount: 3 });
+    await candidHandle.type(data.registrationNumber.trim(), { delay: 40 });
+    logger.info('NABTEB candidate number entered', { value: data.registrationNumber });
+
+    // 4. Enter Serial Number (required by NABTEB)
+    if (data.cardSerialNumber) {
+      const serialHandle = await page.$('#serial, input[name="serial"]');
+      if (serialHandle) {
+        await serialHandle.click({ clickCount: 3 });
+        await serialHandle.type(data.cardSerialNumber.trim(), { delay: 40 });
+        logger.info('NABTEB serial number entered', { value: data.cardSerialNumber });
+      }
+    }
+
+    // 5. Enter PIN
+    if (data.cardPin) {
+      const pinHandle = await page.$('#pin, input[name="pin"]');
+      if (pinHandle) {
+        await pinHandle.click({ clickCount: 3 });
+        await pinHandle.type(data.cardPin.trim(), { delay: 40 });
+        logger.info('NABTEB PIN entered');
+      }
+    }
+
+    await this.sleep(500);
+
+    const textBeforeSubmit = await page.evaluate(() => document.body.innerText);
+
+    // 6. Submit form
+    let submitted = false;
+    for (const sel of ['input[name="Submit"]', 'input[type="submit"]', 'button[type="submit"]']) {
+      try {
+        const btn = await page.$(sel);
+        if (btn) { await btn.click(); submitted = true; logger.info('NABTEB submitted', { selector: sel }); break; }
+      } catch { /* try next */ }
+    }
+    if (!submitted) await page.keyboard.press('Enter');
+
+    // Wait for results or error
+    try {
+      await Promise.race([
+        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 }),
+        page.waitForFunction((before: string) => {
+          const curr = document.body.innerText;
+          const changed = Math.abs(curr.length - before.length) > 80;
+          const hasResults = curr.includes('Subject') || curr.includes('SUBJECT') || curr.includes('Grade') || curr.includes('GRADE');
+          const hasError = curr.includes('Invalid') || curr.includes('Expired') || curr.includes('Used') || curr.includes('incorrect');
+          return changed || hasResults || hasError;
+        }, { timeout: 15000 }, textBeforeSubmit),
+      ]);
+    } catch {
+      logger.warn('NABTEB wait timed out after submit');
+    }
+    await this.sleep(1200);
+
+    const textAfterSubmit = await page.evaluate(() => document.body.innerText);
+    const resultUrl = page.url();
+    logger.info('NABTEB after submit', { url: resultUrl, preview: textAfterSubmit.slice(0, 400) });
+
+    // Check for errors
+    const pageError = await this.checkForErrors(page);
+    if (pageError) throw new Error(pageError);
+
+    const textChanged = Math.abs(textAfterSubmit.length - textBeforeSubmit.length) > 50 || textAfterSubmit !== textBeforeSubmit;
+    if (!textChanged) {
+      throw new Error(`NABTEB portal response: ${textAfterSubmit.trim().slice(0, 400) || 'Form submitted but portal did not respond.'}`);
+    }
+
+    const hasResults = await page.evaluate(() => {
+      const t = document.body.innerText;
+      return t.includes('Subject') || t.includes('SUBJECT') || t.includes('Grade') || t.includes('GRADE') || t.includes('Score');
+    });
+    if (!hasResults) throw new Error('NABTEB: No results found for this candidate. Check your candidate number, serial, and PIN.');
+
+    const candidateName = await this.extractCandidateName(page);
+    const subjects = await this.extractSubjects(page);
+    logger.info('NABTEB results extracted', { candidateName, subjectCount: subjects.length });
+
+    // Click Print button and generate PDF
+    let pdfBase64: string | undefined;
+    try {
+      const printClicked = await page.evaluate(() => {
+        const btns = Array.from(document.querySelectorAll('button, a, input'));
+        for (const btn of btns) {
+          const text = (btn.textContent || (btn as HTMLInputElement).value || '').toLowerCase().trim();
+          if (text === 'print' || text === 'print result' || text === 'print results') {
+            (btn as HTMLElement).click(); return true;
+          }
+        }
+        for (const btn of btns) {
+          if ((btn.textContent || (btn as HTMLInputElement).value || '').toLowerCase().includes('print')) {
+            (btn as HTMLElement).click(); return true;
+          }
+        }
+        return false;
+      });
+      if (printClicked) {
+        try { await Promise.race([page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 6000 }), this.sleep(2500)]); } catch {}
+        await this.sleep(600);
+      }
+      await page.emulateMediaType('print');
+      const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '0', right: '0', bottom: '0', left: '0' } });
+      pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
+      await page.emulateMediaType('screen');
+      logger.info('NABTEB PDF generated', { size: pdfBuffer.length });
+    } catch (e: any) {
+      logger.warn('NABTEB PDF generation failed', { error: e.message });
+    }
+
+    if (!pdfBase64) throw new Error('Failed to generate NABTEB result PDF.');
+
+    return {
+      registrationNumber: data.registrationNumber,
+      candidateName,
+      examType: data.examType,
+      examYear: data.examYear,
+      subjects,
+      verificationStatus: 'verified',
+      message: `NABTEB result retrieved successfully${candidateName ? ` for ${candidateName}` : ''}.`,
+      pdfBase64,
+      isOfficialPdf: true,
+    };
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -968,11 +1154,39 @@ export class EducationWorker extends BaseWorker {
     // Extract results
     const subjects = await this.extractSubjects(page);
 
-    let screenshotBase64: string | undefined;
+    // Click Print button and capture official PDF (instead of screenshot)
+    let pdfBase64: string | undefined;
     try {
-      const shot = await page.screenshot({ encoding: 'base64', fullPage: true });
-      screenshotBase64 = shot as string;
-    } catch { /* non-critical */ }
+      const printClicked = await page.evaluate(() => {
+        const btns = Array.from(document.querySelectorAll('button, a, input'));
+        for (const btn of btns) {
+          const text = (btn.textContent || (btn as HTMLInputElement).value || '').toLowerCase().trim();
+          if (text === 'print' || text === 'print result' || text === 'print results') {
+            (btn as HTMLElement).click(); return true;
+          }
+        }
+        for (const btn of btns) {
+          if ((btn.textContent || (btn as HTMLInputElement).value || '').toLowerCase().includes('print')) {
+            (btn as HTMLElement).click(); return true;
+          }
+        }
+        return false;
+      });
+      if (printClicked) {
+        try { await Promise.race([page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 6000 }), this.sleep(2500)]); } catch {}
+        await this.sleep(600);
+        logger.info('NBAIS print button clicked — generating PDF from print view');
+      } else {
+        logger.info('NBAIS no print button found — generating PDF from results page directly');
+      }
+      await page.emulateMediaType('print');
+      const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '0', right: '0', bottom: '0', left: '0' } });
+      pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
+      await page.emulateMediaType('screen');
+      logger.info('NBAIS PDF generated', { size: pdfBuffer.length });
+    } catch (e: any) {
+      logger.warn('NBAIS PDF generation failed', { error: e.message });
+    }
 
     return {
       verificationStatus: 'verified',
@@ -983,7 +1197,8 @@ export class EducationWorker extends BaseWorker {
       provider: 'NBAIS',
       subjects,
       message: `NBAIS result retrieved successfully${candidateName ? ` for ${candidateName}` : ''}.`,
-      screenshotBase64,
+      pdfBase64,
+      isOfficialPdf: true,
       resultsUrl,
     } as unknown as ExamResult;
   }

@@ -466,7 +466,14 @@ export default function AdminEducationPins() {
                             </Badge>
                           </td>
                           <td className="p-3 font-mono text-xs">
-                            {order.deliveredPin || '-'}
+                            {order.deliveredPin ? (
+                              <div>
+                                <div>PIN: {order.deliveredPin}</div>
+                                {order.deliveredSerial && (
+                                  <div className="text-muted-foreground mt-0.5">Serial: {order.deliveredSerial}</div>
+                                )}
+                              </div>
+                            ) : '-'}
                           </td>
                           <td className="p-3 text-xs">{formatDate(order.createdAt)}</td>
                         </tr>
