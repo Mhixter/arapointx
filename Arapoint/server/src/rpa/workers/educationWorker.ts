@@ -853,22 +853,34 @@ export class EducationWorker extends BaseWorker {
     const step2Text = await page.evaluate(() => document.body.innerText);
     logger.info('NBAIS after Step 1 submit', { url: step2Url, preview: step2Text.slice(0, 400) });
 
-    // If still on step 1 (no "welcome" or "pin"), report what the portal says
-    const onStep2 = step2Url.toLowerCase().includes('result') ||
-                    step2Text.toLowerCase().includes('welcome') ||
-                    step2Text.toLowerCase().includes('enter your pin');
+    // Step 2 detection: page must have BOTH a name-confirmation signal AND a visible input field.
+    // "welcome" alone is NOT enough — the portal header says "Welcome to NBAIS" on every page.
+    const step2Signals = await page.evaluate(() => {
+      const text = document.body.innerText.toLowerCase();
+      const hasPin   = text.includes('enter your pin') || text.includes('enter pin');
+      const hasNameConfirm = /welcome[,\s]+[a-z]/i.test(document.body.innerText);
+      const urlOk   = window.location.href.toLowerCase().includes('result');
+      const hasVisibleInput = Array.from(
+        document.querySelectorAll('input[type="text"], input[type="password"], input:not([type])')
+      ).some(el => {
+        const inp = el as HTMLInputElement;
+        return !inp.disabled && !inp.readOnly && !!inp.offsetParent;
+      });
+      // Also capture any error alerts for diagnostics
+      const errorEls = Array.from(document.querySelectorAll('.alert,.alert-danger,.alert-warning,.error,.text-danger'));
+      const errorText = errorEls.map(e => (e as HTMLElement).innerText?.trim()).filter(Boolean).join(' | ');
+      return { hasPin, hasNameConfirm, urlOk, hasVisibleInput, errorText };
+    });
+    logger.info('NBAIS Step 2 signals', { step2Signals });
+
+    // True Step 2: must have a visible input AND either pin text, name confirmation, or results URL
+    const onStep2 = step2Signals.hasVisibleInput &&
+                    (step2Signals.hasPin || step2Signals.hasNameConfirm || step2Signals.urlOk);
 
     if (!onStep2) {
-      // Extract any error message from the portal
-      const portalMsg = await page.evaluate(() => {
-        const errorEls = document.querySelectorAll('.alert, .alert-danger, .alert-warning, .error, .text-danger, p.text-danger');
-        for (const el of Array.from(errorEls)) {
-          const t = (el as HTMLElement).innerText?.trim();
-          if (t && t.length > 5) return t;
-        }
-        // Fallback: return a snippet of the page body
-        return document.body.innerText.trim().slice(0, 300);
-      });
+      // Surface the actual portal error message
+      const portalMsg = step2Signals.errorText ||
+        await page.evaluate(() => document.body.innerText.trim().slice(0, 300));
       throw new Error(`NBAIS portal did not advance to step 2. Portal message: ${portalMsg || 'No message received.'}`);
     }
 
@@ -882,6 +894,16 @@ export class EducationWorker extends BaseWorker {
     logger.info('NBAIS candidate confirmed', { candidateName });
 
     if (!data.cardPin) throw new Error('PIN is required to retrieve NBAIS results.');
+
+    // Wait for any visible text/password input to appear (handle dynamic rendering)
+    try {
+      await page.waitForSelector(
+        'input[type="text"]:not([disabled]), input[type="password"]:not([disabled]), input:not([type]):not([disabled])',
+        { visible: true, timeout: 6000 }
+      );
+    } catch {
+      logger.warn('NBAIS PIN waitForSelector timed out — will try anyway');
+    }
 
     // Fill PIN using Puppeteer native typing
     const pinSelectors = [
