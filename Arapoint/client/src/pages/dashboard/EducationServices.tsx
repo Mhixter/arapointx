@@ -1357,7 +1357,7 @@ export default function EducationServices() {
                           </SelectTrigger>
                           <SelectContent className="max-h-[300px] overflow-y-auto">
                             {nbaisSchools.map((school, idx) => (
-                              <SelectItem key={idx} value={school.schoolValue}>{school.schoolName}</SelectItem>
+                              <SelectItem key={idx} value={school.schoolName}>{school.schoolName}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>

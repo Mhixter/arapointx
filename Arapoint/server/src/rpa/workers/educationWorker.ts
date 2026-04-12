@@ -605,7 +605,7 @@ export class EducationWorker extends BaseWorker {
       }, data.state);
       logger.info('NBAIS state select', { result: stateResult });
       logger.info('NBAIS waiting for school dropdown AJAX...');
-      await this.sleep(3000);
+      await this.sleep(5000);
     }
 
     // 2. Select School — find the select with >5 options that is NOT state/year/month/examtype
@@ -619,31 +619,55 @@ export class EducationWorker extends BaseWorker {
         const monthKeywords = ['june','july','november','january','march','april'];
         const typeKeywords = ['saissce','science','tahfeez','tahfiz'];
         const selects = Array.from(document.querySelectorAll('select'));
+        const lower = schoolVal.toLowerCase();
+        // Split into keywords for partial matching (handles long school names)
+        const keywords = lower.split(/\s+/).filter(w => w.length > 3);
         for (const sel of selects) {
           const el = sel as HTMLSelectElement;
           if (el.options.length <= 5) continue;
           const optTexts = Array.from(el.options).map(o => o.text.trim().toLowerCase());
-          if (optTexts.some(o => /^20\d{2}$/.test(o))) continue;           // skip year select
-          if (optTexts.some(o => monthKeywords.some(k => o.includes(k)))) continue;    // skip month select
-          if (optTexts.some(o => typeKeywords.some(k => o.includes(k)))) continue;     // skip examtype select
-          if (optTexts.some(o => stateKeywords.some(k => o.includes(k)))) continue;    // skip state select
-          // This is the school select — search for the school value
-          const lower = schoolVal.toLowerCase();
+          if (optTexts.some(o => /^20\d{2}$/.test(o))) continue;
+          if (optTexts.some(o => monthKeywords.some(k => o.includes(k)))) continue;
+          if (optTexts.some(o => typeKeywords.some(k => o.includes(k)))) continue;
+          if (optTexts.some(o => stateKeywords.some(k => o.includes(k)))) continue;
+          // This is the school select
+          // Pass 1: exact text match
           for (let i = 0; i < el.options.length; i++) {
             const opt = el.options[i];
-            if (opt.text.toLowerCase().includes(lower) || opt.value.toLowerCase().includes(lower)) {
-              el.selectedIndex = i;
-              el.dispatchEvent(new Event('change', { bubbles: true }));
-              return `ok:${opt.text}`;
+            if (opt.text.toLowerCase() === lower) {
+              el.selectedIndex = i; el.dispatchEvent(new Event('change', { bubbles: true }));
+              return `ok-exact:${opt.text}`;
             }
           }
-          // School select found but specific school not in list — log and continue anyway
-          console.log('[NBAIS] School select found, options:', optTexts.slice(0,6).join(','), '— value not found:', schoolVal);
-          // Don't return — continue to next select in case the DOM order differs
+          // Pass 2: substring text match
+          for (let i = 0; i < el.options.length; i++) {
+            const opt = el.options[i];
+            if (opt.text.toLowerCase().includes(lower)) {
+              el.selectedIndex = i; el.dispatchEvent(new Event('change', { bubbles: true }));
+              return `ok-substr:${opt.text}`;
+            }
+          }
+          // Pass 3: keyword scoring — select option with most keyword hits
+          let bestIdx = -1, bestScore = 0;
+          for (let i = 1; i < el.options.length; i++) { // skip index 0 (placeholder)
+            const txt = el.options[i].text.toLowerCase();
+            const score = keywords.filter(k => txt.includes(k)).length;
+            if (score > bestScore) { bestScore = score; bestIdx = i; }
+          }
+          if (bestScore >= Math.ceil(keywords.length * 0.6) && bestIdx >= 0) {
+            el.selectedIndex = bestIdx; el.dispatchEvent(new Event('change', { bubbles: true }));
+            return `ok-fuzzy:${el.options[bestIdx].text}`;
+          }
+          // Not found in this select — log all options for diagnostics
+          console.log('[NBAIS] School select found but no match. options:', optTexts.slice(0,10).join('|'), '— searching:', schoolVal);
+          return `notfound:${optTexts.slice(0,5).join('|')}`;
         }
         return 'noselect';
       }, data.schoolName);
       logger.info('NBAIS school select', { result: schoolResult });
+      if (schoolResult.startsWith('notfound')) {
+        throw new Error(`Your school was not found in the portal dropdown. Portal schools: ${schoolResult.replace('notfound:', '')}. Please check the school name matches exactly.`);
+      }
       await this.sleep(500);
     }
 
