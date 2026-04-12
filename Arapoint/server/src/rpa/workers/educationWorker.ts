@@ -905,7 +905,7 @@ export class EducationWorker extends BaseWorker {
       provider: 'NBAIS',
       subjects,
       message: `NBAIS result retrieved successfully${candidateName ? ` for ${candidateName}` : ''}.`,
-      screenshot: screenshotBase64,
+      screenshotBase64,
       resultsUrl,
     } as unknown as ExamResult;
   }

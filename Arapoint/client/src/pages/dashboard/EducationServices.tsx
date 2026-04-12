@@ -531,7 +531,7 @@ export default function EducationServices() {
 
   const openPdfForPrint = async (jobId: string) => {
     try {
-      const token = tokenStorage.getItem('token');
+      const token = tokenStorage.getItem('accessToken');
       const previewUrl = `/api/education/job/${jobId}/preview`;
       
       const newWindow = window.open('about:blank', '_blank');
@@ -604,9 +604,10 @@ export default function EducationServices() {
         return;
       }
 
-      // Fallback to screenshot if no PDF
-      if (result?.screenshotBase64) {
-        const byteCharacters = atob(result.screenshotBase64);
+      // Fallback to screenshot if no PDF (handle both field names for backward compat)
+      const screenshotData = result?.screenshotBase64 || result?.screenshot;
+      if (screenshotData) {
+        const byteCharacters = atob(screenshotData);
         const byteNumbers = new Array(byteCharacters.length);
         for (let i = 0; i < byteCharacters.length; i++) {
           byteNumbers[i] = byteCharacters.charCodeAt(i);
@@ -636,7 +637,7 @@ export default function EducationServices() {
 
       const response = await fetch(`/api/education/job/${currentJobId}/download`, {
         headers: {
-          'Authorization': `Bearer ${tokenStorage.getItem('token')}`,
+          'Authorization': `Bearer ${tokenStorage.getItem('accessToken')}`,
         },
       });
 

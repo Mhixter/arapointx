@@ -807,9 +807,10 @@ router.get('/job/:jobId/download', async (req: Request, res: Response) => {
       res.setHeader('Content-Length', pdfBuffer.length);
       return res.send(pdfBuffer);
     }
-    
-    if (resultData.screenshotBase64) {
-      const imageBuffer = Buffer.from(resultData.screenshotBase64, 'base64');
+
+    const screenshotData = resultData.screenshotBase64 || resultData.screenshot;
+    if (screenshotData) {
+      const imageBuffer = Buffer.from(screenshotData, 'base64');
       res.setHeader('Content-Type', 'image/png');
       res.setHeader('Content-Disposition', `attachment; filename="${educationService.serviceType}_result_${educationService.registrationNumber}.png"`);
       res.setHeader('Content-Length', imageBuffer.length);
@@ -854,8 +855,9 @@ router.get('/job/:jobId/preview', async (req: Request, res: Response) => {
       return res.send(pdfBuffer);
     }
 
-    if (resultData.screenshotBase64) {
-      const imgBuffer = Buffer.from(resultData.screenshotBase64, 'base64');
+    const previewScreenshot = resultData.screenshotBase64 || resultData.screenshot;
+    if (previewScreenshot) {
+      const imgBuffer = Buffer.from(previewScreenshot, 'base64');
       res.setHeader('Content-Type', 'image/png');
       res.setHeader('Content-Disposition', 'inline');
       res.setHeader('Content-Length', imgBuffer.length);
@@ -889,9 +891,9 @@ router.get('/job/:jobId/has-download', async (req: Request, res: Response) => {
     const resultData = educationService.resultData as Record<string, any> | null;
     
     res.json(formatResponse('success', 200, 'Download availability checked', { 
-      hasDownload: !!(resultData?.pdfBase64 || resultData?.screenshotBase64),
+      hasDownload: !!(resultData?.pdfBase64 || resultData?.screenshotBase64 || resultData?.screenshot),
       hasPdf: !!resultData?.pdfBase64,
-      hasScreenshot: !!resultData?.screenshotBase64,
+      hasScreenshot: !!(resultData?.screenshotBase64 || resultData?.screenshot),
     }));
   } catch (error: any) {
     logger.error('Check download availability error', { error: error.message });

@@ -149,7 +149,7 @@ export default function VerificationHistory() {
   };
 
   const handleDirectDownload = async (record: EducationServiceRecord, type: 'pdf' | 'screenshot') => {
-    const data = type === 'pdf' ? record.resultData?.pdfBase64 : record.resultData?.screenshotBase64;
+    const data = type === 'pdf' ? record.resultData?.pdfBase64 : (record.resultData?.screenshotBase64 || record.resultData?.screenshot);
     if (!data) {
       toast({
         title: "Download Failed",
@@ -274,7 +274,7 @@ export default function VerificationHistory() {
           {history.map((record) => {
             const errorMessage = getErrorMessage(record);
             const hasPdf = record.resultData?.pdfBase64;
-            const hasScreenshot = record.resultData?.screenshotBase64;
+            const hasScreenshot = record.resultData?.screenshotBase64 || record.resultData?.screenshot;
             const hasAnyDownload = hasPdf || hasScreenshot;
 
             return (
