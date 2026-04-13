@@ -653,53 +653,46 @@ export class EducationWorker extends BaseWorker {
 
     await this.sleep(500);
 
-    const textBeforeSubmit = await page.evaluate(() => document.body.innerText);
+    // 6. Submit form — MUST set up waitForNavigation BEFORE triggering submit.
+    // NABTEB form POSTs to results.asp; clicking the button causes immediate navigation,
+    // so any post-click waitForNavigation races against an already-completed navigation.
+    // Using page.evaluate(() => form.submit()) keeps the click inside the page context
+    // so Puppeteer does not lose the protocol target mid-click.
+    const nabtebNavPromise = page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 }).catch(() => null);
 
-    // 6. Submit form
-    let submitted = false;
-    for (const sel of ['input[name="Submit"]', 'input[type="submit"]', 'button[type="submit"]']) {
-      try {
-        const btn = await page.$(sel);
-        if (btn) { await btn.click(); submitted = true; logger.info('NABTEB submitted', { selector: sel }); break; }
-      } catch { /* try next */ }
-    }
-    if (!submitted) await page.keyboard.press('Enter');
+    await page.evaluate(() => {
+      const form = document.querySelector('form') as HTMLFormElement | null;
+      if (form) { form.submit(); return; }
+      const btn = document.querySelector('input[name="Submit"]') as HTMLInputElement | null;
+      if (btn) btn.click();
+    });
+    logger.info('NABTEB form submitted — waiting for navigation to results.asp');
 
-    // Wait for results or error
-    try {
-      await Promise.race([
-        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 }),
-        page.waitForFunction((before: string) => {
-          const curr = document.body.innerText;
-          const changed = Math.abs(curr.length - before.length) > 80;
-          const hasResults = curr.includes('Subject') || curr.includes('SUBJECT') || curr.includes('Grade') || curr.includes('GRADE');
-          const hasError = curr.includes('Invalid') || curr.includes('Expired') || curr.includes('Used') || curr.includes('incorrect');
-          return changed || hasResults || hasError;
-        }, { timeout: 15000 }, textBeforeSubmit),
-      ]);
-    } catch {
-      logger.warn('NABTEB wait timed out after submit');
-    }
+    await nabtebNavPromise;
     await this.sleep(1200);
 
     const textAfterSubmit = await page.evaluate(() => document.body.innerText);
     const resultUrl = page.url();
     logger.info('NABTEB after submit', { url: resultUrl, preview: textAfterSubmit.slice(0, 400) });
 
-    // Check for errors
-    const pageError = await this.checkForErrors(page);
-    if (pageError) throw new Error(pageError);
-
-    const textChanged = Math.abs(textAfterSubmit.length - textBeforeSubmit.length) > 50 || textAfterSubmit !== textBeforeSubmit;
-    if (!textChanged) {
-      throw new Error(`NABTEB portal response: ${textAfterSubmit.trim().slice(0, 400) || 'Form submitted but portal did not respond.'}`);
+    // Check that we navigated away from the form (should now be on results.asp or an error page)
+    const stillOnForm = resultUrl.endsWith('/') || resultUrl.endsWith('/index.asp') || resultUrl === nabtebOrigin + '/';
+    if (stillOnForm) {
+      throw new Error(`NABTEB form did not submit — still on the form page. Portal may require different credentials.`);
     }
+
+    // Check for error messages on the results page
+    const pageError = await this.checkNabtebErrors(page);
+    if (pageError) throw new Error(pageError);
 
     const hasResults = await page.evaluate(() => {
       const t = document.body.innerText;
       return t.includes('Subject') || t.includes('SUBJECT') || t.includes('Grade') || t.includes('GRADE') || t.includes('Score');
     });
-    if (!hasResults) throw new Error('NABTEB: No results found for this candidate. Check your candidate number, serial, and PIN.');
+    if (!hasResults) {
+      const portalMsg = textAfterSubmit.trim().slice(0, 400);
+      throw new Error(`NABTEB: No results found for this candidate. ${portalMsg ? `Portal says: ${portalMsg}` : 'Check candidate number, serial number, and PIN.'}`);
+    }
 
     const candidateName = await this.extractCandidateName(page);
     const subjects = await this.extractSubjects(page);
@@ -1133,14 +1126,19 @@ export class EducationWorker extends BaseWorker {
     if (!pinFilled) throw new Error('Could not find PIN input on NBAIS step 2 page.');
     await this.sleep(400);
 
-    // Submit Step 2 using Puppeteer native click
-    const textBeforeStep2Submit = await page.evaluate(() => document.body.innerText);
+    // Submit Step 2 — set up waitForNavigation BEFORE the click to avoid "target closed" race
+    const nbaisStep2NavPromise = page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => null);
+
     let step2Submitted = false;
     for (const sel of ['button[type="submit"]', 'input[type="submit"]', '.btn-success', '.btn-primary']) {
       try {
         const btn = await page.$(sel);
         if (btn) {
-          await btn.click();
+          // Submit via evaluate to avoid "target closed" if navigation is immediate
+          await page.evaluate((s: string) => {
+            const el = document.querySelector(s) as HTMLElement | null;
+            if (el) el.click();
+          }, sel);
           logger.info('NBAIS Step 2 submitted', { selector: sel });
           step2Submitted = true;
           break;
@@ -1149,37 +1147,17 @@ export class EducationWorker extends BaseWorker {
     }
     if (!step2Submitted) await page.keyboard.press('Enter');
 
-    // Wait for results page
-    try {
-      await Promise.race([
-        page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 20000 }),
-        page.waitForFunction((before: string) => {
-          const curr = document.body.innerText;
-          return curr !== before && (
-            curr.includes('Subject') || curr.includes('SUBJECT') || curr.includes('Grade') ||
-            curr.includes('Score') || curr.includes('Correct') || curr.includes('Result')
-          );
-        }, { timeout: 20000 }, textBeforeStep2Submit),
-      ]);
-    } catch {
-      logger.warn('NBAIS Step 2 result wait timed out');
-    }
-    await this.sleep(1200);
+    // Wait for navigation or result content
+    await nbaisStep2NavPromise;
+    await this.sleep(1500);
 
     const resultsUrl = page.url();
     const resultsText = await page.evaluate(() => document.body.innerText);
     logger.info('NBAIS results page', { url: resultsUrl, preview: resultsText.slice(0, 500) });
 
-    // Check for PIN error
-    const pinError = await page.evaluate(() => {
-      const errEls = document.querySelectorAll('.alert-danger,.alert-error,.error,.text-danger');
-      for (const el of Array.from(errEls)) {
-        const t = (el as HTMLElement).innerText?.trim();
-        if (t && (t.toLowerCase().includes('pin') || t.toLowerCase().includes('incorrect') || t.toLowerCase().includes('invalid') || t.toLowerCase().includes('wrong'))) return t;
-      }
-      return null;
-    });
-    if (pinError) throw new Error(`NBAIS PIN error: ${pinError}`);
+    // Check for PIN/card errors (invalid card, limit exceeded, used, expired, etc.)
+    const pinError = await this.checkNbaisErrors(page);
+    if (pinError) throw new Error(`NBAIS error: ${pinError}`);
 
     // Extract results
     const subjects = await this.extractSubjects(page);
@@ -1890,6 +1868,63 @@ export class EducationWorker extends BaseWorker {
         }
       }
       
+      return null;
+    });
+  }
+
+  /** NABTEB-specific error detection on results.asp after form submission */
+  private async checkNabtebErrors(page: Page): Promise<string | null> {
+    return await page.evaluate(() => {
+      const errorKeywords = [
+        'invalid', 'incorrect', 'wrong', 'expired', 'used', 'not found',
+        'no record', 'not exist', 'error', 'failed', 'denied', 'access'
+      ];
+      // Check styled error elements first
+      const errEls = document.querySelectorAll(
+        '.alert-danger,.alert-error,.error,.text-danger,.alert-warning,.errormessage,#error,#lblError,font[color="red"],font[color="#ff0000"]'
+      );
+      for (const el of Array.from(errEls)) {
+        const t = (el as HTMLElement).innerText?.trim();
+        if (t && t.length > 3) return t;
+      }
+      // Scan all leaf text nodes for error keywords
+      const allEls = document.querySelectorAll('p, h1, h2, h3, h4, h5, td, li, div, span, b, strong');
+      for (const el of Array.from(allEls)) {
+        if (el.children.length > 0) continue;
+        const t = (el as HTMLElement).innerText?.trim() || '';
+        if (!t || t.length < 5 || t.length > 350) continue;
+        const low = t.toLowerCase();
+        if (errorKeywords.some(k => low.includes(k))) return t;
+      }
+      return null;
+    });
+  }
+
+  /** NBAIS-specific error detection — covers "invalid card", "limit exceeded", "used", etc. */
+  private async checkNbaisErrors(page: Page): Promise<string | null> {
+    return await page.evaluate(() => {
+      const errorKeywords = [
+        'invalid', 'incorrect', 'wrong', 'expired', 'used', 'limit exceed',
+        'card limit', 'exhausted', 'not found', 'no record', 'error',
+        'failed', 'denied', 'cannot be used', 'already used', 'pin error'
+      ];
+      // Check styled error elements first
+      const errEls = document.querySelectorAll(
+        '.alert-danger,.alert-error,.error,.text-danger,.alert-warning,.errormessage,#error'
+      );
+      for (const el of Array.from(errEls)) {
+        const t = (el as HTMLElement).innerText?.trim();
+        if (t && t.length > 3) return t;
+      }
+      // Scan all leaf text nodes for error keywords (NBAIS may use plain paragraphs)
+      const allEls = document.querySelectorAll('p, h1, h2, h3, h4, h5, td, li, div, span, b, strong, font');
+      for (const el of Array.from(allEls)) {
+        if (el.children.length > 0) continue;
+        const t = (el as HTMLElement).innerText?.trim() || '';
+        if (!t || t.length < 5 || t.length > 350) continue;
+        const low = t.toLowerCase();
+        if (errorKeywords.some(k => low.includes(k))) return t;
+      }
       return null;
     });
   }
