@@ -653,35 +653,60 @@ export class EducationWorker extends BaseWorker {
 
     await this.sleep(500);
 
-    // 6. Submit form — MUST set up waitForNavigation BEFORE triggering submit.
-    // NABTEB form POSTs to results.asp; clicking the button causes immediate navigation,
-    // so any post-click waitForNavigation races against an already-completed navigation.
-    // Using page.evaluate(() => form.submit()) keeps the click inside the page context
-    // so Puppeteer does not lose the protocol target mid-click.
-    const nabtebNavPromise = page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 }).catch(() => null);
-
+    // 6. Intercept portal JavaScript before submitting:
+    //    - The NABTEB form has target="results" which opens a NEW POPUP window (not same tab)
+    //    - form_submit() validates, then calls displayresults() → window.open("","results")
+    //    - We override window.open to suppress all popups, and set form.target="_self" so the
+    //      POST to results.asp loads in the same tab (which Puppeteer can follow)
+    //    - We also capture any alert() calls (validation errors) silently
     await page.evaluate(() => {
-      const form = document.querySelector('form') as HTMLFormElement | null;
-      if (form) { form.submit(); return; }
+      // Capture alert() validation messages without blocking
+      (window as any)._nabtebValidationError = null;
+      (window as any).alert = (msg: string) => { (window as any)._nabtebValidationError = msg; };
+      // Suppress all window.open popups (newonsite.htm + results window)
+      (window as any).open = function() {
+        return { focus() {}, document: { write() {}, close() {} }, location: {} };
+      };
+      // Redirect form from popup target to same tab
+      const form = document.querySelector('form[name="form1"], form') as HTMLFormElement | null;
+      if (form) form.target = '_self';
+      // Pre-set flag to avoid email validation
+      const flagEl = document.querySelector('input[name="flag"]') as HTMLInputElement | null;
+      if (flagEl) flagEl.value = 'false';
+    });
+
+    // Belt-and-suspenders: also dismiss any native CDP dialog that slips through
+    const dialogHandler = async (dialog: any) => {
+      logger.warn('NABTEB native dialog intercepted', { message: dialog.message() });
+      await dialog.dismiss();
+    };
+    page.on('dialog', dialogHandler);
+
+    // Set up navigation BEFORE clicking — form now posts to _self, so same-tab navigation follows
+    const nabtebNavPromise = page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 25000 }).catch(() => null);
+
+    // Click submit via evaluate (avoids "target closed" Puppeteer race if navigation is immediate)
+    await page.evaluate(() => {
       const btn = document.querySelector('input[name="Submit"]') as HTMLInputElement | null;
       if (btn) btn.click();
     });
-    logger.info('NABTEB form submitted — waiting for navigation to results.asp');
+    logger.info('NABTEB submit button clicked — form will POST to results.asp in same tab');
 
     await nabtebNavPromise;
+    page.off('dialog', dialogHandler);
     await this.sleep(1200);
 
     const textAfterSubmit = await page.evaluate(() => document.body.innerText);
     const resultUrl = page.url();
-    logger.info('NABTEB after submit', { url: resultUrl, preview: textAfterSubmit.slice(0, 400) });
+    logger.info('NABTEB after submit', { url: resultUrl, preview: textAfterSubmit.slice(0, 500) });
 
-    // Check that we navigated away from the form (should now be on results.asp or an error page)
-    const stillOnForm = resultUrl.endsWith('/') || resultUrl.endsWith('/index.asp') || resultUrl === nabtebOrigin + '/';
-    if (stillOnForm) {
-      throw new Error(`NABTEB form did not submit — still on the form page. Portal may require different credentials.`);
+    // If form_submit() called alert() (client-side validation error), surface it
+    const clientValidationError = await page.evaluate(() => (window as any)._nabtebValidationError as string | null);
+    if (clientValidationError) {
+      throw new Error(`NABTEB validation: ${clientValidationError}`);
     }
 
-    // Check for error messages on the results page
+    // Check for server-side error messages on the results page
     const pageError = await this.checkNabtebErrors(page);
     if (pageError) throw new Error(pageError);
 
