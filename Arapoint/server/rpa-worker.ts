@@ -1,8 +1,10 @@
 import { rpaBot } from "./src/rpa/bot";
 import { logger } from "./src/utils/logger";
+import { startHealthMonitor, stopHealthMonitor } from "./src/rpa/healthMonitor";
 
 const shutdown = async (signal: string) => {
   logger.info(`RPA Worker: received ${signal}, shutting down...`);
+  stopHealthMonitor();
   await rpaBot.stop();
   process.exit(0);
 };
@@ -20,6 +22,7 @@ process.on('unhandledRejection', (reason: unknown) => {
   logger.info('RPA Worker process starting...');
   try {
     await rpaBot.start();
+    startHealthMonitor();
     logger.info('RPA Worker is running and polling for jobs');
   } catch (err: any) {
     logger.error('RPA Worker failed to start', { error: err.message, stack: err.stack });

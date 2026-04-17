@@ -5046,4 +5046,65 @@ router.get('/db/logs', adminAuthMiddleware, async (req: Request, res: Response) 
   }
 });
 
+// ===== Portal Health Monitoring (Tier 1) =====
+import { providerHealth } from '../../db/schema';
+import { runHealthCheck, type ProviderName } from '../../rpa/healthMonitor';
+
+router.get('/portal-health', async (req: Request, res: Response) => {
+  try {
+    const rows = await db.select().from(providerHealth);
+    const knownProviders: ProviderName[] = ['waec', 'neco', 'nabteb', 'nbais'];
+    const byName: Record<string, any> = {};
+    for (const r of rows) byName[r.provider] = r;
+    const result = knownProviders.map((p) => byName[p] || {
+      provider: p,
+      status: 'unknown',
+      lastCheckedAt: null,
+      lastSuccessAt: null,
+      consecutiveFailures: 0,
+      lastError: null,
+      isAutoDisabled: false,
+      totalChecks: 0,
+      totalFailures: 0,
+    });
+    res.json(formatResponse('success', 200, 'Portal health retrieved', { providers: result }));
+  } catch (error: any) {
+    logger.error('Portal health fetch error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to fetch portal health'));
+  }
+});
+
+router.post('/portal-health/check/:provider', async (req: Request, res: Response) => {
+  try {
+    const provider = req.params.provider as ProviderName;
+    if (!['waec', 'neco', 'nabteb', 'nbais'].includes(provider)) {
+      return res.status(400).json(formatErrorResponse(400, 'Invalid provider'));
+    }
+    const result = await runHealthCheck(provider);
+    res.json(formatResponse('success', 200, 'Health check complete', result));
+  } catch (error: any) {
+    logger.error('Manual health check error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to run health check'));
+  }
+});
+
+router.post('/portal-health/enable/:provider', async (req: Request, res: Response) => {
+  try {
+    const provider = req.params.provider;
+    await db.update(providerHealth).set({
+      isAutoDisabled: false,
+      autoDisabledAt: null,
+      consecutiveFailures: 0,
+      status: 'unknown',
+      updatedAt: new Date(),
+    }).where(eq(providerHealth.provider, provider));
+    await db.insert(adminSettings).values({ key: `${provider}_enabled`, value: 'true' })
+      .onConflictDoUpdate({ target: adminSettings.key, set: { value: 'true', updatedAt: new Date() } });
+    res.json(formatResponse('success', 200, `${provider} re-enabled`, null));
+  } catch (error: any) {
+    logger.error('Re-enable provider error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to re-enable provider'));
+  }
+});
+
 export default router;

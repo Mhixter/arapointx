@@ -96,6 +96,7 @@ import AdminProfile from "@/pages/admin/AdminProfile";
 import AdminNotifications from "@/pages/admin/AdminNotifications";
 import AdminActivityLog from "@/pages/admin/AdminActivityLog";
 import AdminRPAJobs from "@/pages/admin/AdminRPAJobs";
+import AdminPortalHealth from "@/pages/admin/AdminPortalHealth";
 import AdminDeveloperPortal from "@/pages/admin/AdminDeveloperPortal";
 import AdminQueueMonitor from "@/pages/admin/AdminQueueMonitor";
 import AdminLoginActivity from "@/pages/admin/AdminLoginActivity";
@@ -226,6 +227,11 @@ function Router() {
       <Route path="/admin/rpa-jobs">
         <AdminCRUDLayout>
           <AdminRPAJobs />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/portal-health">
+        <AdminCRUDLayout>
+          <AdminPortalHealth />
         </AdminCRUDLayout>
       </Route>
       <Route path="/admin/whatsapp">

@@ -43,6 +43,8 @@ interface IdentityVerificationRecord {
   slipReference?: string | null;
   slipType?: string | null;
   trackingId?: string | null;
+  submittedTrackingId?: string | null;
+  resolvedTrackingId?: string | null;
   agentNotes?: string | null;
   createdAt: string;
 }
@@ -274,7 +276,16 @@ export default function IdentityHistory() {
                           <p>Slip Ref: <span className="font-mono text-xs text-blue-600">{record.slipReference}</span></p>
                         )}
                         {record.trackingId && (
-                          <p>Tracking: <span className="font-mono text-xs">{record.trackingId}</span></p>
+                          <p>Reference: <span className="font-mono text-xs">{record.trackingId}</span></p>
+                        )}
+                        {record.submittedTrackingId && (
+                          <p>Your Tracking ID: <span className="font-mono text-xs">{record.submittedTrackingId}</span></p>
+                        )}
+                        {record.resolvedTrackingId && (
+                          <p className="text-green-700 font-medium">New Tracking ID: <span className="font-mono text-xs bg-green-50 px-2 py-0.5 rounded border border-green-200">{record.resolvedTrackingId}</span></p>
+                        )}
+                        {record.agentNotes && (
+                          <p className="text-blue-700">Agent Note: <span className="text-xs italic">{record.agentNotes}</span></p>
                         )}
                         <p>Date: {formatDate(record.createdAt)}</p>
                       </div>

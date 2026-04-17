@@ -509,6 +509,85 @@ class PremblyService {
     }
   }
 
+  async faceLiveness(imageBuffer: Buffer, mimeType: string = 'image/jpeg'): Promise<{ success: boolean; verified?: boolean; confidence?: number; reference: string; error?: string; raw?: any }> {
+    const reference = generateReferenceId();
+    try {
+      const secretKey = process.env.PREMBLY_SECRET_KEY;
+      const publicKey = process.env.PREMBLY_PUBLIC_KEY;
+      if (!secretKey || !publicKey) {
+        return { success: false, error: 'Prembly not configured', reference };
+      }
+
+      const fd = new FormData();
+      fd.append('image', new Blob([imageBuffer], { type: mimeType }), 'selfie.jpg');
+
+      logger.info('Prembly face liveness started', { reference, size: imageBuffer.length });
+
+      const resp = await axios.post(
+        'https://api.prembly.com/identitypass/verification/v1/biometrics/face/liveliness',
+        fd,
+        {
+          timeout: 45000,
+          headers: { 'x-api-key': secretKey, 'app-id': publicKey },
+        }
+      );
+
+      const data = resp.data || {};
+      if (data.status === true && data.response_code === '00') {
+        const verified = data.verification?.status === 'VERIFIED';
+        const confidence = data.data?.confidence_in_percentage ?? null;
+        logger.info('Prembly face liveness completed', { reference, verified, confidence });
+        return { success: true, verified, confidence, reference, raw: data };
+      }
+      const errMsg = this.normalizeErrorMessage(data.detail || data.message || 'Liveness check failed', data.response_code);
+      return { success: false, error: errMsg, reference, raw: data };
+    } catch (error: any) {
+      logger.error('Prembly face liveness error', { reference, error: error.message, responseData: error.response?.data });
+      const raw = error.response?.data?.detail || error.response?.data?.message || error.message || 'Liveness check failed';
+      return { success: false, error: this.normalizeErrorMessage(raw, error.response?.data?.response_code), reference };
+    }
+  }
+
+  async faceComparison(image1: Buffer, image2: Buffer, mime1: string = 'image/jpeg', mime2: string = 'image/jpeg'): Promise<{ success: boolean; match?: boolean; confidence?: number; reference: string; error?: string; raw?: any }> {
+    const reference = generateReferenceId();
+    try {
+      const secretKey = process.env.PREMBLY_SECRET_KEY;
+      const publicKey = process.env.PREMBLY_PUBLIC_KEY;
+      if (!secretKey || !publicKey) {
+        return { success: false, error: 'Prembly not configured', reference };
+      }
+
+      const fd = new FormData();
+      fd.append('image_1', new Blob([image1], { type: mime1 }), 'image1.jpg');
+      fd.append('image_2', new Blob([image2], { type: mime2 }), 'image2.jpg');
+
+      logger.info('Prembly face comparison started', { reference });
+
+      const resp = await axios.post(
+        'https://api.prembly.com/identitypass/verification/v1/biometrics/face/comparison',
+        fd,
+        {
+          timeout: 45000,
+          headers: { 'x-api-key': secretKey, 'app-id': publicKey },
+        }
+      );
+
+      const data = resp.data || {};
+      if (data.status === true && data.response_code === '00') {
+        const match = data.data?.match === true || data.verification?.status === 'VERIFIED';
+        const confidence = data.data?.confidence_in_percentage ?? null;
+        logger.info('Prembly face comparison completed', { reference, match, confidence });
+        return { success: true, match, confidence, reference, raw: data };
+      }
+      const errMsg = this.normalizeErrorMessage(data.detail || data.message || 'Face comparison failed', data.response_code);
+      return { success: false, error: errMsg, reference, raw: data };
+    } catch (error: any) {
+      logger.error('Prembly face comparison error', { reference, error: error.message, responseData: error.response?.data });
+      const raw = error.response?.data?.detail || error.response?.data?.message || error.message || 'Face comparison failed';
+      return { success: false, error: this.normalizeErrorMessage(raw, error.response?.data?.response_code), reference };
+    }
+  }
+
   isConfigured(): boolean {
     return !!(process.env.PREMBLY_SECRET_KEY && process.env.PREMBLY_PUBLIC_KEY);
   }

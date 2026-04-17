@@ -1471,4 +1471,122 @@ export function validateTimeline(dob: string | null, ssceYear: number | null, em
   return { valid: issues.length === 0, ageAtEmployment, ageAtExam, issues };
 }
 
+// ===== Face Verification Endpoints (Prembly biometrics) =====
+import multer from 'multer';
+import { premblyService } from '../../../services/premblyService';
+
+const faceUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
+
+router.post('/verify/face-liveness', apiKeyAuth, faceUpload.single('image'), async (req: Request, res: Response) => {
+  const start = Date.now();
+  const dev = (req as any).developer;
+  const apiKeyId = (req as any).apiKeyId;
+  const envMode = (dev as any).environmentMode || 'sandbox';
+  const price = (API_PRICES as any).faceLiveness ?? (API_PRICES as any).face_liveness ?? 50;
+  let statusCode = 200;
+  let responseData: any;
+
+  try {
+    if (!req.file) {
+      statusCode = 400;
+      responseData = { status: 'error', code: 400, message: 'image file is required (multipart field name: image)' };
+      return res.status(400).json(responseData);
+    }
+
+    await deductDeveloperBalance(dev.id, price, 'Face liveness check', envMode);
+
+    if (envMode === 'sandbox') {
+      responseData = {
+        status: 'success', code: 200, message: 'Liveness verified (sandbox)',
+        data: { verified: true, confidence: 99.5, reference: 'SBX-' + Date.now() },
+      };
+      return res.json(responseData);
+    }
+
+    const result = await premblyService.faceLiveness(req.file.buffer, req.file.mimetype);
+    if (!result.success) {
+      statusCode = 422;
+      responseData = { status: 'error', code: 422, message: result.error, reference: result.reference };
+      return res.status(422).json(responseData);
+    }
+    responseData = {
+      status: 'success', code: 200,
+      message: result.verified ? 'Liveness verified' : 'Liveness not detected',
+      data: { verified: result.verified, confidence: result.confidence, reference: result.reference },
+    };
+    res.json(responseData);
+  } catch (e: any) {
+    if (e.message?.includes('Insufficient')) {
+      statusCode = 402;
+      responseData = { status: 'error', code: 402, message: 'Insufficient wallet balance. Please fund your developer wallet.' };
+      return res.status(402).json(responseData);
+    }
+    statusCode = 500;
+    responseData = { status: 'error', code: 500, message: 'Face liveness check failed', error: e.message };
+    res.status(500).json(responseData);
+  } finally {
+    await logApiCall(dev.id, apiKeyId, '/verify/face-liveness', 'POST', { hasImage: !!req.file },
+      responseData, statusCode, statusCode === 200 ? price : 0,
+      Date.now() - start, req.ip || '', envMode);
+  }
+});
+
+router.post('/verify/face-match', apiKeyAuth, faceUpload.fields([{ name: 'image_1', maxCount: 1 }, { name: 'image_2', maxCount: 1 }]), async (req: Request, res: Response) => {
+  const start = Date.now();
+  const dev = (req as any).developer;
+  const apiKeyId = (req as any).apiKeyId;
+  const envMode = (dev as any).environmentMode || 'sandbox';
+  const price = (API_PRICES as any).faceMatch ?? (API_PRICES as any).face_match ?? 80;
+  let statusCode = 200;
+  let responseData: any;
+
+  try {
+    const files = req.files as { image_1?: Express.Multer.File[]; image_2?: Express.Multer.File[] };
+    if (!files?.image_1?.[0] || !files?.image_2?.[0]) {
+      statusCode = 400;
+      responseData = { status: 'error', code: 400, message: 'Both image_1 and image_2 are required (multipart fields)' };
+      return res.status(400).json(responseData);
+    }
+
+    await deductDeveloperBalance(dev.id, price, 'Face match comparison', envMode);
+
+    if (envMode === 'sandbox') {
+      responseData = {
+        status: 'success', code: 200, message: 'Faces matched (sandbox)',
+        data: { match: true, confidence: 97.8, reference: 'SBX-' + Date.now() },
+      };
+      return res.json(responseData);
+    }
+
+    const result = await premblyService.faceComparison(
+      files.image_1[0].buffer, files.image_2[0].buffer,
+      files.image_1[0].mimetype, files.image_2[0].mimetype,
+    );
+    if (!result.success) {
+      statusCode = 422;
+      responseData = { status: 'error', code: 422, message: result.error, reference: result.reference };
+      return res.status(422).json(responseData);
+    }
+    responseData = {
+      status: 'success', code: 200,
+      message: result.match ? 'Faces matched' : 'Faces did not match',
+      data: { match: result.match, confidence: result.confidence, reference: result.reference },
+    };
+    res.json(responseData);
+  } catch (e: any) {
+    if (e.message?.includes('Insufficient')) {
+      statusCode = 402;
+      responseData = { status: 'error', code: 402, message: 'Insufficient wallet balance. Please fund your developer wallet.' };
+      return res.status(402).json(responseData);
+    }
+    statusCode = 500;
+    responseData = { status: 'error', code: 500, message: 'Face match failed', error: e.message };
+    res.status(500).json(responseData);
+  } finally {
+    await logApiCall(dev.id, apiKeyId, '/verify/face-match', 'POST', { hasImage1: true, hasImage2: true },
+      responseData, statusCode, statusCode === 200 ? price : 0,
+      Date.now() - start, req.ip || '', envMode);
+  }
+});
+
 export default router;

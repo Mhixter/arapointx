@@ -1063,3 +1063,23 @@ export const aiChatMessages = pgTable('ai_chat_messages', {
 }, (table) => [
   index('acm_session_idx').on(table.sessionId),
 ]);
+
+export const providerHealth = pgTable('provider_health', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  provider: varchar('provider', { length: 50 }).unique().notNull(),
+  status: varchar('status', { length: 20 }).default('unknown').notNull(),
+  lastCheckedAt: timestamp('last_checked_at'),
+  lastSuccessAt: timestamp('last_success_at'),
+  consecutiveFailures: integer('consecutive_failures').default(0).notNull(),
+  lastError: text('last_error'),
+  lastResponsePreview: text('last_response_preview'),
+  isAutoDisabled: boolean('is_auto_disabled').default(false).notNull(),
+  autoDisabledAt: timestamp('auto_disabled_at'),
+  totalChecks: integer('total_checks').default(0).notNull(),
+  totalFailures: integer('total_failures').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => [
+  index('ph_provider_idx').on(table.provider),
+  index('ph_status_idx').on(table.status),
+]);
