@@ -102,6 +102,7 @@ import AdminQueueMonitor from "@/pages/admin/AdminQueueMonitor";
 import AdminLoginActivity from "@/pages/admin/AdminLoginActivity";
 import AdminBroadcast from "@/pages/admin/AdminBroadcast";
 import AdminRPARecovery from "@/pages/admin/AdminRPARecovery";
+import AdminSearch from "@/pages/admin/AdminSearch";
 import AdminCRUDLayout from "@/components/layout/AdminCRUDLayout";
 
 // Developer Portal Imports
@@ -238,6 +239,11 @@ function Router() {
       <Route path="/admin/rpa-recovery">
         <AdminCRUDLayout>
           <AdminRPARecovery />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/search">
+        <AdminCRUDLayout>
+          <AdminSearch />
         </AdminCRUDLayout>
       </Route>
       <Route path="/admin/whatsapp">

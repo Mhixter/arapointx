@@ -28,7 +28,8 @@ import {
   ListTodo,
   Activity,
   Mail,
-  Brain
+  Brain,
+  SearchIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -69,6 +70,7 @@ const ADMIN_ROLES: Record<string, { name: string; permissions: string[]; color: 
 
 const ALL_NAV_ITEMS = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, permission: null },
+  { href: "/admin/search", label: "Global Search", icon: SearchIcon, permission: null },
   { href: "/admin/users", label: "User Management", icon: Users, permission: "users" },
   { href: "/admin/identity", label: "Identity Services", icon: ShieldCheck, permission: "identity" },
   { href: "/admin/bvn", label: "BVN Services", icon: ShieldCheck, permission: "bvn" },
@@ -112,6 +114,7 @@ export default function AdminCRUDLayout({ children, currentRole }: AdminCRUDLayo
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [headerSearch, setHeaderSearch] = useState('');
   
   const adminToken = tokenStorage.getItem('adminToken');
   const adminUser = getAdminUser();
@@ -279,16 +282,26 @@ export default function AdminCRUDLayout({ children, currentRole }: AdminCRUDLayo
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2 md:gap-4 flex-shrink-0">
-            <div className="hidden sm:flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg px-2 sm:px-3 py-1.5">
+            <div className="hidden sm:flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg px-2 sm:px-3 py-1.5 cursor-text"
+              onClick={() => { if (!headerSearch) setLocation('/admin/search'); }}>
               <Search className="h-4 w-4 text-slate-400 flex-shrink-0" />
-              <input 
-                type="text" 
-                placeholder="Search..." 
+              <input
+                type="text"
+                value={headerSearch}
+                onChange={e => setHeaderSearch(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && headerSearch.trim().length >= 2) {
+                    setLocation(`/admin/search?q=${encodeURIComponent(headerSearch.trim())}`);
+                    setHeaderSearch('');
+                  }
+                }}
+                placeholder="Quick search…"
                 className="bg-transparent border-none outline-none text-xs sm:text-sm w-20 sm:w-24 md:w-32 lg:w-48 text-slate-600 dark:text-slate-300 placeholder:text-slate-400"
               />
             </div>
             
-            <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9 md:hidden">
+            <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9 md:hidden"
+              onClick={() => setLocation('/admin/search')}>
               <Search className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
             

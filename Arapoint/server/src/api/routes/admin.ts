@@ -4920,6 +4920,168 @@ router.post('/broadcast/send', adminAuthMiddleware, async (req: Request, res: Re
   }
 });
 
+// ─── Global Search ────────────────────────────────────────────────────────────
+
+router.get('/search', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    if (!q || q.length < 2) {
+      return res.status(400).json(formatErrorResponse(400, 'Search query must be at least 2 characters'));
+    }
+
+    const pattern = `%${q}%`;
+    const idPattern = q.length >= 8 ? `%${q}%` : `${q}%`;
+
+    const [userRows, txRows, identityRows, eduRows, jambRows, ticketRows, rpaRows] = await Promise.all([
+      db.select({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        phone: users.phone,
+        walletBalance: users.walletBalance,
+        kycStatus: users.kycStatus,
+        emailVerified: users.emailVerified,
+        isSuspended: users.isSuspended,
+        createdAt: users.createdAt,
+      }).from(users)
+        .where(or(
+          ilike(users.name, pattern),
+          ilike(users.email, pattern),
+          ilike(users.phone, pattern),
+        ))
+        .orderBy(desc(users.createdAt))
+        .limit(10),
+
+      db.select({
+        id: transactions.id,
+        userId: transactions.userId,
+        transactionType: transactions.transactionType,
+        amount: transactions.amount,
+        referenceId: transactions.referenceId,
+        status: transactions.status,
+        description: transactions.description,
+        paymentMethod: transactions.paymentMethod,
+        createdAt: transactions.createdAt,
+      }).from(transactions)
+        .where(or(
+          ilike(transactions.referenceId, idPattern),
+          sql`${transactions.id}::text ILIKE ${idPattern}`,
+          ilike(transactions.description, pattern),
+        ))
+        .orderBy(desc(transactions.createdAt))
+        .limit(10),
+
+      db.select({
+        id: identityServiceRequests.id,
+        userId: identityServiceRequests.userId,
+        trackingId: identityServiceRequests.trackingId,
+        serviceType: identityServiceRequests.serviceType,
+        status: identityServiceRequests.status,
+        nin: identityServiceRequests.nin,
+        validatedFullName: identityServiceRequests.validatedFullName,
+        createdAt: identityServiceRequests.createdAt,
+      }).from(identityServiceRequests)
+        .where(or(
+          ilike(identityServiceRequests.trackingId, idPattern),
+          sql`${identityServiceRequests.id}::text ILIKE ${idPattern}`,
+          ilike(identityServiceRequests.validatedFullName, pattern),
+          ilike(identityServiceRequests.nin, pattern),
+        ))
+        .orderBy(desc(identityServiceRequests.createdAt))
+        .limit(8),
+
+      db.select({
+        id: educationServiceRequests.id,
+        userId: educationServiceRequests.userId,
+        trackingId: educationServiceRequests.trackingId,
+        serviceType: educationServiceRequests.serviceType,
+        status: educationServiceRequests.status,
+        registrationNumber: educationServiceRequests.registrationNumber,
+        createdAt: educationServiceRequests.createdAt,
+      }).from(educationServiceRequests)
+        .where(or(
+          ilike(educationServiceRequests.trackingId, idPattern),
+          sql`${educationServiceRequests.id}::text ILIKE ${idPattern}`,
+          ilike(educationServiceRequests.registrationNumber, pattern),
+        ))
+        .orderBy(desc(educationServiceRequests.createdAt))
+        .limit(8),
+
+      db.select({
+        id: jambServiceRequests.id,
+        userId: jambServiceRequests.userId,
+        trackingId: jambServiceRequests.trackingId,
+        serviceType: jambServiceRequests.serviceType,
+        status: jambServiceRequests.status,
+        registrationNumber: jambServiceRequests.registrationNumber,
+        candidateName: jambServiceRequests.candidateName,
+        createdAt: jambServiceRequests.createdAt,
+      }).from(jambServiceRequests)
+        .where(or(
+          ilike(jambServiceRequests.trackingId, idPattern),
+          sql`${jambServiceRequests.id}::text ILIKE ${idPattern}`,
+          ilike(jambServiceRequests.registrationNumber, pattern),
+          ilike(jambServiceRequests.candidateName, pattern),
+        ))
+        .orderBy(desc(jambServiceRequests.createdAt))
+        .limit(8),
+
+      db.select({
+        id: support_tickets.id,
+        userId: support_tickets.userId,
+        referenceId: support_tickets.referenceId,
+        subject: support_tickets.subject,
+        status: support_tickets.status,
+        priority: support_tickets.priority,
+        category: support_tickets.category,
+        createdAt: support_tickets.createdAt,
+      }).from(support_tickets)
+        .where(or(
+          ilike(support_tickets.referenceId, idPattern),
+          sql`${support_tickets.id}::text ILIKE ${idPattern}`,
+          ilike(support_tickets.subject, pattern),
+        ))
+        .orderBy(desc(support_tickets.createdAt))
+        .limit(8),
+
+      db.select({
+        id: rpaJobs.id,
+        userId: rpaJobs.userId,
+        serviceType: rpaJobs.serviceType,
+        status: rpaJobs.status,
+        retryCount: rpaJobs.retryCount,
+        createdAt: rpaJobs.createdAt,
+      }).from(rpaJobs)
+        .where(sql`${rpaJobs.id}::text ILIKE ${idPattern}`)
+        .orderBy(desc(rpaJobs.createdAt))
+        .limit(5),
+    ]);
+
+    res.json(formatResponse(200, 'Search results', {
+      query: q,
+      results: {
+        users: userRows,
+        transactions: txRows,
+        identityOrders: identityRows,
+        educationOrders: eduRows,
+        jambOrders: jambRows,
+        supportTickets: ticketRows,
+        rpaJobs: rpaRows,
+      },
+      totals: {
+        users: userRows.length,
+        transactions: txRows.length,
+        orders: identityRows.length + eduRows.length + jambRows.length,
+        supportTickets: ticketRows.length,
+        rpaJobs: rpaRows.length,
+      },
+    }));
+  } catch (error: any) {
+    logger.error('Admin search error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Search failed'));
+  }
+});
+
 // ─── Database Management ──────────────────────────────────────────────────────
 
 router.get('/db/backup', adminAuthMiddleware, async (req: Request, res: Response) => {
