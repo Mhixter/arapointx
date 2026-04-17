@@ -350,4 +350,119 @@ router.post('/auth/reset-password', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/auth/2fa/recovery/request', async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'Email and password are required' });
+    }
+
+    const [dev] = await db.select().from(developerUsers)
+      .where(eq(developerUsers.email, email.toLowerCase()))
+      .limit(1);
+
+    if (!dev || !dev.twoFactorEnabled) {
+      return res.json({ status: 'success', code: 200, message: 'If that account exists and has 2FA enabled, a recovery link has been sent.' });
+    }
+
+    const passwordMatch = await bcrypt.compare(password, dev.passwordHash);
+    if (!passwordMatch) {
+      return res.status(401).json({ status: 'error', code: 401, message: 'Invalid email or password' });
+    }
+
+    const crypto = await import('crypto');
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 15 * 60 * 1000);
+
+    await db.update(developerUsers)
+      .set({ twoFactorRecoveryToken: token, twoFactorRecoveryExpires: expires })
+      .where(eq(developerUsers.id, dev.id));
+
+    const { sendEmail } = await import('../../../services/emailService');
+    const baseUrl = config.frontendUrl || 'https://arapoint.com.ng';
+    const recoveryLink = `${baseUrl}/developer/login?recovery_token=${token}`;
+    await sendEmail(
+      dev.email,
+      'Arapoint – 2FA Recovery Link',
+      `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#0D0D0D;color:#E8E8E8;border-radius:12px;">
+        <h2 style="color:#0B5FFF;margin-bottom:8px;">Two-Factor Authentication Recovery</h2>
+        <p style="color:#888;font-size:14px;">Hi ${dev.name},</p>
+        <p style="color:#ccc;font-size:14px;">You requested to recover access to your Arapoint Developer Portal account by disabling two-factor authentication. Click the button below to disable 2FA and sign in automatically.</p>
+        <p style="color:#f87171;font-size:13px;"><strong>This link expires in 15 minutes and can only be used once.</strong></p>
+        <div style="text-align:center;margin:32px 0;">
+          <a href="${recoveryLink}" style="display:inline-block;background:#0B5FFF;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:bold;font-size:15px;">Recover My Account &amp; Sign In</a>
+        </div>
+        <p style="color:#888;font-size:12px;">If you did not request this, please ignore this email. Your 2FA remains active unless you click the link above.</p>
+        <p style="color:#888;font-size:12px;">— The Arapoint Team</p>
+      </div>`,
+      `Hi ${dev.name},\n\nYou requested to recover access by disabling 2FA on your Arapoint Developer account.\n\nRecovery link (expires in 15 minutes):\n${recoveryLink}\n\nIf you did not request this, ignore this email.\n\n— The Arapoint Team`
+    );
+
+    logger.info('Developer 2FA recovery link sent', { developerId: dev.id });
+    res.json({ status: 'success', code: 200, message: 'If that account exists and has 2FA enabled, a recovery link has been sent.' });
+  } catch (e: any) {
+    logger.error('Dev 2FA recovery request error', { error: e.message });
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to process recovery request' });
+  }
+});
+
+router.post('/auth/2fa/recovery/confirm', async (req: Request, res: Response) => {
+  try {
+    const { token } = req.body;
+    if (!token) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'Recovery token is required' });
+    }
+
+    const [dev] = await db.select().from(developerUsers)
+      .where(eq(developerUsers.twoFactorRecoveryToken, token))
+      .limit(1);
+
+    if (!dev || !dev.twoFactorRecoveryExpires) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'Invalid or expired recovery link' });
+    }
+
+    if (new Date() > new Date(dev.twoFactorRecoveryExpires)) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'This recovery link has expired. Please request a new one.' });
+    }
+
+    await db.update(developerUsers)
+      .set({
+        twoFactorEnabled: false,
+        twoFactorSecret: null,
+        twoFactorRecoveryToken: null,
+        twoFactorRecoveryExpires: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(developerUsers.id, dev.id));
+
+    const jwtToken = jwt.sign(
+      { developerId: dev.id, email: dev.email, type: 'developer' },
+      config.jwtSecret,
+      { expiresIn: '30d' }
+    );
+
+    logger.info('Developer 2FA disabled via recovery', { developerId: dev.id });
+    res.json({
+      status: 'success',
+      code: 200,
+      message: '2FA has been disabled. You are now signed in.',
+      data: {
+        token: jwtToken,
+        developer: {
+          id: dev.id,
+          name: dev.name,
+          email: dev.email,
+          company: dev.company,
+          kycStatus: dev.kycStatus,
+          environmentMode: dev.environmentMode,
+          twoFactorEnabled: false,
+        },
+      },
+    });
+  } catch (e: any) {
+    logger.error('Dev 2FA recovery confirm error', { error: e.message });
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to confirm recovery' });
+  }
+});
+
 export default router;

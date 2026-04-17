@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Code2, Loader2, Mail, ArrowLeft, CheckCircle, Eye, EyeOff, KeyRound, Lock, ShieldCheck } from "lucide-react";
+import { Code2, Loader2, Mail, ArrowLeft, CheckCircle, Eye, EyeOff, KeyRound, Lock, ShieldCheck, AlertTriangle } from "lucide-react";
 
 const C = {
   bg: "var(--dev-bg)",
@@ -40,7 +40,8 @@ function StyledInput({ type = "text", ...props }: React.InputHTMLAttributes<HTML
 
 type RegisterStep = "form" | "otp" | "done";
 type ForgotStep = "email" | "reset" | "done";
-type View = "auth" | "forgot";
+type RecoveryStep = "form" | "sent";
+type View = "auth" | "forgot" | "2fa-recovery";
 
 export default function DevLogin() {
   const { toast } = useToast();
@@ -63,6 +64,41 @@ export default function DevLogin() {
   const [loginStep, setLoginStep] = useState<"credentials" | "2fa">("credentials");
   const [twoFactorCode, setTwoFactorCode] = useState("");
   const [tempToken, setTempToken] = useState("");
+  const [recoveryStep, setRecoveryStep] = useState<RecoveryStep>("form");
+  const [recoveryForm, setRecoveryForm] = useState({ email: "", password: "" });
+  const [showRecoveryPw, setShowRecoveryPw] = useState(false);
+  const [recoveryConfirming, setRecoveryConfirming] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("recovery_token");
+    if (token) {
+      setRecoveryConfirming(true);
+      fetch("/api/v1/developer/auth/2fa/recovery/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.status === "success") {
+            localStorage.setItem("dev_token", data.data.token);
+            localStorage.setItem("dev_user", JSON.stringify(data.data.developer));
+            window.history.replaceState({}, "", window.location.pathname);
+            toast({ title: "Access restored!", variant: "success", description: "2FA has been disabled and you are now signed in." });
+            window.location.href = "/developer/dashboard";
+          } else {
+            window.history.replaceState({}, "", window.location.pathname);
+            toast({ title: "Recovery failed", description: data.message || "Invalid or expired link.", variant: "destructive" });
+            setRecoveryConfirming(false);
+          }
+        })
+        .catch(() => {
+          toast({ title: "Error", description: "Network error. Try again.", variant: "destructive" });
+          setRecoveryConfirming(false);
+        });
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -305,6 +341,28 @@ export default function DevLogin() {
     }
   };
 
+  const handleRecoveryRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await fetch("/api/v1/developer/auth/2fa/recovery/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: recoveryForm.email, password: recoveryForm.password }),
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        setRecoveryStep("sent");
+      } else {
+        toast({ title: "Failed", description: data.message, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error. Try again.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const submitBtn = (label: string) => (
     <button type="submit" disabled={loading}
       className="w-full py-2.5 rounded-lg text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
@@ -313,6 +371,107 @@ export default function DevLogin() {
       {label}
     </button>
   );
+
+  if (recoveryConfirming) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: C.bg }}>
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 animate-spin mx-auto mb-4" style={{ color: C.blue }} />
+          <p className="text-sm" style={{ color: C.muted }}>Verifying your recovery link…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (view === "2fa-recovery") {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: C.bg }}>
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: "linear-gradient(135deg,#0B5FFF,#12B76A)", boxShadow: `0 8px 32px ${C.blue}40` }}>
+              <Code2 className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-extrabold text-white">Arapoint Developer Portal</h1>
+            <p className="text-sm mt-1" style={{ color: C.muted }}>Build with Nigeria's verification infrastructure</p>
+          </div>
+
+          <div className="rounded-2xl p-6" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+            {recoveryStep === "sent" ? (
+              <div className="py-6 text-center">
+                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: `${C.blue}1A` }}>
+                  <Mail className="w-8 h-8" style={{ color: C.blue }} />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Check your email</h3>
+                <p className="text-sm mb-2" style={{ color: C.muted }}>
+                  We've sent a recovery link to{" "}
+                  <span className="font-semibold" style={{ color: C.blue }}>{recoveryForm.email}</span>
+                </p>
+                <p className="text-xs mb-6" style={{ color: C.muted }}>
+                  Click the link in your email to disable 2FA and sign in automatically. It expires in 15 minutes.
+                </p>
+                <div className="rounded-lg p-3 mb-5 flex items-start gap-2 text-left" style={{ background: "#1A1A00", border: "1px solid #3D3D00" }}>
+                  <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "#FBBF24" }} />
+                  <p className="text-xs" style={{ color: "#FBBF24" }}>
+                    Clicking the link will permanently disable 2FA on your account. Re-enable it from your security settings after signing in.
+                  </p>
+                </div>
+                <button onClick={() => { setView("auth"); setLoginStep("credentials"); setRecoveryStep("form"); }}
+                  className="w-full py-2.5 rounded-lg text-sm font-bold transition-opacity hover:opacity-90"
+                  style={{ background: C.card, border: `1px solid ${C.border}`, color: C.muted }}>
+                  Back to Sign In
+                </button>
+              </div>
+            ) : (
+              <>
+                <button onClick={() => { setView("auth"); setLoginStep("2fa"); }}
+                  className="flex items-center gap-1 text-sm mb-4" style={{ color: C.muted }}>
+                  <ArrowLeft className="w-4 h-4" /> Back
+                </button>
+                <div className="text-center mb-6">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: "#3D0A0A" }}>
+                    <ShieldCheck className="w-6 h-6" style={{ color: "#F87171" }} />
+                  </div>
+                  <h2 className="text-lg font-bold text-white">Recover Authenticator Access</h2>
+                  <p className="text-sm mt-1" style={{ color: C.muted }}>
+                    Verify your identity to receive a one-time recovery link via email. This will disable 2FA on your account.
+                  </p>
+                </div>
+                <form onSubmit={handleRecoveryRequest} className="space-y-4">
+                  <Field label="Email">
+                    <StyledInput type="email" required placeholder="dev@company.com"
+                      value={recoveryForm.email}
+                      onChange={e => setRecoveryForm(f => ({ ...f, email: e.target.value }))} />
+                  </Field>
+                  <Field label="Password">
+                    <div className="relative">
+                      <StyledInput type={showRecoveryPw ? "text" : "password"} required placeholder="Your account password"
+                        value={recoveryForm.password}
+                        onChange={e => setRecoveryForm(f => ({ ...f, password: e.target.value }))}
+                        style={{ paddingRight: "2.5rem" }} />
+                      <button type="button" onClick={() => setShowRecoveryPw(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: C.muted }}>
+                        {showRecoveryPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </Field>
+                  <button type="submit" disabled={loading}
+                    className="w-full py-2.5 rounded-lg text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                    style={{ background: C.blue }}>
+                    {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                    Send Recovery Link
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
+
+          <p className="text-center text-xs mt-4" style={{ color: C.muted }}>
+            <a href="/" style={{ color: C.blue }} className="hover:underline">← Back to Arapoint</a>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (view === "forgot") {
     return (
@@ -545,6 +704,17 @@ export default function DevLogin() {
               <p className="text-center text-xs mt-4" style={{ color: C.muted }}>
                 Code refreshes every 30 seconds
               </p>
+              <div className="mt-4 pt-4" style={{ borderTop: `1px solid ${C.border}` }}>
+                <p className="text-center text-xs" style={{ color: C.muted }}>
+                  Lost access to your authenticator?{" "}
+                  <button type="button"
+                    onClick={() => { setView("2fa-recovery"); setRecoveryForm({ email: loginForm.email, password: "" }); setRecoveryStep("form"); }}
+                    className="font-semibold hover:underline"
+                    style={{ color: C.blue }}>
+                    Recover account
+                  </button>
+                </p>
+              </div>
             </>
           )}
 

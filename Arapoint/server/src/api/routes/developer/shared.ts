@@ -46,6 +46,8 @@ export const developerUsers = pgTable('developer_users', {
   customRateLimit: integer('custom_rate_limit').default(0),
   twoFactorEnabled: boolean('two_factor_enabled').default(false),
   twoFactorSecret: varchar('two_factor_secret', { length: 255 }),
+  twoFactorRecoveryToken: varchar('two_factor_recovery_token', { length: 128 }),
+  twoFactorRecoveryExpires: timestamp('two_factor_recovery_expires'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });

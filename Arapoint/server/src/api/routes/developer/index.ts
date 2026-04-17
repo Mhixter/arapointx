@@ -129,6 +129,11 @@ const router = Router();
         ADD COLUMN IF NOT EXISTS two_factor_secret varchar(255)
     `);
     await db.execute(sql`
+      ALTER TABLE developer_users
+        ADD COLUMN IF NOT EXISTS two_factor_recovery_token varchar(128),
+        ADD COLUMN IF NOT EXISTS two_factor_recovery_expires timestamp
+    `);
+    await db.execute(sql`
       CREATE TABLE IF NOT EXISTS developer_webhook_logs (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         developer_id uuid NOT NULL,
