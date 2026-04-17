@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DevLayout } from "./DevLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Key, Plus, Copy, Trash2, Eye, EyeOff, RefreshCw,
   ShieldCheck, AlertCircle, Info, CheckCircle, ChevronRight,
-  Lock, Unlock, Terminal
+  Lock, Unlock, Terminal, Smartphone, Timer
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -37,6 +37,8 @@ interface ApiKey {
   secretKey?: string;
 }
 
+const UNLOCK_DURATION_MS = 5 * 60 * 1000;
+
 export default function DevApiKeys() {
   const { toast } = useToast();
   const [keys, setKeys] = useState<ApiKey[]>([]);
@@ -49,6 +51,77 @@ export default function DevApiKeys() {
   const [newCreds, setNewCreds] = useState<{ apiKey: string; secretKey: string; env: string } | null>(null);
   const [visibleApiKeys, setVisibleApiKeys] = useState<Set<string>>(new Set());
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  const [showChallenge, setShowChallenge] = useState(false);
+  const [challengeCode, setChallengeCode] = useState("");
+  const [challengeLoading, setChallengeLoading] = useState(false);
+  const [revealUnlocked, setRevealUnlocked] = useState(false);
+  const [unlockExpiresAt, setUnlockExpiresAt] = useState<number | null>(null);
+  const [unlockSecondsLeft, setUnlockSecondsLeft] = useState(0);
+  const pendingRevealKeyId = useRef<string | null>(null);
+  const lockTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const countdownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const grantUnlock = () => {
+    const expiresAt = Date.now() + UNLOCK_DURATION_MS;
+    setRevealUnlocked(true);
+    setUnlockExpiresAt(expiresAt);
+    setUnlockSecondsLeft(Math.floor(UNLOCK_DURATION_MS / 1000));
+    if (lockTimer.current) clearTimeout(lockTimer.current);
+    if (countdownTimer.current) clearInterval(countdownTimer.current);
+    lockTimer.current = setTimeout(() => {
+      setRevealUnlocked(false);
+      setVisibleApiKeys(new Set());
+      setUnlockExpiresAt(null);
+      setUnlockSecondsLeft(0);
+      toast({ title: "Keys hidden", description: "Credential view access has expired." });
+    }, UNLOCK_DURATION_MS);
+    countdownTimer.current = setInterval(() => {
+      setUnlockSecondsLeft(s => {
+        if (s <= 1) { if (countdownTimer.current) clearInterval(countdownTimer.current); return 0; }
+        return s - 1;
+      });
+    }, 1000);
+  };
+
+  const handleRevealClick = (keyId: string) => {
+    if (!profile?.twoFactorEnabled || revealUnlocked) {
+      setVisibleApiKeys(s => { const n = new Set(s); n.has(keyId) ? n.delete(keyId) : n.add(keyId); return n; });
+      return;
+    }
+    pendingRevealKeyId.current = keyId;
+    setChallengeCode("");
+    setShowChallenge(true);
+  };
+
+  const submitChallenge = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (challengeCode.length !== 6) return;
+    setChallengeLoading(true);
+    try {
+      const res = await devFetch("/auth/2fa/challenge", {
+        method: "POST",
+        body: JSON.stringify({ totp_code: challengeCode }),
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        setShowChallenge(false);
+        grantUnlock();
+        if (pendingRevealKeyId.current) {
+          setVisibleApiKeys(s => { const n = new Set(s); n.add(pendingRevealKeyId.current!); return n; });
+          pendingRevealKeyId.current = null;
+        }
+        toast({ title: "Credentials unlocked", description: "Keys visible for 5 minutes.", variant: "success" });
+      } else {
+        toast({ title: "Verification failed", description: data.message, variant: "destructive" });
+        setChallengeCode("");
+      }
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setChallengeLoading(false);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -146,6 +219,38 @@ export default function DevApiKeys() {
           </div>
         </div>
 
+        {/* 2FA unlock status banner */}
+        {profile?.twoFactorEnabled && revealUnlocked && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-emerald-800/60 bg-emerald-950/30 mt-4">
+            <Timer className="w-4 h-4 text-emerald-400 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-emerald-300">Credentials unlocked</p>
+              <p className="text-xs text-emerald-600">
+                Keys will be hidden again in {Math.floor(unlockSecondsLeft / 60)}:{String(unlockSecondsLeft % 60).padStart(2, "0")}
+              </p>
+            </div>
+            <button onClick={() => {
+              setRevealUnlocked(false);
+              setVisibleApiKeys(new Set());
+              if (lockTimer.current) clearTimeout(lockTimer.current);
+              if (countdownTimer.current) clearInterval(countdownTimer.current);
+              setUnlockSecondsLeft(0);
+            }} className="text-xs text-emerald-600 hover:text-emerald-400">
+              Lock now
+            </button>
+          </div>
+        )}
+
+        {/* 2FA lock notice (when 2FA enabled, not unlocked) */}
+        {profile?.twoFactorEnabled && !revealUnlocked && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-700/60 bg-gray-800/30 mt-4">
+            <Smartphone className="w-4 h-4 text-gray-500 shrink-0" />
+            <p className="text-xs text-gray-500 flex-1">
+              <span className="text-gray-400 font-medium">2FA protected</span> — your authenticator code is required to reveal API keys
+            </p>
+          </div>
+        )}
+
         {/* Account ID */}
         {profile && (
           <CredCard
@@ -215,9 +320,7 @@ export default function DevApiKeys() {
               {sandboxKeys.map(k => (
                 <KeyRow key={k.id} apiKey={k}
                   visible={visibleApiKeys.has(k.id)}
-                  onToggleVisible={() => setVisibleApiKeys(s => {
-                    const n = new Set(s); n.has(k.id) ? n.delete(k.id) : n.add(k.id); return n;
-                  })}
+                  onToggleVisible={() => handleRevealClick(k.id)}
                   onCopy={() => copy(k.apiKey, "API Key copied")}
                   onRevoke={() => setDeleteConfirm(k.id)}
                   maskFn={maskKey}
@@ -261,9 +364,7 @@ export default function DevApiKeys() {
               {liveKeys.map(k => (
                 <KeyRow key={k.id} apiKey={k}
                   visible={visibleApiKeys.has(k.id)}
-                  onToggleVisible={() => setVisibleApiKeys(s => {
-                    const n = new Set(s); n.has(k.id) ? n.delete(k.id) : n.add(k.id); return n;
-                  })}
+                  onToggleVisible={() => handleRevealClick(k.id)}
                   onCopy={() => copy(k.apiKey, "API Key copied")}
                   onRevoke={() => setDeleteConfirm(k.id)}
                   maskFn={maskKey}
@@ -365,6 +466,42 @@ export default function DevApiKeys() {
               Generate Keys
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 2FA Challenge Dialog */}
+      <Dialog open={showChallenge} onOpenChange={open => { if (!open) setShowChallenge(false); }}>
+        <DialogContent className="bg-gray-900 border-gray-800 text-white max-w-sm">
+          <DialogHeader>
+            <div className="flex justify-center mb-2">
+              <div className="w-12 h-12 rounded-full bg-blue-950/60 border border-blue-800/60 flex items-center justify-center">
+                <Smartphone className="w-6 h-6 text-blue-400" />
+              </div>
+            </div>
+            <DialogTitle className="text-center">Verify with Authenticator</DialogTitle>
+            <DialogDescription className="text-center text-gray-400">
+              Enter the 6-digit code from your Google Authenticator app to reveal API credentials
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={submitChallenge} className="space-y-4 mt-2">
+            <input
+              required maxLength={6} autoFocus
+              value={challengeCode}
+              onChange={e => setChallengeCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              className="w-full px-3 py-3 rounded-lg text-center text-2xl tracking-[0.5em] font-mono outline-none bg-gray-800 border border-gray-700 text-white focus:border-blue-500 transition-colors"
+              placeholder="000000"
+            />
+            <p className="text-center text-xs text-gray-600">Access granted for 5 minutes after verification</p>
+            <DialogFooter className="gap-2">
+              <Button type="button" variant="ghost" onClick={() => setShowChallenge(false)}
+                className="text-gray-400">Cancel</Button>
+              <Button type="submit" disabled={challengeLoading || challengeCode.length !== 6}
+                className="bg-[#0B5FFF] hover:opacity-90 flex-1">
+                {challengeLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-2" /> : <ShieldCheck className="w-3.5 h-3.5 mr-2" />}
+                Verify
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 

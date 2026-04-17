@@ -270,6 +270,31 @@ router.post('/auth/2fa/disable', devJwtAuth, async (req: Request, res: Response)
   }
 });
 
+router.post('/auth/2fa/challenge', devJwtAuth, async (req: Request, res: Response) => {
+  try {
+    const dev = (req as any).developer;
+    const { totp_code } = req.body;
+    if (!totp_code) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'totp_code required' });
+    }
+    if (!(dev as any).twoFactorEnabled) {
+      return res.status(400).json({ status: 'error', code: 400, message: '2FA is not enabled on this account' });
+    }
+    const secret = (dev as any).twoFactorSecret;
+    if (!secret) {
+      return res.status(400).json({ status: 'error', code: 400, message: '2FA is not configured' });
+    }
+    const isValid = speakeasy.totp.verify({ secret, encoding: 'base32', token: String(totp_code).replace(/\s/g, ''), window: 1 });
+    if (!isValid) {
+      return res.status(401).json({ status: 'error', code: 401, message: 'Invalid authenticator code. Please try again.' });
+    }
+    res.json({ status: 'success', code: 200, message: 'Challenge passed' });
+  } catch (e: any) {
+    logger.error('Dev 2fa challenge error', { error: e.message });
+    res.status(500).json({ status: 'error', code: 500, message: 'Verification failed' });
+  }
+});
+
 router.post('/auth/forgot-password', async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
