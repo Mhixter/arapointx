@@ -100,6 +100,8 @@ export const API_PRICES: Record<string, number> = {
   'employment_standard': 350,
   'employment_higher': 450,
   'fraud_score': 50,
+  'faceLiveness': 50,
+  'faceMatch': 80,
 };
 
 export const RATE_LIMITS: Record<string, number> = { sandbox: 100, live: 10000 };
@@ -208,7 +210,7 @@ export function sandboxBVN(bvn: string) {
       bvn, firstName: 'Arapoint', lastName: 'Test', middleName: 'Sandbox',
       dateOfBirth: '1990-06-15', gender: 'Male',
       phone: '08012345678', email: 'sandbox@arapoint.com.ng',
-      bankName: 'GTBank', enrollmentBranch: 'Ikeja Main Branch',
+      enrollmentBank: 'GTBank', enrollmentBranch: 'Ikeja Main Branch',
       state: 'Lagos', lga: 'Ikeja',
     },
   };

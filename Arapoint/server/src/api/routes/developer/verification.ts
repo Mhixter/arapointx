@@ -259,9 +259,15 @@ router.post('/verify/nin', apiKeyAuth, async (req: Request, res: Response) => {
     await deductDeveloperBalance(dev.id, API_PRICES.nin, `NIN verification - ${nin || phone}`, (dev as any).environmentMode);
 
     if ((dev as any).environmentMode === 'sandbox') {
+      const sbx = sandboxNIN(nin || phone);
       responseData = {
         status: 'success', code: 200, message: 'NIN verification completed (sandbox)',
-        data: { verification: sandboxNIN(nin || phone) }
+        data: {
+          verification: sbx.data,
+          source: 'ARAPOINT-SANDBOX',
+          cached: false,
+          requestId: `NIN-${crypto.randomBytes(6).toString('hex').toUpperCase()}`,
+        }
       };
       return res.json(responseData);
     }
@@ -269,7 +275,16 @@ router.post('/verify/nin', apiKeyAuth, async (req: Request, res: Response) => {
     const cacheKey = `nin:${nin || phone}`;
     const cached = getCached(cacheKey);
     if (cached) {
-      responseData = { status: 'success', code: 200, message: 'NIN verification completed (cached)', data: { verification: cached } };
+      const verificationData = cached.data || cached;
+      responseData = {
+        status: 'success', code: 200, message: 'NIN verification completed (cached)',
+        data: {
+          verification: verificationData,
+          source: 'ARAPOINT',
+          cached: true,
+          requestId: `NIN-${crypto.randomBytes(6).toString('hex').toUpperCase()}`,
+        }
+      };
       return res.json(responseData);
     }
 
@@ -286,9 +301,15 @@ router.post('/verify/nin', apiKeyAuth, async (req: Request, res: Response) => {
       result = { error: serviceErr.message };
     }
 
+    const verificationData = result?.data || result;
     responseData = {
       status: 'success', code: 200, message: 'NIN verification completed',
-      data: { verification: result }
+      data: {
+        verification: verificationData,
+        source: 'ARAPOINT',
+        cached: false,
+        requestId: `NIN-${crypto.randomBytes(6).toString('hex').toUpperCase()}`,
+      }
     };
     res.json(responseData);
   } catch (e: any) {
@@ -330,9 +351,15 @@ router.post('/verify/bvn', apiKeyAuth, async (req: Request, res: Response) => {
     await deductDeveloperBalance(dev.id, API_PRICES.bvn, `BVN verification - ${bvn}`, (dev as any).environmentMode);
 
     if ((dev as any).environmentMode === 'sandbox') {
+      const sbx = sandboxBVN(bvn);
       responseData = {
         status: 'success', code: 200, message: 'BVN verification completed (sandbox)',
-        data: { verification: sandboxBVN(bvn) }
+        data: {
+          verification: sbx.data,
+          source: 'ARAPOINT-SANDBOX',
+          cached: false,
+          requestId: `BVN-${crypto.randomBytes(6).toString('hex').toUpperCase()}`,
+        }
       };
       return res.json(responseData);
     }
@@ -340,7 +367,19 @@ router.post('/verify/bvn', apiKeyAuth, async (req: Request, res: Response) => {
     const bvnCacheKey = `bvn:${bvn}`;
     const bvnCached = getCached(bvnCacheKey);
     if (bvnCached) {
-      responseData = { status: 'success', code: 200, message: 'BVN verification completed (cached)', data: { verification: bvnCached } };
+      const rawBvnCached = bvnCached.data || bvnCached;
+      const bvnCachedData = rawBvnCached
+        ? { ...rawBvnCached, enrollmentBank: rawBvnCached.enrollmentInstitution || rawBvnCached.enrollmentBank || rawBvnCached.bankName }
+        : rawBvnCached;
+      responseData = {
+        status: 'success', code: 200, message: 'BVN verification completed (cached)',
+        data: {
+          verification: bvnCachedData,
+          source: 'CBN',
+          cached: true,
+          requestId: `BVN-${crypto.randomBytes(6).toString('hex').toUpperCase()}`,
+        }
+      };
       return res.json(responseData);
     }
 
@@ -353,9 +392,18 @@ router.post('/verify/bvn', apiKeyAuth, async (req: Request, res: Response) => {
       result = { error: serviceErr.message };
     }
 
+    const rawBvn = result?.data || result;
+    const bvnVerificationData = rawBvn
+      ? { ...rawBvn, enrollmentBank: rawBvn.enrollmentInstitution || rawBvn.enrollmentBank || rawBvn.bankName }
+      : rawBvn;
     responseData = {
       status: 'success', code: 200, message: 'BVN verification completed',
-      data: { verification: result }
+      data: {
+        verification: bvnVerificationData,
+        source: 'CBN',
+        cached: false,
+        requestId: `BVN-${crypto.randomBytes(6).toString('hex').toUpperCase()}`,
+      }
     };
     res.json(responseData);
   } catch (e: any) {
@@ -907,15 +955,22 @@ router.post('/verify/fraud-score', apiKeyAuth, async (req: Request, res: Respons
     await deductDeveloperBalance(dev.id, API_PRICES.fraud_score, `Fraud score - ${nin || bvn || phone}`, (dev as any).environmentMode);
 
     if ((dev as any).environmentMode === 'sandbox') {
+      const sbxFraud = sandboxFraudScore(nin || bvn || phone);
       responseData = {
-        status: 'success', code: 200, message: 'Fraud score computed (sandbox)',
-        data: { fraudScore: sandboxFraudScore(nin || bvn || phone) }
+        status: 'success', code: 200, message: 'Fraud score calculated (sandbox)',
+        data: {
+          requestId: `FRD-${crypto.randomBytes(6).toString('hex').toUpperCase()}`,
+          riskScore: sbxFraud.riskScore,
+          riskLevel: sbxFraud.riskLevel,
+          flags: [],
+          summary: sbxFraud.recommendation || 'Identity records are consistent — low fraud risk.',
+        }
       };
       return res.json(responseData);
     }
 
     let riskScore = 0;
-    const signals: Record<string, boolean> = {};
+    const signalFlags: string[] = [];
 
     if (nin && bvn) {
       const { premblyService } = await import('../../../services/premblyService');
@@ -927,34 +982,39 @@ router.post('/verify/fraud-score', apiKeyAuth, async (req: Request, res: Respons
       const ninData = ninRes.status === 'fulfilled' ? ninRes.value : null;
       const bvnData = bvnRes.status === 'fulfilled' ? bvnRes.value : null;
 
-      if (!ninData || ninData.error) { riskScore += 30; signals.ninUnverified = true; }
-      if (!bvnData || bvnData.error) { riskScore += 30; signals.bvnUnverified = true; }
+      if (!ninData || ninData.error) { riskScore += 30; signalFlags.push('NIN record could not be verified'); }
+      if (!bvnData || bvnData.error) { riskScore += 30; signalFlags.push('BVN record could not be verified'); }
 
       if (ninData && bvnData && !ninData.error && !bvnData.error) {
         const ninName = `${ninData.data?.firstName || ''} ${ninData.data?.lastName || ''}`.trim().toLowerCase();
         const bvnName = `${bvnData.data?.firstName || ''} ${bvnData.data?.lastName || ''}`.trim().toLowerCase();
         if (ninName && bvnName && ninName !== bvnName) {
           riskScore += 25;
-          signals.nameMismatch = true;
+          signalFlags.push('Name mismatch between NIN and BVN records');
         }
         if (ninData.data?.dateOfBirth !== bvnData.data?.dateOfBirth) {
           riskScore += 15;
-          signals.dobMismatch = true;
+          signalFlags.push('Date of birth mismatch between NIN and BVN records');
         }
       }
     }
 
-    const riskLevel = riskScore >= 70 ? 'High' : riskScore >= 40 ? 'Medium' : 'Low';
+    const finalScore = Math.min(riskScore, 100);
+    const riskLevel = finalScore >= 70 ? 'high' : finalScore >= 40 ? 'medium' : 'low';
+    const summary = finalScore < 30
+      ? 'Identity records are consistent — low fraud risk.'
+      : finalScore < 60
+      ? 'Some identity inconsistencies detected — manual review recommended.'
+      : 'High risk signals detected — identity verification strongly recommended.';
 
     responseData = {
-      status: 'success', code: 200, message: 'Fraud score computed',
+      status: 'success', code: 200, message: 'Fraud score calculated',
       data: {
-        fraudScore: {
-          nin: nin || undefined, bvn: bvn || undefined,
-          riskScore: Math.min(riskScore, 100),
-          riskLevel,
-          signals,
-        }
+        requestId: `FRD-${crypto.randomBytes(6).toString('hex').toUpperCase()}`,
+        riskScore: finalScore,
+        riskLevel,
+        flags: signalFlags,
+        summary,
       }
     };
     res.json(responseData);
@@ -1482,7 +1542,7 @@ router.post('/verify/face-liveness', apiKeyAuth, faceUpload.single('image'), asy
   const dev = (req as any).developer;
   const apiKeyId = (req as any).apiKeyId;
   const envMode = (dev as any).environmentMode || 'sandbox';
-  const price = (API_PRICES as any).faceLiveness ?? (API_PRICES as any).face_liveness ?? 50;
+  const price = API_PRICES.faceLiveness ?? 50;
   let statusCode = 200;
   let responseData: any;
 
@@ -1536,7 +1596,7 @@ router.post('/verify/face-match', apiKeyAuth, faceUpload.fields([{ name: 'image_
   const dev = (req as any).developer;
   const apiKeyId = (req as any).apiKeyId;
   const envMode = (dev as any).environmentMode || 'sandbox';
-  const price = (API_PRICES as any).faceMatch ?? (API_PRICES as any).face_match ?? 80;
+  const price = API_PRICES.faceMatch ?? 80;
   let statusCode = 200;
   let responseData: any;
 

@@ -337,7 +337,57 @@ const endpoints = [
       { name: "nin", type: "string", required: true, desc: "National ID Number to check" },
       { name: "bvn", type: "string", required: true, desc: "BVN to cross-reference against NIN" },
     ],
-    notes: ["riskLevel: low (0–30) | medium (31–60) | high (61–80) | critical (81–100)", "Cheapest verification endpoint — good for initial screening"]
+    notes: ["riskLevel: low (0–30) | medium (31–60) | high (61–100)", "Cheapest verification endpoint — good for initial screening", "flags is an array of human-readable strings describing each detected risk signal"]
+  },
+  {
+    group: "Verification",
+    method: "POST",
+    path: "/verify/face-liveness",
+    title: "Face Liveness Check",
+    description: "Detect whether a face in an uploaded photo is from a real live person (not a photo, screen, or mask). Sends a single image via multipart/form-data and returns a liveness verdict with a confidence score.",
+    price: 50,
+    auth: "api-key",
+    async: false,
+    request: {},
+    response: {
+      status: "success", code: 200, message: "Liveness verified",
+      data: { verified: true, confidence: 99.5, reference: "LIV-abc123" }
+    },
+    params: [
+      { name: "image", type: "file", required: true, desc: "Face image — multipart/form-data field named 'image'. Accepted formats: JPEG, PNG, WebP." },
+    ],
+    notes: [
+      "Request must use Content-Type: multipart/form-data (not JSON)",
+      "verified: true means the face passed liveness detection",
+      "confidence is a 0–100 score; values above 90 are considered high confidence",
+      "In sandbox mode, always returns verified: true with confidence: 99.5",
+    ]
+  },
+  {
+    group: "Verification",
+    method: "POST",
+    path: "/verify/face-match",
+    title: "Face Match (1:1 Comparison)",
+    description: "Compare two face images to determine if they belong to the same person. Useful for matching a selfie against a government ID photo. Both images are sent via multipart/form-data.",
+    price: 80,
+    auth: "api-key",
+    async: false,
+    request: {},
+    response: {
+      status: "success", code: 200, message: "Faces matched",
+      data: { match: true, confidence: 97.8, reference: "FCM-def456" }
+    },
+    params: [
+      { name: "image_1", type: "file", required: true, desc: "First face image (e.g. selfie) — multipart/form-data field named 'image_1'" },
+      { name: "image_2", type: "file", required: true, desc: "Second face image (e.g. ID photo) — multipart/form-data field named 'image_2'" },
+    ],
+    notes: [
+      "Request must use Content-Type: multipart/form-data (not JSON)",
+      "match: true means both images are likely the same person",
+      "confidence is a 0–100 similarity score; values above 85 indicate a strong match",
+      "In sandbox mode, always returns match: true with confidence: 97.8",
+      "Returns HTTP 422 if either image cannot be processed (no face detected, too blurry, etc.)",
+    ]
   },
   {
     group: "Account",
