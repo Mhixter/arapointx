@@ -4933,47 +4933,64 @@ router.get('/db/backup', adminAuthMiddleware, async (req: Request, res: Response
       eduRows,
       pricingRows,
       settingRows,
+      cacRows,
+      bvnRows,
+      ninSlipRows,
+      adminUserRows,
     ] = await Promise.all([
       db.select({
         id: users.id,
         email: users.email,
-        firstName: users.firstName,
-        lastName: users.lastName,
+        name: users.name,
         phone: users.phone,
-        isVerified: users.isVerified,
-        isSuspended: users.isSuspended,
+        passwordHash: users.passwordHash,
         walletBalance: users.walletBalance,
+        bvn: users.bvn,
+        nin: users.nin,
+        kycStatus: users.kycStatus,
+        emailVerified: users.emailVerified,
+        isSuspended: users.isSuspended,
+        suspendReason: users.suspendReason,
         createdAt: users.createdAt,
-      }).from(users).limit(5000),
-      db.select({
-        id: transactions.id,
-        userId: transactions.userId,
-        transactionType: transactions.transactionType,
-        amount: transactions.amount,
-        status: transactions.status,
-        referenceId: transactions.referenceId,
-        description: transactions.description,
-        createdAt: transactions.createdAt,
-      }).from(transactions).limit(10000),
+        updatedAt: users.updatedAt,
+      }).from(users).limit(10000),
+      db.select().from(transactions).limit(20000),
       db.select({
         id: rpaJobs.id,
         userId: rpaJobs.userId,
         serviceType: rpaJobs.serviceType,
+        queryData: rpaJobs.queryData,
         status: rpaJobs.status,
+        result: rpaJobs.result,
+        errorMessage: rpaJobs.errorMessage,
         retryCount: rpaJobs.retryCount,
+        maxRetries: rpaJobs.maxRetries,
+        priority: rpaJobs.priority,
         createdAt: rpaJobs.createdAt,
+        startedAt: rpaJobs.startedAt,
         completedAt: rpaJobs.completedAt,
-      }).from(rpaJobs).limit(5000),
-      db.select().from(jambServiceRequests).limit(2000),
-      db.select().from(identityServiceRequests).limit(2000),
-      db.select().from(educationServiceRequests).limit(2000),
+      }).from(rpaJobs).limit(10000),
+      db.select().from(jambServiceRequests).limit(5000),
+      db.select().from(identityServiceRequests).limit(5000),
+      db.select().from(educationServiceRequests).limit(5000),
       db.select().from(servicePricing),
       db.select().from(adminSettings),
+      db.select().from(cacRegistrationRequests).limit(5000),
+      db.select().from(bvnVerifications).limit(5000),
+      db.select().from(ninSlips).limit(5000),
+      db.select({
+        id: adminUsers.id,
+        email: adminUsers.email,
+        name: adminUsers.name,
+        roleId: adminUsers.roleId,
+        isActive: adminUsers.isActive,
+        createdAt: adminUsers.createdAt,
+      }).from(adminUsers).limit(200),
     ]);
 
     const backup = {
       exportedAt: new Date().toISOString(),
-      version: '1.0',
+      version: '2.0',
       tables: {
         users: { count: userRows.length, data: userRows },
         transactions: { count: txRows.length, data: txRows },
@@ -4983,6 +5000,10 @@ router.get('/db/backup', adminAuthMiddleware, async (req: Request, res: Response
         educationServiceRequests: { count: eduRows.length, data: eduRows },
         servicePricing: { count: pricingRows.length, data: pricingRows },
         adminSettings: { count: settingRows.length, data: settingRows },
+        cacRegistrationRequests: { count: cacRows.length, data: cacRows },
+        bvnVerifications: { count: bvnRows.length, data: bvnRows },
+        ninSlips: { count: ninSlipRows.length, data: ninSlipRows },
+        adminUsers: { count: adminUserRows.length, data: adminUserRows },
       },
     };
 
@@ -4990,12 +5011,270 @@ router.get('/db/backup', adminAuthMiddleware, async (req: Request, res: Response
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(JSON.stringify(backup, null, 2));
-    logger.info('Database backup exported', { adminId: req.userId });
+    logger.info('Database backup exported', { adminId: (req as any).adminId });
   } catch (error: any) {
     logger.error('DB backup error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to generate backup'));
   }
 });
+
+router.post('/db/restore', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const backup = req.body;
+
+    if (!backup?.tables || !backup?.version) {
+      return res.status(400).json(formatErrorResponse(400, 'Invalid backup file. Must contain tables and version fields.'));
+    }
+
+    const restored: Record<string, number> = {};
+    const tables = backup.tables;
+
+    if (tables.adminSettings?.data?.length) {
+      let count = 0;
+      const chunks = chunkArray(tables.adminSettings.data, 100);
+      for (const chunk of chunks) {
+        await db.insert(adminSettings)
+          .values(chunk.map((r: any) => ({
+            id: r.id,
+            settingKey: r.settingKey || r.setting_key,
+            settingValue: r.settingValue ?? r.setting_value ?? null,
+            description: r.description || null,
+            updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
+          })))
+          .onConflictDoUpdate({
+            target: adminSettings.settingKey,
+            set: {
+              settingValue: sql`excluded.setting_value`,
+              description: sql`excluded.description`,
+              updatedAt: new Date(),
+            },
+          });
+        count += chunk.length;
+      }
+      restored.adminSettings = count;
+    }
+
+    if (tables.servicePricing?.data?.length) {
+      let count = 0;
+      const chunks = chunkArray(tables.servicePricing.data, 100);
+      for (const chunk of chunks) {
+        await db.insert(servicePricing)
+          .values(chunk.map((r: any) => ({
+            id: r.id,
+            serviceType: r.serviceType || r.service_type,
+            serviceName: r.serviceName || r.service_name,
+            price: r.price,
+            isActive: r.isActive ?? r.is_active ?? true,
+            description: r.description || null,
+            updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
+          })))
+          .onConflictDoUpdate({
+            target: servicePricing.id,
+            set: {
+              price: sql`excluded.price`,
+              isActive: sql`excluded.is_active`,
+              updatedAt: new Date(),
+            },
+          });
+        count += chunk.length;
+      }
+      restored.servicePricing = count;
+    }
+
+    if (tables.users?.data?.length) {
+      let count = 0;
+      const chunks = chunkArray(tables.users.data, 200);
+      for (const chunk of chunks) {
+        await db.insert(users)
+          .values(chunk.map((r: any) => ({
+            id: r.id,
+            email: r.email,
+            name: r.name || `${r.firstName || ''} ${r.lastName || ''}`.trim() || r.email,
+            phone: r.phone || null,
+            passwordHash: r.passwordHash || r.password_hash || null,
+            walletBalance: r.walletBalance ?? r.wallet_balance ?? '0',
+            bvn: r.bvn || null,
+            nin: r.nin || null,
+            kycStatus: r.kycStatus || r.kyc_status || 'pending',
+            emailVerified: r.emailVerified ?? r.email_verified ?? r.isVerified ?? false,
+            isSuspended: r.isSuspended ?? r.is_suspended ?? false,
+            suspendReason: r.suspendReason || r.suspend_reason || null,
+            createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
+            updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
+          })))
+          .onConflictDoUpdate({
+            target: users.id,
+            set: {
+              email: sql`excluded.email`,
+              name: sql`excluded.name`,
+              phone: sql`excluded.phone`,
+              walletBalance: sql`excluded.wallet_balance`,
+              bvn: sql`excluded.bvn`,
+              nin: sql`excluded.nin`,
+              kycStatus: sql`excluded.kyc_status`,
+              emailVerified: sql`excluded.email_verified`,
+              isSuspended: sql`excluded.is_suspended`,
+              suspendReason: sql`excluded.suspend_reason`,
+              updatedAt: new Date(),
+            },
+          });
+        count += chunk.length;
+      }
+      restored.users = count;
+    }
+
+    if (tables.transactions?.data?.length) {
+      let count = 0;
+      const chunks = chunkArray(tables.transactions.data, 500);
+      for (const chunk of chunks) {
+        try {
+          await db.insert(transactions)
+            .values(chunk.map((r: any) => ({
+              id: r.id,
+              userId: r.userId || r.user_id,
+              transactionType: r.transactionType || r.transaction_type,
+              amount: r.amount,
+              paymentMethod: r.paymentMethod || r.payment_method || null,
+              referenceId: r.referenceId || r.reference_id || null,
+              status: r.status || 'completed',
+              description: r.description || null,
+              createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
+            })))
+            .onConflictDoUpdate({
+              target: transactions.id,
+              set: {
+                status: sql`excluded.status`,
+                description: sql`excluded.description`,
+              },
+            });
+          count += chunk.length;
+        } catch (e: any) {
+          logger.warn('Skipped transaction chunk (FK error)', { error: e.message });
+        }
+      }
+      restored.transactions = count;
+    }
+
+    if (tables.identityServiceRequests?.data?.length) {
+      let count = 0;
+      const chunks = chunkArray(tables.identityServiceRequests.data, 200);
+      for (const chunk of chunks) {
+        try {
+          await db.insert(identityServiceRequests)
+            .values(chunk.map((r: any) => ({
+              ...r,
+              createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
+              updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
+            })))
+            .onConflictDoUpdate({
+              target: identityServiceRequests.id,
+              set: { status: sql`excluded.status`, updatedAt: new Date() },
+            });
+          count += chunk.length;
+        } catch (e: any) {
+          logger.warn('Skipped identity request chunk', { error: e.message });
+        }
+      }
+      restored.identityServiceRequests = count;
+    }
+
+    if (tables.educationServiceRequests?.data?.length) {
+      let count = 0;
+      const chunks = chunkArray(tables.educationServiceRequests.data, 200);
+      for (const chunk of chunks) {
+        try {
+          await db.insert(educationServiceRequests)
+            .values(chunk.map((r: any) => ({
+              ...r,
+              createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
+              updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
+            })))
+            .onConflictDoUpdate({
+              target: educationServiceRequests.id,
+              set: { status: sql`excluded.status`, updatedAt: new Date() },
+            });
+          count += chunk.length;
+        } catch (e: any) {
+          logger.warn('Skipped education request chunk', { error: e.message });
+        }
+      }
+      restored.educationServiceRequests = count;
+    }
+
+    if (tables.jambServiceRequests?.data?.length) {
+      let count = 0;
+      const chunks = chunkArray(tables.jambServiceRequests.data, 200);
+      for (const chunk of chunks) {
+        try {
+          await db.insert(jambServiceRequests)
+            .values(chunk.map((r: any) => ({
+              ...r,
+              createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
+              updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
+            })))
+            .onConflictDoUpdate({
+              target: jambServiceRequests.id,
+              set: { status: sql`excluded.status`, updatedAt: new Date() },
+            });
+          count += chunk.length;
+        } catch (e: any) {
+          logger.warn('Skipped JAMB request chunk', { error: e.message });
+        }
+      }
+      restored.jambServiceRequests = count;
+    }
+
+    if (tables.rpaJobs?.data?.length) {
+      let count = 0;
+      const chunks = chunkArray(tables.rpaJobs.data, 200);
+      for (const chunk of chunks) {
+        try {
+          await db.insert(rpaJobs)
+            .values(chunk.map((r: any) => ({
+              id: r.id,
+              userId: r.userId || r.user_id,
+              serviceType: r.serviceType || r.service_type,
+              queryData: r.queryData || r.query_data || {},
+              status: r.status || 'pending',
+              result: r.result || null,
+              errorMessage: r.errorMessage || r.error_message || null,
+              retryCount: r.retryCount || r.retry_count || 0,
+              maxRetries: r.maxRetries || r.max_retries || 3,
+              priority: r.priority || 0,
+              createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
+              startedAt: r.startedAt ? new Date(r.startedAt) : null,
+              completedAt: r.completedAt ? new Date(r.completedAt) : null,
+            })))
+            .onConflictDoUpdate({
+              target: rpaJobs.id,
+              set: {
+                status: sql`excluded.status`,
+                result: sql`excluded.result`,
+                errorMessage: sql`excluded.error_message`,
+                completedAt: sql`excluded.completed_at`,
+              },
+            });
+          count += chunk.length;
+        } catch (e: any) {
+          logger.warn('Skipped RPA job chunk', { error: e.message });
+        }
+      }
+      restored.rpaJobs = count;
+    }
+
+    logger.info('Database restore complete', { adminId: (req as any).adminId, restored });
+    res.json(formatResponse(200, 'Database restored successfully from backup', { restored }));
+  } catch (error: any) {
+    logger.error('DB restore error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, `Restore failed: ${error.message}`));
+  }
+});
+
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size));
+  return chunks;
+}
 
 router.post('/db/clear-cache', adminAuthMiddleware, async (req: Request, res: Response) => {
   try {

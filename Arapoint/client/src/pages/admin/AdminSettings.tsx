@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bell, Shield, Database, Globe, Save, Mail, Loader2, Send, CreditCard, CheckCircle2, XCircle, Eye, EyeOff, Headset, Phone, MessageCircle, Trash2, AlertTriangle, Cloud, Upload, Image, Download, RefreshCw, FileDown, Activity, ChevronLeft, ChevronRight } from "lucide-react";
+import { Bell, Shield, Database, Globe, Save, Mail, Loader2, Send, CreditCard, CheckCircle2, XCircle, Eye, EyeOff, Headset, Phone, MessageCircle, Trash2, AlertTriangle, Cloud, Upload, Image, Download, RefreshCw, FileDown, FileUp, Activity, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/contexts/SettingsContext";
 
@@ -56,6 +56,10 @@ export default function AdminSettings() {
   const [clearingTestData, setClearingTestData] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [backupLoading, setBackupLoading] = useState(false);
+  const [restoreLoading, setRestoreLoading] = useState(false);
+  const [restoreResult, setRestoreResult] = useState<Record<string, number> | null>(null);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
+  const [pendingRestoreData, setPendingRestoreData] = useState<any>(null);
   const [clearCacheLoading, setClearCacheLoading] = useState(false);
   const [clearCacheConfirm, setClearCacheConfirm] = useState(false);
   const [showLogsDialog, setShowLogsDialog] = useState(false);
@@ -343,7 +347,7 @@ export default function AdminSettings() {
   const handleBackup = async () => {
     setBackupLoading(true);
     try {
-      const token = tokenStorage.getItem('adminToken');
+      const token = tokenStorage.getItem('accessToken');
       const res = await fetch('/api/admin/db/backup', {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -363,6 +367,45 @@ export default function AdminSettings() {
       toast({ title: "Backup Failed", description: "Could not generate the backup. Please try again.", variant: "destructive" });
     } finally {
       setBackupLoading(false);
+    }
+  };
+
+  const handleRestoreFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if (!parsed.tables || !parsed.version) throw new Error('Invalid backup file format');
+      setPendingRestoreData(parsed);
+      setShowRestoreConfirm(true);
+    } catch (err: any) {
+      toast({ title: 'Invalid File', description: err.message || 'Please select a valid Arapoint backup JSON file.', variant: 'destructive' });
+    }
+  };
+
+  const handleRestore = async () => {
+    if (!pendingRestoreData) return;
+    setRestoreLoading(true);
+    setShowRestoreConfirm(false);
+    setRestoreResult(null);
+    try {
+      const token = tokenStorage.getItem('accessToken');
+      const res = await fetch('/api/admin/db/restore', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(pendingRestoreData),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Restore failed');
+      setRestoreResult(data.data?.restored || {});
+      toast({ title: 'Restore Complete', description: 'Database has been restored from backup successfully.' });
+    } catch (err: any) {
+      toast({ title: 'Restore Failed', description: err.message || 'Could not restore the backup. Please try again.', variant: 'destructive' });
+    } finally {
+      setRestoreLoading(false);
+      setPendingRestoreData(null);
     }
   };
 
@@ -1159,7 +1202,7 @@ export default function AdminSettings() {
                 <div>
                   <p className="text-xs sm:text-sm font-medium mb-0.5">Database Backup</p>
                   <p className="text-[10px] sm:text-xs text-muted-foreground">
-                    Download a JSON snapshot of users, transactions, service requests, pricing, and admin settings.
+                    Download a full JSON snapshot — users, wallets, transactions, service requests, pricing, admin settings, and more.
                   </p>
                 </div>
                 <Button
@@ -1174,6 +1217,44 @@ export default function AdminSettings() {
                     : <FileDown className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5" />}
                   {backupLoading ? 'Exporting…' : 'Download Backup'}
                 </Button>
+              </div>
+
+              {/* Restore */}
+              <div className="rounded-md border p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <p className="text-xs sm:text-sm font-medium mb-0.5">Restore from Backup</p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground">
+                    Upload a previous backup JSON file to restore all records — users, transactions, service requests, settings, and pricing.
+                    Existing records are updated; new ones are inserted.
+                  </p>
+                  {restoreResult && (
+                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-[10px] text-green-700">
+                      <strong>Last restore:</strong>{' '}
+                      {Object.entries(restoreResult).map(([t, n]) => `${t}: ${n}`).join(' · ')}
+                    </div>
+                  )}
+                </div>
+                <div className="shrink-0">
+                  <input
+                    type="file"
+                    accept=".json,application/json"
+                    id="restore-file-input"
+                    className="hidden"
+                    onChange={handleRestoreFileSelect}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 sm:h-9 text-xs sm:text-sm"
+                    onClick={() => document.getElementById('restore-file-input')?.click()}
+                    disabled={restoreLoading}
+                  >
+                    {restoreLoading
+                      ? <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 animate-spin" />
+                      : <FileUp className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5" />}
+                    {restoreLoading ? 'Restoring…' : 'Upload & Restore'}
+                  </Button>
+                </div>
               </div>
 
               {/* Clear Cache */}
@@ -1295,6 +1376,51 @@ export default function AdminSettings() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Restore Confirmation Dialog */}
+      <Dialog open={showRestoreConfirm} onOpenChange={setShowRestoreConfirm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="h-5 w-5" />Confirm Database Restore
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              This will upsert all records from your backup file into the live database.
+              Existing records will be updated to match the backup. New records will be inserted.
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {pendingRestoreData && (
+            <div className="bg-muted rounded-lg p-3 text-xs space-y-1">
+              <p className="font-semibold text-foreground">Backup info:</p>
+              <p className="text-muted-foreground">Exported: {new Date(pendingRestoreData.exportedAt).toLocaleString('en-NG')}</p>
+              <p className="text-muted-foreground">Version: {pendingRestoreData.version}</p>
+              <div className="mt-2 grid grid-cols-2 gap-1">
+                {Object.entries(pendingRestoreData.tables || {}).map(([name, info]: [string, any]) => (
+                  <div key={name} className="flex justify-between">
+                    <span>{name}</span>
+                    <span className="font-semibold">{info?.count ?? 0} rows</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="flex gap-2 pt-2">
+            <Button
+              variant="destructive"
+              className="flex-1"
+              onClick={handleRestore}
+              disabled={restoreLoading}
+            >
+              {restoreLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileUp className="h-4 w-4 mr-2" />}
+              Yes, Restore Now
+            </Button>
+            <Button variant="outline" onClick={() => { setShowRestoreConfirm(false); setPendingRestoreData(null); }}>
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Activity Logs Dialog */}
       <Dialog open={showLogsDialog} onOpenChange={setShowLogsDialog}>
