@@ -73,6 +73,7 @@ export default function DevLogin() {
     const params = new URLSearchParams(window.location.search);
     const token = params.get("recovery_token");
     if (token) {
+      window.history.replaceState({}, "", window.location.pathname);
       setRecoveryConfirming(true);
       fetch("/api/v1/developer/auth/2fa/recovery/confirm", {
         method: "POST",
@@ -84,11 +85,9 @@ export default function DevLogin() {
           if (data.status === "success") {
             localStorage.setItem("dev_token", data.data.token);
             localStorage.setItem("dev_user", JSON.stringify(data.data.developer));
-            window.history.replaceState({}, "", window.location.pathname);
             toast({ title: "Access restored!", variant: "success", description: "2FA has been disabled and you are now signed in." });
             window.location.href = "/developer/dashboard";
           } else {
-            window.history.replaceState({}, "", window.location.pathname);
             toast({ title: "Recovery failed", description: data.message || "Invalid or expired link.", variant: "destructive" });
             setRecoveryConfirming(false);
           }
