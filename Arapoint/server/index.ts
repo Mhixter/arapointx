@@ -199,7 +199,7 @@ app.use((req, res, next) => {
             https.get(pingUrl, (r) => r.resume()).on('error', () => {});
           }).catch(() => {});
         };
-        setInterval(doPing, 3 * 60 * 1000);
+        setInterval(doPing, 60 * 1000);
       }
     },
   );

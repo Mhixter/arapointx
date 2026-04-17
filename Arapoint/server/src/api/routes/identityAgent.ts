@@ -219,7 +219,7 @@ router.put('/requests/:id/status', identityAgentAuthMiddleware, async (req: Requ
     const { id } = req.params;
     const { status, agentNotes, slipUrl, resolvedTrackingId, validatedFullName, validatedDateOfBirth } = req.body;
 
-    if (!['pending', 'pickup', 'completed'].includes(status)) {
+    if (!['pending', 'pickup', 'completed', 'rejected'].includes(status)) {
       return res.status(400).json(formatErrorResponse(400, 'Invalid status'));
     }
 
@@ -446,6 +446,42 @@ router.get('/my-requests', authMiddleware, async (req: Request, res: Response) =
   } catch (error: any) {
     logger.error('Get user identity requests error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to get requests'));
+  }
+});
+
+router.get('/my-requests/:trackingId', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const { trackingId } = req.params;
+
+    const [request] = await db.select({
+      id: identityServiceRequests.id,
+      trackingId: identityServiceRequests.trackingId,
+      serviceType: identityServiceRequests.serviceType,
+      status: identityServiceRequests.status,
+      agentNotes: identityServiceRequests.agentNotes,
+      slipUrl: identityServiceRequests.slipUrl,
+      resolvedTrackingId: identityServiceRequests.resolvedTrackingId,
+      validatedFullName: identityServiceRequests.validatedFullName,
+      validatedDateOfBirth: identityServiceRequests.validatedDateOfBirth,
+      completedAt: identityServiceRequests.completedAt,
+      updatedAt: identityServiceRequests.updatedAt,
+    })
+      .from(identityServiceRequests)
+      .where(and(
+        eq(identityServiceRequests.trackingId, trackingId),
+        eq(identityServiceRequests.userId, userId),
+      ))
+      .limit(1);
+
+    if (!request) {
+      return res.status(404).json(formatErrorResponse(404, 'Request not found'));
+    }
+
+    res.json(formatResponse('success', 200, 'Request retrieved', { request }));
+  } catch (error: any) {
+    logger.error('Get identity request by tracking ID error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get request'));
   }
 });
 

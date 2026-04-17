@@ -225,8 +225,54 @@ function ServiceContent({ service }: { service: any }) {
   const [selectedStatus, setSelectedStatus] = useState("");
   const [consentChecked, setConsentChecked] = useState(false);
   const [error, setError] = useState("");
+  const [submittedTrackingId, setSubmittedTrackingId] = useState<string | null>(null);
+  const [agentResult, setAgentResult] = useState<any>(null);
   const { toast } = useToast();
   const slipContainerRef = useRef<HTMLDivElement>(null);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (requestStatus !== "pending" || !submittedTrackingId) {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+      return;
+    }
+
+    const token = tokenStorage.getItem('accessToken');
+
+    const checkStatus = async () => {
+      try {
+        const res = await fetch(`/api/identity-agent/my-requests/${submittedTrackingId}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        const req = json.data?.request;
+        if (!req) return;
+
+        if (req.status === 'completed' || req.status === 'rejected') {
+          setAgentResult(req);
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+          }
+        }
+      } catch {
+      }
+    };
+
+    checkStatus();
+    pollIntervalRef.current = setInterval(checkStatus, 15000);
+
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+  }, [requestStatus, submittedTrackingId]);
 
   const { data: pricingData } = useQuery({
     queryKey: ['/api/identity/pricing'],
@@ -334,6 +380,8 @@ function ServiceContent({ service }: { service: any }) {
       const agentProcessedServices = ['ipe-clearance', 'validation', 'personalization', 'birth-attestation', 'nin-tracking'];
       if (agentProcessedServices.includes(service.id)) {
         setRequestStatus("pending");
+        setAgentResult(null);
+        if (data.data?.trackingId) setSubmittedTrackingId(data.data.trackingId);
         toast({ title: "Request Submitted", variant: "success", description: data.data?.message || `Your ${service.name} request has been submitted` });
       } else if (!hasValidResult) {
         throw new Error('No record found for the provided ID. Please double-check and try again.');
@@ -379,6 +427,70 @@ function ServiceContent({ service }: { service: any }) {
 
   /* ── Status screens ─────────────────────────────────────────────── */
   if (requestStatus === "pending") {
+    if (agentResult?.status === 'completed') {
+      return (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <Card className="border-green-200 dark:border-green-800 overflow-hidden">
+            <div className="h-2 bg-gradient-to-r from-green-400 to-emerald-500" />
+            <CardContent className="pt-10 pb-10 text-center space-y-4">
+              <div className="h-20 w-20 rounded-full bg-gradient-to-br from-green-100 to-emerald-100 dark:from-green-900/40 dark:to-emerald-900/40 flex items-center justify-center mx-auto text-green-500">
+                <CheckCircle2 className="h-10 w-10" />
+              </div>
+              <h3 className="text-2xl font-bold text-green-800 dark:text-green-400">Request Completed!</h3>
+              <p className="text-green-700 dark:text-green-300 max-w-sm mx-auto text-sm leading-relaxed">
+                Your <strong>{service.name}</strong> request has been processed by our team.
+              </p>
+              {agentResult.resolvedTrackingId && (
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-xl p-4 text-center max-w-sm mx-auto">
+                  <p className="text-xs text-green-600 dark:text-green-400 font-medium mb-1">New NIMC Tracking ID</p>
+                  <p className="text-xl font-bold text-green-900 dark:text-green-200 tracking-widest">{agentResult.resolvedTrackingId}</p>
+                </div>
+              )}
+              {agentResult.agentNotes && (
+                <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-left max-w-sm mx-auto">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Agent Feedback</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">{agentResult.agentNotes}</p>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">Check your email for the full result and download link.</p>
+              <Button onClick={() => { setRequestStatus("idle"); setAgentResult(null); setSubmittedTrackingId(null); }} variant="outline" className="mt-4">
+                Submit Another Request
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    if (agentResult?.status === 'rejected') {
+      return (
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <Card className="border-red-200 dark:border-red-800 overflow-hidden">
+            <div className="h-2 bg-gradient-to-r from-red-400 to-rose-500" />
+            <CardContent className="pt-10 pb-10 text-center space-y-4">
+              <div className="h-20 w-20 rounded-full bg-gradient-to-br from-red-100 to-rose-100 dark:from-red-900/40 dark:to-rose-900/40 flex items-center justify-center mx-auto text-red-500">
+                <AlertCircle className="h-10 w-10" />
+              </div>
+              <h3 className="text-2xl font-bold text-red-800 dark:text-red-400">Request Could Not Be Completed</h3>
+              <p className="text-red-700 dark:text-red-300 max-w-sm mx-auto text-sm leading-relaxed">
+                Unfortunately, our team was unable to process your <strong>{service.name}</strong> request.
+              </p>
+              {agentResult.agentNotes && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-xl p-4 text-left max-w-sm mx-auto">
+                  <p className="text-xs font-semibold text-red-500 dark:text-red-400 mb-1">Reason</p>
+                  <p className="text-sm text-red-700 dark:text-red-300">{agentResult.agentNotes}</p>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">Please contact support if you believe this is an error.</p>
+              <Button onClick={() => { setRequestStatus("idle"); setAgentResult(null); setSubmittedTrackingId(null); }} variant="outline" className="mt-4">
+                Try Again
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
     return (
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
         <Card className="border-yellow-200 dark:border-yellow-800 overflow-hidden">
@@ -392,8 +504,14 @@ function ServiceContent({ service }: { service: any }) {
               Your <strong>{service.name}</strong> request has been submitted successfully.
               Requests are typically processed the same day — often within 1–30 minutes depending on traffic.
             </p>
-            <p className="text-xs text-muted-foreground">Thank you for your continued support!</p>
-            <Button onClick={() => setRequestStatus("idle")} variant="outline" className="mt-4">
+            {submittedTrackingId && (
+              <p className="text-xs text-muted-foreground font-mono">Ref: {submittedTrackingId}</p>
+            )}
+            <div className="flex items-center justify-center gap-2 text-xs text-yellow-600 dark:text-yellow-400">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              <span>Checking for updates every 15 seconds…</span>
+            </div>
+            <Button onClick={() => { setRequestStatus("idle"); setSubmittedTrackingId(null); }} variant="outline" className="mt-4">
               Submit Another Request
             </Button>
           </CardContent>

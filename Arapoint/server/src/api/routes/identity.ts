@@ -18,6 +18,7 @@ import { agentNewRequestEmailHtml, SERVICE_LABELS } from '../../utils/agentEmail
 import { getSiteUrl } from '../../utils/helpers';
 import * as fs from 'fs';
 import * as path from 'path';
+import multer from 'multer';
 
 async function notifyIdentityAgents(serviceType: string, trackingId: string, customerName: string, details: string, amount: number) {
   try {
@@ -1601,6 +1602,83 @@ router.get('/sample-slip/:type', async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error('Get sample slip error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to get sample slip'));
+  }
+});
+
+const faceUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Only image files are allowed'));
+  },
+});
+
+router.post('/face-liveness', authMiddleware, faceUpload.single('image'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json(formatErrorResponse(400, 'Image file is required'));
+    }
+
+    const price = await getServicePrice('face_liveness', 200);
+    const balance = await walletService.getBalance(req.userId!);
+    if (balance.balance < price) {
+      return res.status(402).json(formatErrorResponse(402, 'Insufficient wallet balance'));
+    }
+
+    const result = await premblyService.faceLiveness(req.file.buffer, req.file.mimetype);
+
+    if (!result.success) {
+      return res.status(400).json(formatErrorResponse(400, result.error || 'Liveness check failed'));
+    }
+
+    await walletService.deductBalance(req.userId!, price, 'Face Liveness Check', 'face_liveness');
+
+    logger.info('Face liveness check completed', { userId: req.userId, verified: result.verified, reference: result.reference });
+    res.json(formatResponse('success', 200, 'Face liveness check completed', {
+      verified: result.verified,
+      confidence: result.confidence,
+      reference: result.reference,
+    }));
+  } catch (error: any) {
+    logger.error('Face liveness error', { error: error.message, userId: req.userId });
+    res.status(500).json(formatErrorResponse(500, 'Failed to process face liveness check'));
+  }
+});
+
+router.post('/face-compare', authMiddleware, faceUpload.fields([{ name: 'image_1', maxCount: 1 }, { name: 'image_2', maxCount: 1 }]), async (req: Request, res: Response) => {
+  try {
+    const files = req.files as Record<string, Express.Multer.File[]>;
+    const image1 = files?.image_1?.[0];
+    const image2 = files?.image_2?.[0];
+
+    if (!image1 || !image2) {
+      return res.status(400).json(formatErrorResponse(400, 'Both image_1 and image_2 files are required'));
+    }
+
+    const price = await getServicePrice('face_compare', 300);
+    const balance = await walletService.getBalance(req.userId!);
+    if (balance.balance < price) {
+      return res.status(402).json(formatErrorResponse(402, 'Insufficient wallet balance'));
+    }
+
+    const result = await premblyService.faceComparison(image1.buffer, image2.buffer, image1.mimetype, image2.mimetype);
+
+    if (!result.success) {
+      return res.status(400).json(formatErrorResponse(400, result.error || 'Face comparison failed'));
+    }
+
+    await walletService.deductBalance(req.userId!, price, 'Face Comparison (KYC)', 'face_compare');
+
+    logger.info('Face comparison completed', { userId: req.userId, match: result.match, reference: result.reference });
+    res.json(formatResponse('success', 200, 'Face comparison completed', {
+      match: result.match,
+      confidence: result.confidence,
+      reference: result.reference,
+    }));
+  } catch (error: any) {
+    logger.error('Face comparison error', { error: error.message, userId: req.userId });
+    res.status(500).json(formatErrorResponse(500, 'Failed to process face comparison'));
   }
 });
 
