@@ -44,6 +44,8 @@ export const developerUsers = pgTable('developer_users', {
   webhookUrl: varchar('webhook_url', { length: 500 }),
   environmentMode: varchar('environment_mode', { length: 20 }).default('sandbox'),
   customRateLimit: integer('custom_rate_limit').default(0),
+  twoFactorEnabled: boolean('two_factor_enabled').default(false),
+  twoFactorSecret: varchar('two_factor_secret', { length: 255 }),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
