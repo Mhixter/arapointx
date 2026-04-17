@@ -101,6 +101,7 @@ import AdminDeveloperPortal from "@/pages/admin/AdminDeveloperPortal";
 import AdminQueueMonitor from "@/pages/admin/AdminQueueMonitor";
 import AdminLoginActivity from "@/pages/admin/AdminLoginActivity";
 import AdminBroadcast from "@/pages/admin/AdminBroadcast";
+import AdminRPARecovery from "@/pages/admin/AdminRPARecovery";
 import AdminCRUDLayout from "@/components/layout/AdminCRUDLayout";
 
 // Developer Portal Imports
@@ -232,6 +233,11 @@ function Router() {
       <Route path="/admin/portal-health">
         <AdminCRUDLayout>
           <AdminPortalHealth />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/rpa-recovery">
+        <AdminCRUDLayout>
+          <AdminRPARecovery />
         </AdminCRUDLayout>
       </Route>
       <Route path="/admin/whatsapp">

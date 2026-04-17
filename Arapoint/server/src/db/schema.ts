@@ -1083,3 +1083,28 @@ export const providerHealth = pgTable('provider_health', {
   index('ph_provider_idx').on(table.provider),
   index('ph_status_idx').on(table.status),
 ]);
+
+// RPA AI Recovery Suggestions
+export const rpaRecoverySuggestions = pgTable('rpa_recovery_suggestions', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  provider: varchar('provider', { length: 50 }).notNull(),
+  serviceType: varchar('service_type', { length: 100 }),
+  failedJobId: uuid('failed_job_id'),
+  failureError: text('failure_error').notNull(),
+  failureStep: varchar('failure_step', { length: 200 }),
+  pageHtmlSnippet: text('page_html_snippet'),
+  aiAnalysis: text('ai_analysis'),
+  aiSuggestions: jsonb('ai_suggestions'),
+  status: varchar('status', { length: 30 }).notNull().default('pending'),
+  adminNotes: text('admin_notes'),
+  approvedByAdminId: uuid('approved_by_admin_id'),
+  otpToken: varchar('otp_token', { length: 10 }),
+  otpExpiresAt: timestamp('otp_expires_at'),
+  deployedAt: timestamp('deployed_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => [
+  index('rrs_status_idx').on(table.status),
+  index('rrs_provider_idx').on(table.provider),
+  index('rrs_created_idx').on(table.createdAt),
+]);

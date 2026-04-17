@@ -27,7 +27,8 @@ import {
   Code2,
   ListTodo,
   Activity,
-  Mail
+  Mail,
+  Brain
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -83,6 +84,7 @@ const ALL_NAV_ITEMS = [
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3, permission: "analytics" },
   { href: "/admin/transactions", label: "Transactions", icon: Receipt, permission: "transactions" },
   { href: "/admin/rpa-jobs", label: "RPA Job Monitor", icon: Cpu, permission: "education" },
+  { href: "/admin/rpa-recovery", label: "AI RPA Recovery", icon: Brain, permission: "education" },
   { href: "/admin/developer-portal", label: "Developer Portal", icon: Code2, permission: "settings" },
   { href: "/admin/employment-queue", label: "Employment Queue", icon: ListTodo, permission: "settings" },
   { href: "/admin/login-activity", label: "Login Activity", icon: Activity, permission: "settings" },

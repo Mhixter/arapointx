@@ -1,6 +1,7 @@
 import { jobQueue, RPAJob } from './queue';
 import { logger } from '../utils/logger';
 import { config } from '../config/env';
+import { rpaRecoveryService } from '../services/rpaRecoveryService';
 import { jambWorker } from './workers/jambWorker';
 import { jambSlipWorker } from './workers/jambSlipWorker';
 import { EducationWorkerFactory } from './workers/educationWorker';
@@ -241,6 +242,10 @@ class RPABot {
             job.service_type.includes('nbais')) {
           await this.updateEducationService(job, { success: false }, error.message);
         }
+
+        this.triggerAIRecovery(job, error.message).catch(e => {
+          logger.warn('AI recovery trigger failed (non-critical)', { error: e.message, jobId: job.id });
+        });
       }
     } finally {
       this.processingJobIds.delete(job.id);
@@ -462,6 +467,24 @@ class RPABot {
     } catch (e: any) {
       logger.warn('Failed to fire developer webhook', { developerId, jobId, error: e.message });
     }
+  }
+
+  private async triggerAIRecovery(job: RPAJob, errorMessage: string): Promise<void> {
+    const serviceType = (job.service_type || '').toLowerCase();
+    const isRPAService = serviceType.includes('waec') || serviceType.includes('neco') ||
+      serviceType.includes('nabteb') || serviceType.includes('nbais') ||
+      serviceType.includes('jamb');
+    if (!isRPAService) return;
+
+    const provider = serviceType.split('_')[0];
+    logger.info('Triggering AI recovery analysis', { jobId: job.id, provider });
+    await rpaRecoveryService.analyzeJobFailure(
+      job.id,
+      provider,
+      job.service_type as string,
+      errorMessage,
+      'job_execution'
+    );
   }
 
   getStatus() {
