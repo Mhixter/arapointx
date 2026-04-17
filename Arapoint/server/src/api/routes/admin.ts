@@ -4939,10 +4939,14 @@ router.get('/search', adminAuthMiddleware, async (req: Request, res: Response) =
         name: users.name,
         phone: users.phone,
         walletBalance: users.walletBalance,
+        bvn: users.bvn,
+        nin: users.nin,
         kycStatus: users.kycStatus,
         emailVerified: users.emailVerified,
         isSuspended: users.isSuspended,
+        suspendReason: users.suspendReason,
         createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
       }).from(users)
         .where(or(
           ilike(users.name, pattern),
@@ -4952,17 +4956,7 @@ router.get('/search', adminAuthMiddleware, async (req: Request, res: Response) =
         .orderBy(desc(users.createdAt))
         .limit(10),
 
-      db.select({
-        id: transactions.id,
-        userId: transactions.userId,
-        transactionType: transactions.transactionType,
-        amount: transactions.amount,
-        referenceId: transactions.referenceId,
-        status: transactions.status,
-        description: transactions.description,
-        paymentMethod: transactions.paymentMethod,
-        createdAt: transactions.createdAt,
-      }).from(transactions)
+      db.select().from(transactions)
         .where(or(
           ilike(transactions.referenceId, idPattern),
           sql`${transactions.id}::text ILIKE ${idPattern}`,
@@ -4971,16 +4965,7 @@ router.get('/search', adminAuthMiddleware, async (req: Request, res: Response) =
         .orderBy(desc(transactions.createdAt))
         .limit(10),
 
-      db.select({
-        id: identityServiceRequests.id,
-        userId: identityServiceRequests.userId,
-        trackingId: identityServiceRequests.trackingId,
-        serviceType: identityServiceRequests.serviceType,
-        status: identityServiceRequests.status,
-        nin: identityServiceRequests.nin,
-        validatedFullName: identityServiceRequests.validatedFullName,
-        createdAt: identityServiceRequests.createdAt,
-      }).from(identityServiceRequests)
+      db.select().from(identityServiceRequests)
         .where(or(
           ilike(identityServiceRequests.trackingId, idPattern),
           sql`${identityServiceRequests.id}::text ILIKE ${idPattern}`,
@@ -4990,33 +4975,17 @@ router.get('/search', adminAuthMiddleware, async (req: Request, res: Response) =
         .orderBy(desc(identityServiceRequests.createdAt))
         .limit(8),
 
-      db.select({
-        id: educationServiceRequests.id,
-        userId: educationServiceRequests.userId,
-        trackingId: educationServiceRequests.trackingId,
-        serviceType: educationServiceRequests.serviceType,
-        status: educationServiceRequests.status,
-        registrationNumber: educationServiceRequests.registrationNumber,
-        createdAt: educationServiceRequests.createdAt,
-      }).from(educationServiceRequests)
+      db.select().from(educationServiceRequests)
         .where(or(
           ilike(educationServiceRequests.trackingId, idPattern),
           sql`${educationServiceRequests.id}::text ILIKE ${idPattern}`,
           ilike(educationServiceRequests.registrationNumber, pattern),
+          ilike(educationServiceRequests.candidateName, pattern),
         ))
         .orderBy(desc(educationServiceRequests.createdAt))
         .limit(8),
 
-      db.select({
-        id: jambServiceRequests.id,
-        userId: jambServiceRequests.userId,
-        trackingId: jambServiceRequests.trackingId,
-        serviceType: jambServiceRequests.serviceType,
-        status: jambServiceRequests.status,
-        registrationNumber: jambServiceRequests.registrationNumber,
-        candidateName: jambServiceRequests.candidateName,
-        createdAt: jambServiceRequests.createdAt,
-      }).from(jambServiceRequests)
+      db.select().from(jambServiceRequests)
         .where(or(
           ilike(jambServiceRequests.trackingId, idPattern),
           sql`${jambServiceRequests.id}::text ILIKE ${idPattern}`,
@@ -5034,7 +5003,16 @@ router.get('/search', adminAuthMiddleware, async (req: Request, res: Response) =
         status: support_tickets.status,
         priority: support_tickets.priority,
         category: support_tickets.category,
+        departmentTag: support_tickets.departmentTag,
+        linkedOrderId: support_tickets.linkedOrderId,
+        linkedOrderType: support_tickets.linkedOrderType,
+        escalatedAt: support_tickets.escalatedAt,
+        resolvedAt: support_tickets.resolvedAt,
+        closedAt: support_tickets.closedAt,
+        assignedAt: support_tickets.assignedAt,
+        lastActivityAt: support_tickets.lastActivityAt,
         createdAt: support_tickets.createdAt,
+        updatedAt: support_tickets.updatedAt,
       }).from(support_tickets)
         .where(or(
           ilike(support_tickets.referenceId, idPattern),
@@ -5048,9 +5026,16 @@ router.get('/search', adminAuthMiddleware, async (req: Request, res: Response) =
         id: rpaJobs.id,
         userId: rpaJobs.userId,
         serviceType: rpaJobs.serviceType,
+        queryData: rpaJobs.queryData,
         status: rpaJobs.status,
+        result: rpaJobs.result,
+        errorMessage: rpaJobs.errorMessage,
         retryCount: rpaJobs.retryCount,
+        maxRetries: rpaJobs.maxRetries,
+        priority: rpaJobs.priority,
         createdAt: rpaJobs.createdAt,
+        startedAt: rpaJobs.startedAt,
+        completedAt: rpaJobs.completedAt,
       }).from(rpaJobs)
         .where(sql`${rpaJobs.id}::text ILIKE ${idPattern}`)
         .orderBy(desc(rpaJobs.createdAt))
