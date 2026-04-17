@@ -347,7 +347,7 @@ export default function AdminSettings() {
   const handleBackup = async () => {
     setBackupLoading(true);
     try {
-      const token = tokenStorage.getItem('accessToken');
+      const token = tokenStorage.getItem('adminToken');
       const res = await fetch('/api/admin/db/backup', {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -391,7 +391,7 @@ export default function AdminSettings() {
     setShowRestoreConfirm(false);
     setRestoreResult(null);
     try {
-      const token = tokenStorage.getItem('accessToken');
+      const token = tokenStorage.getItem('adminToken');
       const res = await fetch('/api/admin/db/restore', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
