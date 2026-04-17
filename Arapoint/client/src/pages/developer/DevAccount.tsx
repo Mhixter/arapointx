@@ -7,7 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Save, Lock, ShieldCheck, CheckCircle, Clock, XCircle,
   AlertCircle, ChevronRight, AlertTriangle, RefreshCw,
-  User, Globe, Webhook, KeyRound, Calendar, BadgeCheck
+  User, Globe, Webhook, KeyRound, Calendar, BadgeCheck,
+  Smartphone, Shield, QrCode, EyeOff, Eye, X
 } from "lucide-react";
 
 function devFetch(path: string, options?: RequestInit) {
@@ -28,11 +29,21 @@ export default function DevAccount() {
   const [kycData, setKycData] = useState<any>(null);
   const [pwVisible, setPwVisible] = useState({ current: false, new: false, confirm: false });
 
+  const [twoFaEnabled, setTwoFaEnabled] = useState(false);
+  const [twoFaSetupMode, setTwoFaSetupMode] = useState<"idle" | "setup" | "confirm" | "disable">("idle");
+  const [twoFaSetupData, setTwoFaSetupData] = useState<{ secret: string; qrCode: string } | null>(null);
+  const [twoFaCode, setTwoFaCode] = useState("");
+  const [twoFaDisablePassword, setTwoFaDisablePassword] = useState("");
+  const [twoFaLoading, setTwoFaLoading] = useState(false);
+  const [showDisablePassword, setShowDisablePassword] = useState(false);
+  const [showSecret, setShowSecret] = useState(false);
+
   const load = () => {
     devFetch("/profile").then(r => r.json()).then(d => {
       if (d.status === "success") {
         setProfile(d.data);
         setForm({ name: d.data.name, company: d.data.company || "", webhookUrl: d.data.webhookUrl || "" });
+        setTwoFaEnabled(d.data.twoFactorEnabled || false);
       }
     });
     devFetch("/kyc/status").then(r => r.json()).then(d => {
@@ -88,6 +99,80 @@ export default function DevAccount() {
       toast({ title: "Network error", variant: "destructive" });
     } finally {
       setSavingPw(false);
+    }
+  };
+
+  const startSetup2fa = async () => {
+    setTwoFaLoading(true);
+    try {
+      const res = await devFetch("/auth/2fa/setup");
+      const data = await res.json();
+      if (data.status === "success") {
+        setTwoFaSetupData({ secret: data.data.secret, qrCode: data.data.qrCode });
+        setTwoFaCode("");
+        setTwoFaSetupMode("setup");
+      } else {
+        toast({ title: "Failed", description: data.message, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setTwoFaLoading(false);
+    }
+  };
+
+  const enable2fa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!twoFaSetupData || twoFaCode.length !== 6) return;
+    setTwoFaLoading(true);
+    try {
+      const res = await devFetch("/auth/2fa/enable", {
+        method: "POST",
+        body: JSON.stringify({ secret: twoFaSetupData.secret, totp_code: twoFaCode }),
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        toast({ title: "2FA Enabled", description: "Google Authenticator is now protecting your account.", variant: "success" });
+        setTwoFaSetupMode("idle");
+        setTwoFaSetupData(null);
+        setTwoFaCode("");
+        setShowSecret(false);
+        load();
+      } else {
+        toast({ title: "Failed", description: data.message, variant: "destructive" });
+        setTwoFaCode("");
+      }
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setTwoFaLoading(false);
+    }
+  };
+
+  const disable2fa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!twoFaDisablePassword) return;
+    setTwoFaLoading(true);
+    try {
+      const res = await devFetch("/auth/2fa/disable", {
+        method: "POST",
+        body: JSON.stringify({ password: twoFaDisablePassword }),
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        toast({ title: "2FA Disabled", description: "Two-factor authentication has been removed from your account." });
+        setTwoFaSetupMode("idle");
+        setTwoFaDisablePassword("");
+        setShowDisablePassword(false);
+        load();
+      } else {
+        toast({ title: "Failed", description: data.message, variant: "destructive" });
+        setTwoFaDisablePassword("");
+      }
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setTwoFaLoading(false);
     }
   };
 
@@ -200,6 +285,141 @@ export default function DevAccount() {
               Update Password
             </Button>
           </form>
+        </Section>
+
+        {/* Two-Factor Authentication */}
+        <Section title="Two-Factor Authentication" icon={<Smartphone className="w-4 h-4" />}>
+          {/* Status row */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${twoFaEnabled ? "bg-emerald-950/60 border border-emerald-800/60" : "bg-gray-800 border border-gray-700"}`}>
+                <Shield className={`w-4.5 h-4.5 ${twoFaEnabled ? "text-emerald-400" : "text-gray-500"}`} style={{ width: 18, height: 18 }} />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-white">
+                  {twoFaEnabled ? "Authenticator app is active" : "Not enabled"}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {twoFaEnabled
+                    ? "Your account is protected with Google Authenticator TOTP codes"
+                    : "Add a second layer of security to your developer account"}
+                </p>
+              </div>
+            </div>
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${twoFaEnabled ? "bg-emerald-950/60 text-emerald-400 border border-emerald-800/60" : "bg-gray-800 text-gray-500 border border-gray-700"}`}>
+              {twoFaEnabled ? "ON" : "OFF"}
+            </span>
+          </div>
+
+          {/* Idle — show action button */}
+          {twoFaSetupMode === "idle" && (
+            <>
+              {!twoFaEnabled ? (
+                <Button size="sm" onClick={startSetup2fa} disabled={twoFaLoading}
+                  className="bg-[#0B5FFF] hover:opacity-90 h-9 px-5">
+                  {twoFaLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-2" /> : <QrCode className="w-3.5 h-3.5 mr-2" />}
+                  Set Up Google Authenticator
+                </Button>
+              ) : (
+                <Button size="sm" variant="outline" onClick={() => { setTwoFaSetupMode("disable"); setTwoFaDisablePassword(""); }}
+                  className="border-red-900/60 text-red-400 hover:bg-red-950/40 hover:text-red-300 h-9 px-5">
+                  <X className="w-3.5 h-3.5 mr-2" />
+                  Disable 2FA
+                </Button>
+              )}
+            </>
+          )}
+
+          {/* Setup — show QR code */}
+          {twoFaSetupMode === "setup" && twoFaSetupData && (
+            <div className="space-y-5">
+              <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-4 space-y-4">
+                <div>
+                  <p className="text-xs font-semibold text-gray-300 mb-1">Step 1 — Scan this QR code</p>
+                  <p className="text-xs text-gray-500">Open Google Authenticator → tap + → Scan QR code</p>
+                </div>
+                <div className="flex justify-center">
+                  <div className="p-3 bg-white rounded-xl inline-block">
+                    <img src={twoFaSetupData.qrCode} alt="2FA QR Code" className="w-44 h-44 block" />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-300 mb-1.5">Backup code (manual entry)</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 px-3 py-2 rounded-lg bg-gray-900 border border-gray-700 text-xs font-mono text-gray-300 tracking-wider select-all">
+                      {showSecret ? twoFaSetupData.secret : "••••••••••••••••••••••••••••••••"}
+                    </code>
+                    <button type="button" onClick={() => setShowSecret(v => !v)}
+                      className="text-gray-500 hover:text-gray-300 p-1.5">
+                      {showSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-gray-600 mt-1">Save this code somewhere safe in case you lose your phone.</p>
+                </div>
+              </div>
+              <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-4 space-y-3">
+                <p className="text-xs font-semibold text-gray-300">Step 2 — Enter the 6-digit code from the app</p>
+                <form onSubmit={enable2fa} className="space-y-3">
+                  <input
+                    maxLength={6} required autoFocus placeholder="000000"
+                    value={twoFaCode}
+                    onChange={e => setTwoFaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className="w-full px-3 py-2.5 rounded-lg text-center text-xl tracking-[0.5em] font-mono outline-none bg-gray-900 border border-gray-700 text-white focus:border-blue-500 transition-colors"
+                  />
+                  <div className="flex gap-2">
+                    <Button type="submit" size="sm" disabled={twoFaLoading || twoFaCode.length !== 6}
+                      className="bg-[#0B5FFF] hover:opacity-90 h-9 px-5 flex-1">
+                      {twoFaLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-2" /> : <CheckCircle className="w-3.5 h-3.5 mr-2" />}
+                      Activate 2FA
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" onClick={() => { setTwoFaSetupMode("idle"); setTwoFaSetupData(null); setTwoFaCode(""); setShowSecret(false); }}
+                      className="border-gray-700 text-gray-400 hover:text-white h-9 px-4">
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Disable confirmation */}
+          {twoFaSetupMode === "disable" && (
+            <div className="rounded-lg border border-red-900/50 bg-red-950/20 p-4 space-y-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-red-300">
+                  Disabling 2FA will remove this security layer from your account. Enter your password to confirm.
+                </p>
+              </div>
+              <form onSubmit={disable2fa} className="space-y-3">
+                <div className="relative">
+                  <Input
+                    type={showDisablePassword ? "text" : "password"}
+                    placeholder="Your account password"
+                    value={twoFaDisablePassword}
+                    onChange={e => setTwoFaDisablePassword(e.target.value)}
+                    className="bg-gray-900 border-gray-700 text-white placeholder:text-gray-600 h-9 pr-9"
+                    required
+                  />
+                  <button type="button" onClick={() => setShowDisablePassword(v => !v)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 text-xs">
+                    {showDisablePassword ? "Hide" : "Show"}
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <Button type="submit" size="sm" disabled={twoFaLoading || !twoFaDisablePassword}
+                    className="bg-red-700 hover:bg-red-600 h-9 px-5">
+                    {twoFaLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-2" /> : <X className="w-3.5 h-3.5 mr-2" />}
+                    Disable 2FA
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => { setTwoFaSetupMode("idle"); setTwoFaDisablePassword(""); }}
+                    className="border-gray-700 text-gray-400 hover:text-white h-9 px-4">
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </div>
+          )}
         </Section>
 
         {/* Business Verification */}

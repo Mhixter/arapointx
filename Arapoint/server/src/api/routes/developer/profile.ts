@@ -19,6 +19,7 @@ router.get('/profile', devJwtAuth, async (req: Request, res: Response) => {
       kycStatus: dev.kycStatus || 'not_required',
       emailVerified: dev.emailVerified,
       environmentMode: (dev as any).environmentMode || 'sandbox',
+      twoFactorEnabled: (dev as any).twoFactorEnabled || false,
     }
   });
 });

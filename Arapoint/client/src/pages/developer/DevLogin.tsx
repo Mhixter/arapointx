@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Code2, Loader2, Mail, ArrowLeft, CheckCircle, Eye, EyeOff, KeyRound, Lock } from "lucide-react";
+import { Code2, Loader2, Mail, ArrowLeft, CheckCircle, Eye, EyeOff, KeyRound, Lock, ShieldCheck } from "lucide-react";
 
 const C = {
   bg: "var(--dev-bg)",
@@ -60,6 +60,9 @@ export default function DevLogin() {
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [showNewPw, setShowNewPw] = useState(false);
   const [forgotResendCooldown, setForgotResendCooldown] = useState(0);
+  const [loginStep, setLoginStep] = useState<"credentials" | "2fa">("credentials");
+  const [twoFactorCode, setTwoFactorCode] = useState("");
+  const [tempToken, setTempToken] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,8 +79,39 @@ export default function DevLogin() {
         localStorage.setItem("dev_user", JSON.stringify(data.data.developer));
         toast({ title: "Welcome back!", variant: "success", description: `Logged in as ${data.data.developer.name}` });
         window.location.href = "/developer/dashboard";
+      } else if (data.status === "2fa_required") {
+        setTempToken(data.data.temp_token);
+        setTwoFactorCode("");
+        setLoginStep("2fa");
       } else {
         toast({ title: "Login failed", description: data.message, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error. Try again.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerify2fa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (twoFactorCode.length !== 6) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/v1/developer/auth/2fa/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ temp_token: tempToken, totp_code: twoFactorCode }),
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        localStorage.setItem("dev_token", data.data.token);
+        localStorage.setItem("dev_user", JSON.stringify(data.data.developer));
+        toast({ title: "Welcome back!", variant: "success", description: `Logged in as ${data.data.developer.name}` });
+        window.location.href = "/developer/dashboard";
+      } else {
+        toast({ title: "Verification failed", description: data.message, variant: "destructive" });
+        setTwoFactorCode("");
       }
     } catch {
       toast({ title: "Error", description: "Network error. Try again.", variant: "destructive" });
@@ -438,7 +472,7 @@ export default function DevLogin() {
         <div className="rounded-2xl p-6" style={{ background: C.card, border: `1px solid ${C.border}` }}>
 
           {/* ── Login ── */}
-          {tab === "login" && (
+          {tab === "login" && loginStep === "credentials" && (
             <>
               <h2 className="text-lg font-bold text-white mb-0.5">Welcome back</h2>
               <p className="text-sm mb-5" style={{ color: C.muted }}>Sign in to your developer account</p>
@@ -468,6 +502,49 @@ export default function DevLogin() {
                 </div>
                 {submitBtn("Sign In")}
               </form>
+            </>
+          )}
+
+          {/* ── 2FA Step ── */}
+          {tab === "login" && loginStep === "2fa" && (
+            <>
+              <button onClick={() => { setLoginStep("credentials"); setTwoFactorCode(""); setTempToken(""); }}
+                className="flex items-center gap-1 text-sm mb-4" style={{ color: C.muted }}>
+                <ArrowLeft className="w-4 h-4" /> Back
+              </button>
+              <div className="text-center mb-6">
+                <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-3"
+                  style={{ background: `${C.blue}1A`, border: `1px solid ${C.blue}40` }}>
+                  <ShieldCheck className="w-7 h-7" style={{ color: C.blue }} />
+                </div>
+                <h2 className="text-lg font-bold text-white">Two-Factor Authentication</h2>
+                <p className="text-sm mt-1" style={{ color: C.muted }}>
+                  Open Google Authenticator and enter the<br />6-digit code for Arapoint Developer Portal
+                </p>
+              </div>
+              <form onSubmit={handleVerify2fa} className="space-y-5">
+                <Field label="Authenticator Code">
+                  <input
+                    required maxLength={6} autoFocus
+                    value={twoFactorCode}
+                    onChange={e => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className="w-full px-3 py-3 rounded-lg text-center text-2xl tracking-[0.5em] font-mono outline-none"
+                    placeholder="000000"
+                    style={{ background: "#0A0A0A", border: `1px solid ${C.border}`, color: C.text }}
+                    onFocus={e => (e.currentTarget.style.borderColor = C.blue)}
+                    onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+                  />
+                </Field>
+                <button type="submit" disabled={loading || twoFactorCode.length !== 6}
+                  className="w-full py-2.5 rounded-lg text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{ background: C.blue }}>
+                  {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Verify & Sign In
+                </button>
+              </form>
+              <p className="text-center text-xs mt-4" style={{ color: C.muted }}>
+                Code refreshes every 30 seconds
+              </p>
             </>
           )}
 

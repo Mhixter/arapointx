@@ -1,8 +1,10 @@
 import { Router } from 'express';
+import speakeasy from 'speakeasy';
+import qrcode from 'qrcode';
 import {
   Request, Response, db, bcrypt, jwt, config, logger,
-  developerUsers, developerApiKeys, eq,
-  otpService, generateApiKey, generateSecretKey, devBalance,
+  developerUsers, developerApiKeys, eq, sql,
+  otpService, generateApiKey, generateSecretKey, devBalance, devJwtAuth,
 } from './shared';
 import { logLoginActivity } from '../../../utils/loginActivity';
 
@@ -106,6 +108,16 @@ router.post('/auth/login', async (req: Request, res: Response) => {
     if (!valid) {
       return res.status(401).json({ status: 'error', code: 401, message: 'Invalid credentials' });
     }
+
+    const twoFactorEnabled = (dev as any).twoFactorEnabled || false;
+    if (twoFactorEnabled) {
+      const tempToken = jwt.sign({ developerId: dev.id, twoFactorPending: true }, config.JWT_SECRET, { expiresIn: '5m' });
+      return res.json({
+        status: '2fa_required', code: 200, message: '2FA verification required',
+        data: { temp_token: tempToken },
+      });
+    }
+
     const token = jwt.sign({ developerId: dev.id }, config.JWT_SECRET, { expiresIn: '7d' });
 
     logLoginActivity(req, {
@@ -129,6 +141,132 @@ router.post('/auth/login', async (req: Request, res: Response) => {
   } catch (e: any) {
     logger.error('Dev login error', { error: e.message });
     res.status(500).json({ status: 'error', code: 500, message: 'Login failed' });
+  }
+});
+
+router.post('/auth/2fa/verify', async (req: Request, res: Response) => {
+  try {
+    const { temp_token, totp_code } = req.body;
+    if (!temp_token || !totp_code) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'temp_token and totp_code required' });
+    }
+    let decoded: any;
+    try {
+      decoded = jwt.verify(temp_token, config.JWT_SECRET) as any;
+    } catch {
+      return res.status(401).json({ status: 'error', code: 401, message: 'Invalid or expired session. Please log in again.' });
+    }
+    if (!decoded.twoFactorPending || !decoded.developerId) {
+      return res.status(401).json({ status: 'error', code: 401, message: 'Invalid token type' });
+    }
+    const [dev] = await db.select().from(developerUsers)
+      .where(eq(developerUsers.id, decoded.developerId)).limit(1);
+    if (!dev || !dev.isActive) {
+      return res.status(401).json({ status: 'error', code: 401, message: 'Account not found or inactive' });
+    }
+    const secret = (dev as any).twoFactorSecret;
+    if (!secret) {
+      return res.status(400).json({ status: 'error', code: 400, message: '2FA is not configured on this account' });
+    }
+    const isValid = speakeasy.totp.verify({ secret, encoding: 'base32', token: String(totp_code).replace(/\s/g, ''), window: 1 });
+    if (!isValid) {
+      return res.status(401).json({ status: 'error', code: 401, message: 'Invalid authenticator code. Please try again.' });
+    }
+    const token = jwt.sign({ developerId: dev.id }, config.JWT_SECRET, { expiresIn: '7d' });
+
+    logLoginActivity(req, {
+      actorType: 'developer',
+      actorId: dev.id,
+      actorEmail: dev.email,
+      actorName: dev.name || dev.email,
+    });
+
+    res.json({
+      status: 'success', code: 200, message: 'Login successful',
+      data: {
+        token,
+        developer: {
+          id: dev.id, email: dev.email, name: dev.name,
+          company: dev.company, walletBalance: devBalance(dev),
+          webhookUrl: dev.webhookUrl,
+        }
+      }
+    });
+  } catch (e: any) {
+    logger.error('Dev 2fa verify error', { error: e.message });
+    res.status(500).json({ status: 'error', code: 500, message: 'Verification failed' });
+  }
+});
+
+router.get('/auth/2fa/setup', devJwtAuth, async (req: Request, res: Response) => {
+  try {
+    const dev = (req as any).developer;
+    if ((dev as any).twoFactorEnabled) {
+      return res.status(400).json({ status: 'error', code: 400, message: '2FA is already enabled on this account' });
+    }
+    const secretObj = speakeasy.generateSecret({ name: `Arapoint Developer Portal (${dev.email})`, length: 20 });
+    const secret = secretObj.base32;
+    const otpauthUrl = secretObj.otpauth_url!;
+    const qrDataUrl = await qrcode.toDataURL(otpauthUrl);
+    res.json({
+      status: 'success', code: 200,
+      data: { secret, qrCode: qrDataUrl, otpauthUrl },
+    });
+  } catch (e: any) {
+    logger.error('Dev 2fa setup error', { error: e.message });
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to generate 2FA setup' });
+  }
+});
+
+router.post('/auth/2fa/enable', devJwtAuth, async (req: Request, res: Response) => {
+  try {
+    const dev = (req as any).developer;
+    const { secret, totp_code } = req.body;
+    if (!secret || !totp_code) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'secret and totp_code required' });
+    }
+    if ((dev as any).twoFactorEnabled) {
+      return res.status(400).json({ status: 'error', code: 400, message: '2FA is already enabled' });
+    }
+    const isValid = speakeasy.totp.verify({ secret, encoding: 'base32', token: String(totp_code).replace(/\s/g, ''), window: 1 });
+    if (!isValid) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'Invalid authenticator code — make sure you scanned the QR code correctly.' });
+    }
+    await db.execute(sql`
+      UPDATE developer_users
+      SET two_factor_secret = ${secret}, two_factor_enabled = true, updated_at = now()
+      WHERE id = ${dev.id}
+    `);
+    res.json({ status: 'success', code: 200, message: '2FA has been enabled successfully.' });
+  } catch (e: any) {
+    logger.error('Dev 2fa enable error', { error: e.message });
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to enable 2FA' });
+  }
+});
+
+router.post('/auth/2fa/disable', devJwtAuth, async (req: Request, res: Response) => {
+  try {
+    const dev = (req as any).developer;
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({ status: 'error', code: 400, message: 'Password required to disable 2FA' });
+    }
+    if (!(dev as any).twoFactorEnabled) {
+      return res.status(400).json({ status: 'error', code: 400, message: '2FA is not enabled on this account' });
+    }
+    const valid = await bcrypt.compare(password, dev.passwordHash);
+    if (!valid) {
+      return res.status(401).json({ status: 'error', code: 401, message: 'Incorrect password' });
+    }
+    await db.execute(sql`
+      UPDATE developer_users
+      SET two_factor_secret = null, two_factor_enabled = false, updated_at = now()
+      WHERE id = ${dev.id}
+    `);
+    res.json({ status: 'success', code: 200, message: '2FA has been disabled.' });
+  } catch (e: any) {
+    logger.error('Dev 2fa disable error', { error: e.message });
+    res.status(500).json({ status: 'error', code: 500, message: 'Failed to disable 2FA' });
   }
 });
 
