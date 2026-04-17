@@ -5042,7 +5042,7 @@ router.get('/search', adminAuthMiddleware, async (req: Request, res: Response) =
         .limit(5),
     ]);
 
-    res.json(formatResponse(200, 'Search results', {
+    res.json(formatResponse('success', 200, 'Search results', {
       query: q,
       results: {
         users: userRows,

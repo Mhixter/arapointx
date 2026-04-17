@@ -819,6 +819,7 @@ export default function AdminSearch() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Search failed');
+      if (!data.data?.results) throw new Error('Invalid search response from server');
       setResults(data.data.results);
       setTotals(data.data.totals);
       setSearchedQuery(q);
