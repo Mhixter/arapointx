@@ -66,6 +66,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
 
   const navItems = [
     { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/admin/agent-performance", label: "Agent Performance", icon: TrendingUp },
     { href: "/admin/users", label: "User Management", icon: Users },
     { href: "/admin/identity", label: "Identity Services", icon: ShieldCheck },
     { href: "/admin/bvn", label: "BVN Services", icon: ShieldCheck },
@@ -75,7 +76,6 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     { href: "/admin/identity-agents", label: "Identity Agents", icon: Users },
     { href: "/admin/education-agents", label: "Education Agents", icon: GraduationCap },
     { href: "/admin/a2c-agents", label: "A2C Agents", icon: Smartphone },
-    { href: "/admin/agent-performance", label: "Agent Performance", icon: TrendingUp },
     { href: "/admin/pricing", label: "Pricing Management", icon: BarChart3 },
     { href: "/admin/support", label: "Support Chat", icon: Headset },
     { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },

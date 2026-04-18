@@ -1,4 +1,5 @@
 import { tokenStorage } from '@/lib/tokenStorage';
+import AgentPerformanceWidget from '@/components/AgentPerformanceWidget';
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -326,6 +327,7 @@ export default function A2CAgentDashboard() {
       </header>
 
       <main className="p-4 sm:p-6 space-y-6">
+        <AgentPerformanceWidget apiBase="/api/a2c-agent" getToken={() => tokenStorage.getItem('a2cAgentToken')} />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <Card>
             <CardContent className="pt-4 sm:pt-6">

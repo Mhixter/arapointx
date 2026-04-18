@@ -551,6 +551,40 @@ router.post('/request', authMiddleware, async (req: Request, res: Response) => {
 // SUPPORT INTERNAL MESSAGES
 // =====================================================
 
+router.get('/performance', identityAgentAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const agentId = (req as any).agentId;
+    const days = parseInt(req.query.days as string) || 30;
+    const rows = await db.execute(sql.raw(`
+      SELECT
+        COUNT(id) as total_requests,
+        COUNT(id) FILTER (WHERE status = 'completed') as completed,
+        COUNT(id) FILTER (WHERE status IN ('pending','pickup')) as pending,
+        COUNT(id) FILTER (WHERE status = 'rejected') as rejected,
+        ROUND(AVG(EXTRACT(EPOCH FROM (completed_at - assigned_at))/3600.0) FILTER (WHERE completed_at IS NOT NULL AND assigned_at IS NOT NULL), 2) as avg_resolution_hours,
+        COUNT(id) FILTER (WHERE assigned_at IS NOT NULL AND completed_at IS NULL AND assigned_at < NOW() - INTERVAL '24 hours') as sla_breaches,
+        COALESCE(SUM(fee::numeric) FILTER (WHERE status = 'completed'), 0) as revenue_generated
+      FROM identity_service_requests
+      WHERE assigned_agent_id = '${agentId}' AND created_at >= NOW() - INTERVAL '${days} days'
+    `));
+    const m: any = rows.rows[0] || {};
+    const total = Number(m.total_requests) || 0;
+    const completed = Number(m.completed) || 0;
+    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const sla = Number(m.sla_breaches) || 0;
+    const speed = m.avg_resolution_hours != null ? Math.max(0, 100 - Math.min(100, Number(m.avg_resolution_hours) * 5)) : 50;
+    const performanceScore = Math.round((completionRate * 0.4) + (Math.max(0, 100 - sla * 10) * 0.3) + (speed * 0.2) + 5);
+    res.json(formatResponse('success', 200, 'Performance data', {
+      totalRequests: total, completed, pending: Number(m.pending) || 0, rejected: Number(m.rejected) || 0,
+      completionRate, avgResolutionHours: m.avg_resolution_hours, slaBreaches: sla,
+      revenueGenerated: parseFloat(m.revenue_generated) || 0, performanceScore, days,
+    }));
+  } catch (error: any) {
+    logger.error('Identity agent performance error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get performance data'));
+  }
+});
+
 router.get('/support-messages', identityAgentAuthMiddleware, async (req: Request, res: Response) => {
   try {
     const messages = await db.select().from(agentInternalMessages)

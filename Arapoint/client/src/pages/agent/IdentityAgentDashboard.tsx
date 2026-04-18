@@ -1,4 +1,5 @@
 import { tokenStorage } from '@/lib/tokenStorage';
+import AgentPerformanceWidget from '@/components/AgentPerformanceWidget';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -271,6 +272,7 @@ export default function IdentityAgentDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+        <AgentPerformanceWidget apiBase="/api/identity-agent" getToken={() => tokenStorage.getItem('identityAgentToken')} />
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-6">

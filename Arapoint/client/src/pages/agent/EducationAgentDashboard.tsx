@@ -1,4 +1,5 @@
 import { tokenStorage } from '@/lib/tokenStorage';
+import AgentPerformanceWidget from '@/components/AgentPerformanceWidget';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -412,6 +413,7 @@ export default function EducationAgentDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+        <AgentPerformanceWidget apiBase="/api/education-agent" getToken={() => tokenStorage.getItem('educationAgentToken')} />
         {/* PIN Stock Overview Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {EXAM_TYPES.map(exam => (

@@ -532,6 +532,13 @@ Railway auto-deploys on push. Check logs for any issues.
   - Sender name and email configuration
   - Test email sending functionality
 - 2026-02-07: Added change password API route (POST /api/auth/change-password)
+- 2026-04-18: Completed Agent Performance Tracking system across all 5 agent types
+  - Added `agent_activity_logs` table for tracking agent actions
+  - Admin: AdminAgentPerformance page with KPI cards, leaderboard, per-agent detail modal, CSV export (route: /admin/agent-performance)
+  - Admin sidebar: "Agent Performance" entry at position 2 (after Dashboard)
+  - Per-agent self-service: Added GET /performance endpoint to all 5 agent routes (education/jamb/identity/a2c/cac) with completion rate, SLA breach count, avg resolution time, revenue generated, and composite performance score
+  - Shared AgentPerformanceWidget component (Arapoint/client/src/components/AgentPerformanceWidget.tsx) embedded at top of all 5 agent dashboards
+  - Score formula: completionRate×0.4 + slaScore×0.3 + speedScore×0.2 + loadScore×0.1
 - 2025-12-20: Added Identity Agent Services system for manual identity processing (NIN Validation, IPE Clearance, NIN Personalization)
   - New tables: identityAgents, identityServiceRequests, identityRequestActivity
   - Agent dashboard at `/agent/identity` for request pickup and completion

@@ -1,4 +1,5 @@
 import { tokenStorage } from '@/lib/tokenStorage';
+import AgentPerformanceWidget from '@/components/AgentPerformanceWidget';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -446,6 +447,7 @@ export default function CACAgentDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+        <AgentPerformanceWidget apiBase="/api/cac-agent" getToken={() => tokenStorage.getItem('cacAgentToken')} />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4 text-center">
