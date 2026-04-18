@@ -10,14 +10,16 @@ import {
   Users,
   BarChart3,
   BookOpen,
-  FileText,
   Headset,
   MessageSquare,
   Settings as SettingsIcon,
   ListTodo,
   Activity,
   Mail,
-  TrendingUp
+  Search,
+  Monitor,
+  Bot,
+  Code2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -67,28 +69,30 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
 
   const navItems = [
     { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-    { href: "/admin/agent-performance", label: "Agent Performance", icon: TrendingUp },
+    { href: "/admin/search", label: "Global Search", icon: Search },
     { href: "/admin/users", label: "User Management", icon: Users },
     { href: "/admin/identity", label: "Identity Services", icon: ShieldCheck },
     { href: "/admin/bvn", label: "BVN Services", icon: ShieldCheck },
-    { href: "/admin/birth-attestation", label: "Birth Attestation", icon: FileText },
     { href: "/admin/education", label: "Education Services", icon: GraduationCap },
     { href: "/admin/vtu", label: "VTU Services", icon: Smartphone },
     { href: "/admin/cac", label: "CAC Services", icon: ShieldCheck },
     { href: "/admin/identity-agents", label: "Identity Agents", icon: Users },
     { href: "/admin/education-agents", label: "Education Agents", icon: GraduationCap },
-    { href: "/admin/jamb-agents", label: "JAMB Agents", icon: BookOpen },
     { href: "/admin/a2c-agents", label: "A2C Agents", icon: Smartphone },
+    { href: "/admin/jamb-agents", label: "JAMB Agents", icon: BookOpen },
     { href: "/admin/pricing", label: "Pricing Management", icon: BarChart3 },
     { href: "/admin/support", label: "Support Chat", icon: Headset },
     { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
     { href: "/admin/transactions", label: "Transactions", icon: BarChart3 },
-    { href: "/admin/roles", label: "Role Management", icon: ShieldCheck },
-    { href: "/admin/settings", label: "Settings", icon: SettingsIcon },
-    { href: "/admin/whatsapp", label: "WhatsApp", icon: MessageSquare },
+    { href: "/admin/rpa-jobs", label: "RPA Job Monitor", icon: Monitor },
+    { href: "/admin/rpa-recovery", label: "AI RPA Recovery", icon: Bot },
+    { href: "/admin/developer-portal", label: "Developer Portal", icon: Code2 },
     { href: "/admin/employment-queue", label: "Employment Queue", icon: ListTodo },
     { href: "/admin/login-activity", label: "Login Activity", icon: Activity },
     { href: "/admin/broadcast", label: "Email Broadcast", icon: Mail },
+    { href: "/admin/whatsapp", label: "WhatsApp", icon: MessageSquare },
+    { href: "/admin/roles", label: "Role Management", icon: ShieldCheck },
+    { href: "/admin/settings", label: "Settings", icon: SettingsIcon },
   ];
 
   const NavContent = () => (
