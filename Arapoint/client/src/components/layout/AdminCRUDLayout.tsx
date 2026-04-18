@@ -29,7 +29,8 @@ import {
   Activity,
   Mail,
   Brain,
-  SearchIcon
+  SearchIcon,
+  TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -84,6 +85,7 @@ const ALL_NAV_ITEMS = [
   { href: "/admin/pricing", label: "Pricing Management", icon: DollarSign, permission: "pricing" },
   { href: "/admin/support", label: "Support Chat", icon: Headset, permission: "support" },
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3, permission: "analytics" },
+  { href: "/admin/agent-performance", label: "Agent Performance", icon: TrendingUp, permission: "analytics" },
   { href: "/admin/transactions", label: "Transactions", icon: Receipt, permission: "transactions" },
   { href: "/admin/rpa-jobs", label: "RPA Job Monitor", icon: Cpu, permission: "education" },
   { href: "/admin/rpa-recovery", label: "AI RPA Recovery", icon: Brain, permission: "education" },
