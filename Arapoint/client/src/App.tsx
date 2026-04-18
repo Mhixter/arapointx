@@ -90,6 +90,7 @@ import AdminEducationAgents from "@/pages/admin/AdminEducationAgents";
 import AdminA2CAgents from "@/pages/admin/AdminA2CAgents";
 import AdminJAMBAgents from "@/pages/admin/AdminJAMBAgents";
 import AdminEducationPins from "@/pages/admin/AdminEducationPins";
+import AdminAgentPerformance from "@/pages/admin/AdminAgentPerformance";
 import AdminWhatsApp from "@/pages/admin/AdminWhatsApp";
 import AdminTransactions from "@/pages/admin/AdminTransactions";
 import AdminProfile from "@/pages/admin/AdminProfile";
@@ -225,6 +226,9 @@ function Router() {
         <AdminCRUDLayout>
           <AdminJAMBAgents />
         </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/agent-performance">
+        <AdminAgentPerformance />
       </Route>
       <Route path="/admin/rpa-jobs">
         <AdminCRUDLayout>

@@ -1085,6 +1085,24 @@ export const providerHealth = pgTable('provider_health', {
 ]);
 
 // RPA AI Recovery Suggestions
+export const agentActivityLogs = pgTable('agent_activity_logs', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  agentType: varchar('agent_type', { length: 30 }).notNull(), // education, jamb, identity, a2c, cac
+  agentId: uuid('agent_id').notNull(),
+  adminUserId: uuid('admin_user_id').references(() => adminUsers.id),
+  action: varchar('action', { length: 60 }).notNull(), // login, logout, task_accepted, task_completed, task_rejected, availability_changed, sla_breach
+  requestId: uuid('request_id'),
+  serviceType: varchar('service_type', { length: 80 }),
+  metadata: jsonb('metadata').default('{}'),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => [
+  index('aal_agent_idx').on(table.agentId),
+  index('aal_type_idx').on(table.agentType),
+  index('aal_action_idx').on(table.action),
+  index('aal_created_idx').on(table.createdAt),
+]);
+
 export const rpaRecoverySuggestions = pgTable('rpa_recovery_suggestions', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   provider: varchar('provider', { length: 50 }).notNull(),

@@ -5533,4 +5533,250 @@ router.post('/portal-health/enable/:provider', async (req: Request, res: Respons
   }
 });
 
+// ============================================================
+// AGENT PERFORMANCE & ACTIVITY TRACKING
+// ============================================================
+
+router.post('/agents/log-activity', async (req: Request, res: Response) => {
+  try {
+    const { agentType, agentId, adminUserId, action, requestId, serviceType, metadata, ipAddress } = req.body;
+    if (!agentType || !agentId || !action) {
+      return res.status(400).json(formatErrorResponse(400, 'agentType, agentId, and action are required'));
+    }
+    await db.execute(sql`
+      INSERT INTO agent_activity_logs (agent_type, agent_id, admin_user_id, action, request_id, service_type, metadata, ip_address)
+      VALUES (${agentType}, ${agentId}::uuid, ${adminUserId || null}::uuid, ${action}, ${requestId || null}::uuid, ${serviceType || null}, ${JSON.stringify(metadata || {})}, ${ipAddress || null})
+    `);
+    res.json(formatResponse('success', 200, 'Activity logged', null));
+  } catch (error: any) {
+    logger.error('Log agent activity error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to log activity'));
+  }
+});
+
+router.get('/agents/performance', async (req: Request, res: Response) => {
+  try {
+    const { type, days = '30' } = req.query;
+    const daysNum = parseInt(days as string) || 30;
+
+    const queries: Record<string, string> = {
+      education: `
+        SELECT 'education' as agent_type, a.id, a.employee_id, a.is_available,
+          a.max_active_requests, a.current_active_requests, a.total_completed_requests,
+          au.name, au.email,
+          COUNT(r.id) as total_requests,
+          COUNT(r.id) FILTER (WHERE r.status = 'completed') as completed_count,
+          COUNT(r.id) FILTER (WHERE r.status IN ('pending','pickup')) as pending_count,
+          COUNT(r.id) FILTER (WHERE r.status = 'rejected') as rejected_count,
+          ROUND(AVG(EXTRACT(EPOCH FROM (r.completed_at - r.assigned_at))/3600.0) FILTER (WHERE r.completed_at IS NOT NULL AND r.assigned_at IS NOT NULL), 2) as avg_resolution_hours,
+          COUNT(r.id) FILTER (WHERE r.assigned_at IS NOT NULL AND r.completed_at IS NULL AND r.assigned_at < NOW() - INTERVAL '24 hours') as sla_breaches,
+          COALESCE(SUM(r.fee::numeric) FILTER (WHERE r.status = 'completed'), 0) as revenue_generated,
+          a.updated_at as last_active
+        FROM education_agents a
+        JOIN admin_users au ON au.id = a.admin_user_id
+        LEFT JOIN education_service_requests r ON r.assigned_agent_id = a.id AND r.created_at >= NOW() - INTERVAL '${daysNum} days'
+        GROUP BY a.id, au.name, au.email
+      `,
+      jamb: `
+        SELECT 'jamb' as agent_type, a.id, a.employee_id, a.is_available,
+          a.max_active_requests, a.current_active_requests, a.total_completed_requests,
+          au.name, au.email,
+          COUNT(r.id) as total_requests,
+          COUNT(r.id) FILTER (WHERE r.status = 'completed') as completed_count,
+          COUNT(r.id) FILTER (WHERE r.status IN ('pending','pickup')) as pending_count,
+          COUNT(r.id) FILTER (WHERE r.status = 'rejected') as rejected_count,
+          ROUND(AVG(EXTRACT(EPOCH FROM (r.completed_at - r.assigned_at))/3600.0) FILTER (WHERE r.completed_at IS NOT NULL AND r.assigned_at IS NOT NULL), 2) as avg_resolution_hours,
+          COUNT(r.id) FILTER (WHERE r.assigned_at IS NOT NULL AND r.completed_at IS NULL AND r.assigned_at < NOW() - INTERVAL '24 hours') as sla_breaches,
+          COALESCE(SUM(r.fee::numeric) FILTER (WHERE r.status = 'completed'), 0) as revenue_generated,
+          a.updated_at as last_active
+        FROM jamb_agents a
+        JOIN admin_users au ON au.id = a.admin_user_id
+        LEFT JOIN jamb_service_requests r ON r.assigned_agent_id = a.id AND r.created_at >= NOW() - INTERVAL '${daysNum} days'
+        GROUP BY a.id, au.name, au.email
+      `,
+      identity: `
+        SELECT 'identity' as agent_type, a.id, a.employee_id, a.is_available,
+          a.max_active_requests, a.current_active_requests, a.total_completed_requests,
+          au.name, au.email,
+          COUNT(r.id) as total_requests,
+          COUNT(r.id) FILTER (WHERE r.status = 'completed') as completed_count,
+          COUNT(r.id) FILTER (WHERE r.status IN ('pending','pickup')) as pending_count,
+          COUNT(r.id) FILTER (WHERE r.status = 'rejected') as rejected_count,
+          ROUND(AVG(EXTRACT(EPOCH FROM (r.completed_at - r.assigned_at))/3600.0) FILTER (WHERE r.completed_at IS NOT NULL AND r.assigned_at IS NOT NULL), 2) as avg_resolution_hours,
+          COUNT(r.id) FILTER (WHERE r.assigned_at IS NOT NULL AND r.completed_at IS NULL AND r.assigned_at < NOW() - INTERVAL '24 hours') as sla_breaches,
+          COALESCE(SUM(r.fee::numeric) FILTER (WHERE r.status = 'completed'), 0) as revenue_generated,
+          a.updated_at as last_active
+        FROM identity_agents a
+        JOIN admin_users au ON au.id = a.admin_user_id
+        LEFT JOIN identity_service_requests r ON r.assigned_agent_id = a.id AND r.created_at >= NOW() - INTERVAL '${daysNum} days'
+        GROUP BY a.id, au.name, au.email
+      `,
+      a2c: `
+        SELECT 'a2c' as agent_type, a.id, a.employee_id, a.is_available,
+          a.max_active_requests, a.current_active_requests, a.total_completed_requests,
+          au.name, au.email,
+          COUNT(r.id) as total_requests,
+          COUNT(r.id) FILTER (WHERE r.status = 'completed') as completed_count,
+          COUNT(r.id) FILTER (WHERE r.status IN ('pending','processing')) as pending_count,
+          COUNT(r.id) FILTER (WHERE r.status = 'rejected') as rejected_count,
+          ROUND(AVG(EXTRACT(EPOCH FROM (r.completed_at - r.assigned_at))/3600.0) FILTER (WHERE r.completed_at IS NOT NULL AND r.assigned_at IS NOT NULL), 2) as avg_resolution_hours,
+          COUNT(r.id) FILTER (WHERE r.assigned_at IS NOT NULL AND r.completed_at IS NULL AND r.assigned_at < NOW() - INTERVAL '24 hours') as sla_breaches,
+          COALESCE(SUM(r.amount_naira::numeric) FILTER (WHERE r.status = 'completed'), 0) as revenue_generated,
+          a.updated_at as last_active
+        FROM a2c_agents a
+        JOIN admin_users au ON au.id = a.admin_user_id
+        LEFT JOIN a2c_requests r ON r.agent_id = a.id AND r.created_at >= NOW() - INTERVAL '${daysNum} days'
+        GROUP BY a.id, au.name, au.email
+      `,
+      cac: `
+        SELECT 'cac' as agent_type, a.id, a.employee_id, a.is_available,
+          a.max_active_requests, a.current_active_requests, a.total_completed_requests,
+          au.name, au.email,
+          COUNT(r.id) as total_requests,
+          COUNT(r.id) FILTER (WHERE r.status = 'completed') as completed_count,
+          COUNT(r.id) FILTER (WHERE r.status IN ('pending','in_progress')) as pending_count,
+          COUNT(r.id) FILTER (WHERE r.status = 'rejected') as rejected_count,
+          ROUND(AVG(EXTRACT(EPOCH FROM (r.completed_at - r.assigned_at))/3600.0) FILTER (WHERE r.completed_at IS NOT NULL AND r.assigned_at IS NOT NULL), 2) as avg_resolution_hours,
+          COUNT(r.id) FILTER (WHERE r.assigned_at IS NOT NULL AND r.completed_at IS NULL AND r.assigned_at < NOW() - INTERVAL '24 hours') as sla_breaches,
+          COALESCE(SUM(r.fee::numeric) FILTER (WHERE r.status = 'completed'), 0) as revenue_generated,
+          a.updated_at as last_active
+        FROM cac_agents a
+        JOIN admin_users au ON au.id = a.admin_user_id
+        LEFT JOIN cac_registration_requests r ON r.assigned_agent_id = a.id AND r.created_at >= NOW() - INTERVAL '${daysNum} days'
+        GROUP BY a.id, au.name, au.email
+      `,
+    };
+
+    const typesToFetch = type && queries[type as string] ? [type as string] : Object.keys(queries);
+    const results: any[] = [];
+
+    for (const t of typesToFetch) {
+      try {
+        const rows = await db.execute(sql.raw(queries[t]));
+        results.push(...(rows.rows || []).map((r: any) => ({
+          ...r,
+          completionRate: r.total_requests > 0 ? Math.round((r.completed_count / r.total_requests) * 100) : 0,
+          loadPercent: r.max_active_requests > 0 ? Math.round((r.current_active_requests / r.max_active_requests) * 100) : 0,
+          performanceScore: computeScore(r),
+        })));
+      } catch (e: any) {
+        logger.warn(`Performance query failed for ${t}`, { error: e.message });
+      }
+    }
+
+    results.sort((a, b) => b.performanceScore - a.performanceScore);
+    res.json(formatResponse('success', 200, 'Agent performance data', { agents: results, days: daysNum }));
+  } catch (error: any) {
+    logger.error('Agent performance error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to fetch performance data'));
+  }
+});
+
+function computeScore(r: any): number {
+  const completionRate = r.total_requests > 0 ? (r.completed_count / r.total_requests) * 100 : 50;
+  const slaScore = Math.max(0, 100 - (r.sla_breaches * 10));
+  const speedScore = r.avg_resolution_hours != null ? Math.max(0, 100 - Math.min(100, r.avg_resolution_hours * 5)) : 50;
+  const loadScore = r.max_active_requests > 0 ? Math.min(100, (r.current_active_requests / r.max_active_requests) * 100) : 0;
+  return Math.round((completionRate * 0.4) + (slaScore * 0.3) + (speedScore * 0.2) + (loadScore * 0.1));
+}
+
+router.get('/agents/performance/:agentType/:agentId', async (req: Request, res: Response) => {
+  try {
+    const { agentType, agentId } = req.params;
+    const { days = '30' } = req.query;
+    const daysNum = parseInt(days as string) || 30;
+
+    const requestTableMap: Record<string, { table: string; agentCol: string; feeCol: string; pendingStatuses: string }> = {
+      education: { table: 'education_service_requests', agentCol: 'assigned_agent_id', feeCol: 'fee', pendingStatuses: "'pending','pickup'" },
+      jamb:      { table: 'jamb_service_requests',      agentCol: 'assigned_agent_id', feeCol: 'fee', pendingStatuses: "'pending','pickup'" },
+      identity:  { table: 'identity_service_requests',  agentCol: 'assigned_agent_id', feeCol: 'fee', pendingStatuses: "'pending','pickup'" },
+      a2c:       { table: 'a2c_requests',               agentCol: 'agent_id',          feeCol: 'amount_naira', pendingStatuses: "'pending','processing'" },
+      cac:       { table: 'cac_registration_requests',  agentCol: 'assigned_agent_id', feeCol: 'fee', pendingStatuses: "'pending','in_progress'" },
+    };
+
+    const agentTableMap: Record<string, string> = {
+      education: 'education_agents', jamb: 'jamb_agents', identity: 'identity_agents', a2c: 'a2c_agents', cac: 'cac_agents',
+    };
+
+    if (!requestTableMap[agentType]) {
+      return res.status(400).json(formatErrorResponse(400, 'Invalid agent type'));
+    }
+
+    const { table, agentCol, feeCol, pendingStatuses } = requestTableMap[agentType];
+    const agentTable = agentTableMap[agentType];
+
+    const agentInfo = await db.execute(sql.raw(`
+      SELECT a.*, au.name, au.email, au.role
+      FROM ${agentTable} a
+      JOIN admin_users au ON au.id = a.admin_user_id
+      WHERE a.id = '${agentId}'
+    `));
+    if (!agentInfo.rows?.length) return res.status(404).json(formatErrorResponse(404, 'Agent not found'));
+
+    const requests = await db.execute(sql.raw(`
+      SELECT id, status, service_type, assigned_at, completed_at, created_at, ${feeCol} as fee, tracking_id
+      FROM ${table}
+      WHERE ${agentCol} = '${agentId}'
+        AND created_at >= NOW() - INTERVAL '${daysNum} days'
+      ORDER BY created_at DESC
+      LIMIT 100
+    `));
+
+    const dailyTrend = await db.execute(sql.raw(`
+      SELECT DATE(created_at) as date,
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE status = 'completed') as completed,
+        COALESCE(SUM(${feeCol}::numeric) FILTER (WHERE status = 'completed'), 0) as revenue
+      FROM ${table}
+      WHERE ${agentCol} = '${agentId}'
+        AND created_at >= NOW() - INTERVAL '${daysNum} days'
+      GROUP BY DATE(created_at)
+      ORDER BY date ASC
+    `));
+
+    const activityLog = await db.execute(sql.raw(`
+      SELECT action, service_type, metadata, created_at
+      FROM agent_activity_logs
+      WHERE agent_id = '${agentId}' AND agent_type = '${agentType}'
+      ORDER BY created_at DESC
+      LIMIT 50
+    `));
+
+    const reqRows = requests.rows || [];
+    const completed = reqRows.filter((r: any) => r.status === 'completed');
+    const slaBreaches = reqRows.filter((r: any) => r.assigned_at && !r.completed_at && new Date(r.assigned_at) < new Date(Date.now() - 86400000));
+
+    const avgResHours = completed.length > 0
+      ? completed.reduce((acc: number, r: any) => {
+          if (r.completed_at && r.assigned_at) {
+            return acc + (new Date(r.completed_at).getTime() - new Date(r.assigned_at).getTime()) / 3600000;
+          }
+          return acc;
+        }, 0) / completed.length
+      : null;
+
+    res.json(formatResponse('success', 200, 'Agent detail performance', {
+      agent: agentInfo.rows[0],
+      metrics: {
+        totalRequests: reqRows.length,
+        completed: completed.length,
+        pending: reqRows.filter((r: any) => ['pending','pickup','processing','in_progress'].includes(r.status)).length,
+        rejected: reqRows.filter((r: any) => r.status === 'rejected').length,
+        completionRate: reqRows.length > 0 ? Math.round((completed.length / reqRows.length) * 100) : 0,
+        avgResolutionHours: avgResHours != null ? Math.round(avgResHours * 100) / 100 : null,
+        slaBreaches: slaBreaches.length,
+        revenueGenerated: completed.reduce((acc: number, r: any) => acc + parseFloat(r.fee || '0'), 0),
+        loadPercent: agentInfo.rows[0].max_active_requests > 0
+          ? Math.round((agentInfo.rows[0].current_active_requests / agentInfo.rows[0].max_active_requests) * 100) : 0,
+      },
+      requests: reqRows,
+      dailyTrend: dailyTrend.rows || [],
+      activityLog: activityLog.rows || [],
+    }));
+  } catch (error: any) {
+    logger.error('Agent detail performance error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to fetch agent detail'));
+  }
+});
+
 export default router;

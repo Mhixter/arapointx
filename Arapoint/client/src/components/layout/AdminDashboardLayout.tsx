@@ -15,7 +15,8 @@ import {
   Settings as SettingsIcon,
   ListTodo,
   Activity,
-  Mail
+  Mail,
+  TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -74,6 +75,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     { href: "/admin/identity-agents", label: "Identity Agents", icon: Users },
     { href: "/admin/education-agents", label: "Education Agents", icon: GraduationCap },
     { href: "/admin/a2c-agents", label: "A2C Agents", icon: Smartphone },
+    { href: "/admin/agent-performance", label: "Agent Performance", icon: TrendingUp },
     { href: "/admin/pricing", label: "Pricing Management", icon: BarChart3 },
     { href: "/admin/support", label: "Support Chat", icon: Headset },
     { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
