@@ -19,7 +19,8 @@ import {
   Search,
   Monitor,
   Bot,
-  Code2
+  Code2,
+  TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -83,6 +84,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     { href: "/admin/pricing", label: "Pricing Management", icon: BarChart3 },
     { href: "/admin/support", label: "Support Chat", icon: Headset },
     { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+    { href: "/admin/agent-performance", label: "Agent Performance", icon: TrendingUp },
     { href: "/admin/transactions", label: "Transactions", icon: BarChart3 },
     { href: "/admin/rpa-jobs", label: "RPA Job Monitor", icon: Monitor },
     { href: "/admin/rpa-recovery", label: "AI RPA Recovery", icon: Bot },
