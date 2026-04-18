@@ -60,6 +60,11 @@ import A2CAgentLogin from "@/pages/agent/A2CAgentLogin";
 import A2CAgentDashboard from "@/pages/agent/A2CAgentDashboard";
 import JAMBAgentLogin from "@/pages/agent/JAMBAgentLogin";
 import JAMBAgentDashboard from "@/pages/agent/JAMBAgentDashboard";
+import EducationAgentPerformancePage from "@/pages/agent/EducationAgentPerformancePage";
+import JAMBAgentPerformancePage from "@/pages/agent/JAMBAgentPerformancePage";
+import IdentityAgentPerformancePage from "@/pages/agent/IdentityAgentPerformancePage";
+import A2CAgentPerformancePage from "@/pages/agent/A2CAgentPerformancePage";
+import CACAgentPerformancePage from "@/pages/agent/CACAgentPerformancePage";
 import BuyPINs from "@/pages/dashboard/BuyPINs";
 import Profile from "@/pages/dashboard/Profile";
 import Settings from "@/pages/dashboard/Settings";
@@ -136,8 +141,13 @@ function Router() {
       <Route path="/agent/education/dashboard" component={EducationAgentDashboard} />
       <Route path="/agent/a2c/login" component={A2CAgentLogin} />
       <Route path="/agent/a2c/dashboard" component={A2CAgentDashboard} />
+      <Route path="/agent/a2c/performance" component={A2CAgentPerformancePage} />
       <Route path="/jamb/agent/login" component={JAMBAgentLogin} />
       <Route path="/jamb/agent/dashboard" component={JAMBAgentDashboard} />
+      <Route path="/jamb/agent/performance" component={JAMBAgentPerformancePage} />
+      <Route path="/agent/education/performance" component={EducationAgentPerformancePage} />
+      <Route path="/agent/identity/performance" component={IdentityAgentPerformancePage} />
+      <Route path="/agent/cac/performance" component={CACAgentPerformancePage} />
       
       {/* Admin Routes - outside MainLayout */}
       <Route path="/admin/login" component={AdminLogin} />

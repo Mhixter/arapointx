@@ -1,5 +1,4 @@
 import { tokenStorage } from '@/lib/tokenStorage';
-import AgentPerformanceWidget from '@/components/AgentPerformanceWidget';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { Building2, Loader2, Clock, CheckCircle2, XCircle, User, LogOut, FileText, RefreshCw, Eye, MessageCircle, MessageSquare, Send, Upload, DollarSign, Settings, Save, Plus, Trash2, Download } from "lucide-react";
+import { Building2, Loader2, Clock, CheckCircle2, XCircle, User, LogOut, FileText, RefreshCw, Eye, MessageCircle, MessageSquare, Send, Upload, DollarSign, Settings, Save, Plus, Trash2, Download, TrendingUp } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -439,15 +438,20 @@ export default function CACAgentDashboard() {
               {agent && <p className="text-xs text-muted-foreground">{agent.name} ({agent.employeeId})</p>}
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Logout
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setLocation('/agent/cac/performance')}>
+              <TrendingUp className="h-4 w-4 mr-2" />
+              My Performance
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-        <AgentPerformanceWidget apiBase="/api/cac-agent" getToken={() => tokenStorage.getItem('cacAgentToken')} />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4 text-center">

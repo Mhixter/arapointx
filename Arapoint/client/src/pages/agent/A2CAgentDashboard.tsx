@@ -1,5 +1,4 @@
 import { tokenStorage } from '@/lib/tokenStorage';
-import AgentPerformanceWidget from '@/components/AgentPerformanceWidget';
 import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,7 +16,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Banknote, Loader2, RefreshCw, LogOut, Clock, Plus, Trash2, Phone,
-  CheckCircle, ArrowDownCircle, Wallet, AlertCircle, Package, Edit, XCircle, MessageSquare, Send
+  CheckCircle, ArrowDownCircle, Wallet, AlertCircle, Package, Edit, XCircle, MessageSquare, Send, TrendingUp
 } from 'lucide-react';
 
 const getToken = () => tokenStorage.getItem('a2cAgentToken');
@@ -319,15 +318,20 @@ export default function A2CAgentDashboard() {
               <p className="text-xs sm:text-sm text-muted-foreground">{profile?.name || 'Loading...'}</p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={handleLogout}>
-            <LogOut className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Logout</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setLocation('/agent/a2c/performance')}>
+              <TrendingUp className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">My Performance</span>
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Logout</span>
+            </Button>
+          </div>
         </div>
       </header>
 
       <main className="p-4 sm:p-6 space-y-6">
-        <AgentPerformanceWidget apiBase="/api/a2c-agent" getToken={() => tokenStorage.getItem('a2cAgentToken')} />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <Card>
             <CardContent className="pt-4 sm:pt-6">

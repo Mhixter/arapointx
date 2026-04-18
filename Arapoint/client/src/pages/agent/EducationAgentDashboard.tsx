@@ -1,5 +1,4 @@
 import { tokenStorage } from '@/lib/tokenStorage';
-import AgentPerformanceWidget from '@/components/AgentPerformanceWidget';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { GraduationCap, Loader2, Clock, CheckCircle2, User, LogOut, FileText, RefreshCw, Eye, Package, Plus, Upload, ShoppingCart, Settings, MessageSquare, Send } from "lucide-react";
+import { GraduationCap, Loader2, Clock, CheckCircle2, User, LogOut, FileText, RefreshCw, Eye, Package, Plus, Upload, ShoppingCart, Settings, MessageSquare, Send, TrendingUp } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -405,15 +404,20 @@ export default function EducationAgentDashboard() {
               <p className="text-sm text-muted-foreground">{agent?.name} ({agent?.email})</p>
             </div>
           </div>
-          <Button variant="outline" onClick={handleLogout}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Logout
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setLocation('/agent/education/performance')}>
+              <TrendingUp className="h-4 w-4 mr-2" />
+              My Performance
+            </Button>
+            <Button variant="outline" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
-        <AgentPerformanceWidget apiBase="/api/education-agent" getToken={() => tokenStorage.getItem('educationAgentToken')} />
         {/* PIN Stock Overview Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {EXAM_TYPES.map(exam => (

@@ -1,5 +1,4 @@
 import { tokenStorage } from '@/lib/tokenStorage';
-import AgentPerformanceWidget from '@/components/AgentPerformanceWidget';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { IdCard, Loader2, Clock, CheckCircle2, User, LogOut, FileText, RefreshCw, Eye, Upload, MessageSquare, Send } from "lucide-react";
+import { IdCard, Loader2, Clock, CheckCircle2, User, LogOut, FileText, RefreshCw, Eye, Upload, MessageSquare, Send, TrendingUp } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -264,15 +263,20 @@ export default function IdentityAgentDashboard() {
               <p className="text-sm text-muted-foreground">{agent?.name} ({agent?.email})</p>
             </div>
           </div>
-          <Button variant="outline" onClick={handleLogout}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Logout
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setLocation('/agent/identity/performance')}>
+              <TrendingUp className="h-4 w-4 mr-2" />
+              My Performance
+            </Button>
+            <Button variant="outline" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
-        <AgentPerformanceWidget apiBase="/api/identity-agent" getToken={() => tokenStorage.getItem('identityAgentToken')} />
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-6">

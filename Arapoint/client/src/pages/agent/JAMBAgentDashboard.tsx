@@ -1,5 +1,4 @@
 import { tokenStorage } from '@/lib/tokenStorage';
-import AgentPerformanceWidget from '@/components/AgentPerformanceWidget';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, Loader2, Clock, CheckCircle2, User, LogOut, FileText, RefreshCw, Eye, Upload, Download, MessageSquare, Send } from "lucide-react";
+import { BookOpen, Loader2, Clock, CheckCircle2, User, LogOut, FileText, RefreshCw, Eye, Upload, Download, MessageSquare, Send, TrendingUp } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -292,15 +291,20 @@ export default function JAMBAgentDashboard() {
               <p className="text-sm text-muted-foreground">{agent?.name} ({agent?.email})</p>
             </div>
           </div>
-          <Button variant="outline" onClick={handleLogout}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Logout
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setLocation('/jamb/agent/performance')}>
+              <TrendingUp className="h-4 w-4 mr-2" />
+              My Performance
+            </Button>
+            <Button variant="outline" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
-        <AgentPerformanceWidget apiBase="/api/jamb-agent" getToken={() => tokenStorage.getItem('jambAgentToken')} />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-6">
