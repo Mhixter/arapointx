@@ -611,3 +611,9 @@ id = "LbGJj86eTIRh6QOgHlVIO"
 uri = "file://attached_assets/generated_images/banners/dev_25_get_api_key.png"
 type = "image"
 title = "Dev 25 — API Key in 60 Seconds"
+
+[[outputs]]
+id = "un4ZkH9zzpyNotBOoIYpm"
+uri = "file://attached_assets/generated_images/arapoint_50_banners.pdf"
+type = "pdf"
+title = "Arapoint - 50 Marketing Banners (Main + Developer)"
