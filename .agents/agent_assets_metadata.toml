@@ -316,7 +316,7 @@ title = "Arapoint Board Resolution — VTpass"
 id = "cvEvRNuzfL5qWMWtxAvp3"
 uri = "file://attached_assets/generated_images/banners/main_01_how_it_works.png"
 type = "image"
-title = "Main 01 — How Arapoint Works"
+title = "Sample - Main 01 with new logo"
 
 [[outputs]]
 id = "NhTrF0QyvjcrSZ5dU7JZp"
@@ -400,7 +400,7 @@ title = "Main 14 — Founder Quote"
 id = "ChxZhBo_a4Loif2QtaQxx"
 uri = "file://attached_assets/generated_images/banners/main_15_customer_story.png"
 type = "image"
-title = "Main 15 — Customer Story"
+title = "Sample - Main 15 with new logo"
 
 [[outputs]]
 id = "Vow1kvH3oOJNCpXvY86Op"
@@ -466,7 +466,7 @@ title = "Main 25 — Bank-Level Encryption"
 id = "yCnuhA2PVb6Zfe5U9HAbg"
 uri = "file://attached_assets/generated_images/banners/dev_01_build_with_api.png"
 type = "image"
-title = "Dev 01 — Build with Arapoint API"
+title = "Sample - Dev 01 with new logo"
 
 [[outputs]]
 id = "GBP46wafUhZ1NgdVYZVjd"
@@ -550,7 +550,7 @@ title = "Dev 14 — Free Tier for Indie Devs"
 id = "2XDoHNy0ZOw6bPZbE0Rsy"
 uri = "file://attached_assets/generated_images/banners/dev_15_hackathon.png"
 type = "image"
-title = "Dev 15 — Developer Hackathon"
+title = "Sample - Dev 15 with new logo"
 
 [[outputs]]
 id = "__pu6nw-S0TqsNtz7RVOr"
