@@ -88,6 +88,7 @@ import AdminAnalytics from "@/pages/admin/AdminAnalytics";
 import AdminPricing from "@/pages/admin/AdminPricing";
 import AdminRoles from "@/pages/admin/AdminRoles";
 import AdminSettings from "@/pages/admin/AdminSettings";
+import BannerStudio from "@/pages/admin/BannerStudio";
 import AdminCACServices from "@/pages/admin/AdminCACServices";
 import AdminIdentityAgents from "@/pages/admin/AdminIdentityAgents";
 import AdminBirthAttestation from "@/pages/admin/AdminBirthAttestation";
@@ -200,6 +201,11 @@ function Router() {
       <Route path="/admin/settings">
         <AdminCRUDLayout>
           <AdminSettings />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/banner-studio">
+        <AdminCRUDLayout>
+          <BannerStudio />
         </AdminCRUDLayout>
       </Route>
       <Route path="/admin/cac">

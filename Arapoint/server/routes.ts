@@ -19,6 +19,7 @@ import cableRoutes from "./src/api/routes/cable";
 import walletRoutes from "./src/api/routes/wallet";
 import paymentRoutes from "./src/api/routes/payment";
 import adminRoutes from "./src/api/routes/admin";
+import bannerStudioRoutes from "./src/api/routes/bannerStudio";
 import dashboardRoutes from "./src/api/routes/dashboard";
 import cacRoutes from "./src/api/routes/cac";
 import cacAgentRoutes from "./src/api/routes/cacAgent";
@@ -370,6 +371,7 @@ export async function registerRoutes(
   app.use('/api/payment', paymentRoutes);
 
   app.use('/api/admin', authenticatedRateLimiter, adminRoutes);
+  app.use('/api/admin/banner-studio', authenticatedRateLimiter, bannerStudioRoutes);
   app.use('/api/dashboard', authenticatedRateLimiter, dashboardRoutes);
   app.use('/api/pricing', publicRateLimiter, pricingRoutes);
   

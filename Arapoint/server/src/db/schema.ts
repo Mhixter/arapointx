@@ -1126,3 +1126,31 @@ export const rpaRecoverySuggestions = pgTable('rpa_recovery_suggestions', {
   index('rrs_provider_idx').on(table.provider),
   index('rrs_created_idx').on(table.createdAt),
 ]);
+
+// ===== Marketing Banner Studio =====
+export const marketingBanners = pgTable('marketing_banners', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  category: varchar('category', { length: 60 }).notNull(),
+  headline: varchar('headline', { length: 200 }).notNull(),
+  highlightWord: varchar('highlight_word', { length: 80 }),
+  bodyText: text('body_text'),
+  subjectPreset: varchar('subject_preset', { length: 100 }),
+  photoPrompt: text('photo_prompt'),
+  feature1Title: varchar('feature1_title', { length: 60 }),
+  feature1Desc: varchar('feature1_desc', { length: 160 }),
+  feature2Title: varchar('feature2_title', { length: 60 }),
+  feature2Desc: varchar('feature2_desc', { length: 160 }),
+  feature3Title: varchar('feature3_title', { length: 60 }),
+  feature3Desc: varchar('feature3_desc', { length: 160 }),
+  aspectRatio: varchar('aspect_ratio', { length: 10 }).default('16:9'),
+  audience: varchar('audience', { length: 20 }).default('main'),
+  photoUrl: varchar('photo_url', { length: 500 }),
+  bannerUrl: varchar('banner_url', { length: 500 }).notNull(),
+  status: varchar('status', { length: 20 }).default('ready'),
+  createdBy: uuid('created_by').references(() => adminUsers.id),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => [
+  index('mb_audience_idx').on(table.audience),
+  index('mb_category_idx').on(table.category),
+  index('mb_created_idx').on(table.createdAt),
+]);
