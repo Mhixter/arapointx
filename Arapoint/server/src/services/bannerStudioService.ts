@@ -7,7 +7,8 @@ import { randomUUID } from 'crypto';
 import puppeteer, { Browser } from 'puppeteer';
 import { logger } from '../utils/logger';
 import { objectStorageService } from './objectStorage';
-import { buildBannerHtml } from './bannerTemplate';
+import { buildBannerHtml, pickLayout, LAYOUTS } from './bannerTemplate';
+export { LAYOUTS } from './bannerTemplate';
 
 const ASPECT_DIMS: Record<string, { w: number; h: number }> = {
   '16:9': { w: 1408, h: 768 },
@@ -76,6 +77,7 @@ export interface GenerateBannerInput {
   feature2Title?: string; feature2Desc?: string;
   feature3Title?: string; feature3Desc?: string;
   aspectRatio?: '16:9' | '4:3' | '1:1' | '9:16';
+  layoutId?: string;
 }
 
 async function generatePhoto(prompt: string): Promise<{ buffer: Buffer; storedUrl: string | null }> {
@@ -128,15 +130,23 @@ export async function generateBanner(input: GenerateBannerInput): Promise<{
 }> {
   const dims = ASPECT_DIMS[input.aspectRatio || '16:9'] || ASPECT_DIMS['16:9'];
 
-  const subjectDesc = input.customPhotoPrompt?.trim()
+  const layout = pickLayout({
+    layoutId: input.layoutId,
+    audience: input.audience,
+    category: input.category,
+    headline: input.headline,
+  });
+
+  const baseSubject = input.customPhotoPrompt?.trim()
     ? input.customPhotoPrompt.trim()
     : (SUBJECT_PRESETS[input.subjectPreset] || SUBJECT_PRESETS['photo_only']);
+  const subjectDesc = layout.photoPromptHint(baseSubject);
 
-  logger.info('Banner Studio: generating photo', { category: input.category, headline: input.headline.slice(0, 80) });
+  logger.info('Banner Studio: generating photo', { layout: layout.id, category: input.category, headline: input.headline.slice(0, 80) });
   const { buffer: photoBuf, storedUrl: photoUrl } = await generatePhoto(subjectDesc);
   const photoDataUrl = `data:image/png;base64,${photoBuf.toString('base64')}`;
 
-  logger.info('Banner Studio: rendering HTML template');
+  logger.info('Banner Studio: rendering HTML template', { layout: layout.id });
   const html = buildBannerHtml({
     headline: input.headline,
     highlightWord: input.highlightWord,
@@ -150,6 +160,9 @@ export async function generateBanner(input: GenerateBannerInput): Promise<{
     feature3Desc: input.feature3Desc,
     width: dims.w,
     height: dims.h,
+    layoutId: layout.id,
+    audience: input.audience,
+    category: input.category,
   });
 
   let bannerBuffer = await renderBannerHtml(html, dims.w, dims.h);

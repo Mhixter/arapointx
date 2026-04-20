@@ -5,7 +5,7 @@ import { marketingBanners } from '../../db/schema';
 import { desc, eq, inArray, and, sql } from 'drizzle-orm';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { logger } from '../../utils/logger';
-import { generateBanner, buildBannerPdf, SUBJECT_PRESETS } from '../../services/bannerStudioService';
+import { generateBanner, buildBannerPdf, SUBJECT_PRESETS, LAYOUTS } from '../../services/bannerStudioService';
 import { objectStorageService } from '../../services/objectStorage';
 
 const router = Router();
@@ -18,6 +18,11 @@ router.get('/presets', async (_req: Request, res: Response) => {
     categories: ['How It Works', 'Benefit', 'Festival', 'Developer', 'Trust Score', 'Customer Story', 'Future', 'Attracting Users', 'People Explaining', 'Email', 'Security'],
     audiences: ['main', 'developer'],
     aspectRatios: ['16:9', '4:3', '1:1', '9:16'],
+    layouts: [
+      { id: 'auto', name: 'Auto (smart pick by topic)', description: 'System chooses the best layout based on category and headline' },
+      { id: 'random', name: 'Random (surprise me)', description: 'Picks a random layout each time' },
+      ...LAYOUTS.map(l => ({ id: l.id, name: l.name, description: l.description, audience: l.audience })),
+    ],
   }));
 });
 

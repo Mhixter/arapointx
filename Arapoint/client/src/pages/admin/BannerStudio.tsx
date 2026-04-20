@@ -24,11 +24,19 @@ interface Banner {
   createdAt: string;
 }
 
+interface LayoutOption {
+  id: string;
+  name: string;
+  description: string;
+  audience?: 'main' | 'developer' | 'both';
+}
+
 interface PresetData {
   presets: { key: string; desc: string }[];
   categories: string[];
   audiences: string[];
   aspectRatios: string[];
+  layouts: LayoutOption[];
 }
 
 export default function BannerStudio() {
@@ -56,6 +64,7 @@ export default function BannerStudio() {
     feature3Title: 'SAVE TIME',
     feature3Desc: 'Verify fast and onboard confidently.',
     aspectRatio: '16:9',
+    layoutId: 'auto',
   });
 
   const authHeaders = () => ({
@@ -194,6 +203,21 @@ export default function BannerStudio() {
             <div>
               <Label>Body Text</Label>
               <Textarea rows={3} value={form.bodyText} onChange={e => setForm({ ...form, bodyText: e.target.value })} />
+            </div>
+
+            <div>
+              <Label>Layout Style</Label>
+              <Select value={form.layoutId} onValueChange={(v) => setForm({ ...form, layoutId: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(presets?.layouts || []).filter(l => !l.audience || l.audience === 'both' || l.audience === form.audience).map(l => (
+                    <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {form.layoutId && presets?.layouts && (
+                <p className="text-xs text-slate-500 mt-1">{presets.layouts.find(l => l.id === form.layoutId)?.description}</p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
