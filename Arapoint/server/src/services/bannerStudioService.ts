@@ -82,13 +82,12 @@ async function generatePhoto(prompt: string): Promise<{ buffer: Buffer; storedUr
   const openai = getOpenAI();
   const fullPrompt = `${prompt}. Photorealistic, premium commercial photography, sharp focus on subject, soft blurred background, no text or letters, no watermarks, clean composition, magazine quality.`;
   const result = await openai.images.generate({
-    model: 'dall-e-3',
+    model: 'gpt-image-1',
     prompt: fullPrompt,
     size: '1024x1024',
-    quality: 'standard',
-    response_format: 'b64_json',
+    quality: 'medium',
     n: 1,
-  });
+  } as any);
   const b64 = result.data?.[0]?.b64_json;
   if (!b64) throw new Error('OpenAI returned no image data');
   const buffer = Buffer.from(b64, 'base64');
