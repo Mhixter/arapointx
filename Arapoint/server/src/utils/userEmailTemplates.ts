@@ -1,29 +1,23 @@
 const YEAR = new Date().getFullYear();
 const PLATFORM_URL = "https://arapoint.com.ng";
 
-const GREEN_HEADER = `<!-- arapoint-logo-green-start -->
+const GREEN_HEADER = `<!-- arapoint-header-start -->
 <tr>
-  <td style="background:#166534;padding:22px 28px;">
-    <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+  <td style="background:#0A2540;padding:0;">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#0A2540;">
       <tr>
-        <td valign="middle" width="56" style="padding-right:15px;">
-          <table role="presentation" cellpadding="0" cellspacing="0">
-            <tr>
-              <td align="center" valign="middle" style="width:50px;height:50px;background:#ffffff;border-radius:9px;text-align:center;">
-                <span style="display:block;font-size:26px;font-weight:900;color:#166534;font-family:Georgia,'Times New Roman',serif;line-height:50px;text-align:center;">A</span>
-              </td>
-            </tr>
-          </table>
+        <td style="padding:26px 32px 22px 32px;" valign="middle">
+          <img src="${PLATFORM_URL}/email-logo-light.png" alt="Arapoint" width="180" height="45" style="display:block;border:0;outline:none;text-decoration:none;height:45px;width:180px;-ms-interpolation-mode:bicubic;">
         </td>
-        <td valign="middle">
-          <p style="margin:0;font-size:21px;font-weight:900;color:#ffffff;letter-spacing:3px;font-family:Arial,Helvetica,sans-serif;line-height:1.1;">ARAPOINT</p>
-          <p style="margin:5px 0 0;font-size:10px;color:#86efac;letter-spacing:1.5px;font-weight:700;font-family:Arial,Helvetica,sans-serif;line-height:1;">DIGITAL IDENTITY &amp; VERIFICATION &middot; NIGERIA</p>
+        <td align="right" style="padding:26px 32px 22px 32px;" valign="middle">
+          <p style="margin:0;font-size:10px;color:#7BB89C;letter-spacing:2px;font-weight:700;font-family:Arial,Helvetica,sans-serif;line-height:1;text-transform:uppercase;">Digital Identity &middot; Nigeria</p>
         </td>
       </tr>
     </table>
+    <div style="height:3px;background:linear-gradient(90deg,#00B86B 0%,#00B86B 50%,#0A2540 100%);font-size:0;line-height:0;mso-line-height-rule:exactly;">&nbsp;</div>
   </td>
 </tr>
-<!-- arapoint-logo-green-end -->`;
+<!-- arapoint-header-end -->`;
 
 const G = {
   dark:   "#166534",

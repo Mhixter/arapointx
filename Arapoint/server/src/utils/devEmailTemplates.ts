@@ -2,32 +2,24 @@ const YEAR = new Date().getFullYear();
 const SITE_URL = "https://arapoint.com.ng";
 const DEV_PORTAL_URL = `${SITE_URL}/developer`;
 
-const BLUE_HEADER = `<!-- arapoint-logo-blue-start -->
+const BLUE_HEADER = `<!-- arapoint-dev-header-start -->
 <tr>
-  <td style="background:#1e3a8a;padding:22px 28px;">
-    <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+  <td style="background:#0A2540;padding:0;">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#0A2540;">
       <tr>
-        <td valign="middle" width="56" style="padding-right:15px;">
-          <table role="presentation" cellpadding="0" cellspacing="0">
-            <tr>
-              <td align="center" valign="middle" style="width:50px;height:50px;background:#ffffff;border-radius:9px;text-align:center;">
-                <span style="display:block;font-size:26px;font-weight:900;color:#1e3a8a;font-family:Georgia,'Times New Roman',serif;line-height:50px;text-align:center;">A</span>
-              </td>
-            </tr>
-          </table>
+        <td style="padding:26px 32px 22px 32px;" valign="middle">
+          <img src="${SITE_URL}/email-logo-light.png" alt="Arapoint" width="180" height="45" style="display:block;border:0;outline:none;text-decoration:none;height:45px;width:180px;-ms-interpolation-mode:bicubic;">
         </td>
-        <td valign="middle">
-          <p style="margin:0;font-size:21px;font-weight:900;color:#ffffff;letter-spacing:3px;font-family:Arial,Helvetica,sans-serif;line-height:1.1;">ARAPOINT</p>
-          <p style="margin:5px 0 0;font-size:10px;color:#93c5fd;letter-spacing:1.5px;font-weight:700;font-family:Arial,Helvetica,sans-serif;line-height:1;">DEVELOPER PLATFORM &middot; SECURE IDENTITY INFRASTRUCTURE</p>
-        </td>
-        <td valign="middle" align="right">
-          <p style="margin:0;font-size:10px;color:#60a5fa;font-weight:700;letter-spacing:1px;font-family:Arial,Helvetica,sans-serif;">API PORTAL</p>
+        <td align="right" style="padding:26px 32px 22px 32px;" valign="middle">
+          <p style="margin:0;font-size:10px;color:#7BB89C;letter-spacing:2px;font-weight:700;font-family:Arial,Helvetica,sans-serif;line-height:1;text-transform:uppercase;">Developer Platform</p>
+          <p style="margin:6px 0 0;font-size:9px;color:#5C7A92;letter-spacing:1.5px;font-weight:600;font-family:Arial,Helvetica,sans-serif;line-height:1;text-transform:uppercase;">API &middot; Sandbox &middot; Live</p>
         </td>
       </tr>
     </table>
+    <div style="height:3px;background:linear-gradient(90deg,#00B86B 0%,#3B82F6 50%,#0A2540 100%);font-size:0;line-height:0;mso-line-height-rule:exactly;">&nbsp;</div>
   </td>
 </tr>
-<!-- arapoint-logo-blue-end -->`;
+<!-- arapoint-dev-header-end -->`;
 
 function devBase(previewText: string, accentColor: string, body: string): string {
   return `<!DOCTYPE html>
