@@ -87,6 +87,14 @@ export const LAYOUTS: LayoutMeta[] = [
     photoPromptHint: () => `dark abstract circuit background, soft blue and green glow, no people, no text` },
   { id: 'id-card-center', name: 'Verified ID Card (Center)', description: 'Centered glassmorphic ID card with person photo inside, text wraps', audience: 'both', needsPersonPhoto: true,
     photoPromptHint: (s) => `${s}, official passport-style head-and-shoulders portrait, plain neutral background, sharp lighting` },
+  { id: 'community-grid', name: 'Community + Peers Grid', description: 'Text left, person on right with a small grid of peer/community avatars overlay', audience: 'both', needsPersonPhoto: true,
+    photoPromptHint: (s) => `${s}, candid group of diverse Nigerian professionals collaborating around a laptop, warm office lighting, half-body composition` },
+  { id: 'api-key-card', name: 'API Key Credit Card', description: 'Person celebrating right + green credit-card-style API key card overlay on left', audience: 'developer', needsPersonPhoto: true,
+    photoPromptHint: (s) => `${s}, joyful Nigerian developer celebrating success with raised fists at laptop, bright modern home office, half-body composition with negative space on left` },
+  { id: 'dashboard-pointing', name: 'Person Pointing at Dashboards', description: 'Person on right gesturing at floating laptop + admin-panel mockups in the center', audience: 'both', needsPersonPhoto: true,
+    photoPromptHint: (s) => `${s}, professional Nigerian person standing and gesturing toward something off-frame to their left, three-quarter body, soft modern office background, plenty of negative space on the left` },
+  { id: 'twin-icon-preview', name: 'Twin Biometric Icons (Coming Soon)', description: 'Text top + person right + face-wireframe and fingerprint twin icons on bottom navy strip', audience: 'both', needsPersonPhoto: true,
+    photoPromptHint: (s) => `${s}, professional Nigerian woman in lab coat or smart casual smiling slightly, looking off to the left, half-body, soft bright background` },
 ];
 
 export function pickLayout(opts: { layoutId?: string; audience?: 'main' | 'developer'; category?: string; headline?: string }): LayoutMeta {
@@ -118,6 +126,10 @@ export function pickLayout(opts: { layoutId?: string; audience?: 'main' | 'devel
     if (/(verified|certificate|id|card|badge|passport)/.test(text) && id === 'id-card-center') s += 3;
     if (/(festival|eid|sallah|christmas|independence|family|celebrat)/.test(text) && id === 'photo-right-cards') s += 3;
     if (/(business|professional|hire|onboard|enterprise|kyb)/.test(text) && (id === 'photo-right-cards' || id === 'photo-left-glass')) s += 2;
+    if (/(community|builders|join|members|peers|users|10\,?000|thousand)/.test(text) && id === 'community-grid') s += 5;
+    if (/(api key|access key|key in|seconds|get started|sign up|free)/.test(text) && id === 'api-key-card') s += 5;
+    if (/(portal|dashboard|admin|panel|console|powerful)/.test(text) && id === 'dashboard-pointing') s += 4;
+    if (/(coming soon|launching|preview|new|biometric|face\s*\+\s*finger|multi)/.test(text) && id === 'twin-icon-preview') s += 4;
     return s;
   };
   return eligible.slice().sort((a, b) => score(b.id) - score(a.id))[0];
@@ -495,6 +507,218 @@ function layoutIdCardCenter(c: BannerTemplateConfig, features: any[], topH: numb
   </div>${bottomStrip(features)}</div>`;
 }
 
+function layoutCommunityGrid(c: BannerTemplateConfig, features: any[], topH: number): string {
+  return `<style>${baseStyles(c.width, c.height)}${bottomStripStyles}
+    .top{position:absolute;top:0;left:0;right:0;height:${topH}px;background:#fff;display:flex;}
+    .left{flex:1;padding:120px 36px 24px 56px;display:flex;flex-direction:column;justify-content:center;position:relative;z-index:2;}
+    .right{flex:1.05;position:relative;}
+    .logo-row{position:absolute;top:36px;left:56px;z-index:5;}
+    .pill{display:inline-block;background:${GREEN};color:#fff;font-size:11px;font-weight:800;letter-spacing:1.4px;padding:6px 12px;border-radius:99px;margin-bottom:14px;text-transform:uppercase;}
+    .headline{font-size:54px;font-weight:800;color:${NAVY};line-height:1.05;letter-spacing:-1.2px;margin-bottom:18px;}
+    .body-text{font-size:16px;line-height:1.55;color:${TEXT_BODY};max-width:540px;}
+    .photo-wrap{position:absolute;inset:0;overflow:hidden;}
+    .photo-wrap img{width:100%;height:100%;object-fit:cover;object-position:center;}
+    .photo-fade{position:absolute;top:0;bottom:0;left:0;width:140px;background:linear-gradient(to right, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 100%);}
+    .check-float{position:absolute;width:54px;height:54px;border-radius:50%;background:${GREEN};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:26px;box-shadow:0 14px 30px rgba(0,184,107,0.45);z-index:4;}
+    .check-1{top:18%;left:14%;}
+    .check-2{top:54%;left:28%;}
+    .peers-card{position:absolute;top:24px;right:24px;background:rgba(255,255,255,0.96);border-radius:14px;padding:12px;box-shadow:0 18px 40px rgba(10,37,64,0.18);width:200px;z-index:5;}
+    .peers-card .ttl{font-size:11px;font-weight:800;color:${NAVY};letter-spacing:1.2px;text-transform:uppercase;margin-bottom:8px;}
+    .peers-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;}
+    .pa{aspect-ratio:1;border-radius:6px;background:linear-gradient(135deg,#A78BFA,#5B5BFF);position:relative;}
+    .pa:nth-child(2n){background:linear-gradient(135deg,#FBBF24,#F97316);}
+    .pa:nth-child(3n){background:linear-gradient(135deg,#34D399,#10B981);}
+    .pa:nth-child(5n){background:linear-gradient(135deg,#F472B6,#EC4899);}
+    .pa:nth-child(7n){background:linear-gradient(135deg,#60A5FA,#3B82F6);}
+    .count-pill{position:absolute;top:50%;right:36px;transform:translateY(-50%);background:${NAVY};color:#fff;border-radius:99px;padding:10px 18px;font-size:13px;font-weight:800;display:flex;align-items:center;gap:8px;z-index:6;box-shadow:0 14px 30px rgba(10,37,64,0.3);}
+    .count-pill .dot{width:8px;height:8px;border-radius:50%;background:${GREEN};box-shadow:0 0 10px ${GREEN};}
+  </style>
+  <div class="banner"><div class="top">
+    ${logoBlock()}
+    <div class="left">
+      <span class="pill">Trusted Community</span>
+      <div class="headline">${highlightHeadline(c.headline, c.highlightWord)}</div>
+      ${c.bodyText ? `<div class="body-text">${escapeHtml(c.bodyText)}</div>` : ''}
+    </div>
+    <div class="right">
+      <div class="photo-wrap"><img src="${c.photoDataUrl}"/></div>
+      <div class="photo-fade"></div>
+      <div class="check-float check-1">✓</div>
+      <div class="check-float check-2">✓</div>
+      <div class="peers-card">
+        <div class="ttl">Verified Peers</div>
+        <div class="peers-grid"><div class="pa"></div><div class="pa"></div><div class="pa"></div><div class="pa"></div><div class="pa"></div><div class="pa"></div><div class="pa"></div><div class="pa"></div><div class="pa"></div><div class="pa"></div><div class="pa"></div><div class="pa"></div></div>
+      </div>
+      <div class="count-pill"><div class="dot"></div>10,000+ live</div>
+    </div>
+  </div>${bottomStrip(features)}</div>`;
+}
+
+function layoutApiKeyCard(c: BannerTemplateConfig, features: any[], topH: number): string {
+  return `<style>${baseStyles(c.width, c.height)}${bottomStripStyles}
+    .top{position:absolute;top:0;left:0;right:0;height:${topH}px;background:#fff;display:flex;}
+    .left{flex:1.05;padding:120px 36px 24px 56px;display:flex;flex-direction:column;justify-content:center;position:relative;z-index:2;}
+    .right{flex:1;position:relative;}
+    .logo-row{position:absolute;top:36px;left:56px;z-index:5;}
+    .headline{font-size:54px;font-weight:800;color:${NAVY};line-height:1.05;letter-spacing:-1.2px;margin-bottom:22px;}
+    .body-text{font-size:16px;line-height:1.55;color:${TEXT_BODY};max-width:540px;}
+    .photo-wrap{position:absolute;inset:0;overflow:hidden;}
+    .photo-wrap img{width:100%;height:100%;object-fit:cover;object-position:center;}
+    .photo-fade{position:absolute;top:0;bottom:0;left:0;width:140px;background:linear-gradient(to right, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 100%);}
+    .check-float{position:absolute;width:48px;height:48px;border-radius:50%;background:${GREEN};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px;box-shadow:0 14px 30px rgba(0,184,107,0.4);z-index:4;}
+    .check-a{top:14%;right:32%;}
+    .check-b{top:46%;right:14%;}
+    .api-card{position:absolute;left:-30px;bottom:36px;width:330px;height:200px;background:linear-gradient(135deg,${GREEN} 0%,${GREEN_DEEP} 100%);border-radius:18px;padding:22px 24px;color:#fff;box-shadow:0 30px 60px rgba(0,184,107,0.35);transform:rotate(-6deg);z-index:5;overflow:hidden;}
+    .api-card::before{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 80% 20%, rgba(255,255,255,0.18) 0%, transparent 40%),radial-gradient(circle at 20% 90%, rgba(0,0,0,0.18) 0%, transparent 50%);}
+    .api-card .top-row{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:2;}
+    .api-card .brand{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;letter-spacing:0.5px;}
+    .api-card .brand .dot{width:14px;height:14px;border-radius:3px;background:#fff;}
+    .api-card .chip{width:38px;height:28px;border-radius:5px;background:linear-gradient(135deg,#FCD34D,#F59E0B);}
+    .api-card .key{font-family:'JetBrains Mono','Courier New',monospace;font-size:24px;font-weight:800;letter-spacing:2px;margin-top:34px;position:relative;z-index:2;}
+    .api-card .label{font-size:46px;font-weight:900;line-height:1;letter-spacing:-1px;margin-top:6px;position:relative;z-index:2;}
+    .api-card .sub{font-family:'JetBrains Mono',monospace;font-size:13px;opacity:0.85;margin-top:8px;position:relative;z-index:2;}
+  </style>
+  <div class="banner"><div class="top">
+    ${logoBlock()}
+    <div class="left"><div class="headline">${highlightHeadline(c.headline, c.highlightWord)}</div>${c.bodyText ? `<div class="body-text">${escapeHtml(c.bodyText)}</div>` : ''}</div>
+    <div class="right">
+      <div class="photo-wrap"><img src="${c.photoDataUrl}"/></div>
+      <div class="photo-fade"></div>
+      <div class="check-float check-a">✓</div>
+      <div class="check-float check-b">✓</div>
+      <div class="api-card">
+        <div class="top-row"><div class="brand"><div class="dot"></div>Arapoint</div><div class="chip"></div></div>
+        <div class="key">/00B86B</div>
+        <div class="label">API Key</div>
+        <div class="sub">#002f63</div>
+      </div>
+    </div>
+  </div>${bottomStrip(features)}</div>`;
+}
+
+function layoutDashboardPointing(c: BannerTemplateConfig, features: any[], topH: number): string {
+  return `<style>${baseStyles(c.width, c.height)}${bottomStripStyles}
+    .top{position:absolute;top:0;left:0;right:0;height:${topH}px;background:linear-gradient(135deg,#fff 0%,#F4F8FB 100%);display:flex;}
+    .left{flex:0.85;padding:120px 24px 24px 56px;display:flex;flex-direction:column;justify-content:center;position:relative;z-index:3;}
+    .center{flex:1.2;position:relative;display:flex;align-items:center;justify-content:center;padding:30px 0;}
+    .right{flex:0.95;position:relative;}
+    .logo-row{position:absolute;top:36px;left:56px;z-index:5;}
+    .headline{font-size:48px;font-weight:800;color:${NAVY};line-height:1.05;letter-spacing:-1.2px;margin-bottom:18px;}
+    .body-text{font-size:15px;line-height:1.55;color:${TEXT_BODY};max-width:380px;}
+    .photo-wrap{position:absolute;inset:0;overflow:hidden;}
+    .photo-wrap img{width:100%;height:100%;object-fit:cover;object-position:left center;}
+    .photo-fade{position:absolute;top:0;bottom:0;left:0;width:160px;background:linear-gradient(to right, rgba(244,248,251,1) 0%, rgba(244,248,251,0) 100%);}
+    .check-float{position:absolute;width:50px;height:50px;border-radius:50%;background:${GREEN};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:24px;box-shadow:0 14px 30px rgba(0,184,107,0.4);z-index:6;}
+    .check-1{top:8%;left:46%;}
+    .check-2{top:62%;left:32%;}
+    .panel-back{position:absolute;left:5%;top:8%;width:78%;background:#0F1A2E;border-radius:12px;box-shadow:0 30px 60px rgba(10,37,64,0.3);overflow:hidden;border:1px solid rgba(255,255,255,0.08);z-index:2;}
+    .panel-back .pbar{display:flex;gap:6px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.08);}
+    .panel-back .d{width:9px;height:9px;border-radius:50%;}
+    .panel-back .body{display:flex;}
+    .panel-back .nav{width:30%;background:#08111F;padding:14px 12px;color:#9CB3CC;font-size:9px;font-weight:600;}
+    .panel-back .nav .it{padding:5px 0;border-radius:4px;padding-left:8px;}
+    .panel-back .nav .it.act{background:${GREEN};color:#fff;}
+    .panel-back .main{flex:1;padding:14px;}
+    .panel-back .stat{background:rgba(255,255,255,0.05);border-radius:6px;padding:8px;margin-bottom:6px;}
+    .panel-back .stat .lbl{font-size:8px;color:#7A93B0;text-transform:uppercase;letter-spacing:0.8px;font-weight:600;}
+    .panel-back .stat .v{font-size:14px;color:${GREEN};font-weight:800;margin-top:2px;}
+    .panel-front{position:absolute;left:38%;top:36%;width:60%;background:#0F1A2E;border-radius:10px;padding:12px 14px;font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.7;color:#E6EDF5;box-shadow:0 30px 60px rgba(10,37,64,0.4);z-index:5;}
+    .panel-front .ln .kw{color:#7DD3FC;}
+    .panel-front .ln .st{color:${GREEN};}
+    .panel-front .ln .cm{color:#5C7A92;}
+  </style>
+  <div class="banner"><div class="top">
+    ${logoBlock()}
+    <div class="left"><div class="headline">${highlightHeadline(c.headline, c.highlightWord)}</div>${c.bodyText ? `<div class="body-text">${escapeHtml(c.bodyText)}</div>` : ''}</div>
+    <div class="center">
+      <div class="panel-back">
+        <div class="pbar"><div class="d" style="background:#FF5F57"></div><div class="d" style="background:#FEBC2E"></div><div class="d" style="background:#28C840"></div></div>
+        <div class="body">
+          <div class="nav"><div class="it act">Overview</div><div class="it">Identity</div><div class="it">KYC</div><div class="it">Logs</div><div class="it">Keys</div></div>
+          <div class="main">
+            <div class="stat"><div class="lbl">Verifications</div><div class="v">12,847</div></div>
+            <div class="stat"><div class="lbl">Success Rate</div><div class="v">99.7%</div></div>
+            <div class="stat"><div class="lbl">Avg Latency</div><div class="v">1.2s</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel-front">
+        <div class="ln"><span class="cm">// arapoint sdk</span></div>
+        <div class="ln"><span class="kw">await</span> verify(<span class="st">'BVN'</span>);</div>
+        <div class="ln"><span class="cm">// → 200 OK</span></div>
+        <div class="ln" style="color:${GREEN}">✓ verified: true</div>
+      </div>
+      <div class="check-float check-1">✓</div>
+      <div class="check-float check-2">✓</div>
+    </div>
+    <div class="right"><div class="photo-wrap"><img src="${c.photoDataUrl}"/></div></div>
+  </div>${bottomStrip(features)}</div>`;
+}
+
+function layoutTwinIconPreview(c: BannerTemplateConfig, features: any[], topH: number): string {
+  return `<style>${baseStyles(c.width, c.height)}${bottomStripStyles}
+    .top{position:absolute;top:0;left:0;right:0;height:${topH - 80}px;background:#fff;display:flex;}
+    .left{flex:1.1;padding:120px 36px 24px 56px;display:flex;flex-direction:column;justify-content:center;position:relative;z-index:2;}
+    .right{flex:1;position:relative;}
+    .logo-row{position:absolute;top:36px;left:56px;z-index:5;}
+    .headline{font-size:54px;font-weight:800;color:${NAVY};line-height:1.06;letter-spacing:-1.2px;margin-bottom:18px;}
+    .headline .api-pill{background:${GREEN};color:#fff;padding:2px 10px;border-radius:6px;font-weight:800;display:inline-block;}
+    .body-text{font-size:16px;line-height:1.55;color:${TEXT_BODY};max-width:540px;}
+    .photo-wrap{position:absolute;inset:0;overflow:hidden;}
+    .photo-wrap img{width:100%;height:100%;object-fit:cover;object-position:center;}
+    .photo-fade{position:absolute;top:0;bottom:0;left:0;width:140px;background:linear-gradient(to right, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 100%);}
+    .check-float{position:absolute;width:48px;height:48px;border-radius:50%;background:${GREEN};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px;box-shadow:0 14px 30px rgba(0,184,107,0.4);z-index:4;}
+    .glass-stack{position:absolute;right:34%;top:24%;display:flex;flex-direction:column;gap:8px;z-index:3;}
+    .gs{background:rgba(255,255,255,0.85);backdrop-filter:blur(8px);border-radius:10px;padding:8px 12px;width:160px;box-shadow:0 10px 24px rgba(10,37,64,0.12);display:flex;align-items:center;gap:8px;}
+    .gs .gc{width:22px;height:22px;border-radius:50%;background:${GREEN};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;}
+    .gs .gl{height:6px;background:#CBD5E1;border-radius:3px;flex:1;}
+    .twin-strip{position:absolute;bottom:130px;left:0;right:0;height:80px;background:${NAVY_DEEP};display:flex;align-items:center;padding:0 56px;gap:36px;z-index:5;}
+    .twin-icon{width:60px;height:60px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .twin-meta{color:#fff;}
+    .twin-meta .t{font-size:13px;font-weight:800;color:${GREEN};letter-spacing:1px;text-transform:uppercase;}
+    .twin-meta .d{font-size:11px;color:#B8C7D9;margin-top:2px;}
+  </style>
+  <div class="banner"><div class="top">
+    ${logoBlock()}
+    <div class="left"><div class="headline">${highlightHeadline(c.headline, c.highlightWord)}</div>${c.bodyText ? `<div class="body-text">${escapeHtml(c.bodyText)}</div>` : ''}</div>
+    <div class="right">
+      <div class="photo-wrap"><img src="${c.photoDataUrl}"/></div>
+      <div class="photo-fade"></div>
+      <div class="check-float" style="top:14%;left:18%;">✓</div>
+      <div class="glass-stack"><div class="gs"><div class="gc">✓</div><div class="gl"></div></div><div class="gs"><div class="gc">✓</div><div class="gl"></div></div><div class="gs"><div class="gc">✓</div><div class="gl"></div></div></div>
+    </div>
+  </div>
+  <div class="twin-strip">
+    <div class="twin-icon">
+      <svg width="56" height="56" viewBox="0 0 56 56" fill="none" stroke="${GREEN}" stroke-width="2" stroke-linecap="round">
+        <rect x="4" y="4" width="10" height="3"/><rect x="4" y="4" width="3" height="10"/>
+        <rect x="42" y="4" width="10" height="3"/><rect x="49" y="4" width="3" height="10"/>
+        <rect x="4" y="49" width="10" height="3"/><rect x="4" y="42" width="3" height="10"/>
+        <rect x="42" y="49" width="10" height="3"/><rect x="49" y="42" width="3" height="10"/>
+        <circle cx="22" cy="24" r="2" fill="${GREEN}"/><circle cx="34" cy="24" r="2" fill="${GREEN}"/>
+        <path d="M20 34 Q28 40 36 34"/>
+        <path d="M16 18 L18 22 L16 26"/><path d="M40 18 L38 22 L40 26"/>
+      </svg>
+    </div>
+    <div class="twin-meta"><div class="t">Face Match</div><div class="d">Liveness + selfie</div></div>
+    <div style="width:1px;height:50px;background:rgba(255,255,255,0.15);"></div>
+    <div class="twin-icon">
+      <svg width="48" height="56" viewBox="0 0 48 56" fill="none" stroke="${GREEN}" stroke-width="2" stroke-linecap="round">
+        <path d="M24 6 C 14 6, 8 14, 8 24 C 8 34, 12 40, 16 44"/>
+        <path d="M24 12 C 16 12, 12 18, 12 24 C 12 32, 14 38, 18 44"/>
+        <path d="M24 18 C 20 18, 17 22, 17 26 C 17 34, 20 40, 22 46"/>
+        <path d="M24 24 C 22 24, 21 26, 21 28 C 21 36, 24 44, 26 48"/>
+        <path d="M28 26 Q 30 36, 32 46"/>
+        <path d="M32 14 C 36 18, 38 22, 38 28 C 38 38, 36 44, 34 48"/>
+      </svg>
+    </div>
+    <div class="twin-meta"><div class="t">Fingerprint</div><div class="d">Biometric capture</div></div>
+    <div style="flex:1"></div>
+    <div style="background:${GREEN};color:#fff;font-size:11px;font-weight:800;padding:7px 14px;border-radius:99px;letter-spacing:1.2px;text-transform:uppercase;">Coming Soon</div>
+  </div>
+  ${bottomStrip(features)}</div>`;
+}
+
 // ============================================================================
 // MAIN ENTRY
 // ============================================================================
@@ -508,6 +732,10 @@ const LAYOUT_BUILDERS: Record<string, (c: BannerTemplateConfig, features: any[],
   'user-dashboard': layoutUserDashboard,
   'dev-dashboard-code': layoutDevDashboardCode,
   'id-card-center': layoutIdCardCenter,
+  'community-grid': layoutCommunityGrid,
+  'api-key-card': layoutApiKeyCard,
+  'dashboard-pointing': layoutDashboardPointing,
+  'twin-icon-preview': layoutTwinIconPreview,
 };
 
 export function buildBannerHtml(c: BannerTemplateConfig): string {
