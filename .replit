@@ -107,7 +107,7 @@ ADMIN_NAME = "Admin User"
 ADMIN_PASSWORD = "Mhixter664@gmail.com"
 ADMIN_EMAIL = "saidumuhammed664@gmail.com"
 PORT = "5000"
-PRIVATE_OBJECT_DIR = "replit-objstore-4b41189d-2a46-4255-b4ec-0b1435729edd"
+PRIVATE_OBJECT_DIR = "replit-objstore-004487b2-2291-4a2b-aed5-a2d8c0f50f03"
 
 [userenv.production]
 SITE_URL = "https://arapoint.com.ng"
@@ -116,4 +116,4 @@ REFRESH_TOKEN_SECRET = "b76503e04ba1edb2ac4893b237c31abd8c02fa9617ef03601c4920be
 ENCRYPTION_KEY = "af5a17d7b1418bd6f2c3af5802e867fe"
 
 [objectStorage]
-defaultBucketID = "replit-objstore-4b41189d-2a46-4255-b4ec-0b1435729edd"
+defaultBucketID = "replit-objstore-004487b2-2291-4a2b-aed5-a2d8c0f50f03"
