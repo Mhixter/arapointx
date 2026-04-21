@@ -622,10 +622,10 @@ title = "Arapoint - 50 Marketing Banners (Main + Developer)"
 id = "ErRopkCusW7chPp0nZdcF"
 uri = "file://exports/logos/arapoint-banner-light.png"
 type = "image"
-title = "Light Banner — No Logo (slot empty on left)"
+title = "Arapoint Solutions — Light Banner with Logo"
 
 [[outputs]]
 id = "JTzQawffDPNmiDuo_KvNd"
 uri = "file://exports/logos/arapoint-banner-dark.png"
 type = "image"
-title = "Dark Banner — No Logo (slot empty on left)"
+title = "Arapoint — Secure Identity Infrastructure (Dark with Logo)"
