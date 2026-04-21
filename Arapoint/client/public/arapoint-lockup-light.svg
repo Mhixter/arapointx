@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 280" fill="none">
+  <defs>
+    <linearGradient id="bg1" x1="0" y1="0" x2="1024" y2="280" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F4FBF7"/>
+      <stop offset="1" stop-color="#E8F6EE"/>
+    </linearGradient>
+    <linearGradient id="ringG2" x1="0" y1="0" x2="240" y2="240" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#00C77A"/>
+      <stop offset="1" stop-color="#00A05B"/>
+    </linearGradient>
+    <linearGradient id="capG2" x1="60" y1="40" x2="180" y2="80" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0F2D4F"/>
+      <stop offset="1" stop-color="#0A2540"/>
+    </linearGradient>
+    <linearGradient id="word2" x1="0" y1="0" x2="0" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0E8F4F"/>
+      <stop offset="1" stop-color="#067A40"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="280" rx="20" fill="url(#bg1)"/>
+  <path d="M -40 240 Q 200 140 520 220 T 1080 200 L 1080 280 L -40 280 Z" fill="#C9EBD6" opacity="0.6"/>
+  <path d="M -40 80 Q 240 0 540 70 T 1080 60 L 1080 -10 L -40 -10 Z" fill="#D8F0E1" opacity="0.5"/>
+  <g transform="translate(36 20)">
+    <circle cx="120" cy="120" r="116" fill="#FFFFFF"/>
+    <circle cx="120" cy="120" r="116" stroke="#D9E3EC" stroke-width="2"/>
+    <path d="M 36 132 C 60 196, 180 196, 204 132" stroke="url(#ringG2)" stroke-width="14" stroke-linecap="round" fill="none"/>
+    <path d="M 196 138 L 218 130 L 210 152 Z" fill="#00A05B"/>
+    <path d="M 120 56 L 60 86 L 120 116 L 180 86 Z" fill="url(#capG2)"/>
+    <rect x="174" y="86" width="4" height="22" fill="#0A2540"/>
+    <circle cx="176" cy="112" r="5" fill="#00B86B"/>
+    <path d="M 88 178 L 120 110 L 152 178" stroke="#0A2540" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <line x1="100" y1="156" x2="140" y2="156" stroke="#0A2540" stroke-width="12" stroke-linecap="round"/>
+  </g>
+  <text x="320" y="158" font-family="Inter, system-ui, sans-serif" font-size="104" font-weight="800" letter-spacing="-3" fill="url(#word2)">Arapoint</text>
+  <text x="324" y="208" font-family="Inter, system-ui, sans-serif" font-size="28" font-weight="500" letter-spacing="2" fill="#5A7186">Solutions</text>
+</svg>
