@@ -617,3 +617,15 @@ id = "un4ZkH9zzpyNotBOoIYpm"
 uri = "file://attached_assets/generated_images/arapoint_50_banners.pdf"
 type = "pdf"
 title = "Arapoint - 50 Marketing Banners (Main + Developer)"
+
+[[outputs]]
+id = "ErRopkCusW7chPp0nZdcF"
+uri = "file://exports/logos/arapoint-banner-light.png"
+type = "image"
+title = "Arapoint Banner — Light"
+
+[[outputs]]
+id = "JTzQawffDPNmiDuo_KvNd"
+uri = "file://exports/logos/arapoint-banner-dark.png"
+type = "image"
+title = "Arapoint Banner — Dark (Navy)"
