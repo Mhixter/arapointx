@@ -918,9 +918,20 @@ router.get('/settings', async (req: Request, res: Response) => {
 
 router.post('/cloudinary/upload-logos', async (req: Request, res: Response) => {
   try {
-    const { cloudName, apiKey, apiSecret } = req.body;
+    let { cloudName, apiKey, apiSecret } = req.body;
+
     if (!cloudName || !apiKey || !apiSecret) {
-      return res.status(400).json(formatErrorResponse(400, 'cloudName, apiKey, and apiSecret are required'));
+      const savedRows = await db.select().from(adminSettings)
+        .where(inArray(adminSettings.settingKey, ['cloudinaryCloudName', 'cloudinaryApiKey', 'cloudinaryApiSecret']));
+      const saved: Record<string, string> = {};
+      savedRows.forEach(r => { saved[r.settingKey] = r.settingValue || ''; });
+      cloudName = cloudName || saved.cloudinaryCloudName;
+      apiKey    = apiKey    || saved.cloudinaryApiKey;
+      apiSecret = apiSecret || saved.cloudinaryApiSecret;
+    }
+
+    if (!cloudName || !apiKey || !apiSecret) {
+      return res.status(400).json(formatErrorResponse(400, 'Cloudinary credentials missing. Provide cloudName, apiKey and apiSecret, or save them once first.'));
     }
 
     const { v2: cloudinary } = await import('cloudinary');
@@ -941,23 +952,29 @@ router.post('/cloudinary/upload-logos', async (req: Request, res: Response) => {
       cloudinary.uploader.upload(greenPath, {
         public_id: 'arapoint/email-logo-green',
         overwrite: true,
+        invalidate: true,
         resource_type: 'image',
         format: 'png',
       }),
       cloudinary.uploader.upload(bluePath, {
         public_id: 'arapoint/email-logo-blue',
         overwrite: true,
+        invalidate: true,
         resource_type: 'image',
         format: 'png',
       }),
     ]);
 
+    const cacheBust = Date.now();
+    const greenUrlVersioned = `${greenResult.secure_url}?v=${greenResult.version || cacheBust}`;
+    const blueUrlVersioned  = `${blueResult.secure_url}?v=${blueResult.version || cacheBust}`;
+
     const settingsToSave = [
       { settingKey: 'cloudinaryCloudName', settingValue: cloudName },
       { settingKey: 'cloudinaryApiKey', settingValue: apiKey },
       { settingKey: 'cloudinaryApiSecret', settingValue: apiSecret },
-      { settingKey: 'emailLogoGreenUrl', settingValue: greenResult.secure_url },
-      { settingKey: 'emailLogoBlueUrl', settingValue: blueResult.secure_url },
+      { settingKey: 'emailLogoGreenUrl', settingValue: greenUrlVersioned },
+      { settingKey: 'emailLogoBlueUrl', settingValue: blueUrlVersioned },
     ];
 
     for (const s of settingsToSave) {
