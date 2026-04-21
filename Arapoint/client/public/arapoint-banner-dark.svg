@@ -14,10 +14,6 @@
       <stop offset="0.5" stop-color="#22E0AE"/>
       <stop offset="1" stop-color="#16C79A"/>
     </linearGradient>
-    <radialGradient id="markGlow" cx="0.5" cy="0.55" r="0.6">
-      <stop offset="0" stop-color="#16C79A" stop-opacity="0.4"/>
-      <stop offset="1" stop-color="#16C79A" stop-opacity="0"/>
-    </radialGradient>
   </defs>
   <rect width="1200" height="320" rx="24" fill="url(#bgD)"/>
   <rect width="1200" height="320" rx="24" fill="url(#glowD)"/>
@@ -27,15 +23,6 @@
     <line x1="980" y1="0" x2="780" y2="320"/>
     <line x1="1060" y1="0" x2="860" y2="320"/>
     <line x1="1140" y1="0" x2="940" y2="320"/>
-  </g>
-  <g transform="translate(70 60)">
-    <rect width="200" height="200" rx="44" fill="#000000"/>
-    <rect width="200" height="200" rx="44" fill="url(#markGlow)"/>
-    <g transform="translate(100 110)">
-      <path d="M -6 -82 Q 0 -94 6 -82 L -50 70 Q -56 86 -40 86 L -6 86 Q 0 86 0 80 Z" fill="#16C79A"/>
-      <path d="M 6 -82 Q 0 -94 -6 -82 L 50 70 Q 56 86 40 86 L 10 86 Q 6 86 6 80 Z" fill="#16C79A" opacity="0.78"/>
-      <path d="M 14 14 Q 17 6 27 6 L 45 6 Q 55 6 58 14 L 58 76 Q 58 86 49 86 L 23 86 Q 14 86 14 76 Z" fill="#0A2540"/>
-    </g>
   </g>
   <text x="320" y="170" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="116" font-weight="800" letter-spacing="-4" fill="#FFFFFF">Arapoint</text>
   <text x="324" y="220" font-family="Inter, system-ui, sans-serif" font-size="26" font-weight="500" letter-spacing="3" fill="#7FB7E0">SECURE IDENTITY INFRASTRUCTURE</text>
