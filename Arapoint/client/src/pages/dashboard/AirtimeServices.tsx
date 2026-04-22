@@ -130,7 +130,7 @@ export default function AirtimeServices() {
 
     try {
       const token = getAuthToken();
-      const response = await fetch('/api/airtime/purchase', {
+      const response = await fetch('/api/airtime/buy', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -138,7 +138,7 @@ export default function AirtimeServices() {
         },
         body: JSON.stringify({
           network: formData.network,
-          phone: formData.phone,
+          phoneNumber: formData.phone,
           amount: parseFloat(formData.amount)
         })
       });
@@ -146,7 +146,11 @@ export default function AirtimeServices() {
       const data = await response.json();
 
       if (data.status === 'success') {
-        setSelectedTransaction(data.data.transaction);
+        setSelectedTransaction({
+          ...data.data,
+          phone: data.data.phoneNumber || formData.phone,
+          createdAt: new Date().toISOString(),
+        });
         setShowReceipt(true);
         setFormData({ network: '', phone: '', amount: '' });
         setAutoDetected(false);
