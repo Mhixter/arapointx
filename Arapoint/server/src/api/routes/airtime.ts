@@ -67,7 +67,7 @@ router.post('/buy', async (req: Request, res: Response) => {
     logger.info('Airtime purchase started', { userId: req.userId, network, amount, provider: useAirtimeNigeria ? 'AirtimeNigeria' : 'VTPass', phone: phoneNumber.substring(0, 4) + '***' });
 
     // Deduct wallet BEFORE calling provider so a crash after provider succeeds cannot deliver for free
-    await walletService.deductBalance(req.userId!, userChargedAmount, `Airtime Purchase - ${network.toUpperCase()}`, 'airtime_purchase');
+    const deduction = await walletService.deductBalance(req.userId!, userChargedAmount, `Airtime Purchase - ${network.toUpperCase()}`, 'airtime_purchase');
 
     let result: { success: boolean; reference?: string; data?: any; error?: string };
 
@@ -90,10 +90,15 @@ router.post('/buy', async (req: Request, res: Response) => {
 
     if (!result.success) {
       logger.warn('Airtime purchase failed — refunding wallet', { userId: req.userId, error: result.error });
-      await walletService.addBalance(req.userId!, userChargedAmount, `Refund: Failed Airtime Purchase - ${network.toUpperCase()}`, 'airtime_refund').catch(
+      await walletService.refundBalance(req.userId!, userChargedAmount, deduction.reference).catch(
         refundErr => logger.error('CRITICAL: Airtime refund failed', { userId: req.userId, amount: userChargedAmount, error: refundErr.message })
       );
-      return res.status(400).json(formatErrorResponse(400, result.error || 'Airtime purchase failed', undefined, ErrorCodes.PROVIDER_ERROR));
+      const isProviderFundsError = (result.error || '').toLowerCase().includes('insufficient funds') ||
+        (result.error || '').toLowerCase().includes('insufficient fund');
+      const userMessage = isProviderFundsError
+        ? 'Airtime service is temporarily unavailable. Your wallet has been refunded. Please try again later.'
+        : result.error || 'Airtime purchase failed';
+      return res.status(400).json(formatErrorResponse(400, userMessage, undefined, ErrorCodes.PROVIDER_ERROR));
     }
 
     const deliveredStatuses = ['delivered', 'success', 'completed', 'successful', 'processed'];

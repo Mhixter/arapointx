@@ -55,7 +55,7 @@ router.post('/buy', async (req: Request, res: Response) => {
     }
 
     // Deduct wallet BEFORE calling provider — refund immediately on any failure
-    await walletService.deductBalance(req.userId!, amount, `Data Purchase - ${network.toUpperCase()}`, 'data_purchase');
+    const deduction = await walletService.deductBalance(req.userId!, amount, `Data Purchase - ${network.toUpperCase()}`, 'data_purchase');
 
     let result: { success: boolean; reference?: string; data?: any; error?: string };
 
@@ -76,10 +76,16 @@ router.post('/buy', async (req: Request, res: Response) => {
 
     if (!result.success) {
       logger.warn('Data purchase failed — refunding wallet', { userId: req.userId, error: result.error });
-      await walletService.addBalance(req.userId!, amount, `Refund: Failed Data Purchase - ${network.toUpperCase()}`, 'data_refund').catch(
+      await walletService.refundBalance(req.userId!, amount, deduction.reference).catch(
         refundErr => logger.error('CRITICAL: Data refund failed', { userId: req.userId, amount, error: refundErr.message })
       );
-      return res.status(400).json(formatErrorResponse(400, result.error || 'Data purchase failed'));
+      // Provider "Insufficient Funds" = Arapoint vendor account low — don't expose internal detail
+      const isProviderFundsError = (result.error || '').toLowerCase().includes('insufficient funds') ||
+        (result.error || '').toLowerCase().includes('insufficient fund');
+      const userMessage = isProviderFundsError
+        ? 'Data service is temporarily unavailable. Your wallet has been refunded. Please try again later.'
+        : result.error || 'Data purchase failed';
+      return res.status(400).json(formatErrorResponse(400, userMessage));
     }
 
     const deliveredStatuses = ['delivered', 'success', 'completed', 'successful', 'processed'];

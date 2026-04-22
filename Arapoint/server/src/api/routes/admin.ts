@@ -1924,6 +1924,27 @@ router.put('/users/:id/unsuspend', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/users/:id/wallet-credit', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { amount, reason } = req.body;
+    if (!amount || isNaN(amount) || amount <= 0) {
+      return res.status(400).json(formatErrorResponse(400, 'Invalid amount'));
+    }
+    const [user] = await db.select({ id: users.id, name: users.name }).from(users).where(eq(users.id, id)).limit(1);
+    if (!user) return res.status(404).json(formatErrorResponse(404, 'User not found'));
+
+    const uniqueRef = `admin_credit_${id}_${Date.now()}`;
+    const result = await walletService.addBalance(id, Number(amount), uniqueRef, 'admin_credit');
+
+    logger.info('Admin manual wallet credit issued', { userId: id, amount, reason, ref: uniqueRef });
+    res.json(formatResponse('success', 200, `₦${amount} credited to ${user.name}`, { newBalance: result.newBalance }));
+  } catch (error: any) {
+    logger.error('Admin wallet credit error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to credit wallet'));
+  }
+});
+
 router.post('/transactions/:id/refund', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
