@@ -663,13 +663,15 @@ router.patch('/requests/:id/update-status', a2cAgentAuthMiddleware, async (req: 
       return res.status(404).json(formatErrorResponse(404, 'Request not found'));
     }
 
-    const validTransitions: Record<string, string[]> = {
-      pending: ['completed_and_paid', 'not_received_contact_support', 'cancelled'],
-      pending_confirmation: ['completed_and_paid', 'not_received_contact_support', 'cancelled'],
-      airtime_sent: ['airtime_received', 'rejected'],
-      airtime_received: ['processing', 'rejected'],
-      processing: ['completed', 'rejected'],
-    };
+    // Unified A2C agent flow:
+    //   pending → (pick) → pickup/processing → completed | rejected
+    // Legacy in-progress statuses (airtime_sent, airtime_received, user_confirmed,
+    // pending_confirmation) are also accepted as starting points so old orders
+    // can be finalized.
+    const inProgressStarts = ['pending', 'pickup', 'processing', 'airtime_sent', 'airtime_received', 'user_confirmed', 'pending_confirmation'];
+    const validTransitions: Record<string, string[]> = Object.fromEntries(
+      inProgressStarts.map((s) => [s, ['completed', 'rejected', 'cancelled']])
+    );
 
     if (!validTransitions[request.status]?.includes(status)) {
       return res.status(400).json(formatErrorResponse(400, `Cannot transition from ${request.status} to ${status}`));
@@ -890,7 +892,7 @@ export default router;
         .from(a2cRequests)
         .leftJoin(users, eq(a2cRequests.userId, users.id))
         .where(and(
-          eq(a2cRequests.status, 'pending'),
+          sql`${a2cRequests.status} IN ('pending','airtime_sent','airtime_received','user_confirmed','pending_confirmation')`,
           isNull(a2cRequests.assignedAgentId)
         ))
         .orderBy(desc(a2cRequests.createdAt));
@@ -928,7 +930,7 @@ export default router;
         .leftJoin(users, eq(a2cRequests.userId, users.id))
         .where(and(
           eq(a2cRequests.assignedAgentId, agentId),
-          sql`${a2cRequests.status} IN ('pickup','processing')`
+          sql`${a2cRequests.status} IN ('pickup','processing','airtime_sent','airtime_received','user_confirmed','pending_confirmation')`
         ))
         .orderBy(desc(a2cRequests.assignedAt));
       res.json(formatResponse('success', 200, 'My jobs', { requests }));

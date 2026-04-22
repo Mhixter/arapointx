@@ -305,14 +305,11 @@ export default function A2CAgentDashboard() {
   };
 
   const getNextStatuses = (currentStatus: string) => {
-    const transitions: Record<string, string[]> = {
-      pending: ['completed_and_paid', 'not_received_contact_support'],
-      pending_confirmation: ['completed_and_paid', 'not_received_contact_support'],
-      airtime_sent: ['airtime_received', 'rejected'],
-      airtime_received: ['processing', 'rejected'],
-      processing: ['completed', 'rejected'],
-    };
-    return transitions[currentStatus] || [];
+    // Unified flow: any in-progress order → completed (with result) or rejected (with reason).
+    // 'pending' has no Update button — it must be picked first from the inventory.
+    const inProgress = ['pickup', 'processing', 'airtime_sent', 'airtime_received', 'user_confirmed', 'pending_confirmation'];
+    if (inProgress.includes(currentStatus)) return ['completed', 'rejected'];
+    return [];
   };
 
   return (
