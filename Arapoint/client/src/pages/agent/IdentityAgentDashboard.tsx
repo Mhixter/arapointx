@@ -75,8 +75,11 @@ export default function IdentityAgentDashboard() {
     }
     fetchProfile();
     fetchStats();
-    fetchRequests();
   }, []);
+
+  useEffect(() => {
+    if (getAgentToken()) fetchRequests();
+  }, [filter]);
 
   const fetchProfile = async () => {
     try {

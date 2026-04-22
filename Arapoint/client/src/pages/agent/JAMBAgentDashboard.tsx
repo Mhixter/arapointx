@@ -85,8 +85,11 @@ export default function JAMBAgentDashboard() {
     }
     fetchProfile();
     fetchStats();
-    fetchRequests();
   }, []);
+
+  useEffect(() => {
+    if (getAgentToken()) fetchRequests();
+  }, [filter]);
 
   const fetchProfile = async () => {
     try {

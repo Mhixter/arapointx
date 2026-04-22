@@ -95,9 +95,12 @@ export default function EducationAgentDashboard() {
     }
     fetchProfile();
     fetchStats();
-    fetchRequests();
     fetchPinStock();
   }, []);
+
+  useEffect(() => {
+    if (getAgentToken()) fetchRequests();
+  }, [filter]);
 
   const fetchProfile = async () => {
     try {

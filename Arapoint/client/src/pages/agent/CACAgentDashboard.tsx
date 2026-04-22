@@ -107,9 +107,12 @@ export default function CACAgentDashboard() {
     }
     fetchProfile();
     fetchStats();
-    fetchRequests();
     fetchServiceTypes();
   }, []);
+
+  useEffect(() => {
+    if (getAgentToken()) fetchRequests();
+  }, [filter]);
 
   // 10s polling on Job Inventory & My Jobs (auto-refresh when other agents claim)
   useEffect(() => {
