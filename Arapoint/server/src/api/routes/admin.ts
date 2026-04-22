@@ -5289,25 +5289,37 @@ router.post('/db/restore', adminAuthMiddleware, async (req: Request, res: Respon
       let count = 0;
       const chunks = chunkArray(tables.servicePricing.data, 100);
       for (const chunk of chunks) {
-        await db.insert(servicePricing)
-          .values(chunk.map((r: any) => ({
-            id: r.id,
-            serviceType: r.serviceType || r.service_type,
-            serviceName: r.serviceName || r.service_name,
-            price: r.price,
-            isActive: r.isActive ?? r.is_active ?? true,
-            description: r.description || null,
-            updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
-          })))
-          .onConflictDoUpdate({
-            target: servicePricing.id,
-            set: {
-              price: sql`excluded.price`,
-              isActive: sql`excluded.is_active`,
-              updatedAt: new Date(),
-            },
-          });
-        count += chunk.length;
+        for (const r of chunk) {
+          try {
+            await db.insert(servicePricing)
+              .values({
+                id: r.id,
+                serviceType: r.serviceType || r.service_type,
+                serviceName: r.serviceName || r.service_name,
+                price: r.price,
+                costPrice: r.costPrice ?? r.cost_price ?? '0',
+                markup: r.markup ?? '0',
+                isActive: r.isActive ?? r.is_active ?? true,
+                description: r.description || null,
+                updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
+              })
+              .onConflictDoUpdate({
+                target: servicePricing.serviceType,
+                set: {
+                  serviceName: sql`excluded.service_name`,
+                  price: sql`excluded.price`,
+                  costPrice: sql`excluded.cost_price`,
+                  markup: sql`excluded.markup`,
+                  isActive: sql`excluded.is_active`,
+                  description: sql`excluded.description`,
+                  updatedAt: new Date(),
+                },
+              });
+            count++;
+          } catch (e: any) {
+            logger.warn('Skipped service pricing row', { error: e.message, serviceType: r.serviceType || r.service_type });
+          }
+        }
       }
       restored.servicePricing = count;
     }

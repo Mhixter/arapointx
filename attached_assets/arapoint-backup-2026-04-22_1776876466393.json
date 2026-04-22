@@ -1,0 +1,863 @@
+{
+  "exportedAt": "2026-04-22T14:45:51.170Z",
+  "version": "2.0",
+  "tables": {
+    "users": {
+      "count": 2,
+      "data": [
+        {
+          "id": "ea5622f1-e0ea-4177-9530-bcb77f5c5282",
+          "email": "talk2muhgoje@gmail.com",
+          "name": "Muhammad Goje",
+          "phone": "7031273802",
+          "passwordHash": "$2b$12$tqj9ycscb8seetZ09mYMCOYww01yhKvhPOpXhjsbnMippZPTBxMP6",
+          "walletBalance": "0.00",
+          "bvn": null,
+          "nin": null,
+          "kycStatus": "verified",
+          "emailVerified": true,
+          "isSuspended": false,
+          "suspendReason": null,
+          "createdAt": "2026-04-20T21:15:22.894Z",
+          "updatedAt": "2026-04-21T16:32:14.202Z"
+        },
+        {
+          "id": "10c331a3-10e3-4ccc-a388-33733b2e5312",
+          "email": "aratech354@gmail.com",
+          "name": "Sa'Idu Muhammed",
+          "phone": "+2348137362457",
+          "passwordHash": "$2b$12$Uqfas5ujSrX/9wkFyY/ujeU/rD4a8IIERXpVZ7leVhEJPVT0zAFkK",
+          "walletBalance": "7900.00",
+          "bvn": null,
+          "nin": null,
+          "kycStatus": "verified",
+          "emailVerified": true,
+          "isSuspended": false,
+          "suspendReason": null,
+          "createdAt": "2026-04-17T02:31:26.659Z",
+          "updatedAt": "2026-04-22T11:07:24.325Z"
+        }
+      ]
+    },
+    "transactions": {
+      "count": 3,
+      "data": [
+        {
+          "id": "4e2d357e-6e40-4bed-bbfa-ae5dcaef511c",
+          "userId": "10c331a3-10e3-4ccc-a388-33733b2e5312",
+          "transactionType": "admin_fund",
+          "amount": "10000.00",
+          "paymentMethod": "admin",
+          "referenceId": "ADMIN_FUND_1776854872755_hzejgh",
+          "status": "successful",
+          "description": null,
+          "createdAt": "2026-04-22T10:47:52.781Z"
+        },
+        {
+          "id": "d537c397-e9ea-405a-8106-168480c1e932",
+          "userId": "10c331a3-10e3-4ccc-a388-33733b2e5312",
+          "transactionType": "jamb_admission_letter",
+          "amount": "-1700.00",
+          "paymentMethod": "wallet",
+          "referenceId": "ref_1776855227092_9sn1mcjgj",
+          "status": "successful",
+          "description": "JAMB Admission Letter",
+          "createdAt": "2026-04-22T10:53:47.122Z"
+        },
+        {
+          "id": "2455953d-29b2-4a96-990e-fd5fee826379",
+          "userId": "10c331a3-10e3-4ccc-a388-33733b2e5312",
+          "transactionType": "jamb_reprinting_caps",
+          "amount": "-400.00",
+          "paymentMethod": "wallet",
+          "referenceId": "ref_1776856044310_y0quznrgg",
+          "status": "successful",
+          "description": "JAMB Reprinting & Caps",
+          "createdAt": "2026-04-22T11:07:24.344Z"
+        }
+      ]
+    },
+    "rpaJobs": {
+      "count": 0,
+      "data": []
+    },
+    "jambServiceRequests": {
+      "count": 2,
+      "data": [
+        {
+          "id": "4919bba4-1285-456f-9bb0-52cae39e3f4a",
+          "userId": "10c331a3-10e3-4ccc-a388-33733b2e5312",
+          "trackingId": "JMB5522716749",
+          "serviceType": "admission-letter",
+          "registrationNumber": "2677542222",
+          "candidateName": "N/A",
+          "examYear": null,
+          "requestData": {
+            "email": "aratechnicalsolution@gmail.com",
+            "jamb-reg": "2677542222"
+          },
+          "status": "completed",
+          "assignedAgentId": "f10a9e13-e67a-4aa5-804a-8f7597db324a",
+          "assignedAt": "2026-04-22T10:56:42.354Z",
+          "fee": "1700.00",
+          "isPaid": true,
+          "paymentReference": "ref_1776855227167_m6u9ma712",
+          "resultData": null,
+          "resultUrl": null,
+          "customerNotes": "{\"jamb-reg\":\"2677542222\",\"email\":\"aratechnicalsolution@gmail.com\"}",
+          "agentNotes": null,
+          "completedAt": "2026-04-22T11:05:33.459Z",
+          "createdAt": "2026-04-22T10:53:47.196Z",
+          "updatedAt": "2026-04-22T11:05:33.459Z"
+        },
+        {
+          "id": "42de7e00-9c0d-4624-a863-dff1f485978f",
+          "userId": "10c331a3-10e3-4ccc-a388-33733b2e5312",
+          "trackingId": "JMB5604437546",
+          "serviceType": "reprinting-caps",
+          "registrationNumber": "2677542222BN",
+          "candidateName": "N/A",
+          "examYear": null,
+          "requestData": {
+            "itemType": "ACCEPT TRANSFER APPROVAL",
+            "jamb-reg": "2677542222BN"
+          },
+          "status": "processing",
+          "assignedAgentId": "ec0f510e-bc49-4f75-9862-c3f2cea2ea05",
+          "assignedAt": "2026-04-22T11:07:51.709Z",
+          "fee": "400.00",
+          "isPaid": true,
+          "paymentReference": "ref_1776856044375_5mtr7op92",
+          "resultData": null,
+          "resultUrl": null,
+          "customerNotes": "{\"jamb-reg\":\"2677542222BN\",\"itemType\":\"ACCEPT TRANSFER APPROVAL\"}",
+          "agentNotes": null,
+          "completedAt": null,
+          "createdAt": "2026-04-22T11:07:24.410Z",
+          "updatedAt": "2026-04-22T11:08:13.587Z"
+        }
+      ]
+    },
+    "identityServiceRequests": {
+      "count": 0,
+      "data": []
+    },
+    "educationServiceRequests": {
+      "count": 0,
+      "data": []
+    },
+    "servicePricing": {
+      "count": 38,
+      "data": [
+        {
+          "id": "ce87d521-9000-4e34-acbb-910040b72975",
+          "serviceType": "nin_slip_information",
+          "serviceName": "NIN Slip Information",
+          "costPrice": "0.00",
+          "price": "150.00",
+          "markup": "0.00",
+          "description": "Get NIN slip information only",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.569Z",
+          "updatedAt": "2026-04-17T20:20:45.275Z"
+        },
+        {
+          "id": "2ea9737b-936b-472f-a822-b45b58d2eb1f",
+          "serviceType": "nin_slip_regular",
+          "serviceName": "NIN Slip Regular",
+          "costPrice": "0.00",
+          "price": "180.00",
+          "markup": "0.00",
+          "description": "Regular NIN slip printing",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.579Z",
+          "updatedAt": "2026-04-17T20:20:45.275Z"
+        },
+        {
+          "id": "a91d85aa-83ce-4874-a97a-e4390ef89481",
+          "serviceType": "nin_slip_standard",
+          "serviceName": "NIN Slip Standard",
+          "costPrice": "0.00",
+          "price": "180.00",
+          "markup": "0.00",
+          "description": "Standard NIN slip with enhanced features",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.594Z",
+          "updatedAt": "2026-04-17T20:20:45.275Z"
+        },
+        {
+          "id": "b2103e46-6dc3-42b1-b902-48c62f713e39",
+          "serviceType": "nin_slip_premium",
+          "serviceName": "NIN Slip Premium",
+          "costPrice": "0.00",
+          "price": "200.00",
+          "markup": "0.00",
+          "description": "Premium NIN slip with all features",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.608Z",
+          "updatedAt": "2026-04-17T20:20:45.275Z"
+        },
+        {
+          "id": "30267db6-d326-4bc9-a2f1-23d6487f1727",
+          "serviceType": "nin_phone",
+          "serviceName": "NIN By Phone",
+          "costPrice": "0.00",
+          "price": "180.00",
+          "markup": "0.00",
+          "description": "Retrieve NIN using phone number",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.622Z",
+          "updatedAt": "2026-04-17T20:20:45.275Z"
+        },
+        {
+          "id": "8f606ac1-08ed-4bdc-b0bf-8ceab527d9c8",
+          "serviceType": "nin_tracking",
+          "serviceName": "NIN With Tracking ID",
+          "costPrice": "0.00",
+          "price": "250.00",
+          "markup": "0.00",
+          "description": "Verify NIN using NIMC tracking ID",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.637Z",
+          "updatedAt": "2026-04-17T20:20:45.275Z"
+        },
+        {
+          "id": "1005349e-2bc2-4cb3-b4a4-843ae68e2ef7",
+          "serviceType": "bvn_verification",
+          "serviceName": "BVN Verification",
+          "costPrice": "0.00",
+          "price": "200.00",
+          "markup": "0.00",
+          "description": "Download your BVN slip",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.653Z",
+          "updatedAt": "2026-04-17T20:20:45.275Z"
+        },
+        {
+          "id": "62e8835e-54f0-4b67-8429-426ab6a94be2",
+          "serviceType": "ipe_clearance",
+          "serviceName": "IPE Clearance",
+          "costPrice": "0.00",
+          "price": "1000.00",
+          "markup": "0.00",
+          "description": "Clear IPE errors and enrollment issues",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.666Z",
+          "updatedAt": "2026-04-17T20:20:45.275Z"
+        },
+        {
+          "id": "fbf69ab8-9ee1-46ef-b60f-c72f2d5f39c0",
+          "serviceType": "validation_nin",
+          "serviceName": "NIN Validation",
+          "costPrice": "0.00",
+          "price": "1000.00",
+          "markup": "0.00",
+          "description": "Record validation and corrections",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.679Z",
+          "updatedAt": "2026-04-17T20:20:45.275Z"
+        },
+        {
+          "id": "1ad799c6-ec0f-4e9b-8a6a-f54b33aba499",
+          "serviceType": "jamb_result",
+          "serviceName": "JAMB Result",
+          "costPrice": "0.00",
+          "price": "500.00",
+          "markup": "0.00",
+          "description": "Check JAMB examination results",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.691Z",
+          "updatedAt": "2026-04-17T20:20:45.275Z"
+        },
+        {
+          "id": "4afea0f5-c667-49e1-83e0-8c0dcaf819c6",
+          "serviceType": "waec_result",
+          "serviceName": "WAEC Result",
+          "costPrice": "0.00",
+          "price": "500.00",
+          "markup": "0.00",
+          "description": "Check WAEC examination results",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.698Z",
+          "updatedAt": "2026-04-17T20:20:45.275Z"
+        },
+        {
+          "id": "157ce4c9-29fb-475f-8f8a-47fe79212da6",
+          "serviceType": "neco_result",
+          "serviceName": "NECO Result",
+          "costPrice": "0.00",
+          "price": "500.00",
+          "markup": "0.00",
+          "description": "Check NECO examination results",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.709Z",
+          "updatedAt": "2026-04-17T20:20:45.275Z"
+        },
+        {
+          "id": "eefb16c0-f9c6-41c0-8ab0-a91876ed1f2b",
+          "serviceType": "nabteb_result",
+          "serviceName": "NABTEB Result",
+          "costPrice": "0.00",
+          "price": "500.00",
+          "markup": "0.00",
+          "description": "Check NABTEB examination results",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.719Z",
+          "updatedAt": "2026-04-17T20:20:45.275Z"
+        },
+        {
+          "id": "f2ef021e-a176-4800-9a92-5043ac514292",
+          "serviceType": "nbais_result",
+          "serviceName": "NBAIS Result",
+          "costPrice": "0.00",
+          "price": "500.00",
+          "markup": "0.00",
+          "description": "Check NBAIS examination results",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.725Z",
+          "updatedAt": "2026-04-17T20:20:45.275Z"
+        },
+        {
+          "id": "16281ef7-77ce-4ec1-82f2-12296c550485",
+          "serviceType": "cac_business_name",
+          "serviceName": "CAC Business Name",
+          "costPrice": "0.00",
+          "price": "25000.00",
+          "markup": "0.00",
+          "description": "Register business name with CAC",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.730Z",
+          "updatedAt": "2026-04-17T20:20:45.275Z"
+        },
+        {
+          "id": "2758694f-112c-4119-9f14-06f2d4593991",
+          "serviceType": "cac_limited_company",
+          "serviceName": "CAC Limited Company",
+          "costPrice": "0.00",
+          "price": "35000.00",
+          "markup": "0.00",
+          "description": "Register limited liability company",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.735Z",
+          "updatedAt": "2026-04-17T20:20:45.275Z"
+        },
+        {
+          "id": "a7dad746-d534-41f4-9329-c972ea01ada2",
+          "serviceType": "airtime_to_cash",
+          "serviceName": "Airtime to Cash",
+          "costPrice": "0.00",
+          "price": "0.00",
+          "markup": "0.00",
+          "description": "Convert airtime to wallet balance",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.746Z",
+          "updatedAt": "2026-04-17T20:20:45.275Z"
+        },
+        {
+          "id": "684fda38-f1bd-4d46-8cd6-3938223cd534",
+          "serviceType": "waec_pin",
+          "serviceName": "WAEC PIN",
+          "costPrice": "0.00",
+          "price": "4000.00",
+          "markup": "0.00",
+          "description": "WAEC examination PIN - Instant Delivery",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.762Z",
+          "updatedAt": "2026-04-17T20:20:45.275Z"
+        },
+        {
+          "id": "43fc6576-f8a5-49fc-b798-d26f9383d801",
+          "serviceType": "nabteb_pin",
+          "serviceName": "NABTEB PIN",
+          "costPrice": "0.00",
+          "price": "3000.00",
+          "markup": "0.00",
+          "description": "NABTEB examination PIN - Instant Delivery",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.773Z",
+          "updatedAt": "2026-04-17T20:20:45.275Z"
+        },
+        {
+          "id": "ed8e5658-5487-4abe-9a8f-1ec389d0c624",
+          "serviceType": "nbais_pin",
+          "serviceName": "NBAIS PIN",
+          "costPrice": "0.00",
+          "price": "2500.00",
+          "markup": "0.00",
+          "description": "NBAIS examination PIN - Instant Delivery",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.779Z",
+          "updatedAt": "2026-04-17T20:20:45.275Z"
+        },
+        {
+          "id": "7a339542-e264-424b-a39b-3b24e89f0cff",
+          "serviceType": "jamb_exam_slip",
+          "serviceName": "JAMB Exam Slip Printing",
+          "costPrice": "0.00",
+          "price": "400.00",
+          "markup": "0.00",
+          "description": "Print JAMB examination slip from the JAMB portal",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.785Z",
+          "updatedAt": "2026-04-17T20:20:45.275Z"
+        },
+        {
+          "id": "8c8a7fb6-5b59-44e2-89e3-9e50a8cffa2c",
+          "serviceType": "cac_incorporated_trustees",
+          "serviceName": "CAC Incorporated Trustees",
+          "costPrice": "0.00",
+          "price": "75000.00",
+          "markup": "0.00",
+          "description": "Register incorporated trustees/NGO",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.741Z",
+          "updatedAt": "2026-04-19T04:45:13.263Z"
+        },
+        {
+          "id": "e7934363-1bc5-48a5-87ea-3301b0b99a73",
+          "serviceType": "neco_pin",
+          "serviceName": "NECO PIN",
+          "costPrice": "0.00",
+          "price": "2500.00",
+          "markup": "0.00",
+          "description": "NECO examination PIN - Instant Delivery",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.768Z",
+          "updatedAt": "2026-04-19T04:45:42.817Z"
+        },
+        {
+          "id": "88215146-35a1-4d12-bfea-7f986a3ee037",
+          "serviceType": "neco_scratch_card",
+          "serviceName": "NECO Scratch Card",
+          "costPrice": "0.00",
+          "price": "2500.00",
+          "markup": "0.00",
+          "description": "Buy NECO result checker scratch card",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.714Z",
+          "updatedAt": "2026-04-19T04:45:57.766Z"
+        },
+        {
+          "id": "79e0ef6b-9843-4f97-ac69-b072f13fc321",
+          "serviceType": "nin_personalization",
+          "serviceName": "NIN Personalization",
+          "costPrice": "0.00",
+          "price": "300.00",
+          "markup": "0.00",
+          "description": "Customize NIN identity data",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.751Z",
+          "updatedAt": "2026-04-19T04:46:12.792Z"
+        },
+        {
+          "id": "4461e471-b218-44a4-8478-10e83375a042",
+          "serviceType": "waec_scratch_card",
+          "serviceName": "WAEC Scratch Card",
+          "costPrice": "0.00",
+          "price": "4000.00",
+          "markup": "0.00",
+          "description": "Buy WAEC result checker scratch card",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.703Z",
+          "updatedAt": "2026-04-19T04:46:31.832Z"
+        },
+        {
+          "id": "86f4da25-c8c0-439d-80ab-8da2213f69a8",
+          "serviceType": "birth_attestation",
+          "serviceName": "Birth Attestation",
+          "costPrice": "0.00",
+          "price": "7000.00",
+          "markup": "0.00",
+          "description": "NPC Birth Certificate attestation",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:19.757Z",
+          "updatedAt": "2026-04-19T04:46:56.379Z"
+        },
+        {
+          "id": "59b5754c-34c5-4317-8beb-decbaf0be726",
+          "serviceType": "olevel-upload",
+          "serviceName": "JAMB O'Level Upload",
+          "costPrice": "0.00",
+          "price": "2200.00",
+          "markup": "0.00",
+          "description": "Upload O'Level results to JAMB portal",
+          "isActive": true,
+          "createdAt": "2026-04-19T04:47:38.144Z",
+          "updatedAt": "2026-04-19T04:47:38.144Z"
+        },
+        {
+          "id": "e82beb0a-cc67-43d4-902c-067ac2badf2c",
+          "serviceType": "admission-letter",
+          "serviceName": "JAMB Admission Letter",
+          "costPrice": "0.00",
+          "price": "1700.00",
+          "markup": "0.00",
+          "description": "Retrieve JAMB admission letter",
+          "isActive": true,
+          "createdAt": "2026-04-19T04:47:55.828Z",
+          "updatedAt": "2026-04-19T04:47:55.828Z"
+        },
+        {
+          "id": "a4df3f34-2155-487c-8ed9-bc2a15fc95c1",
+          "serviceType": "original-result",
+          "serviceName": "JAMB Original Result",
+          "costPrice": "0.00",
+          "price": "2500.00",
+          "markup": "0.00",
+          "description": "Retrieve original JAMB result slip",
+          "isActive": true,
+          "createdAt": "2026-04-19T04:48:22.031Z",
+          "updatedAt": "2026-04-19T04:48:22.031Z"
+        },
+        {
+          "id": "f457096f-5ac1-4d2e-9e08-468549c81385",
+          "serviceType": "reprinting-caps",
+          "serviceName": "JAMB Reprinting & Caps",
+          "costPrice": "0.00",
+          "price": "400.00",
+          "markup": "0.00",
+          "description": "JAMB CAPS reprinting services",
+          "isActive": true,
+          "createdAt": "2026-04-19T04:48:39.195Z",
+          "updatedAt": "2026-04-19T04:48:39.195Z"
+        },
+        {
+          "id": "200d2608-d3fb-4768-988f-a105bdd3ff75",
+          "serviceType": "jamb",
+          "serviceName": "JAMB Score Lookup",
+          "costPrice": "0.00",
+          "price": "500.00",
+          "markup": "0.00",
+          "description": "Check JAMB examination results via portal",
+          "isActive": true,
+          "createdAt": "2026-04-19T04:49:00.869Z",
+          "updatedAt": "2026-04-19T04:49:00.869Z"
+        },
+        {
+          "id": "e484c013-1f59-4d6e-82af-d732edc53d7d",
+          "serviceType": "waec",
+          "serviceName": "WAEC Result Lookup",
+          "costPrice": "0.00",
+          "price": "500.00",
+          "markup": "0.00",
+          "description": "Check WAEC examination results via portal",
+          "isActive": true,
+          "createdAt": "2026-04-19T04:49:21.814Z",
+          "updatedAt": "2026-04-19T04:49:21.814Z"
+        },
+        {
+          "id": "a4d49689-ef7e-45bb-9aaa-3840ca10ca34",
+          "serviceType": "neco",
+          "serviceName": "NECO Result Lookup",
+          "costPrice": "0.00",
+          "price": "500.00",
+          "markup": "0.00",
+          "description": "Check NECO examination results via portal",
+          "isActive": true,
+          "createdAt": "2026-04-19T04:49:36.899Z",
+          "updatedAt": "2026-04-19T04:49:36.899Z"
+        },
+        {
+          "id": "8ed95555-cb0f-4b84-bfe6-faecbdfd3208",
+          "serviceType": "nabteb",
+          "serviceName": "NABTEB Result Lookup",
+          "costPrice": "0.00",
+          "price": "500.00",
+          "markup": "0.00",
+          "description": "Check NABTEB examination results via portal",
+          "isActive": true,
+          "createdAt": "2026-04-19T04:49:49.443Z",
+          "updatedAt": "2026-04-19T04:49:49.443Z"
+        },
+        {
+          "id": "ac307595-6bc9-4da6-b7a5-313e4060ba44",
+          "serviceType": "nbais",
+          "serviceName": "NBAIS Result Lookup",
+          "costPrice": "0.00",
+          "price": "500.00",
+          "markup": "0.00",
+          "description": "Check NBAIS examination results via portal",
+          "isActive": true,
+          "createdAt": "2026-04-19T04:50:01.738Z",
+          "updatedAt": "2026-04-19T04:50:01.738Z"
+        },
+        {
+          "id": "6dfb7a3c-75a8-4307-899d-221485820208",
+          "serviceType": "cac_name_search",
+          "serviceName": "CAC Name Search",
+          "costPrice": "0.00",
+          "price": "500.00",
+          "markup": "0.00",
+          "description": "Search for business name availability",
+          "isActive": true,
+          "createdAt": "2026-04-19T04:50:35.979Z",
+          "updatedAt": "2026-04-19T04:50:35.979Z"
+        },
+        {
+          "id": "a589a840-4740-4d5c-a6fe-12427d05d767",
+          "serviceType": "cac_status_report",
+          "serviceName": "CAC Status Report",
+          "costPrice": "0.00",
+          "price": "1500.00",
+          "markup": "0.00",
+          "description": "Get CAC company status report",
+          "isActive": true,
+          "createdAt": "2026-04-19T04:50:58.597Z",
+          "updatedAt": "2026-04-19T04:50:58.597Z"
+        }
+      ]
+    },
+    "adminSettings": {
+      "count": 26,
+      "data": [
+        {
+          "id": "db0fe598-3d2b-4724-8c56-c2fc103913fa",
+          "settingKey": "rpa_provider_url_waec",
+          "settingValue": "",
+          "description": null,
+          "updatedAt": "2026-04-18T23:16:59.814Z"
+        },
+        {
+          "id": "49a0e0cc-5d86-4646-9094-6458e80133a9",
+          "settingKey": "rpa_provider_url_neco",
+          "settingValue": "",
+          "description": null,
+          "updatedAt": "2026-04-18T23:16:59.832Z"
+        },
+        {
+          "id": "3fa51169-4bf8-4e2e-a6d6-e28a33124033",
+          "settingKey": "rpa_provider_url_nabteb",
+          "settingValue": "",
+          "description": null,
+          "updatedAt": "2026-04-18T23:16:59.849Z"
+        },
+        {
+          "id": "3e829cb5-3c17-465f-9015-46b8fd8610e8",
+          "settingKey": "rpa_provider_url_nbais",
+          "settingValue": "",
+          "description": null,
+          "updatedAt": "2026-04-18T23:16:59.866Z"
+        },
+        {
+          "id": "11abd00b-b70d-481f-a56e-7b54defc12c3",
+          "settingKey": "rpa_provider_url_jamb_slip",
+          "settingValue": "https://slipsprinting.jamb.gov.ng/main-examination",
+          "description": null,
+          "updatedAt": "2026-04-18T23:16:59.883Z"
+        },
+        {
+          "id": "e455cb78-6327-4921-9f17-b316a1d88b4e",
+          "settingKey": "prembly_secret_key",
+          "settingValue": "live_sk_680fba91ee7f45f8af918a440ee0e97c",
+          "description": null,
+          "updatedAt": "2026-04-20T18:29:41.523Z"
+        },
+        {
+          "id": "d5b3a0fa-29d1-44c1-80e6-c7f3e767a06f",
+          "settingKey": "prembly_public_key",
+          "settingValue": "live_pk_ec674853e74f4027953863db16059386",
+          "description": null,
+          "updatedAt": "2026-04-20T18:29:41.610Z"
+        },
+        {
+          "id": "10d21f75-5703-4dfd-a207-72d162836f03",
+          "settingKey": "cloudinaryCloudName",
+          "settingValue": "dorkw1tdv",
+          "description": null,
+          "updatedAt": "2026-04-21T22:40:58.025Z"
+        },
+        {
+          "id": "61187ca1-75e9-44cc-944c-1176d215a799",
+          "settingKey": "cloudinaryApiKey",
+          "settingValue": "773132965298989",
+          "description": null,
+          "updatedAt": "2026-04-21T22:40:58.042Z"
+        },
+        {
+          "id": "113a05a8-eb36-427a-8682-0ffaa46ec033",
+          "settingKey": "cloudinaryApiSecret",
+          "settingValue": "2In5M4TLJhRTGyfed1gGsIylXHY",
+          "description": null,
+          "updatedAt": "2026-04-21T22:40:58.057Z"
+        },
+        {
+          "id": "ac7ddbc6-57b7-4634-929a-5a8f5e2c8df1",
+          "settingKey": "emailLogoGreenUrl",
+          "settingValue": "https://res.cloudinary.com/dorkw1tdv/image/upload/v1776811257/arapoint/email-logo-green.png?v=1776811257",
+          "description": null,
+          "updatedAt": "2026-04-21T22:40:58.074Z"
+        },
+        {
+          "id": "d3aab413-1986-45ce-949c-3d8c40ab7827",
+          "settingKey": "emailLogoBlueUrl",
+          "settingValue": "https://res.cloudinary.com/dorkw1tdv/image/upload/v1776811257/arapoint/email-logo-blue.png?v=1776811257",
+          "description": null,
+          "updatedAt": "2026-04-21T22:40:58.090Z"
+        },
+        {
+          "id": "2c111832-91e5-4615-bdcf-060c492eaf2a",
+          "settingKey": "smtpHost",
+          "settingValue": "smtp.gmail.com",
+          "description": null,
+          "updatedAt": "2026-04-17T20:20:45.256Z"
+        },
+        {
+          "id": "99848494-545b-4dae-b8d5-2f5cc26d4598",
+          "settingKey": "smtpPort",
+          "settingValue": "587",
+          "description": null,
+          "updatedAt": "2026-04-17T20:20:45.256Z"
+        },
+        {
+          "id": "976391b6-b57d-47c9-8264-ba1830afbb1d",
+          "settingKey": "smtpUser",
+          "settingValue": "noreply.arapoint@gmail.com",
+          "description": null,
+          "updatedAt": "2026-04-17T20:20:45.256Z"
+        },
+        {
+          "id": "24e2a56f-54db-4cd2-a63e-5deaf3e4f2fa",
+          "settingKey": "smtpPass",
+          "settingValue": "qiuo zyuj fmvg ijkz",
+          "description": null,
+          "updatedAt": "2026-04-17T20:20:45.256Z"
+        },
+        {
+          "id": "25032873-543e-4e34-9284-269720b0c3f6",
+          "settingKey": "smtpFromName",
+          "settingValue": "Arapoint",
+          "description": null,
+          "updatedAt": "2026-04-17T20:20:45.256Z"
+        },
+        {
+          "id": "ebc19169-bd11-40de-933b-bfd3c5f2095e",
+          "settingKey": "smtpFromEmail",
+          "settingValue": "",
+          "description": null,
+          "updatedAt": "2026-04-17T20:20:45.256Z"
+        },
+        {
+          "id": "97bd0b0d-b75d-4290-ac93-1575b829f53c",
+          "settingKey": "paymentpoint_api_key",
+          "settingValue": "0c2d53ae3c2fcb272be0392a4aa7157a4d8063da",
+          "description": null,
+          "updatedAt": "2026-04-17T20:20:45.256Z"
+        },
+        {
+          "id": "f9ce7228-d73e-4336-9400-56a36fa13703",
+          "settingKey": "paymentpoint_secret_key",
+          "settingValue": "4f135dd08115aa3dfd8ce3416d070df8bb026932cb66ffc33363920fa83ba46ee862c027c80614d350a1e669a3da355018541e2e48413cb7460549ea",
+          "description": null,
+          "updatedAt": "2026-04-17T20:20:45.256Z"
+        },
+        {
+          "id": "b5dd6dd9-1ebc-46f8-9725-51962fc276c6",
+          "settingKey": "paymentpoint_merchant_id",
+          "settingValue": "9237b746e4ceaa0382f896465b9a98fb25ddbe2c",
+          "description": null,
+          "updatedAt": "2026-04-17T20:20:45.256Z"
+        },
+        {
+          "id": "fc3b36f2-c2eb-4585-966a-c39254b1aa7b",
+          "settingKey": "siteName",
+          "settingValue": "Arapoint Solutions Nig. Ltd",
+          "description": null,
+          "updatedAt": "2026-04-18T16:55:03.943Z"
+        },
+        {
+          "id": "8e258a4e-73b2-4486-96c7-d33646ba74ea",
+          "settingKey": "siteAddress",
+          "settingValue": "Lagos, Nigeria",
+          "description": null,
+          "updatedAt": "2026-04-18T16:55:03.962Z"
+        },
+        {
+          "id": "561c1bcb-91c2-4496-a795-c4acb5a15a42",
+          "settingKey": "maintenanceMode",
+          "settingValue": "false",
+          "description": null,
+          "updatedAt": "2026-04-18T16:55:03.978Z"
+        },
+        {
+          "id": "1f661ded-3dcc-440a-8198-826628500509",
+          "settingKey": "currency",
+          "settingValue": "NGN",
+          "description": null,
+          "updatedAt": "2026-04-18T16:55:03.993Z"
+        },
+        {
+          "id": "12158fb2-c002-4b8a-b4b7-7a82929d6d62",
+          "settingKey": "timezone",
+          "settingValue": "Africa/Lagos",
+          "description": null,
+          "updatedAt": "2026-04-18T16:55:04.009Z"
+        }
+      ]
+    },
+    "cacRegistrationRequests": {
+      "count": 0,
+      "data": []
+    },
+    "bvnVerifications": {
+      "count": 0,
+      "data": []
+    },
+    "ninSlips": {
+      "count": 0,
+      "data": []
+    },
+    "adminUsers": {
+      "count": 6,
+      "data": [
+        {
+          "id": "6b3ba17f-a0db-419f-85d6-e32767206702",
+          "email": "identity@arapoint.com.ng",
+          "name": "Identity ",
+          "roleId": null,
+          "isActive": true,
+          "createdAt": "2026-04-22T02:16:38.716Z"
+        },
+        {
+          "id": "fc80e37a-29de-4773-9b32-93ec66cb263d",
+          "email": "saidumu2020@gmail.com",
+          "name": "AIRTIME TO CASH",
+          "roleId": "f281a440-376b-43bc-881b-b7addfaabaf5",
+          "isActive": true,
+          "createdAt": "2026-04-17T20:19:00.703Z"
+        },
+        {
+          "id": "5e154ff6-41ce-4a94-af06-d43c2581c617",
+          "email": "a2c@arapoint.com.ng",
+          "name": "A2c",
+          "roleId": "f281a440-376b-43bc-881b-b7addfaabaf5",
+          "isActive": true,
+          "createdAt": "2026-04-22T10:48:24.343Z"
+        },
+        {
+          "id": "e702085d-b5de-4d58-ab9c-8c991c9e7492",
+          "email": "jamb@arapoint.com.ng",
+          "name": "Jamb agent",
+          "roleId": null,
+          "isActive": true,
+          "createdAt": "2026-04-19T12:30:45.477Z"
+        },
+        {
+          "id": "89730b7b-91c1-4651-b42f-835b9616487c",
+          "email": "jamb2@gmail.com",
+          "name": "Jamb 2",
+          "roleId": null,
+          "isActive": true,
+          "createdAt": "2026-04-22T10:55:29.555Z"
+        },
+        {
+          "id": "1456e57f-a222-4078-959c-777bb231b61e",
+          "email": "saidumuhammed664@gmail.com",
+          "name": "Admin User",
+          "roleId": "91efef4c-ccab-4a9e-b337-2b677e41398f",
+          "isActive": true,
+          "createdAt": "2026-04-17T01:10:20.162Z"
+        }
+      ]
+    }
+  }
+}
