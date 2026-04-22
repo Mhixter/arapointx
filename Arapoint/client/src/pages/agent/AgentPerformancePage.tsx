@@ -141,13 +141,6 @@ export default function AgentPerformancePage({ apiBase, getToken, agentLabel, ba
       bg: perf.slaBreaches > 0 ? "bg-red-50 border-red-200" : "bg-emerald-50 border-emerald-200",
     },
     {
-      label: "Revenue Generated",
-      value: formatNaira(perf.revenueGenerated),
-      icon: Wallet,
-      color: "text-indigo-600",
-      bg: "bg-indigo-50 border-indigo-200",
-    },
-    {
       label: "Completion Rate",
       value: `${perf.completionRate}%`,
       icon: Star,

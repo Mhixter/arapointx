@@ -1432,6 +1432,22 @@ router.get('/service-slip/:id', async (req: Request, res: Response) => {
       return res.sendFile(filePath);
     }
 
+    if (request.slipUrl.startsWith('/objects/')) {
+      try {
+        const { ObjectStorageService } = await import('../../services/objectStorage');
+        const objectStorage = new ObjectStorageService();
+        const file = await objectStorage.getObjectEntityFile(request.slipUrl);
+        return await objectStorage.downloadObject(file, res);
+      } catch (e: any) {
+        logger.error('Object storage slip download error', { error: e.message, slipUrl: request.slipUrl });
+        return res.status(404).json(formatErrorResponse(404, 'Slip file not found in storage'));
+      }
+    }
+
+    if (/^https?:\/\//i.test(request.slipUrl)) {
+      return res.redirect(request.slipUrl);
+    }
+
     return res.status(404).json(formatErrorResponse(404, 'Slip not available'));
   } catch (error: any) {
     logger.error('Service slip download error', { error: error.message });

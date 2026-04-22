@@ -38,6 +38,31 @@ const VALIDATION_TYPES = [
 
 const getToken = () => tokenStorage.getItem('accessToken');
 
+async function downloadIdentitySlip(requestId: string, trackingId: string, toast: any) {
+  try {
+    const res = await fetch(`/api/identity/service-slip/${requestId}`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (!res.ok) {
+      const msg = res.status === 401 ? 'Please log in again to download the slip.' : 'Slip is not available yet. Please try again shortly.';
+      toast({ title: 'Download Failed', description: msg, variant: 'destructive' });
+      return;
+    }
+    const blob = await res.blob();
+    const ext = (blob.type.includes('pdf') ? 'pdf' : blob.type.includes('image/png') ? 'png' : blob.type.includes('image/jpeg') ? 'jpg' : 'pdf');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Arapoint-Slip-${trackingId || requestId}.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (e: any) {
+    toast({ title: 'Download Failed', description: 'Network error while downloading slip.', variant: 'destructive' });
+  }
+}
+
 export default function IdentityAgentServices() {
   const { toast } = useToast();
   const [selectedService, setSelectedService] = useState<string | null>(null);
@@ -335,11 +360,9 @@ export default function IdentityAgentServices() {
                       </div>
                       <div className="flex items-center gap-2">
                         {req.status === 'completed' && req.slipUrl && (
-                          <Button variant="outline" size="sm" asChild>
-                            <a href={req.slipUrl} target="_blank" rel="noreferrer">
-                              <FileText className="h-4 w-4 mr-1" />
-                              Download
-                            </a>
+                          <Button variant="outline" size="sm" onClick={() => downloadIdentitySlip(req.id, req.trackingId, toast)}>
+                            <FileText className="h-4 w-4 mr-1" />
+                            Download
                           </Button>
                         )}
                         <Button variant="ghost" size="sm" onClick={() => { setSelectedRequest(req); setShowDetails(true); }}>
@@ -465,10 +488,10 @@ export default function IdentityAgentServices() {
                       <div>
                         <Label className="text-muted-foreground text-xs">Result Document</Label>
                         <div className="mt-1">
-                          <a href={r.slipUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 underline text-sm font-medium">
+                          <button type="button" onClick={() => downloadIdentitySlip(r.id, r.trackingId, toast)} className="inline-flex items-center gap-1 text-blue-600 underline text-sm font-medium">
                             <FileText className="h-4 w-4" />
                             Download Slip
-                          </a>
+                          </button>
                         </div>
                       </div>
                     )}

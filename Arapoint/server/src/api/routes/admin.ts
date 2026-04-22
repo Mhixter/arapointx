@@ -5705,11 +5705,11 @@ router.get('/agents/performance', async (req: Request, res: Response) => {
           COUNT(r.id) FILTER (WHERE r.status = 'rejected') as rejected_count,
           ROUND(AVG(EXTRACT(EPOCH FROM (r.completed_at - r.assigned_at))/3600.0) FILTER (WHERE r.completed_at IS NOT NULL AND r.assigned_at IS NOT NULL), 2) as avg_resolution_hours,
           COUNT(r.id) FILTER (WHERE r.assigned_at IS NOT NULL AND r.completed_at IS NULL AND r.assigned_at < NOW() - INTERVAL '24 hours') as sla_breaches,
-          COALESCE(SUM(r.amount_naira::numeric) FILTER (WHERE r.status = 'completed'), 0) as revenue_generated,
+          COALESCE(SUM(r.cash_amount::numeric) FILTER (WHERE r.status = 'completed'), 0) as revenue_generated,
           a.updated_at as last_active
         FROM a2c_agents a
         JOIN admin_users au ON au.id = a.admin_user_id
-        LEFT JOIN a2c_requests r ON r.agent_id = a.id AND r.created_at >= NOW() - INTERVAL '${daysNum} days'
+        LEFT JOIN a2c_requests r ON r.assigned_agent_id = a.id AND r.created_at >= NOW() - INTERVAL '${daysNum} days'
         GROUP BY a.id, au.name, au.email
       `,
       cac: `
@@ -5774,7 +5774,7 @@ router.get('/agents/performance/:agentType/:agentId', async (req: Request, res: 
       education: { table: 'education_service_requests', agentCol: 'assigned_agent_id', feeCol: 'fee', pendingStatuses: "'pending','pickup'" },
       jamb:      { table: 'jamb_service_requests',      agentCol: 'assigned_agent_id', feeCol: 'fee', pendingStatuses: "'pending','pickup'" },
       identity:  { table: 'identity_service_requests',  agentCol: 'assigned_agent_id', feeCol: 'fee', pendingStatuses: "'pending','pickup'" },
-      a2c:       { table: 'a2c_requests',               agentCol: 'agent_id',          feeCol: 'amount_naira', pendingStatuses: "'pending','processing'" },
+      a2c:       { table: 'a2c_requests',               agentCol: 'assigned_agent_id', feeCol: 'cash_amount', pendingStatuses: "'pending','airtime_sent','airtime_received','user_confirmed'" },
       cac:       { table: 'cac_registration_requests',  agentCol: 'assigned_agent_id', feeCol: 'fee', pendingStatuses: "'pending','in_progress'" },
     };
 

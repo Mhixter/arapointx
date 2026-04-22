@@ -145,13 +145,6 @@ export default function AgentPerformanceWidget({ apiBase, getToken }: AgentPerfo
                   {perf.slaBreaches}
                 </p>
               </div>
-              <div className="bg-white/70 rounded-lg p-2.5">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <Wallet className="h-3.5 w-3.5 text-purple-500" />
-                  <span className="text-xs text-muted-foreground">Revenue</span>
-                </div>
-                <p className="text-sm font-bold text-purple-600">{formatNaira(perf.revenueGenerated)}</p>
-              </div>
             </div>
 
             {perf.slaBreaches > 0 && (

@@ -523,7 +523,7 @@ export default function A2CAgentDashboard() {
                                       setShowStatusModal(true);
                                     }}
                                   />
-                                  {getNextStatuses(request.status).length > 0 && request.assignedAgentId === profile?.id && (
+                                  {getNextStatuses(request.status).length > 0 && (!request.assignedAgentId || request.assignedAgentId === profile?.id) && (
                                     <Button 
                                       size="sm" 
                                       variant="outline"

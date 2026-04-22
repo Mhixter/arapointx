@@ -277,26 +277,25 @@ router.put('/requests/:id/status', a2cAgentAuthMiddleware, async (req: Request, 
 
     const [request] = await db.select()
       .from(a2cRequests)
-      .where(and(
-        eq(a2cRequests.id, id),
-        eq(a2cRequests.assignedAgentId, req.agentId!)
-      ))
+      .where(eq(a2cRequests.id, id))
       .limit(1);
 
     if (!request) {
       return res.status(404).json(formatErrorResponse(404, 'Request not found'));
     }
 
-      // Ownership guard: agents may only mutate jobs assigned to them.
-      // Initial pickup must use the atomic POST /requests/:id/claim endpoint.
-      if (!request.assignedAgentId || request.assignedAgentId !== req.agentId) {
-        return res.status(403).json(formatErrorResponse(403, 'You do not own this job. Pick it from the Job Inventory first.'));
+      // Ownership guard: allow update if the job is assigned to this agent,
+      // OR auto-claim the job if it has no assignee yet (covers legacy orders
+      // created before the atomic claim flow existed).
+      if (request.assignedAgentId && request.assignedAgentId !== req.agentId) {
+        return res.status(403).json(formatErrorResponse(403, 'This job is owned by another agent.'));
       }
   
     const validTransitions: Record<string, string[]> = {
-      pending: ['awaiting_transfer', 'cancelled'],
-      awaiting_transfer: ['confirmed', 'cancelled'],
-      confirmed: ['completed', 'cancelled'],
+      pending: ['airtime_sent', 'rejected', 'cancelled'],
+      airtime_sent: ['airtime_received', 'rejected', 'cancelled'],
+      airtime_received: ['completed', 'rejected'],
+      user_confirmed: ['airtime_received', 'rejected', 'cancelled'],
     };
 
     if (!validTransitions[request.status]?.includes(status)) {
@@ -308,8 +307,13 @@ router.put('/requests/:id/status', a2cAgentAuthMiddleware, async (req: Request, 
       updatedAt: new Date(),
     };
 
+    if (!request.assignedAgentId) {
+      updateData.assignedAgentId = req.agentId!;
+      updateData.assignedAt = new Date();
+    }
+
     if (agentNotes) updateData.agentNotes = agentNotes;
-    if (status === 'confirmed') updateData.airtimeReceivedAt = new Date();
+    if (status === 'airtime_received') updateData.airtimeReceivedAt = new Date();
     if (status === 'completed') {
       updateData.cashPaidAt = new Date();
       await db.update(a2cAgents)
@@ -675,6 +679,13 @@ router.patch('/requests/:id/update-status', a2cAgentAuthMiddleware, async (req: 
       status,
       updatedAt: new Date(),
     };
+
+    // Auto-claim legacy unassigned jobs to the updating agent so subsequent
+    // updates and ownership checks work cleanly.
+    if (!request.assignedAgentId) {
+      updateData.assignedAgentId = req.agentId!;
+      updateData.assignedAt = new Date();
+    }
 
     if (agentNotes) updateData.agentNotes = agentNotes;
     if (status === 'airtime_received') updateData.airtimeReceivedAt = new Date();
