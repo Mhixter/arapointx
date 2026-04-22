@@ -135,7 +135,7 @@ export default function AdminPricing() {
   const [isConfigured, setIsConfigured] = useState(false);
   const [activeNetwork, setActiveNetwork] = useState('mtn');
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
-  const [editPlanForm, setEditPlanForm] = useState<{ planName: string; sellingPrice: string; markupPercent: string } | null>(null);
+  const [editPlanForm, setEditPlanForm] = useState<{ planName: string; costPrice: string; sellingPrice: string; markupPercent: string } | null>(null);
   const [bulkMarkup, setBulkMarkup] = useState<Record<string, string>>({});
   const [applyingBulk, setApplyingBulk] = useState<string | null>(null);
 
@@ -215,6 +215,8 @@ export default function AdminPricing() {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           planName: editPlanForm.planName,
+          costPrice: parseFloat(editPlanForm.costPrice),
+          sellingPrice: parseFloat(editPlanForm.sellingPrice),
           markupPercent: parseFloat(editPlanForm.markupPercent),
         }),
       });
@@ -591,17 +593,42 @@ export default function AdminPricing() {
                                   <td className="p-3">
                                     <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{plan.planId}</code>
                                   </td>
-                                  <td className="p-3 text-right text-muted-foreground">₦{plan.costPrice.toLocaleString()}</td>
+                                  <td className="p-3 text-right text-muted-foreground">
+                                    {editingPlanId === plan.id ? (
+                                      <Input
+                                        type="number"
+                                        value={editPlanForm?.costPrice || ''}
+                                        onChange={(e) => {
+                                          const cost = parseFloat(e.target.value || '0');
+                                          const markup = parseFloat(editPlanForm?.markupPercent || '0');
+                                          setEditPlanForm(prev => prev ? {
+                                            ...prev,
+                                            costPrice: e.target.value,
+                                            sellingPrice: markup > 0 ? (cost * (1 + markup / 100)).toFixed(2) : prev.sellingPrice,
+                                          } : null);
+                                        }}
+                                        className="w-24 h-7 text-xs text-right"
+                                        min="0"
+                                        step="1"
+                                      />
+                                    ) : (
+                                      <span>₦{plan.costPrice.toLocaleString()}</span>
+                                    )}
+                                  </td>
                                   <td className="p-3 text-right">
                                     {editingPlanId === plan.id ? (
                                       <Input
                                         type="number"
                                         value={editPlanForm?.markupPercent || ''}
-                                        onChange={(e) => setEditPlanForm(prev => prev ? {
-                                          ...prev,
-                                          markupPercent: e.target.value,
-                                          sellingPrice: (plan.costPrice * (1 + parseFloat(e.target.value || '0') / 100)).toFixed(2),
-                                        } : null)}
+                                        onChange={(e) => {
+                                          const pct = parseFloat(e.target.value || '0');
+                                          const cost = parseFloat(editPlanForm?.costPrice || '0');
+                                          setEditPlanForm(prev => prev ? {
+                                            ...prev,
+                                            markupPercent: e.target.value,
+                                            sellingPrice: (cost * (1 + pct / 100)).toFixed(2),
+                                          } : null);
+                                        }}
                                         className="w-20 h-7 text-xs text-right"
                                         min="0"
                                         step="0.5"
@@ -612,9 +639,22 @@ export default function AdminPricing() {
                                   </td>
                                   <td className="p-3 text-right">
                                     {editingPlanId === plan.id ? (
-                                      <span className="font-semibold text-green-600 text-sm">
-                                        ₦{parseFloat(editPlanForm?.sellingPrice || String(plan.sellingPrice)).toLocaleString()}
-                                      </span>
+                                      <Input
+                                        type="number"
+                                        value={editPlanForm?.sellingPrice || ''}
+                                        onChange={(e) => {
+                                          const sell = parseFloat(e.target.value || '0');
+                                          const cost = parseFloat(editPlanForm?.costPrice || '0');
+                                          setEditPlanForm(prev => prev ? {
+                                            ...prev,
+                                            sellingPrice: e.target.value,
+                                            markupPercent: cost > 0 ? (((sell - cost) / cost) * 100).toFixed(2) : '0',
+                                          } : null);
+                                        }}
+                                        className="w-24 h-7 text-xs text-right font-semibold"
+                                        min="0"
+                                        step="1"
+                                      />
                                     ) : (
                                       <span className="font-semibold text-green-600">₦{plan.sellingPrice.toLocaleString()}</span>
                                     )}
@@ -637,7 +677,7 @@ export default function AdminPricing() {
                                         </Button>
                                       </div>
                                     ) : (
-                                      <Button size="sm" variant="ghost" onClick={() => { setEditingPlanId(plan.id); setEditPlanForm({ planName: plan.planName, sellingPrice: String(plan.sellingPrice), markupPercent: String(plan.markupPercent) }); }} className="h-7 w-7 p-0">
+                                      <Button size="sm" variant="ghost" onClick={() => { setEditingPlanId(plan.id); setEditPlanForm({ planName: plan.planName, costPrice: String(plan.costPrice), sellingPrice: String(plan.sellingPrice), markupPercent: String(plan.markupPercent) }); }} className="h-7 w-7 p-0">
                                         <Edit className="h-3.5 w-3.5" />
                                       </Button>
                                     )}

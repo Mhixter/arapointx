@@ -497,7 +497,7 @@ router.post('/data-plans/sync', adminAuthMiddleware, async (req: Request, res: R
 router.put('/data-plans/:id', adminAuthMiddleware, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { sellingPrice, markupPercent, isActive, planName } = req.body;
+    const { sellingPrice, markupPercent, isActive, planName, costPrice } = req.body;
 
     const [plan] = await db.select().from(scrapedDataPlans).where(eq(scrapedDataPlans.id, id)).limit(1);
     if (!plan) return res.status(404).json(formatErrorResponse(404, 'Plan not found'));
@@ -508,17 +508,24 @@ router.put('/data-plans/:id', adminAuthMiddleware, async (req: Request, res: Res
       updates.planName = planName.trim();
     }
 
-    if (markupPercent !== undefined) {
-      const pct = parseFloat(markupPercent);
-      const cost = parseFloat(plan.costPrice);
-      const computed = (cost * (1 + pct / 100)).toFixed(2);
-      updates.markupPercent = pct.toFixed(2);
-      updates.sellingPrice = computed;
-    } else if (sellingPrice !== undefined) {
-      const cost = parseFloat(plan.costPrice);
+    // Allow admin to manually set cost price (useful when API returns 0)
+    const effectiveCostPrice = costPrice !== undefined ? parseFloat(costPrice) : parseFloat(plan.costPrice);
+    if (costPrice !== undefined) {
+      updates.costPrice = effectiveCostPrice.toFixed(2);
+    }
+
+    // When both sellingPrice and markupPercent are provided together (frontend sends both),
+    // use sellingPrice as the source of truth and derive markup from it.
+    // Only fall back to computing from markup alone when sellingPrice is absent.
+    if (sellingPrice !== undefined && sellingPrice !== '' && !isNaN(parseFloat(sellingPrice))) {
       const sell = parseFloat(sellingPrice);
       updates.sellingPrice = sell.toFixed(2);
-      updates.markupPercent = cost > 0 ? (((sell - cost) / cost) * 100).toFixed(2) : '0';
+      updates.markupPercent = effectiveCostPrice > 0 ? (((sell - effectiveCostPrice) / effectiveCostPrice) * 100).toFixed(2) : '0';
+    } else if (markupPercent !== undefined && markupPercent !== '' && !isNaN(parseFloat(markupPercent))) {
+      const pct = parseFloat(markupPercent);
+      const computed = (effectiveCostPrice * (1 + pct / 100)).toFixed(2);
+      updates.markupPercent = pct.toFixed(2);
+      updates.sellingPrice = computed;
     }
 
     if (isActive !== undefined) updates.isActive = isActive;
