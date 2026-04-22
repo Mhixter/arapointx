@@ -1085,6 +1085,14 @@ router.get('/payment-gateways/status', async (req: Request, res: Response) => {
           { key: 'prembly_public_key', label: 'Public Key', type: 'text', required: false, value: savedSettings['prembly_public_key'] || '' },
         ],
       },
+      airtimenigeria: {
+        name: 'AirtimeNigeria',
+        description: 'Airtime and data VTU services via AirtimeNigeria.com',
+        configured: !!(process.env.AIRTIMENIGERIA_API_TOKEN || savedSettings['airtimenigeria_api_token']),
+        fields: [
+          { key: 'airtimenigeria_api_token', label: 'API Token (Bearer)', type: 'password', required: true, value: '', hasValue: !!savedSettings['airtimenigeria_api_token'] },
+        ],
+      },
     };
 
     res.json(formatResponse('success', 200, 'Gateway status retrieved', { gateways }));
@@ -1122,6 +1130,7 @@ router.post('/payment-gateways/save', async (req: Request, res: Response) => {
       youverify_sandbox: 'YOUVERIFY_SANDBOX',
       prembly_secret_key: 'PREMBLY_SECRET_KEY',
       prembly_public_key: 'PREMBLY_PUBLIC_KEY',
+      airtimenigeria_api_token: 'AIRTIMENIGERIA_API_TOKEN',
     };
 
     let savedCount = 0;

@@ -21,6 +21,7 @@ const ENV_MAPPING: Record<string, string> = {
   youverify_sandbox: 'YOUVERIFY_SANDBOX',
   prembly_secret_key: 'PREMBLY_SECRET_KEY',
   prembly_public_key: 'PREMBLY_PUBLIC_KEY',
+  airtimenigeria_api_token: 'AIRTIMENIGERIA_API_TOKEN',
 };
 
 export async function loadGatewayCredentials(): Promise<void> {

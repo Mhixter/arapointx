@@ -23,6 +23,8 @@ const pricingRecords = [
   { serviceType: 'cac_limited_company', serviceName: 'CAC Limited Company', price: '35000.00', description: 'Register limited liability company', isActive: true },
   { serviceType: 'cac_incorporated_trustees', serviceName: 'CAC Incorporated Trustees', price: '55000.00', description: 'Register incorporated trustees/NGO', isActive: true },
   { serviceType: 'airtime_to_cash', serviceName: 'Airtime to Cash', price: '0.00', description: 'Convert airtime to wallet balance', isActive: true },
+  { serviceType: 'airtime_purchase', serviceName: 'Airtime Purchase', price: '0.00', costPrice: '0.00', markup: '2.00', description: 'Buy airtime for any network (2% markup)', isActive: true },
+  { serviceType: 'data_purchase', serviceName: 'Data Bundle Purchase', price: '0.00', costPrice: '0.00', markup: '5.00', description: 'Buy data bundles for any network (5% markup)', isActive: true },
   { serviceType: 'nin_personalization', serviceName: 'NIN Personalization', price: '1500.00', description: 'Customize NIN identity data', isActive: true },
   { serviceType: 'birth_attestation', serviceName: 'Birth Attestation', price: '2000.00', description: 'NPC Birth Certificate attestation', isActive: true },
   { serviceType: 'waec_pin', serviceName: 'WAEC PIN', price: '4000.00', description: 'WAEC examination PIN - Instant Delivery', isActive: true },
