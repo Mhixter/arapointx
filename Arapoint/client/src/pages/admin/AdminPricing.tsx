@@ -135,7 +135,7 @@ export default function AdminPricing() {
   const [isConfigured, setIsConfigured] = useState(false);
   const [activeNetwork, setActiveNetwork] = useState('mtn');
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
-  const [editPlanForm, setEditPlanForm] = useState<{ sellingPrice: string; markupPercent: string } | null>(null);
+  const [editPlanForm, setEditPlanForm] = useState<{ planName: string; sellingPrice: string; markupPercent: string } | null>(null);
   const [bulkMarkup, setBulkMarkup] = useState<Record<string, string>>({});
   const [applyingBulk, setApplyingBulk] = useState<string | null>(null);
 
@@ -213,7 +213,10 @@ export default function AdminPricing() {
       const res = await fetch(`/api/admin/data-plans/${planId}`, {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ markupPercent: parseFloat(editPlanForm.markupPercent) }),
+        body: JSON.stringify({
+          planName: editPlanForm.planName,
+          markupPercent: parseFloat(editPlanForm.markupPercent),
+        }),
       });
       const data = await res.json();
       if (data.status === 'success') {
@@ -557,23 +560,34 @@ export default function AdminPricing() {
                         </div>
                       </CardHeader>
                       <CardContent className="p-0">
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead>
+                        <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
+                          <table className="w-full text-sm min-w-[750px]">
+                            <thead className="sticky top-0 z-10 bg-background">
                               <tr className="border-b bg-muted/50">
-                                <th className="p-3 text-left font-medium">Plan</th>
-                                <th className="p-3 text-left font-medium">Package Code</th>
-                                <th className="p-3 text-right font-medium">Cost Price</th>
-                                <th className="p-3 text-right font-medium">Markup %</th>
-                                <th className="p-3 text-right font-medium">Selling Price</th>
-                                <th className="p-3 text-center font-medium">Active</th>
-                                <th className="p-3 text-right font-medium">Actions</th>
+                                <th className="p-3 text-left font-medium min-w-[200px]">Plan Name <span className="text-xs font-normal text-muted-foreground">(shown to users)</span></th>
+                                <th className="p-3 text-left font-medium w-[120px]">Code</th>
+                                <th className="p-3 text-right font-medium w-[110px]">Cost Price</th>
+                                <th className="p-3 text-right font-medium w-[100px]">Markup %</th>
+                                <th className="p-3 text-right font-medium w-[120px]">User Price</th>
+                                <th className="p-3 text-center font-medium w-[70px]">Active</th>
+                                <th className="p-3 text-right font-medium w-[80px]">Actions</th>
                               </tr>
                             </thead>
                             <tbody>
                               {plans.map(plan => (
-                                <tr key={plan.id} className="border-b hover:bg-muted/30 transition-colors">
-                                  <td className="p-3 font-medium text-sm">{plan.planName}</td>
+                                <tr key={plan.id} className={`border-b transition-colors ${plan.isActive ? 'hover:bg-muted/30' : 'opacity-50 bg-muted/10'}`}>
+                                  <td className="p-3">
+                                    {editingPlanId === plan.id ? (
+                                      <Input
+                                        value={editPlanForm?.planName || ''}
+                                        onChange={(e) => setEditPlanForm(prev => prev ? { ...prev, planName: e.target.value } : null)}
+                                        className="h-7 text-xs w-full"
+                                        placeholder="Display name for users"
+                                      />
+                                    ) : (
+                                      <span className="font-medium">{plan.planName}</span>
+                                    )}
+                                  </td>
                                   <td className="p-3">
                                     <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{plan.planId}</code>
                                   </td>
@@ -593,7 +607,7 @@ export default function AdminPricing() {
                                         step="0.5"
                                       />
                                     ) : (
-                                      <span className="text-blue-600 font-medium">{plan.markupPercent.toFixed(1)}%</span>
+                                      <span className={`font-medium ${plan.markupPercent > 0 ? 'text-blue-600' : 'text-muted-foreground'}`}>{plan.markupPercent.toFixed(1)}%</span>
                                     )}
                                   </td>
                                   <td className="p-3 text-right">
@@ -623,7 +637,7 @@ export default function AdminPricing() {
                                         </Button>
                                       </div>
                                     ) : (
-                                      <Button size="sm" variant="ghost" onClick={() => { setEditingPlanId(plan.id); setEditPlanForm({ sellingPrice: String(plan.sellingPrice), markupPercent: String(plan.markupPercent) }); }} className="h-7 w-7 p-0">
+                                      <Button size="sm" variant="ghost" onClick={() => { setEditingPlanId(plan.id); setEditPlanForm({ planName: plan.planName, sellingPrice: String(plan.sellingPrice), markupPercent: String(plan.markupPercent) }); }} className="h-7 w-7 p-0">
                                         <Edit className="h-3.5 w-3.5" />
                                       </Button>
                                     )}

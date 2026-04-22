@@ -1,5 +1,8 @@
 import axios from 'axios';
 import { logger } from '../utils/logger';
+import { db } from '../config/database';
+import { adminSettings } from '../db/schema';
+import { eq } from 'drizzle-orm';
 
 const BASE_URL = 'https://www.airtimenigeria.com/api/v1';
 
@@ -26,24 +29,54 @@ interface WalletBalanceResponse {
 }
 
 class AirtimeNigeriaService {
-  private getToken(): string | null {
-    return process.env.AIRTIMENIGERIA_API_TOKEN || null;
+  private cachedToken: string | null = null;
+
+  private getTokenSync(): string | null {
+    return this.cachedToken || process.env.AIRTIMENIGERIA_API_TOKEN || null;
+  }
+
+  private async getTokenAsync(): Promise<string | null> {
+    if (process.env.AIRTIMENIGERIA_API_TOKEN) return process.env.AIRTIMENIGERIA_API_TOKEN;
+    if (this.cachedToken) return this.cachedToken;
+    try {
+      const [row] = await db.select({ settingValue: adminSettings.settingValue })
+        .from(adminSettings)
+        .where(eq(adminSettings.settingKey, 'airtimenigeria_api_token'))
+        .limit(1);
+      if (row?.settingValue) {
+        this.cachedToken = row.settingValue;
+        process.env.AIRTIMENIGERIA_API_TOKEN = row.settingValue;
+        return row.settingValue;
+      }
+    } catch {
+      // ignore DB errors — fall through to null
+    }
+    return null;
   }
 
   isConfigured(): boolean {
-    return !!this.getToken();
+    return !!this.getTokenSync();
   }
 
-  private getHeaders() {
+  async isConfiguredAsync(): Promise<boolean> {
+    return !!(await this.getTokenAsync());
+  }
+
+  invalidateCache() {
+    this.cachedToken = null;
+  }
+
+  private async getHeaders(): Promise<Record<string, string>> {
+    const token = await this.getTokenAsync();
     return {
-      Authorization: `Bearer ${this.getToken()}`,
+      Authorization: `Bearer ${token}`,
       Accept: 'application/json',
       'Content-Type': 'application/json',
     };
   }
 
   async fetchDataPlans(): Promise<{ success: boolean; plans?: DataPlan[]; rawResponse?: any; error?: string }> {
-    const token = this.getToken();
+    const token = await this.getTokenAsync();
     if (!token) {
       return { success: false, error: 'AirtimeNigeria API token is not configured. Set it in Admin → Settings → Gateways.' };
     }
@@ -51,7 +84,7 @@ class AirtimeNigeriaService {
     try {
       logger.info('Fetching data plans from AirtimeNigeria');
       const response = await axios.get(`${BASE_URL}/data/plans`, {
-        headers: this.getHeaders(),
+        headers: await this.getHeaders(),
         timeout: 30000,
       });
 
@@ -104,14 +137,14 @@ class AirtimeNigeriaService {
   }
 
   async getWalletBalance(): Promise<{ success: boolean; balance?: number; currency?: string; error?: string }> {
-    const token = this.getToken();
+    const token = await this.getTokenAsync();
     if (!token) {
       return { success: false, error: 'AirtimeNigeria API token is not configured' };
     }
 
     try {
       const response = await axios.get<WalletBalanceResponse>(`${BASE_URL}/wallet/balance`, {
-        headers: this.getHeaders(),
+        headers: await this.getHeaders(),
         timeout: 15000,
       });
 
@@ -136,7 +169,7 @@ class AirtimeNigeriaService {
     customerReference?: string;
     callbackUrl?: string;
   }): Promise<{ success: boolean; reference?: string; data?: any; error?: string }> {
-    const token = this.getToken();
+    const token = await this.getTokenAsync();
     if (!token) return { success: false, error: 'AirtimeNigeria API token is not configured' };
 
     try {
@@ -147,7 +180,7 @@ class AirtimeNigeriaService {
         max_amount: params.maxAmount,
         customer_reference: params.customerReference,
         callback_url: params.callbackUrl,
-      }, { headers: this.getHeaders(), timeout: 60000 });
+      }, { headers: await this.getHeaders(), timeout: 60000 });
 
       const { data } = response;
       if (!data.success) {
@@ -168,7 +201,7 @@ class AirtimeNigeriaService {
     customerReference?: string;
     callbackUrl?: string;
   }): Promise<{ success: boolean; reference?: string; data?: any; error?: string }> {
-    const token = this.getToken();
+    const token = await this.getTokenAsync();
     if (!token) return { success: false, error: 'AirtimeNigeria API token is not configured' };
 
     try {
@@ -178,7 +211,7 @@ class AirtimeNigeriaService {
         max_amount: params.maxAmount,
         customer_reference: params.customerReference,
         callback_url: params.callbackUrl,
-      }, { headers: this.getHeaders(), timeout: 60000 });
+      }, { headers: await this.getHeaders(), timeout: 60000 });
 
       const { data } = response;
       if (!data.success) {

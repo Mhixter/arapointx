@@ -3,12 +3,13 @@ import { authMiddleware } from '../middleware/auth';
 import { idempotencyMiddleware } from '../middleware/idempotency';
 import { walletService } from '../../services/walletService';
 import { vtpassService } from '../../services/vtpassService';
+import { airtimeNigeriaService } from '../../services/airtimeNigeriaService';
 import { dataBuySchema } from '../validators/vtu';
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { db } from '../../config/database';
 import { dataServices, scrapedDataPlans } from '../../db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 
 const router = Router();
 router.use(authMiddleware);
@@ -32,32 +33,44 @@ router.post('/buy', async (req: Request, res: Response) => {
       ));
     }
 
-    const { network, phoneNumber, planId, planName, amount, type } = validation.data;
+    const { network, phoneNumber, planId, planName, amount } = validation.data;
 
-    if (!vtpassService.isConfigured()) {
-      return res.status(503).json(formatErrorResponse(503, 'VTU service is not configured'));
+    const useAirtimeNigeria = await airtimeNigeriaService.isConfiguredAsync();
+    const useVtpass = vtpassService.isConfigured();
+
+    if (!useAirtimeNigeria && !useVtpass) {
+      return res.status(503).json(formatErrorResponse(503, 'Data service is not configured. Please contact support.'));
     }
 
     const balance = await walletService.getBalance(req.userId!);
-    // Amount already has 40% markup from the plans list
     if (balance.balance < amount) {
       return res.status(402).json(formatErrorResponse(402, 'Insufficient wallet balance'));
     }
 
-    logger.info('Data purchase started', { userId: req.userId, network, planId, phone: phoneNumber.substring(0, 4) + '***' });
+    logger.info('Data purchase started', { userId: req.userId, network, planId, provider: useAirtimeNigeria ? 'AirtimeNigeria' : 'VTPass', phone: phoneNumber.substring(0, 4) + '***' });
 
     const serviceID = NETWORK_SERVICE_IDS[network.toLowerCase()];
-    if (!serviceID) {
+    if (!serviceID && !useAirtimeNigeria) {
       return res.status(400).json(formatErrorResponse(400, 'Invalid network provider'));
     }
 
-    // ATOMIC SAFETY: deduct wallet BEFORE calling VTpass so a crash after VTpass
-    // succeeds cannot deliver service for free. Refund immediately on any failure.
+    // Deduct wallet BEFORE calling provider — refund immediately on any failure
     await walletService.deductBalance(req.userId!, amount, `Data Purchase - ${network.toUpperCase()}`, 'data_purchase');
 
-    const result = await vtpassService.purchaseData(phoneNumber, planId, amount, serviceID);
+    let result: { success: boolean; reference?: string; data?: any; error?: string };
 
-    if (!result.success || !result.data) {
+    if (useAirtimeNigeria) {
+      result = await airtimeNigeriaService.purchaseData({
+        phone: phoneNumber,
+        packageCode: planId,
+        maxAmount: Math.ceil(amount * 1.05),
+      });
+    } else {
+      const vtResult = await vtpassService.purchaseData(phoneNumber, planId, amount, serviceID!);
+      result = vtResult;
+    }
+
+    if (!result.success) {
       logger.warn('Data purchase failed — refunding wallet', { userId: req.userId, error: result.error });
       await walletService.addBalance(req.userId!, amount, `Refund: Failed Data Purchase - ${network.toUpperCase()}`, 'data_refund').catch(
         refundErr => logger.error('CRITICAL: Data refund failed', { userId: req.userId, amount, error: refundErr.message })
@@ -65,40 +78,36 @@ router.post('/buy', async (req: Request, res: Response) => {
       return res.status(400).json(formatErrorResponse(400, result.error || 'Data purchase failed'));
     }
 
+    const txStatus = result.data?.status === 'delivered' ? 'completed' : 'pending';
+
     await db.insert(dataServices).values({
       userId: req.userId!,
-      network: network,
-      phoneNumber: phoneNumber,
+      network,
+      phoneNumber,
       planName: planName || planId,
       amount: amount.toString(),
       reference: result.reference,
-      status: result.data.status === 'delivered' ? 'completed' : 'pending',
-      transactionId: result.data.transactionId,
+      status: txStatus,
+      transactionId: result.data?.transactionId || result.reference,
     });
 
-    logger.info('Data purchase successful', { userId: req.userId, reference: result.reference, transactionId: result.data.transactionId });
+    logger.info('Data purchase successful', { userId: req.userId, reference: result.reference, provider: useAirtimeNigeria ? 'AirtimeNigeria' : 'VTPass' });
 
     res.json(formatResponse('success', 200, 'Data purchase successful', {
       reference: result.reference,
-      transactionId: result.data.transactionId,
-      status: result.data.status,
+      transactionId: result.data?.transactionId || result.reference,
+      status: txStatus,
       network: network.toUpperCase(),
       phoneNumber,
       planId,
       amount,
-      productName: result.data.productName,
+      productName: result.data?.productName,
     }));
   } catch (error: any) {
     logger.error('Data purchase error', { error: error.message, userId: req.userId });
-    
     if (error.message === 'Insufficient wallet balance') {
       return res.status(402).json(formatErrorResponse(402, error.message));
     }
-    
-    if (error.message === 'VTPASS_API_KEY and VTPASS_SECRET_KEY are not configured') {
-      return res.status(503).json(formatErrorResponse(503, 'VTU service is not configured'));
-    }
-    
     res.status(500).json(formatErrorResponse(500, 'Failed to process data purchase'));
   }
 });
@@ -110,7 +119,11 @@ router.get('/plans', async (req: Request, res: Response) => {
     if (network && typeof network === 'string') {
       const scrapedPlans = await db.select()
         .from(scrapedDataPlans)
-        .where(eq(scrapedDataPlans.network, network.toLowerCase()));
+        .where(and(
+          eq(scrapedDataPlans.network, network.toLowerCase()),
+          eq(scrapedDataPlans.isActive, true)
+        ))
+        .orderBy(scrapedDataPlans.planName);
 
       if (scrapedPlans && scrapedPlans.length > 0) {
         const plans = scrapedPlans.map(p => ({
@@ -118,12 +131,15 @@ router.get('/plans', async (req: Request, res: Response) => {
           name: p.planName,
           variation_amount: p.sellingPrice,
           original_amount: p.costPrice,
-          fixedPrice: 'Yes'
+          fixedPrice: 'Yes',
         }));
-        return res.json(formatResponse('success', 200, 'Data plans retrieved (scraped)', { plans, network: network.toUpperCase() }));
+        return res.json(formatResponse('success', 200, 'Data plans retrieved', { plans, network: network.toUpperCase() }));
       }
     } else if (!network) {
-      const allScraped = await db.select().from(scrapedDataPlans);
+      const allScraped = await db.select()
+        .from(scrapedDataPlans)
+        .where(eq(scrapedDataPlans.isActive, true))
+        .orderBy(scrapedDataPlans.network, scrapedDataPlans.planName);
       if (allScraped && allScraped.length > 0) {
         const plans: Record<string, any[]> = {};
         allScraped.forEach(p => {
@@ -133,10 +149,10 @@ router.get('/plans', async (req: Request, res: Response) => {
             name: p.planName,
             variation_amount: p.sellingPrice,
             original_amount: p.costPrice,
-            fixedPrice: 'Yes'
+            fixedPrice: 'Yes',
           });
         });
-        return res.json(formatResponse('success', 200, 'All data plans retrieved (scraped)', { plans }));
+        return res.json(formatResponse('success', 200, 'All data plans retrieved', { plans }));
       }
     }
 

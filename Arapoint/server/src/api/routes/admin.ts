@@ -405,7 +405,7 @@ router.get('/data-plans', adminAuthMiddleware, async (req: Request, res: Respons
       });
     }
 
-    const isConfigured = airtimeNigeriaService.isConfigured();
+    const isConfigured = await airtimeNigeriaService.isConfiguredAsync();
     res.json(formatResponse('success', 200, 'Data plans retrieved', { plans: grouped, total: plans.length, isConfigured }));
   } catch (error: any) {
     logger.error('Get data plans error', { error: error.message });
@@ -415,8 +415,8 @@ router.get('/data-plans', adminAuthMiddleware, async (req: Request, res: Respons
 
 router.post('/data-plans/sync', adminAuthMiddleware, async (req: Request, res: Response) => {
   try {
-    if (!airtimeNigeriaService.isConfigured()) {
-      return res.status(503).json(formatErrorResponse(503, 'AirtimeNigeria API token is not configured. Go to Settings → Gateways to add it.'));
+    if (!(await airtimeNigeriaService.isConfiguredAsync())) {
+      return res.status(503).json(formatErrorResponse(503, 'AirtimeNigeria API token is not configured. Go to Settings → Gateways → AirtimeNigeria to add your Bearer token.'));
     }
 
     const result = await airtimeNigeriaService.fetchDataPlans();
@@ -497,12 +497,16 @@ router.post('/data-plans/sync', adminAuthMiddleware, async (req: Request, res: R
 router.put('/data-plans/:id', adminAuthMiddleware, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { sellingPrice, markupPercent, isActive } = req.body;
+    const { sellingPrice, markupPercent, isActive, planName } = req.body;
 
     const [plan] = await db.select().from(scrapedDataPlans).where(eq(scrapedDataPlans.id, id)).limit(1);
     if (!plan) return res.status(404).json(formatErrorResponse(404, 'Plan not found'));
 
-    const updates: any = { lastScrapedAt: plan.lastScrapedAt };
+    const updates: any = {};
+
+    if (planName !== undefined && planName.trim()) {
+      updates.planName = planName.trim();
+    }
 
     if (markupPercent !== undefined) {
       const pct = parseFloat(markupPercent);
@@ -518,6 +522,10 @@ router.put('/data-plans/:id', adminAuthMiddleware, async (req: Request, res: Res
     }
 
     if (isActive !== undefined) updates.isActive = isActive;
+
+    if (Object.keys(updates).length === 0) {
+      return res.json(formatResponse('success', 200, 'No changes to save'));
+    }
 
     await db.update(scrapedDataPlans).set(updates).where(eq(scrapedDataPlans.id, id));
 
@@ -1344,6 +1352,10 @@ router.post('/payment-gateways/save', async (req: Request, res: Response) => {
           const envKey = envMapping[key];
           if (envKey) {
             process.env[envKey] = value;
+            // Invalidate cached token in airtimeNigeriaService if relevant
+            if (key === 'airtimenigeria_api_token') {
+              airtimeNigeriaService.invalidateCache();
+            }
           }
           savedCount++;
         } catch (innerErr: any) {
