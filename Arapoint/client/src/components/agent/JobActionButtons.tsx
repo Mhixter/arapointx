@@ -42,7 +42,16 @@ export function JobActionButtons({ job, agentId, apiBase, token, onChanged, onPi
   };
 
   const isMine = !!agentId && job.assignedAgentId === agentId;
-  const isUnclaimed = job.status === 'pending' && !job.assignedAgentId;
+  // An order is pickable whenever it's still unassigned, regardless of which
+  // in-progress status it is in. Atomic claim on the server prevents races.
+  const PICKABLE_STATUSES = new Set([
+    'pending',
+    'airtime_sent',
+    'airtime_received',
+    'user_confirmed',
+    'pending_confirmation',
+  ]);
+  const isUnclaimed = !job.assignedAgentId && PICKABLE_STATUSES.has(job.status);
 
   return (
     <>

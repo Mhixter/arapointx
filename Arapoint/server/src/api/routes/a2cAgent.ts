@@ -275,27 +275,28 @@ router.put('/requests/:id/status', a2cAgentAuthMiddleware, async (req: Request, 
     const { id } = req.params;
     const { status, agentNotes } = req.body;
 
+    // Strict ownership: only the agent who owns the job may transition status.
+    // Unassigned jobs must be claimed first via POST /requests/:id/claim
+    // (atomic). This prevents two agents racing on the same order.
     const [request] = await db.select()
       .from(a2cRequests)
-      .where(eq(a2cRequests.id, id))
+      .where(and(
+        eq(a2cRequests.id, id),
+        eq(a2cRequests.assignedAgentId, req.agentId!),
+      ))
       .limit(1);
 
     if (!request) {
-      return res.status(404).json(formatErrorResponse(404, 'Request not found'));
+      return res.status(404).json(formatErrorResponse(404, 'Job is not assigned to you. Pick it from Job Inventory first.'));
     }
 
-      // Ownership guard: allow update if the job is assigned to this agent,
-      // OR auto-claim the job if it has no assignee yet (covers legacy orders
-      // created before the atomic claim flow existed).
-      if (request.assignedAgentId && request.assignedAgentId !== req.agentId) {
-        return res.status(403).json(formatErrorResponse(403, 'This job is owned by another agent.'));
-      }
-  
     const validTransitions: Record<string, string[]> = {
       pending: ['airtime_sent', 'rejected', 'cancelled'],
       airtime_sent: ['airtime_received', 'rejected', 'cancelled'],
       airtime_received: ['completed', 'rejected'],
       user_confirmed: ['airtime_received', 'rejected', 'cancelled'],
+      pickup: ['completed', 'rejected', 'cancelled'],
+      processing: ['completed', 'rejected', 'cancelled'],
     };
 
     if (!validTransitions[request.status]?.includes(status)) {
@@ -306,11 +307,6 @@ router.put('/requests/:id/status', a2cAgentAuthMiddleware, async (req: Request, 
       status,
       updatedAt: new Date(),
     };
-
-    if (!request.assignedAgentId) {
-      updateData.assignedAgentId = req.agentId!;
-      updateData.assignedAt = new Date();
-    }
 
     if (agentNotes) updateData.agentNotes = agentNotes;
     if (status === 'airtime_received') updateData.airtimeReceivedAt = new Date();
@@ -648,19 +644,19 @@ router.patch('/requests/:id/update-status', a2cAgentAuthMiddleware, async (req: 
     const { id } = req.params;
     const { status, agentNotes, rejectionReason } = req.body;
 
+    // Strict ownership: the order must already be claimed by this agent.
+    // Unassigned orders cannot be updated directly — the agent must Pick first
+    // (atomic claim). This prevents two agents racing to complete the same job.
     const [request] = await db.select()
       .from(a2cRequests)
       .where(and(
         eq(a2cRequests.id, id),
-        or(
-          eq(a2cRequests.assignedAgentId, req.agentId!),
-          isNull(a2cRequests.assignedAgentId)
-        )
+        eq(a2cRequests.assignedAgentId, req.agentId!),
       ))
       .limit(1);
 
     if (!request) {
-      return res.status(404).json(formatErrorResponse(404, 'Request not found'));
+      return res.status(404).json(formatErrorResponse(404, 'Job is not assigned to you. Pick it from Job Inventory first.'));
     }
 
     // Unified A2C agent flow:
@@ -681,13 +677,6 @@ router.patch('/requests/:id/update-status', a2cAgentAuthMiddleware, async (req: 
       status,
       updatedAt: new Date(),
     };
-
-    // Auto-claim legacy unassigned jobs to the updating agent so subsequent
-    // updates and ownership checks work cleanly.
-    if (!request.assignedAgentId) {
-      updateData.assignedAgentId = req.agentId!;
-      updateData.assignedAt = new Date();
-    }
 
     if (agentNotes) updateData.agentNotes = agentNotes;
     if (status === 'airtime_received') updateData.airtimeReceivedAt = new Date();
@@ -942,15 +931,22 @@ export default router;
 
   router.post('/requests/:id/claim', a2cAgentAuthMiddleware, async (req: Request, res: Response) => {
     const agentId = (req as any).agentId;
-    const { claimJob } = await import('../../services/agentJobClaim');
-    const r = await claimJob('a2c_requests', req.params.id, agentId);
+    const { claimJobAny } = await import('../../services/agentJobClaim');
+    // A2C agents may pick orders in any unassigned in-progress state
+    // (pending or any of the legacy customer-confirmation states).
+    const r = await claimJobAny(
+      'a2c_requests',
+      req.params.id,
+      agentId,
+      ['pending', 'airtime_sent', 'airtime_received', 'user_confirmed', 'pending_confirmation'],
+    );
     if (!r.ok) {
       const msg = r.reason === 'already_claimed' ? 'This job was just claimed by another agent'
                 : r.reason === 'not_found' ? 'Job not found'
                 : 'Job is no longer available';
       return res.status(409).json(formatErrorResponse(409, msg));
     }
-    logger.info('Job claimed', { table: 'a2c_requests', jobId: req.params.id, agentId });
+    logger.info('Job claimed', { table: 'a2c_requests', jobId: req.params.id, agentId, fromStatus: r.row?.status });
     res.json(formatResponse('success', 200, 'Claimed', { request: r.row }));
   });
 
