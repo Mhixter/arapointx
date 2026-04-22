@@ -60,10 +60,14 @@ router.post('/buy', async (req: Request, res: Response) => {
     let result: { success: boolean; reference?: string; data?: any; error?: string };
 
     if (useAirtimeNigeria) {
+      const baseUrl = process.env.REPLIT_DEV_DOMAIN
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        : 'https://arapoint.com.ng';
       result = await airtimeNigeriaService.purchaseData({
         phone: phoneNumber,
         packageCode: planId,
         maxAmount: Math.ceil(amount * 1.05),
+        callbackUrl: `${baseUrl}/webhooks/airtimenigeria`,
       });
     } else {
       const vtResult = await vtpassService.purchaseData(phoneNumber, planId, amount, serviceID!);
@@ -78,7 +82,8 @@ router.post('/buy', async (req: Request, res: Response) => {
       return res.status(400).json(formatErrorResponse(400, result.error || 'Data purchase failed'));
     }
 
-    const txStatus = result.data?.status === 'delivered' ? 'completed' : 'pending';
+    const deliveredStatuses = ['delivered', 'success', 'completed', 'successful', 'processed'];
+    const txStatus = deliveredStatuses.includes((result.data?.status || '').toLowerCase()) ? 'completed' : 'pending';
 
     await db.insert(dataServices).values({
       userId: req.userId!,

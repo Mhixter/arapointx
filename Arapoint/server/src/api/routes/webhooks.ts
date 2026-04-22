@@ -7,8 +7,10 @@ import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { sendEmail } from '../../services/emailService';
 import { db } from '../../config/database';
-import { users } from '../../db/schema';
-import { eq } from 'drizzle-orm';
+import { users, airtimeServices, dataServices } from '../../db/schema';
+import { eq, or } from 'drizzle-orm';
+
+const AN_DELIVERED_STATUSES = ['delivered', 'success', 'completed', 'successful', 'processed'];
 
 async function sendWalletCreditEmail(userId: string, amount: number, newBalance: number, reference: string, _provider: string) {
   try {
@@ -184,6 +186,91 @@ router.post('/payvessel', async (req: Request, res: Response) => {
       body: req.body,
     });
     return res.status(500).json(formatErrorResponse(500, 'Webhook processing failed'));
+  }
+});
+
+// ─── AirtimeNigeria Delivery Webhook ─────────────────────────────────────────
+// AirtimeNigeria calls this URL when airtime/data delivery status changes.
+// We always return HTTP 200 quickly to stop retries, then process async.
+router.post('/airtimenigeria', async (req: Request, res: Response) => {
+  // Respond immediately so AirtimeNigeria doesn't timeout and retry
+  res.json({ status: 'ok' });
+
+  try {
+    const body = req.body || {};
+    logger.info('AirtimeNigeria webhook received', { body });
+
+    // Normalise reference — API uses different field names in different contexts
+    const reference: string = (
+      body.reference ||
+      body.transaction_reference ||
+      body.transactionReference ||
+      body.data?.reference ||
+      body.details?.reference ||
+      ''
+    ).toString().trim();
+
+    if (!reference) {
+      logger.warn('AirtimeNigeria webhook: no reference in payload', { body });
+      return;
+    }
+
+    const rawStatus: string = (
+      body.status ||
+      body.data?.status ||
+      body.details?.status ||
+      ''
+    ).toString().toLowerCase();
+
+    const isDelivered = AN_DELIVERED_STATUSES.includes(rawStatus);
+    logger.info('AirtimeNigeria webhook status', { reference, rawStatus, isDelivered });
+
+    if (!isDelivered) {
+      logger.info('AirtimeNigeria webhook: non-delivered status, no DB update needed', { reference, rawStatus });
+      return;
+    }
+
+    // Try airtime_services first
+    const [airtimeTx] = await db.select({ id: airtimeServices.id, status: airtimeServices.status })
+      .from(airtimeServices)
+      .where(or(
+        eq(airtimeServices.reference, reference),
+        eq(airtimeServices.transactionId, reference),
+      ))
+      .limit(1);
+
+    if (airtimeTx) {
+      if (airtimeTx.status !== 'completed') {
+        await db.update(airtimeServices)
+          .set({ status: 'completed' })
+          .where(eq(airtimeServices.id, airtimeTx.id));
+        logger.info('AirtimeNigeria webhook: airtime tx → completed', { reference, txId: airtimeTx.id });
+      }
+      return;
+    }
+
+    // Fall back to data_services
+    const [dataTx] = await db.select({ id: dataServices.id, status: dataServices.status })
+      .from(dataServices)
+      .where(or(
+        eq(dataServices.reference, reference),
+        eq(dataServices.transactionId, reference),
+      ))
+      .limit(1);
+
+    if (dataTx) {
+      if (dataTx.status !== 'completed') {
+        await db.update(dataServices)
+          .set({ status: 'completed' })
+          .where(eq(dataServices.id, dataTx.id));
+        logger.info('AirtimeNigeria webhook: data tx → completed', { reference, txId: dataTx.id });
+      }
+      return;
+    }
+
+    logger.warn('AirtimeNigeria webhook: no matching transaction found', { reference });
+  } catch (error: any) {
+    logger.error('AirtimeNigeria webhook processing error', { error: error.message, body: req.body });
   }
 });
 

@@ -585,6 +585,53 @@ router.get('/data-plans/wallet-balance', adminAuthMiddleware, async (req: Reques
   }
 });
 
+// ── Reconcile pending VTU transactions ───────────────────────────────────────
+// GET  /admin/vtu/pending        — lists airtime+data with status=pending in last 48h
+// POST /admin/vtu/:id/complete   — manually marks a transaction completed
+router.get('/vtu/pending', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const since = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    const airtime = await db.select({
+      id: airtimeServices.id, type: sql<string>`'airtime'`, network: airtimeServices.network,
+      phone: airtimeServices.phoneNumber, amount: airtimeServices.amount,
+      reference: airtimeServices.reference, status: airtimeServices.status, createdAt: airtimeServices.createdAt,
+    }).from(airtimeServices)
+      .where(and(eq(airtimeServices.status, 'pending'), gte(airtimeServices.createdAt, since)));
+
+    const data = await db.select({
+      id: dataServices.id, type: sql<string>`'data'`, network: dataServices.network,
+      phone: dataServices.phoneNumber, amount: dataServices.amount,
+      reference: dataServices.reference, status: dataServices.status, createdAt: dataServices.createdAt,
+    }).from(dataServices)
+      .where(and(eq(dataServices.status, 'pending'), gte(dataServices.createdAt, since)));
+
+    res.json(formatResponse('success', 200, 'Pending transactions', { transactions: [...airtime, ...data] }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to fetch pending transactions'));
+  }
+});
+
+router.post('/vtu/:id/complete', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { type } = req.body; // 'airtime' or 'data'
+
+    if (type === 'airtime') {
+      const [tx] = await db.select().from(airtimeServices).where(eq(airtimeServices.id, id)).limit(1);
+      if (!tx) return res.status(404).json(formatErrorResponse(404, 'Transaction not found'));
+      await db.update(airtimeServices).set({ status: 'completed' }).where(eq(airtimeServices.id, id));
+    } else {
+      const [tx] = await db.select().from(dataServices).where(eq(dataServices.id, id)).limit(1);
+      if (!tx) return res.status(404).json(formatErrorResponse(404, 'Transaction not found'));
+      await db.update(dataServices).set({ status: 'completed' }).where(eq(dataServices.id, id));
+    }
+
+    res.json(formatResponse('success', 200, 'Transaction marked as completed'));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to update transaction'));
+  }
+});
+
 // ── End Data Plans Management ────────────────────────────────────────────────
 
 router.get('/identity-services', async (req: Request, res: Response) => {
@@ -1018,6 +1065,69 @@ router.get('/vtu-services', async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error('Get VTU services error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to get VTU services'));
+  }
+});
+
+router.put('/vtu-services/:id/status', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!['completed', 'failed', 'pending'].includes(status)) {
+      return res.status(400).json(formatErrorResponse(400, 'Invalid status value'));
+    }
+
+    const [aTx] = await db.select({ id: airtimeServices.id }).from(airtimeServices).where(eq(airtimeServices.id, id)).limit(1);
+    if (aTx) {
+      await db.update(airtimeServices).set({ status }).where(eq(airtimeServices.id, id));
+      return res.json(formatResponse('success', 200, `Airtime transaction marked ${status}`));
+    }
+
+    const [dTx] = await db.select({ id: dataServices.id }).from(dataServices).where(eq(dataServices.id, id)).limit(1);
+    if (dTx) {
+      await db.update(dataServices).set({ status }).where(eq(dataServices.id, id));
+      return res.json(formatResponse('success', 200, `Data transaction marked ${status}`));
+    }
+
+    const [eTx] = await db.select({ id: electricityServices.id }).from(electricityServices).where(eq(electricityServices.id, id)).limit(1);
+    if (eTx) {
+      await db.update(electricityServices).set({ status }).where(eq(electricityServices.id, id));
+      return res.json(formatResponse('success', 200, `Electricity transaction marked ${status}`));
+    }
+
+    const [cTx] = await db.select({ id: cableServices.id }).from(cableServices).where(eq(cableServices.id, id)).limit(1);
+    if (cTx) {
+      await db.update(cableServices).set({ status }).where(eq(cableServices.id, id));
+      return res.json(formatResponse('success', 200, `Cable transaction marked ${status}`));
+    }
+
+    return res.status(404).json(formatErrorResponse(404, 'Transaction not found'));
+  } catch (error: any) {
+    logger.error('VTU status update error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to update status'));
+  }
+});
+
+router.delete('/vtu-services/:id', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const tables = [
+      { table: airtimeServices, idCol: airtimeServices.id },
+      { table: dataServices, idCol: dataServices.id },
+      { table: electricityServices, idCol: electricityServices.id },
+      { table: cableServices, idCol: cableServices.id },
+    ] as const;
+
+    for (const { table, idCol } of tables) {
+      const [row] = await db.select({ id: idCol }).from(table as any).where(eq(idCol as any, id)).limit(1);
+      if (row) {
+        await db.delete(table as any).where(eq(idCol as any, id));
+        return res.json(formatResponse('success', 200, 'Transaction deleted'));
+      }
+    }
+    return res.status(404).json(formatErrorResponse(404, 'Transaction not found'));
+  } catch (error: any) {
+    logger.error('VTU delete error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to delete transaction'));
   }
 });
 
