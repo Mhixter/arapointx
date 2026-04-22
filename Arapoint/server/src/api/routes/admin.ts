@@ -105,7 +105,7 @@ const agentSupportUpload = multer({
     else cb(new Error('File type not allowed'));
   },
 });
-import { eq, desc, count, sql, and, or, gt, asc, gte, lte, ilike } from 'drizzle-orm';
+import { eq, desc, count, sql, and, or, gt, asc, gte, lte, ilike, isNull } from 'drizzle-orm';
 import OpenAI from 'openai';
 
 let _openai: OpenAI | null = null;
@@ -3862,7 +3862,9 @@ router.post('/support/tickets/:id/assign', async (req: Request, res: Response) =
     const [agent] = await db.select({ name: admin_users.name })
       .from(admin_users).where(eq(admin_users.id, agentId)).limit(1);
 
-    await db.update(support_tickets)
+    // Atomic conditional UPDATE — only succeeds if ticket is still unassigned.
+    // Prevents two agents from picking the same ticket concurrently.
+    const claimed = await db.update(support_tickets)
       .set({
         assignedAgentId: agentId,
         assignedAt: now,
@@ -3870,7 +3872,21 @@ router.post('/support/tickets/:id/assign', async (req: Request, res: Response) =
         lastActivityAt: now,
         updatedAt: now,
       })
-      .where(eq(support_tickets.id, id));
+      .where(and(
+        eq(support_tickets.id, id),
+        isNull(support_tickets.assignedAgentId)
+      ))
+      .returning({ id: support_tickets.id });
+
+    if (claimed.length === 0) {
+      const [exists] = await db.select({ assignedAgentId: support_tickets.assignedAgentId })
+        .from(support_tickets).where(eq(support_tickets.id, id)).limit(1);
+      if (!exists) return res.status(404).json(formatErrorResponse(404, 'Ticket not found'));
+      if (exists.assignedAgentId === agentId) {
+        return res.json(formatResponse('success', 200, 'Ticket already assigned to you'));
+      }
+      return res.status(409).json(formatErrorResponse(409, 'Ticket was just picked by another agent'));
+    }
 
     const [conv] = await db.select({ id: support_conversations.id })
       .from(support_conversations)
@@ -3933,6 +3949,14 @@ router.post('/support/tickets/:id/reply', async (req: Request, res: Response) =>
 
     const [agent] = await db.select({ name: admin_users.name })
       .from(admin_users).where(eq(admin_users.id, agentId)).limit(1);
+
+    // Ownership guard: only the assigned agent may reply on this ticket.
+    const [ticketRow] = await db.select({ assignedAgentId: support_tickets.assignedAgentId })
+      .from(support_tickets).where(eq(support_tickets.id, id)).limit(1);
+    if (!ticketRow) return res.status(404).json(formatErrorResponse(404, 'Ticket not found'));
+    if (!ticketRow.assignedAgentId || ticketRow.assignedAgentId !== agentId) {
+      return res.status(403).json(formatErrorResponse(403, 'You must accept this ticket from the queue before replying.'));
+    }
 
     const [conv] = await db.select()
       .from(support_conversations)
@@ -4046,9 +4070,18 @@ router.post('/support/tickets/:id/status', async (req: Request, res: Response) =
   try {
     const { id } = req.params;
     const { status } = req.body;
+    const agentId = req.userId!;
     const validStatuses = ['open', 'escalated', 'assigned', 'in_progress', 'resolved', 'closed'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json(formatErrorResponse(400, 'Invalid status'));
+    }
+
+    // Ownership guard
+    const [ticketRow] = await db.select({ assignedAgentId: support_tickets.assignedAgentId })
+      .from(support_tickets).where(eq(support_tickets.id, id)).limit(1);
+    if (!ticketRow) return res.status(404).json(formatErrorResponse(404, 'Ticket not found'));
+    if (!ticketRow.assignedAgentId || ticketRow.assignedAgentId !== agentId) {
+      return res.status(403).json(formatErrorResponse(403, 'You must accept this ticket from the queue before changing its status.'));
     }
 
     const now = new Date();
@@ -4100,6 +4133,14 @@ router.post('/support/tickets/:id/notes', async (req: Request, res: Response) =>
 
     if (!note?.trim()) {
       return res.status(400).json(formatErrorResponse(400, 'Note content is required'));
+    }
+
+    // Ownership guard
+    const [ticketRow] = await db.select({ assignedAgentId: support_tickets.assignedAgentId })
+      .from(support_tickets).where(eq(support_tickets.id, id)).limit(1);
+    if (!ticketRow) return res.status(404).json(formatErrorResponse(404, 'Ticket not found'));
+    if (!ticketRow.assignedAgentId || ticketRow.assignedAgentId !== agentId) {
+      return res.status(403).json(formatErrorResponse(403, 'You must accept this ticket from the queue before adding notes.'));
     }
 
     const [newNote] = await db.insert(support_internal_notes).values({
@@ -4369,9 +4410,12 @@ router.post('/support/tickets/:id/internal-messages', async (req: Request, res: 
       return res.status(400).json(formatErrorResponse(400, 'Message and target department are required'));
     }
 
-    const [ticket] = await db.select({ id: support_tickets.id })
+    const [ticket] = await db.select({ id: support_tickets.id, assignedAgentId: support_tickets.assignedAgentId })
       .from(support_tickets).where(eq(support_tickets.id, id)).limit(1);
     if (!ticket) return res.status(404).json(formatErrorResponse(404, 'Ticket not found'));
+    if (!ticket.assignedAgentId || ticket.assignedAgentId !== agentId) {
+      return res.status(403).json(formatErrorResponse(403, 'You must accept this ticket from the queue before sending internal messages.'));
+    }
 
     const [agentUser] = await db.select({ name: admin_users.name })
       .from(admin_users).where(eq(admin_users.id, agentId)).limit(1);
@@ -4665,11 +4709,8 @@ router.post('/support/queue/:ticketId/accept', async (req: Request, res: Respons
     const [agent] = await db.select({ name: admin_users.name })
       .from(admin_users).where(eq(admin_users.id, agentId)).limit(1);
 
-    await db.update(support_queue)
-      .set({ status: 'accepted', acceptedBy: agentId, acceptedAt: now, removedAt: now, removeReason: 'accepted' })
-      .where(eq(support_queue.id, entry.id));
-
-    await db.update(support_tickets)
+    // Atomic claim — only succeeds if ticket still unassigned.
+    const claimed = await db.update(support_tickets)
       .set({
         assignedAgentId: agentId,
         assignedAt: now,
@@ -4677,7 +4718,19 @@ router.post('/support/queue/:ticketId/accept', async (req: Request, res: Respons
         lastActivityAt: now,
         updatedAt: now,
       })
-      .where(eq(support_tickets.id, ticketId));
+      .where(and(
+        eq(support_tickets.id, ticketId),
+        isNull(support_tickets.assignedAgentId)
+      ))
+      .returning({ id: support_tickets.id });
+
+    if (claimed.length === 0) {
+      return res.status(409).json(formatErrorResponse(409, 'Ticket was just picked by another agent'));
+    }
+
+    await db.update(support_queue)
+      .set({ status: 'accepted', acceptedBy: agentId, acceptedAt: now, removedAt: now, removeReason: 'accepted' })
+      .where(eq(support_queue.id, entry.id));
 
     const [conv] = await db.select({ id: support_conversations.id })
       .from(support_conversations)
@@ -4732,11 +4785,8 @@ router.post('/support/queue/accept-next', async (req: Request, res: Response) =>
     const [agent] = await db.select({ name: admin_users.name })
       .from(admin_users).where(eq(admin_users.id, agentId)).limit(1);
 
-    await db.update(support_queue)
-      .set({ status: 'accepted', acceptedBy: agentId, acceptedAt: now, removedAt: now, removeReason: 'accepted' })
-      .where(eq(support_queue.id, nextEntry.id));
-
-    await db.update(support_tickets)
+    // Atomic claim — only succeeds if ticket still unassigned.
+    const claimed = await db.update(support_tickets)
       .set({
         assignedAgentId: agentId,
         assignedAt: now,
@@ -4744,7 +4794,24 @@ router.post('/support/queue/accept-next', async (req: Request, res: Response) =>
         lastActivityAt: now,
         updatedAt: now,
       })
-      .where(eq(support_tickets.id, nextEntry.ticketId));
+      .where(and(
+        eq(support_tickets.id, nextEntry.ticketId),
+        isNull(support_tickets.assignedAgentId)
+      ))
+      .returning({ id: support_tickets.id });
+
+    if (claimed.length === 0) {
+      // Another agent claimed this ticket between our queue read and update.
+      // Mark its queue entry as accepted (by them) and tell caller to retry.
+      await db.update(support_queue)
+        .set({ status: 'removed', removedAt: now, removeReason: 'race_lost' })
+        .where(eq(support_queue.id, nextEntry.id));
+      return res.status(409).json(formatErrorResponse(409, 'Next ticket was just picked by another agent — try again'));
+    }
+
+    await db.update(support_queue)
+      .set({ status: 'accepted', acceptedBy: agentId, acceptedAt: now, removedAt: now, removeReason: 'accepted' })
+      .where(eq(support_queue.id, nextEntry.id));
 
     const [conv] = await db.select({ id: support_conversations.id })
       .from(support_conversations)

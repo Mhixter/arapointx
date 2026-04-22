@@ -66,6 +66,12 @@ Preferred communication style: Simple, everyday language.
 - **Pattern**: Service modules encapsulate business logic for wallet operations, payments, OTP, email, and third-party API integrations
 - **Third-party Integrations**: YouVerify API for identity verification, VTPass for VTU services, SendGrid for email, Paystack/PalmPay for payments
 
+### Support Agent Pick-Only Workflow
+- **Rule**: Support agents may only act on tickets they have explicitly accepted from the queue — no silent auto-assignment.
+- **Auto-assign disabled**: `autoAssignTicket` in `Arapoint/server/src/api/routes/support.ts` is now a no-op stub. All escalated tickets land in `support_queue` with `status='waiting'` and must be picked via `POST /admin/support/queue/:ticketId/accept` or `POST /admin/support/queue/accept-next`.
+- **Atomic claim**: `/support/tickets/:id/assign` and both `/support/queue/...accept` endpoints use conditional `UPDATE … WHERE assigned_agent_id IS NULL RETURNING` — concurrent picks return 409.
+- **Ownership guards**: `POST /support/tickets/:id/reply`, `/status`, `/notes`, and `/internal-messages` all reject (403) unless `assigned_agent_id === current agentId`.
+
 ### Job Inventory & Atomic Claim System
 - **Purpose**: Prevents two agents from picking the same verification job. Spans all 5 agent types (Identity, Education, JAMB, A2C, CAC).
 - **Status Flow**: `pending` (unassigned, visible to all) → `pickup` (claimed, auto-releases after 30 min if idle) → `processing` (locked indefinitely to the agent) → `completed`/`rejected`.

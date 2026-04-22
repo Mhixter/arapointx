@@ -94,39 +94,11 @@ async function findAvailableAgent(): Promise<{ id: string; name: string } | null
   }
 }
 
-async function autoAssignTicket(ticketId: string, conversationId: string): Promise<{ agentId: string; agentName: string } | null> {
-  const agent = await findAvailableAgent();
-  if (!agent) return null;
-
-  const now = new Date();
-  await db.update(supportTickets)
-    .set({
-      assignedAgentId: agent.id,
-      assignedAt: now,
-      status: 'assigned',
-      lastActivityAt: now,
-      updatedAt: now,
-    })
-    .where(eq(supportTickets.id, ticketId));
-
-  await db.insert(supportMessages).values({
-    conversationId,
-    senderType: 'system',
-    senderName: 'System',
-    content: `Agent ${agent.name} has been assigned to your ticket and will assist you shortly.`,
-  });
-
-  await db.insert(supportPresence).values({
-    ticketId,
-    participantId: agent.id,
-    participantType: 'agent',
-    participantName: agent.name,
-    isOnline: false,
-    lastSeenAt: now,
-  }).onConflictDoNothing();
-
-  logger.info('Ticket auto-assigned', { ticketId, agentId: agent.id, agentName: agent.name });
-  return { agentId: agent.id, agentName: agent.name };
+// Auto-assignment is disabled — escalated tickets must be picked from the queue
+// by support agents. This guarantees agents only work on cases they have
+// explicitly accepted (no silent reassignment).
+async function autoAssignTicket(_ticketId: string, _conversationId: string): Promise<{ agentId: string; agentName: string } | null> {
+  return null;
 }
 
 async function addToQueue(ticketId: string, userId: string, conversationId: string, priority: string, category: string): Promise<{ position: number; estimatedWaitMinutes: number }> {
