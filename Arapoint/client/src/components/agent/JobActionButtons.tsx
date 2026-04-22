@@ -5,6 +5,7 @@ interface Job {
   id: string;
   status: string;
   assignedAgentId?: string | null;
+  [key: string]: any;
 }
 
 interface Props {
@@ -13,9 +14,11 @@ interface Props {
   apiBase: string; // e.g. '/api/identity-agent'
   token: string;
   onChanged: () => void;
+  onPicked?: () => void; // optional: called after a successful claim (e.g. to switch to "My Jobs" filter)
+  onOpenUpdate?: (job: Job) => void; // optional: opens the per-dashboard status update modal
 }
 
-export function JobActionButtons({ job, agentId, apiBase, token, onChanged }: Props) {
+export function JobActionButtons({ job, agentId, apiBase, token, onChanged, onPicked, onOpenUpdate }: Props) {
   const { toast } = useToast();
 
   const call = async (action: 'claim' | 'release' | 'processing', successMsg: string, failMsg: string) => {
@@ -27,6 +30,7 @@ export function JobActionButtons({ job, agentId, apiBase, token, onChanged }: Pr
       const data = await res.json();
       if (res.ok && data.status === 'success') {
         toast({ title: successMsg, variant: 'success', description: data.message });
+        if (action === 'claim' && onPicked) onPicked();
         onChanged();
       } else {
         toast({ title: failMsg, variant: 'destructive', description: data.message || 'Try again.' });
@@ -64,6 +68,15 @@ export function JobActionButtons({ job, agentId, apiBase, token, onChanged }: Pr
             Mark Processing
           </Button>
         </>
+      )}
+      {isMine && onOpenUpdate && job.status !== 'completed' && job.status !== 'rejected' && (
+        <Button
+          size="sm"
+          className="bg-purple-600 hover:bg-purple-700"
+          onClick={() => onOpenUpdate(job)}
+        >
+          Update / Complete
+        </Button>
       )}
     </>
   );

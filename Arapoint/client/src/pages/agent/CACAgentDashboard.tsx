@@ -571,6 +571,21 @@ export default function CACAgentDashboard() {
                             apiBase="/api/cac-agent"
                             token={getAgentToken() || ''}
                             onChanged={() => { fetchRequests(); fetchStats?.(); }}
+                            onPicked={() => setFilter('mine')}
+                            onOpenUpdate={(j) => {
+                              setSelectedRequest(j);
+                              setUpdateData({
+                                status: j.status,
+                                comment: '',
+                                cacRegistrationNumber: j.cacRegistrationNumber || '',
+                                rejectionReason: '',
+                                certificateUrl: j.certificateUrl || '',
+                                statusReportUrl: j.statusReportUrl || '',
+                                certificateFileName: '',
+                                statusReportFileName: '',
+                              });
+                              setShowStatusUpdate(true);
+                            }}
                           />
                         </div>
                       </div>

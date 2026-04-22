@@ -516,6 +516,12 @@ export default function A2CAgentDashboard() {
                                     apiBase="/api/a2c-agent"
                                     token={getToken() || ''}
                                     onChanged={() => { fetchMyRequests(); }}
+                                    onPicked={() => setStatusFilter('mine')}
+                                    onOpenUpdate={(j) => {
+                                      setSelectedRequest(j);
+                                      setStatusForm({ status: '', agentNotes: '', rejectionReason: '' });
+                                      setShowStatusModal(true);
+                                    }}
                                   />
                                   {getNextStatuses(request.status).length > 0 && request.assignedAgentId === profile?.id && (
                                     <Button 

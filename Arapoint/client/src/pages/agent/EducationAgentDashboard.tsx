@@ -544,6 +544,13 @@ export default function EducationAgentDashboard() {
                           apiBase="/api/education-agent"
                           token={getAgentToken() || ''}
                           onChanged={() => { fetchRequests(); fetchStats(); }}
+                          onPicked={() => setFilter('mine')}
+                          onOpenUpdate={(j) => {
+                            setSelectedRequest(j);
+                            setUpdateData({ status: j.status, agentNotes: j.agentNotes || '' });
+                            setResultFile(null);
+                            setShowStatusUpdate(true);
+                          }}
                         />
                         {request.status !== 'completed' && request.assignedAgentId === agent?.id && (
                           <Button size="sm" onClick={() => { 

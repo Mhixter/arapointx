@@ -153,6 +153,7 @@ export default function IdentityAgentDashboard() {
       const data = await res.json();
       if (res.ok && data.status === 'success') {
         toast({ title: 'Picked!', variant: 'success', description: 'Job is now in your queue.' });
+        setFilter('mine');
         fetchRequests(); fetchStats();
       } else {
         toast({ title: 'Could not pick', variant: 'destructive', description: data.message || 'Job may have just been claimed by another agent.' });
