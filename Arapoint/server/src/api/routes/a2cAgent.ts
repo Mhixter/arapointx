@@ -767,10 +767,10 @@ router.get('/performance', a2cAgentAuthMiddleware, async (req: Request, res: Res
       SELECT
         COUNT(id) as total_requests,
         COUNT(id) FILTER (WHERE status = 'completed') as completed,
-        COUNT(id) FILTER (WHERE status IN ('pending','processing')) as pending,
+        COUNT(id) FILTER (WHERE status IN ('pending','processing','airtime_sent','user_confirmed')) as pending,
         COUNT(id) FILTER (WHERE status = 'rejected') as rejected,
-        ROUND(AVG(EXTRACT(EPOCH FROM (completed_at - assigned_at))/3600.0) FILTER (WHERE completed_at IS NOT NULL AND assigned_at IS NOT NULL), 2) as avg_resolution_hours,
-        COUNT(id) FILTER (WHERE assigned_at IS NOT NULL AND completed_at IS NULL AND assigned_at < NOW() - INTERVAL '24 hours') as sla_breaches,
+        ROUND(AVG(EXTRACT(EPOCH FROM (cash_paid_at - assigned_at))/3600.0) FILTER (WHERE cash_paid_at IS NOT NULL AND assigned_at IS NOT NULL), 2) as avg_resolution_hours,
+        COUNT(id) FILTER (WHERE assigned_at IS NOT NULL AND cash_paid_at IS NULL AND assigned_at < NOW() - INTERVAL '24 hours') as sla_breaches,
         COALESCE(SUM(cash_amount::numeric) FILTER (WHERE status = 'completed'), 0) as revenue_generated
       FROM a2c_requests
       WHERE assigned_agent_id = '${agentId}' AND created_at >= NOW() - INTERVAL '${days} days'

@@ -220,9 +220,10 @@ router.get('/requests', cacAgentAuthMiddleware, async (req: Request, res: Respon
   }
 });
 
-router.get('/requests/:id', cacAgentAuthMiddleware, async (req: Request, res: Response) => {
+router.get('/requests/:id', cacAgentAuthMiddleware, async (req: Request, res: Response, next) => {
   try {
     const { id } = req.params;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return next();
     const agentId = (req as any).agentId;
 
     const [request] = await db.select({
