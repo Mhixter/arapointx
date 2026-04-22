@@ -10,6 +10,10 @@ import { seedAdmin } from "./src/db/seed-admin";
 import { loadGatewayCredentials } from "./src/config/loadGatewayCredentials";
 import { rpaBot } from "./src/rpa/bot";
 import { cacheService } from "./src/services/cacheService";
+import { db } from "./src/config/database";
+import { airtimeServices, dataServices } from "./src/db/schema";
+import { eq as _eq, and as _and, gte as _gte } from "drizzle-orm";
+import { airtimeNigeriaService as anService } from "./src/services/airtimeNigeriaService";
 
 // ── Process-level crash guards ─────────────────────────────────────────────────
 // Prevents a single unhandled error from taking down the entire server process.
@@ -126,6 +130,41 @@ app.use((req, res, next) => {
   next();
 });
 
+// ── VTU Pending-Transaction Poller ────────────────────────────────────────────
+// Checks pending airtime/data txns every 5 min via AirtimeNigeria status API.
+// Fallback for when the webhook callback fails (e.g., wrong URL was sent).
+async function pollPendingVtu(): Promise<void> {
+  try {
+    const configured = await anService.isConfiguredAsync();
+    if (!configured) return;
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const pendingAirtime = await db.select({ id: airtimeServices.id, reference: airtimeServices.reference })
+      .from(airtimeServices).where(_and(_eq(airtimeServices.status, 'pending'), _gte(airtimeServices.createdAt, twoHoursAgo)));
+    const pendingData = await db.select({ id: dataServices.id, reference: dataServices.reference })
+      .from(dataServices).where(_and(_eq(dataServices.status, 'pending'), _gte(dataServices.createdAt, twoHoursAgo)));
+    const all = [
+      ...pendingAirtime.map(r => ({ ...r, table: 'airtime' as const })),
+      ...pendingData.map(r => ({ ...r, table: 'data' as const })),
+    ];
+    if (all.length === 0) return;
+    console.log(`[VTU Poller] Checking ${all.length} pending transaction(s)`);
+    for (const tx of all) {
+      if (!tx.reference) continue;
+      const result = await anService.checkTransactionStatus(tx.reference);
+      if (result.delivered) {
+        if (tx.table === 'airtime') {
+          await db.update(airtimeServices).set({ status: 'completed' }).where(_eq(airtimeServices.id, tx.id));
+        } else {
+          await db.update(dataServices).set({ status: 'completed' }).where(_eq(dataServices.id, tx.id));
+        }
+        console.log(`[VTU Poller] ${tx.table} tx ${tx.reference} → completed`);
+      }
+    }
+  } catch (err: any) {
+    console.warn('[VTU Poller] Error:', err.message);
+  }
+}
+
 (async () => {
   await seedPricing().catch(err => console.log('Pricing seed skipped:', err.message));
   await seedAdmin().catch(err => console.log('Admin seed skipped:', err.message));
@@ -192,6 +231,10 @@ app.use((req, res, next) => {
           );
         }).catch(() => {});
       }, 5000);
+
+      setTimeout(pollPendingVtu, 20_000); // first run 20s after startup
+      setInterval(pollPendingVtu, 5 * 60 * 1000);
+      log('VTU status poller started (5min interval)');
 
       // Self-ping every 3 minutes via the public URL to keep Autoscale from sleeping
       if (process.env.NODE_ENV === 'production') {

@@ -224,6 +224,37 @@ class AirtimeNigeriaService {
       return { success: false, error: msg };
     }
   }
+  async checkTransactionStatus(reference: string): Promise<{ success: boolean; status?: string; delivered?: boolean; error?: string }> {
+    const token = await this.getTokenAsync();
+    if (!token) return { success: false, error: 'Not configured' };
+
+    const DELIVERED = ['delivered', 'success', 'completed', 'successful', 'processed'];
+
+    // Try common AirtimeNigeria transaction status endpoints
+    const endpoints = [
+      `${BASE_URL}/transaction/${reference}`,
+      `${BASE_URL}/transactions/${reference}`,
+      `${BASE_URL}/status/${reference}`,
+    ];
+
+    for (const url of endpoints) {
+      try {
+        const response = await axios.get(url, { headers: await this.getHeaders(), timeout: 15000 });
+        const raw = response.data;
+        const rawStatus = (raw?.details?.status || raw?.data?.status || raw?.status || '').toString().toLowerCase();
+        if (rawStatus) {
+          return { success: true, status: rawStatus, delivered: DELIVERED.includes(rawStatus) };
+        }
+      } catch (err: any) {
+        // 404 means endpoint doesn't exist; try next
+        if (err.response?.status !== 404) {
+          logger.debug('AirtimeNigeria status check error', { url, error: err.message });
+        }
+      }
+    }
+
+    return { success: false, error: 'Status check not available' };
+  }
 }
 
 export const airtimeNigeriaService = new AirtimeNigeriaService();

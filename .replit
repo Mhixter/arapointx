@@ -110,6 +110,7 @@ SITE_URL = "https://arapoint.com.ng"
 JWT_SECRET = "27b2cb15f1d03bf3285ab39c98a1935722755e06e97271fd2715fa93ef8d408c5c152579f93ac44ff33127254f6ab21b"
 REFRESH_TOKEN_SECRET = "b76503e04ba1edb2ac4893b237c31abd8c02fa9617ef03601c4920be8b26b84b59c133c83aa980ec5b71519f38634b9d"
 ENCRYPTION_KEY = "af5a17d7b1418bd6f2c3af5802e867fe"
+WEBHOOK_BASE_URL = "https://arapoint.com.ng"
 
 [objectStorage]
 defaultBucketID = "replit-objstore-004487b2-2291-4a2b-aed5-a2d8c0f50f03"

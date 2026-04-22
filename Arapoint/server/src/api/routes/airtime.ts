@@ -72,9 +72,8 @@ router.post('/buy', async (req: Request, res: Response) => {
     let result: { success: boolean; reference?: string; data?: any; error?: string };
 
     if (useAirtimeNigeria) {
-      const baseUrl = process.env.REPLIT_DEV_DOMAIN
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-        : 'https://arapoint.com.ng';
+      const baseUrl = process.env.WEBHOOK_BASE_URL ||
+        (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'https://arapoint.com.ng');
       result = await airtimeNigeriaService.purchaseAirtime({
         network: network.toLowerCase(),
         phone: phoneNumber,
