@@ -29,6 +29,13 @@
       "when": 1776389140459,
       "tag": "0003_colorful_marrow",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1776872119129,
+      "tag": "0004_tidy_killmonger",
+      "breakpoints": true
     }
   ]
 }
