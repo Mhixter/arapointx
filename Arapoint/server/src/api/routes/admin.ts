@@ -421,17 +421,24 @@ router.post('/data-plans/sync', adminAuthMiddleware, async (req: Request, res: R
 
     const result = await airtimeNigeriaService.fetchDataPlans();
     if (!result.success || !result.plans) {
-      return res.status(502).json(formatErrorResponse(502, result.error || 'Failed to fetch data plans from AirtimeNigeria'));
+      const detail = result.rawResponse ? ` Raw: ${JSON.stringify(result.rawResponse).slice(0, 200)}` : '';
+      return res.status(502).json(formatErrorResponse(502, (result.error || 'Failed to fetch data plans from AirtimeNigeria') + detail));
     }
 
     const plans = result.plans;
     let upserted = 0;
+    let skipped = 0;
+    const skippedSamples: any[] = [];
 
     for (const plan of plans) {
       const networkRaw = (plan.network || '').toLowerCase();
       const network = networkRaw.replace(/\s+/g, '_');
-      const planId = plan.package_code;
-      if (!planId || !network) continue;
+      const planId = (plan.package_code || '').toString().trim();
+      if (!planId || !network) {
+        skipped++;
+        if (skippedSamples.length < 3) skippedSamples.push({ raw: JSON.stringify(plan).slice(0, 120) });
+        continue;
+      }
 
       const costPrice = (plan.amount || 0).toString();
       const existingRows = await db.select({ id: scrapedDataPlans.id, markupPercent: scrapedDataPlans.markupPercent, sellingPrice: scrapedDataPlans.sellingPrice })
@@ -464,8 +471,23 @@ router.post('/data-plans/sync', adminAuthMiddleware, async (req: Request, res: R
       upserted++;
     }
 
-    logger.info('AirtimeNigeria data plans synced', { upserted, adminId: (req as any).adminId });
-    res.json(formatResponse('success', 200, `Synced ${upserted} data plans from AirtimeNigeria`, { upserted }));
+    logger.info('AirtimeNigeria data plans synced', { upserted, skipped, total: plans.length, adminId: (req as any).adminId });
+
+    if (upserted === 0 && plans.length > 0) {
+      // Help diagnose why all plans were skipped
+      const samplePlan = plans[0];
+      const diagMsg = `Fetched ${plans.length} plans from API but none could be saved. ` +
+        `Sample plan fields: ${Object.keys(samplePlan).join(', ')}. ` +
+        `Sample values: network="${samplePlan.network}", package_code="${samplePlan.package_code}", amount=${samplePlan.amount}. ` +
+        `Skipped samples: ${JSON.stringify(skippedSamples)}`;
+      logger.warn('Zero plans upserted despite non-empty API response', { diagMsg });
+      return res.status(200).json(formatResponse('success', 200, diagMsg, { upserted: 0, skipped, total: plans.length, diagnosis: diagMsg }));
+    }
+
+    const msg = upserted > 0
+      ? `Synced ${upserted} data plans from AirtimeNigeria`
+      : `API returned 0 plans. Raw response keys: ${Object.keys(result.rawResponse || {}).join(', ')}`;
+    res.json(formatResponse('success', 200, msg, { upserted, skipped, total: plans.length }));
   } catch (error: any) {
     logger.error('Data plans sync error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, `Sync failed: ${error.message}`));

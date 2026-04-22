@@ -163,10 +163,16 @@ export default function AdminPricing() {
       const res = await fetch('/api/admin/data-plans/sync', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (data.status === 'success') {
-        toast({ title: 'Plans Synced', variant: 'success', description: data.message });
-        fetchDataPlans();
+        const upserted = data.data?.upserted ?? 0;
+        if (upserted > 0) {
+          toast({ title: `${upserted} Plans Synced`, variant: 'success', description: data.message });
+          fetchDataPlans();
+        } else {
+          // Show the full diagnosis message so the admin knows what the API returned
+          toast({ title: 'Sync completed — 0 plans saved', description: data.message, variant: 'destructive', duration: 12000 });
+        }
       } else {
-        toast({ title: 'Sync Failed', description: data.message, variant: 'destructive' });
+        toast({ title: 'Sync Failed', description: data.message, variant: 'destructive', duration: 10000 });
       }
     } catch {
       toast({ title: 'Error', description: 'Failed to sync plans', variant: 'destructive' });
