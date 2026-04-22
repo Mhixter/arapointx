@@ -13,6 +13,7 @@ import { GraduationCap, Loader2, Clock, CheckCircle2, User, LogOut, FileText, Re
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { JobActionButtons } from '@/components/agent/JobActionButtons';
 
 const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending', color: 'bg-gray-100 text-gray-700' },
@@ -31,7 +32,7 @@ export default function EducationAgentDashboard() {
   const [agent, setAgent] = useState<any>(null);
   const [stats, setStats] = useState<any>({});
   const [requests, setRequests] = useState<any[]>([]);
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState('inventory');
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showStatusUpdate, setShowStatusUpdate] = useState(false);
@@ -301,7 +302,7 @@ export default function EducationAgentDashboard() {
     setLoading(true);
     try {
       const token = getAgentToken();
-      const response = await fetch(`/api/education-agent/requests?status=${filter}`, {
+      const response = await fetch((filter === 'inventory' ? '/api/education-agent/requests/inventory' : filter === 'mine' ? '/api/education-agent/requests/mine' : `/api/education-agent/requests?status=${filter}`), {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -318,6 +319,14 @@ export default function EducationAgentDashboard() {
   useEffect(() => {
     if (getAgentToken()) fetchRequests();
   }, [filter]);
+
+    // 10s polling on Job Inventory & My Jobs (auto-refresh when other agents claim)
+    useEffect(() => {
+      if (filter !== 'inventory' && filter !== 'mine') return;
+      const _h = setInterval(() => { if (getAgentToken()) fetchRequests(); }, 10000);
+      return () => clearInterval(_h);
+    }, [filter]);
+  
 
   const handleLogout = () => {
     tokenStorage.removeItem('educationAgentToken');
@@ -477,6 +486,9 @@ export default function EducationAgentDashboard() {
                         <SelectValue placeholder="Filter" />
                       </SelectTrigger>
                       <SelectContent>
+                    <SelectItem value="inventory">Job Inventory (unclaimed)</SelectItem>
+                    <SelectItem value="mine">My Jobs</SelectItem>
+                    <SelectItem value="processing">Processing</SelectItem>
                         <SelectItem value="all">All Requests</SelectItem>
                         <SelectItem value="pending">Pending</SelectItem>
                         <SelectItem value="pickup">Picked Up</SelectItem>
@@ -521,12 +533,19 @@ export default function EducationAgentDashboard() {
                           {new Date(request.createdAt).toLocaleDateString()}
                         </p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap justify-end">
                         <Button variant="outline" size="sm" onClick={() => { setSelectedRequest(request); setShowDetails(true); }}>
                           <Eye className="h-4 w-4 mr-1" />
                           View
                         </Button>
-                        {request.status !== 'completed' && (
+                        <JobActionButtons
+                          job={request}
+                          agentId={agent?.id}
+                          apiBase="/api/education-agent"
+                          token={getAgentToken() || ''}
+                          onChanged={() => { fetchRequests(); fetchStats(); }}
+                        />
+                        {request.status !== 'completed' && request.assignedAgentId === agent?.id && (
                           <Button size="sm" onClick={() => { 
                             setSelectedRequest(request); 
                             setUpdateData({ status: request.status, agentNotes: request.agentNotes || '' });

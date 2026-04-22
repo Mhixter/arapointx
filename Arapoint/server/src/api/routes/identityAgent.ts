@@ -219,7 +219,7 @@ router.put('/requests/:id/status', identityAgentAuthMiddleware, async (req: Requ
     const { id } = req.params;
     const { status, agentNotes, slipUrl, resolvedTrackingId, validatedFullName, validatedDateOfBirth } = req.body;
 
-    if (!['pending', 'pickup', 'completed', 'rejected'].includes(status)) {
+    if (!['pending', 'pickup', 'processing', 'completed', 'rejected'].includes(status)) {
       return res.status(400).json(formatErrorResponse(400, 'Invalid status'));
     }
 
@@ -232,6 +232,12 @@ router.put('/requests/:id/status', identityAgentAuthMiddleware, async (req: Requ
       return res.status(404).json(formatErrorResponse(404, 'Request not found'));
     }
 
+      // Ownership guard: agents may only mutate jobs assigned to them.
+      // Initial pickup must use the atomic POST /requests/:id/claim endpoint.
+      if (!request.assignedAgentId || request.assignedAgentId !== agentId) {
+        return res.status(403).json(formatErrorResponse(403, 'You do not own this job. Pick it from the Job Inventory first.'));
+      }
+  
     if (request.serviceType === 'birth_attestation') {
       return res.status(403).json(formatErrorResponse(403, 'Birth attestation requests are processed by admin only'));
     }
@@ -240,11 +246,6 @@ router.put('/requests/:id/status', identityAgentAuthMiddleware, async (req: Requ
       status,
       updatedAt: new Date(),
     };
-
-    if (status === 'pickup' && !request.assignedAgentId) {
-      updateData.assignedAgentId = agentId;
-      updateData.assignedAt = new Date();
-    }
 
     if (status === 'completed') {
       updateData.completedAt = new Date();
@@ -641,3 +642,113 @@ router.put('/support-messages/mark-read', identityAgentAuthMiddleware, async (re
 });
 
 export default router;
+
+  // ============================================================================
+  // JOB INVENTORY — atomic claim, release, mark processing
+  // ============================================================================
+
+  router.get('/requests/inventory', identityAgentAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const requests = await db.select({
+        id: identityServiceRequests.id,
+        trackingId: identityServiceRequests.trackingId,
+        serviceType: identityServiceRequests.serviceType,
+        nin: identityServiceRequests.nin,
+        newTrackingId: identityServiceRequests.newTrackingId,
+        updateFields: identityServiceRequests.updateFields,
+        status: identityServiceRequests.status,
+        isPaid: identityServiceRequests.isPaid,
+        customerNotes: identityServiceRequests.customerNotes,
+        agentNotes: identityServiceRequests.agentNotes,
+        slipUrl: identityServiceRequests.slipUrl,
+        resolvedTrackingId: identityServiceRequests.resolvedTrackingId,
+        validatedFullName: identityServiceRequests.validatedFullName,
+        validatedDateOfBirth: identityServiceRequests.validatedDateOfBirth,
+        assignedAgentId: identityServiceRequests.assignedAgentId,
+        assignedAt: identityServiceRequests.assignedAt,
+        createdAt: identityServiceRequests.createdAt,
+        userName: users.name,
+      })
+        .from(identityServiceRequests)
+        .leftJoin(users, eq(identityServiceRequests.userId, users.id))
+        .where(and(
+          eq(identityServiceRequests.status, 'pending'),
+          isNull(identityServiceRequests.assignedAgentId), ne(identityServiceRequests.serviceType, 'birth_attestation')
+        ))
+        .orderBy(desc(identityServiceRequests.createdAt));
+      res.json(formatResponse('success', 200, 'Inventory', { requests }));
+    } catch (e: any) {
+      logger.error('inventory error', { error: e.message });
+      res.status(500).json(formatErrorResponse(500, 'Failed to load inventory'));
+    }
+  });
+
+  router.get('/requests/mine', identityAgentAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const agentId = (req as any).agentId;
+      const requests = await db.select({
+        id: identityServiceRequests.id,
+        trackingId: identityServiceRequests.trackingId,
+        serviceType: identityServiceRequests.serviceType,
+        nin: identityServiceRequests.nin,
+        newTrackingId: identityServiceRequests.newTrackingId,
+        updateFields: identityServiceRequests.updateFields,
+        status: identityServiceRequests.status,
+        isPaid: identityServiceRequests.isPaid,
+        customerNotes: identityServiceRequests.customerNotes,
+        agentNotes: identityServiceRequests.agentNotes,
+        slipUrl: identityServiceRequests.slipUrl,
+        resolvedTrackingId: identityServiceRequests.resolvedTrackingId,
+        validatedFullName: identityServiceRequests.validatedFullName,
+        validatedDateOfBirth: identityServiceRequests.validatedDateOfBirth,
+        assignedAgentId: identityServiceRequests.assignedAgentId,
+        assignedAt: identityServiceRequests.assignedAt,
+        createdAt: identityServiceRequests.createdAt,
+        userName: users.name,
+      })
+        .from(identityServiceRequests)
+        .leftJoin(users, eq(identityServiceRequests.userId, users.id))
+        .where(and(
+          eq(identityServiceRequests.assignedAgentId, agentId),
+          sql`${identityServiceRequests.status} IN ('pickup','processing')`
+        ))
+        .orderBy(desc(identityServiceRequests.assignedAt));
+      res.json(formatResponse('success', 200, 'My jobs', { requests }));
+    } catch (e: any) {
+      logger.error('mine error', { error: e.message });
+      res.status(500).json(formatErrorResponse(500, 'Failed to load my jobs'));
+    }
+  });
+
+  router.post('/requests/:id/claim', identityAgentAuthMiddleware, async (req: Request, res: Response) => {
+    const agentId = (req as any).agentId;
+    const { claimJob } = await import('../../services/agentJobClaim');
+    const r = await claimJob('identity_service_requests', req.params.id, agentId);
+    if (!r.ok) {
+      const msg = r.reason === 'already_claimed' ? 'This job was just claimed by another agent'
+                : r.reason === 'not_found' ? 'Job not found'
+                : 'Job is no longer available';
+      return res.status(409).json(formatErrorResponse(409, msg));
+    }
+    logger.info('Job claimed', { table: 'identity_service_requests', jobId: req.params.id, agentId });
+    res.json(formatResponse('success', 200, 'Claimed', { request: r.row }));
+  });
+
+  router.post('/requests/:id/release', identityAgentAuthMiddleware, async (req: Request, res: Response) => {
+    const agentId = (req as any).agentId;
+    const { releaseJob } = await import('../../services/agentJobClaim');
+    const r = await releaseJob('identity_service_requests', req.params.id, agentId);
+    if (!r.ok) return res.status(409).json(formatErrorResponse(409, 'Cannot release — job may already be processing or completed'));
+    logger.info('Job released', { table: 'identity_service_requests', jobId: req.params.id, agentId });
+    res.json(formatResponse('success', 200, 'Released back to inventory', { request: r.row }));
+  });
+
+  router.post('/requests/:id/processing', identityAgentAuthMiddleware, async (req: Request, res: Response) => {
+    const agentId = (req as any).agentId;
+    const { markProcessing } = await import('../../services/agentJobClaim');
+    const r = await markProcessing('identity_service_requests', req.params.id, agentId);
+    if (!r.ok) return res.status(409).json(formatErrorResponse(409, 'Cannot mark processing — job not in your active queue'));
+    logger.info('Job marked processing', { table: 'identity_service_requests', jobId: req.params.id, agentId });
+    res.json(formatResponse('success', 200, 'Marked as processing — auto-release disabled', { request: r.row }));
+  });
+  

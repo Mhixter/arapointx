@@ -18,6 +18,7 @@ import {
   Banknote, Loader2, RefreshCw, LogOut, Clock, Plus, Trash2, Phone,
   CheckCircle, ArrowDownCircle, Wallet, AlertCircle, Package, Edit, XCircle, MessageSquare, Send, TrendingUp
 } from 'lucide-react';
+import { JobActionButtons } from '@/components/agent/JobActionButtons';
 
 const getToken = () => tokenStorage.getItem('a2cAgentToken');
 
@@ -62,7 +63,7 @@ export default function A2CAgentDashboard() {
   const [showAddInventoryModal, setShowAddInventoryModal] = useState(false);
   const [statusForm, setStatusForm] = useState({ status: '', agentNotes: '', rejectionReason: '' });
   const [inventoryForm, setInventoryForm] = useState({ phoneNumber: '', network: 'mtn', dailyLimit: '500000', label: '' });
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('inventory');
   const [supportMessages, setSupportMessages] = useState<any[]>([]);
   const [replyText, setReplyText] = useState<Record<string, string>>({});
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
@@ -127,6 +128,14 @@ export default function A2CAgentDashboard() {
     }
   }, [statusFilter]);
 
+    // 10s polling on Job Inventory & My Jobs (auto-refresh when other agents claim)
+    useEffect(() => {
+      if (statusFilter !== 'inventory' && statusFilter !== 'mine') return;
+      const _h = setInterval(() => { if (getToken()) fetchMyRequests(); }, 10000);
+      return () => clearInterval(_h);
+    }, [statusFilter]);
+  
+
   const fetchProfile = async () => {
     try {
       const response = await fetch('/api/a2c-agent/profile', {
@@ -161,7 +170,8 @@ export default function A2CAgentDashboard() {
       const params = new URLSearchParams();
       if (statusFilter !== 'all') params.append('status', statusFilter);
       
-      const response = await fetch(`/api/a2c-agent/requests?${params}`, {
+      const _a2cUrl = statusFilter === 'inventory' ? '/api/a2c-agent/requests/inventory' : statusFilter === 'mine' ? '/api/a2c-agent/requests/mine' : `/api/a2c-agent/requests?${params}`;
+      const response = await fetch(_a2cUrl, {
         headers: { 'Authorization': `Bearer ${getToken()}` }
       });
       const data = await response.json();
@@ -413,6 +423,8 @@ export default function A2CAgentDashboard() {
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
+                    <SelectItem value="inventory">Job Inventory (unclaimed)</SelectItem>
+                    <SelectItem value="mine">My Jobs</SelectItem>
                       <SelectItem value="all">All Statuses</SelectItem>
                       <SelectItem value="airtime_sent">Airtime Sent</SelectItem>
                       <SelectItem value="airtime_received">Received</SelectItem>
@@ -497,20 +509,29 @@ export default function A2CAgentDashboard() {
                                 </Badge>
                               </TableCell>
                               <TableCell>
-                                {getNextStatuses(request.status).length > 0 && (
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline"
-                                    onClick={() => {
-                                      setSelectedRequest(request);
-                                      setStatusForm({ status: '', agentNotes: '', rejectionReason: '' });
-                                      setShowStatusModal(true);
-                                    }}
-                                  >
-                                    <Edit className="h-3 w-3 mr-1" />
-                                    Update
-                                  </Button>
-                                )}
+                                <div className="flex gap-1 justify-end flex-wrap">
+                                  <JobActionButtons
+                                    job={request}
+                                    agentId={profile?.id}
+                                    apiBase="/api/a2c-agent"
+                                    token={getToken() || ''}
+                                    onChanged={() => { fetchMyRequests(); }}
+                                  />
+                                  {getNextStatuses(request.status).length > 0 && request.assignedAgentId === profile?.id && (
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline"
+                                      onClick={() => {
+                                        setSelectedRequest(request);
+                                        setStatusForm({ status: '', agentNotes: '', rejectionReason: '' });
+                                        setShowStatusModal(true);
+                                      }}
+                                    >
+                                      <Edit className="h-3 w-3 mr-1" />
+                                      Update
+                                    </Button>
+                                  )}
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}

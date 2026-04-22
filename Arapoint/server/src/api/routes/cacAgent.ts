@@ -292,29 +292,27 @@ router.post('/requests/:id/assign', cacAgentAuthMiddleware, async (req: Request,
     const { id } = req.params;
     const agentId = (req as any).agentId;
 
-    const [request] = await db.select()
-      .from(cacRegistrationRequests)
-      .where(eq(cacRegistrationRequests.id, id))
-      .limit(1);
-
-    if (!request) {
-      return res.status(404).json(formatErrorResponse(404, 'Request not found'));
-    }
-
-    if (request.assignedAgentId) {
-      return res.status(400).json(formatErrorResponse(400, 'Request is already assigned'));
-    }
-
-    const previousStatus = request.status;
-
-    await db.update(cacRegistrationRequests)
+    // Atomic conditional UPDATE — only succeeds if still unassigned.
+    const updated = await db.update(cacRegistrationRequests)
       .set({
         assignedAgentId: agentId,
         assignedAt: new Date(),
         status: CAC_STATUS.IN_REVIEW,
         updatedAt: new Date(),
       })
-      .where(eq(cacRegistrationRequests.id, id));
+      .where(and(
+        eq(cacRegistrationRequests.id, id),
+        isNull(cacRegistrationRequests.assignedAgentId)
+      ))
+      .returning();
+
+    if (updated.length === 0) {
+      const [exists] = await db.select().from(cacRegistrationRequests).where(eq(cacRegistrationRequests.id, id)).limit(1);
+      if (!exists) return res.status(404).json(formatErrorResponse(404, 'Request not found'));
+      return res.status(409).json(formatErrorResponse(409, 'Request is already assigned to another agent'));
+    }
+    const request = updated[0];
+    const previousStatus = request.status;
 
     await db.update(cacAgents)
       .set({
@@ -362,6 +360,12 @@ router.put('/requests/:id/status', cacAgentAuthMiddleware, async (req: Request, 
       return res.status(404).json(formatErrorResponse(404, 'Request not found'));
     }
 
+      // Ownership guard: agents may only mutate jobs assigned to them.
+      // Initial pickup must use the atomic POST /requests/:id/claim endpoint.
+      if (!request.assignedAgentId || request.assignedAgentId !== agentId) {
+        return res.status(403).json(formatErrorResponse(403, 'You do not own this job. Pick it from the Job Inventory first.'));
+      }
+  
     const previousStatus = request.status;
     const updateData: any = {
       status,
@@ -1123,3 +1127,99 @@ router.put('/support-messages/mark-read', cacAgentAuthMiddleware, async (req: Re
 });
 
 export default router;
+
+  // ============================================================================
+  // JOB INVENTORY — atomic claim, release, mark processing
+  // ============================================================================
+
+  router.get('/requests/inventory', cacAgentAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const requests = await db.select({
+        id: cacRegistrationRequests.id,
+        serviceType: cacRegistrationRequests.serviceType,
+        businessName: cacRegistrationRequests.businessName,
+        proprietorName: cacRegistrationRequests.proprietorName,
+        proprietorPhone: cacRegistrationRequests.proprietorPhone,
+        status: cacRegistrationRequests.status,
+        fee: cacRegistrationRequests.fee,
+        assignedAgentId: cacRegistrationRequests.assignedAgentId,
+        assignedAt: cacRegistrationRequests.assignedAt,
+        createdAt: cacRegistrationRequests.createdAt,
+        userName: users.name,
+      })
+        .from(cacRegistrationRequests)
+        .leftJoin(users, eq(cacRegistrationRequests.userId, users.id))
+        .where(and(
+          eq(cacRegistrationRequests.status, 'pending'),
+          isNull(cacRegistrationRequests.assignedAgentId)
+        ))
+        .orderBy(desc(cacRegistrationRequests.createdAt));
+      res.json(formatResponse('success', 200, 'Inventory', { requests }));
+    } catch (e: any) {
+      logger.error('inventory error', { error: e.message });
+      res.status(500).json(formatErrorResponse(500, 'Failed to load inventory'));
+    }
+  });
+
+  router.get('/requests/mine', cacAgentAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const agentId = (req as any).agentId;
+      const requests = await db.select({
+        id: cacRegistrationRequests.id,
+        serviceType: cacRegistrationRequests.serviceType,
+        businessName: cacRegistrationRequests.businessName,
+        proprietorName: cacRegistrationRequests.proprietorName,
+        proprietorPhone: cacRegistrationRequests.proprietorPhone,
+        status: cacRegistrationRequests.status,
+        fee: cacRegistrationRequests.fee,
+        assignedAgentId: cacRegistrationRequests.assignedAgentId,
+        assignedAt: cacRegistrationRequests.assignedAt,
+        createdAt: cacRegistrationRequests.createdAt,
+        userName: users.name,
+      })
+        .from(cacRegistrationRequests)
+        .leftJoin(users, eq(cacRegistrationRequests.userId, users.id))
+        .where(and(
+          eq(cacRegistrationRequests.assignedAgentId, agentId),
+          sql`${cacRegistrationRequests.status} IN ('pickup','processing')`
+        ))
+        .orderBy(desc(cacRegistrationRequests.assignedAt));
+      res.json(formatResponse('success', 200, 'My jobs', { requests }));
+    } catch (e: any) {
+      logger.error('mine error', { error: e.message });
+      res.status(500).json(formatErrorResponse(500, 'Failed to load my jobs'));
+    }
+  });
+
+  router.post('/requests/:id/claim', cacAgentAuthMiddleware, async (req: Request, res: Response) => {
+    const agentId = (req as any).agentId;
+    const { claimJob } = await import('../../services/agentJobClaim');
+    const r = await claimJob('cac_registration_requests', req.params.id, agentId);
+    if (!r.ok) {
+      const msg = r.reason === 'already_claimed' ? 'This job was just claimed by another agent'
+                : r.reason === 'not_found' ? 'Job not found'
+                : 'Job is no longer available';
+      return res.status(409).json(formatErrorResponse(409, msg));
+    }
+    logger.info('Job claimed', { table: 'cac_registration_requests', jobId: req.params.id, agentId });
+    res.json(formatResponse('success', 200, 'Claimed', { request: r.row }));
+  });
+
+  router.post('/requests/:id/release', cacAgentAuthMiddleware, async (req: Request, res: Response) => {
+    const agentId = (req as any).agentId;
+    const { releaseJob } = await import('../../services/agentJobClaim');
+    const r = await releaseJob('cac_registration_requests', req.params.id, agentId);
+    if (!r.ok) return res.status(409).json(formatErrorResponse(409, 'Cannot release — job may already be processing or completed'));
+    logger.info('Job released', { table: 'cac_registration_requests', jobId: req.params.id, agentId });
+    res.json(formatResponse('success', 200, 'Released back to inventory', { request: r.row }));
+  });
+
+  router.post('/requests/:id/processing', cacAgentAuthMiddleware, async (req: Request, res: Response) => {
+    const agentId = (req as any).agentId;
+    const { markProcessing } = await import('../../services/agentJobClaim');
+    const r = await markProcessing('cac_registration_requests', req.params.id, agentId);
+    if (!r.ok) return res.status(409).json(formatErrorResponse(409, 'Cannot mark processing — job not in your active queue'));
+    logger.info('Job marked processing', { table: 'cac_registration_requests', jobId: req.params.id, agentId });
+    res.json(formatResponse('success', 200, 'Marked as processing — auto-release disabled', { request: r.row }));
+  });
+  

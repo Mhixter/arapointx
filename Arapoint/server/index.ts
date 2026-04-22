@@ -133,6 +133,9 @@ app.use((req, res, next) => {
   await cacheService.ensureInit().catch(err => console.log('Cache service init skipped:', err.message));
   await registerRoutes(httpServer, app);
 
+  const { startJobAutoReleaseSweeper } = await import('./src/services/agentJobClaim');
+  startJobAutoReleaseSweeper(2, 30);
+
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";

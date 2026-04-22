@@ -275,15 +275,16 @@ router.put('/requests/:id/status', jambAgentAuthMiddleware, async (req: Request,
       return res.status(404).json(formatErrorResponse(404, 'Request not found'));
     }
 
+      // Ownership guard: agents may only mutate jobs assigned to them.
+      // Initial pickup must use the atomic POST /requests/:id/claim endpoint.
+      if (!request.assignedAgentId || request.assignedAgentId !== agentId) {
+        return res.status(403).json(formatErrorResponse(403, 'You do not own this job. Pick it from the Job Inventory first.'));
+      }
+  
     const updateData: any = {
       status,
       updatedAt: new Date(),
     };
-
-    if (status === 'pickup' && !request.assignedAgentId) {
-      updateData.assignedAgentId = agentId;
-      updateData.assignedAt = new Date();
-    }
 
     if (status === 'completed') {
       updateData.completedAt = new Date();
@@ -590,3 +591,109 @@ router.put('/support-messages/mark-read', jambAgentAuthMiddleware, async (req: R
 });
 
 export default router;
+
+  // ============================================================================
+  // JOB INVENTORY — atomic claim, release, mark processing
+  // ============================================================================
+
+  router.get('/requests/inventory', jambAgentAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const requests = await db.select({
+        id: jambServiceRequests.id,
+        trackingId: jambServiceRequests.trackingId,
+        serviceType: jambServiceRequests.serviceType,
+        registrationNumber: jambServiceRequests.registrationNumber,
+        candidateName: jambServiceRequests.candidateName,
+        examYear: jambServiceRequests.examYear,
+        requestData: jambServiceRequests.requestData,
+        status: jambServiceRequests.status,
+        fee: jambServiceRequests.fee,
+        isPaid: jambServiceRequests.isPaid,
+        customerNotes: jambServiceRequests.customerNotes,
+        agentNotes: jambServiceRequests.agentNotes,
+        assignedAgentId: jambServiceRequests.assignedAgentId,
+        assignedAt: jambServiceRequests.assignedAt,
+        createdAt: jambServiceRequests.createdAt,
+        userName: users.name,
+      })
+        .from(jambServiceRequests)
+        .leftJoin(users, eq(jambServiceRequests.userId, users.id))
+        .where(and(
+          eq(jambServiceRequests.status, 'pending'),
+          isNull(jambServiceRequests.assignedAgentId)
+        ))
+        .orderBy(desc(jambServiceRequests.createdAt));
+      res.json(formatResponse('success', 200, 'Inventory', { requests }));
+    } catch (e: any) {
+      logger.error('inventory error', { error: e.message });
+      res.status(500).json(formatErrorResponse(500, 'Failed to load inventory'));
+    }
+  });
+
+  router.get('/requests/mine', jambAgentAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const agentId = (req as any).agentId;
+      const requests = await db.select({
+        id: jambServiceRequests.id,
+        trackingId: jambServiceRequests.trackingId,
+        serviceType: jambServiceRequests.serviceType,
+        registrationNumber: jambServiceRequests.registrationNumber,
+        candidateName: jambServiceRequests.candidateName,
+        examYear: jambServiceRequests.examYear,
+        requestData: jambServiceRequests.requestData,
+        status: jambServiceRequests.status,
+        fee: jambServiceRequests.fee,
+        isPaid: jambServiceRequests.isPaid,
+        customerNotes: jambServiceRequests.customerNotes,
+        agentNotes: jambServiceRequests.agentNotes,
+        assignedAgentId: jambServiceRequests.assignedAgentId,
+        assignedAt: jambServiceRequests.assignedAt,
+        createdAt: jambServiceRequests.createdAt,
+        userName: users.name,
+      })
+        .from(jambServiceRequests)
+        .leftJoin(users, eq(jambServiceRequests.userId, users.id))
+        .where(and(
+          eq(jambServiceRequests.assignedAgentId, agentId),
+          sql`${jambServiceRequests.status} IN ('pickup','processing')`
+        ))
+        .orderBy(desc(jambServiceRequests.assignedAt));
+      res.json(formatResponse('success', 200, 'My jobs', { requests }));
+    } catch (e: any) {
+      logger.error('mine error', { error: e.message });
+      res.status(500).json(formatErrorResponse(500, 'Failed to load my jobs'));
+    }
+  });
+
+  router.post('/requests/:id/claim', jambAgentAuthMiddleware, async (req: Request, res: Response) => {
+    const agentId = (req as any).agentId;
+    const { claimJob } = await import('../../services/agentJobClaim');
+    const r = await claimJob('jamb_service_requests', req.params.id, agentId);
+    if (!r.ok) {
+      const msg = r.reason === 'already_claimed' ? 'This job was just claimed by another agent'
+                : r.reason === 'not_found' ? 'Job not found'
+                : 'Job is no longer available';
+      return res.status(409).json(formatErrorResponse(409, msg));
+    }
+    logger.info('Job claimed', { table: 'jamb_service_requests', jobId: req.params.id, agentId });
+    res.json(formatResponse('success', 200, 'Claimed', { request: r.row }));
+  });
+
+  router.post('/requests/:id/release', jambAgentAuthMiddleware, async (req: Request, res: Response) => {
+    const agentId = (req as any).agentId;
+    const { releaseJob } = await import('../../services/agentJobClaim');
+    const r = await releaseJob('jamb_service_requests', req.params.id, agentId);
+    if (!r.ok) return res.status(409).json(formatErrorResponse(409, 'Cannot release — job may already be processing or completed'));
+    logger.info('Job released', { table: 'jamb_service_requests', jobId: req.params.id, agentId });
+    res.json(formatResponse('success', 200, 'Released back to inventory', { request: r.row }));
+  });
+
+  router.post('/requests/:id/processing', jambAgentAuthMiddleware, async (req: Request, res: Response) => {
+    const agentId = (req as any).agentId;
+    const { markProcessing } = await import('../../services/agentJobClaim');
+    const r = await markProcessing('jamb_service_requests', req.params.id, agentId);
+    if (!r.ok) return res.status(409).json(formatErrorResponse(409, 'Cannot mark processing — job not in your active queue'));
+    logger.info('Job marked processing', { table: 'jamb_service_requests', jobId: req.params.id, agentId });
+    res.json(formatResponse('success', 200, 'Marked as processing — auto-release disabled', { request: r.row }));
+  });
+  

@@ -224,15 +224,16 @@ router.put('/requests/:id/status', educationAgentAuthMiddleware, async (req: Req
       return res.status(404).json(formatErrorResponse(404, 'Request not found'));
     }
 
+      // Ownership guard: agents may only mutate jobs assigned to them.
+      // Initial pickup must use the atomic POST /requests/:id/claim endpoint.
+      if (!request.assignedAgentId || request.assignedAgentId !== agentId) {
+        return res.status(403).json(formatErrorResponse(403, 'You do not own this job. Pick it from the Job Inventory first.'));
+      }
+  
     const updateData: any = {
       status,
       updatedAt: new Date(),
     };
-
-    if (status === 'pickup' && !request.assignedAgentId) {
-      updateData.assignedAgentId = agentId;
-      updateData.assignedAt = new Date();
-    }
 
     if (status === 'completed') {
       updateData.completedAt = new Date();
@@ -762,3 +763,107 @@ router.put('/support-messages/mark-read', educationAgentAuthMiddleware, async (r
 });
 
 export default router;
+
+  // ============================================================================
+  // JOB INVENTORY — atomic claim, release, mark processing
+  // ============================================================================
+
+  router.get('/requests/inventory', educationAgentAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const requests = await db.select({
+        id: educationServiceRequests.id,
+        trackingId: educationServiceRequests.trackingId,
+        serviceType: educationServiceRequests.serviceType,
+        examYear: educationServiceRequests.examYear,
+        registrationNumber: educationServiceRequests.registrationNumber,
+        candidateName: educationServiceRequests.candidateName,
+        status: educationServiceRequests.status,
+        fee: educationServiceRequests.fee,
+        isPaid: educationServiceRequests.isPaid,
+        customerNotes: educationServiceRequests.customerNotes,
+        agentNotes: educationServiceRequests.agentNotes,
+        assignedAgentId: educationServiceRequests.assignedAgentId,
+        assignedAt: educationServiceRequests.assignedAt,
+        createdAt: educationServiceRequests.createdAt,
+        userName: users.name,
+      })
+        .from(educationServiceRequests)
+        .leftJoin(users, eq(educationServiceRequests.userId, users.id))
+        .where(and(
+          eq(educationServiceRequests.status, 'pending'),
+          isNull(educationServiceRequests.assignedAgentId)
+        ))
+        .orderBy(desc(educationServiceRequests.createdAt));
+      res.json(formatResponse('success', 200, 'Inventory', { requests }));
+    } catch (e: any) {
+      logger.error('inventory error', { error: e.message });
+      res.status(500).json(formatErrorResponse(500, 'Failed to load inventory'));
+    }
+  });
+
+  router.get('/requests/mine', educationAgentAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const agentId = (req as any).agentId;
+      const requests = await db.select({
+        id: educationServiceRequests.id,
+        trackingId: educationServiceRequests.trackingId,
+        serviceType: educationServiceRequests.serviceType,
+        examYear: educationServiceRequests.examYear,
+        registrationNumber: educationServiceRequests.registrationNumber,
+        candidateName: educationServiceRequests.candidateName,
+        status: educationServiceRequests.status,
+        fee: educationServiceRequests.fee,
+        isPaid: educationServiceRequests.isPaid,
+        customerNotes: educationServiceRequests.customerNotes,
+        agentNotes: educationServiceRequests.agentNotes,
+        assignedAgentId: educationServiceRequests.assignedAgentId,
+        assignedAt: educationServiceRequests.assignedAt,
+        createdAt: educationServiceRequests.createdAt,
+        userName: users.name,
+      })
+        .from(educationServiceRequests)
+        .leftJoin(users, eq(educationServiceRequests.userId, users.id))
+        .where(and(
+          eq(educationServiceRequests.assignedAgentId, agentId),
+          sql`${educationServiceRequests.status} IN ('pickup','processing')`
+        ))
+        .orderBy(desc(educationServiceRequests.assignedAt));
+      res.json(formatResponse('success', 200, 'My jobs', { requests }));
+    } catch (e: any) {
+      logger.error('mine error', { error: e.message });
+      res.status(500).json(formatErrorResponse(500, 'Failed to load my jobs'));
+    }
+  });
+
+  router.post('/requests/:id/claim', educationAgentAuthMiddleware, async (req: Request, res: Response) => {
+    const agentId = (req as any).agentId;
+    const { claimJob } = await import('../../services/agentJobClaim');
+    const r = await claimJob('education_service_requests', req.params.id, agentId);
+    if (!r.ok) {
+      const msg = r.reason === 'already_claimed' ? 'This job was just claimed by another agent'
+                : r.reason === 'not_found' ? 'Job not found'
+                : 'Job is no longer available';
+      return res.status(409).json(formatErrorResponse(409, msg));
+    }
+    logger.info('Job claimed', { table: 'education_service_requests', jobId: req.params.id, agentId });
+    res.json(formatResponse('success', 200, 'Claimed', { request: r.row }));
+  });
+
+  router.post('/requests/:id/release', educationAgentAuthMiddleware, async (req: Request, res: Response) => {
+    const agentId = (req as any).agentId;
+    const { releaseJob } = await import('../../services/agentJobClaim');
+    const r = await releaseJob('education_service_requests', req.params.id, agentId);
+    if (!r.ok) return res.status(409).json(formatErrorResponse(409, 'Cannot release — job may already be processing or completed'));
+    logger.info('Job released', { table: 'education_service_requests', jobId: req.params.id, agentId });
+    res.json(formatResponse('success', 200, 'Released back to inventory', { request: r.row }));
+  });
+
+  router.post('/requests/:id/processing', educationAgentAuthMiddleware, async (req: Request, res: Response) => {
+    const agentId = (req as any).agentId;
+    const { markProcessing } = await import('../../services/agentJobClaim');
+    const r = await markProcessing('education_service_requests', req.params.id, agentId);
+    if (!r.ok) return res.status(409).json(formatErrorResponse(409, 'Cannot mark processing — job not in your active queue'));
+    logger.info('Job marked processing', { table: 'education_service_requests', jobId: req.params.id, agentId });
+    res.json(formatResponse('success', 200, 'Marked as processing — auto-release disabled', { request: r.row }));
+  });
+  

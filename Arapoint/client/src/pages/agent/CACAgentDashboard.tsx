@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileUploader } from "@/components/FileUploader";
+import { JobActionButtons } from '@/components/agent/JobActionButtons';
 
 const STATUS_OPTIONS = [
   { value: 'in_review', label: 'In Review', color: 'bg-yellow-100 text-yellow-700' },
@@ -43,7 +44,7 @@ export default function CACAgentDashboard() {
   const [agent, setAgent] = useState<any>(null);
   const [stats, setStats] = useState<any>({});
   const [requests, setRequests] = useState<any[]>([]);
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState('inventory');
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showStatusUpdate, setShowStatusUpdate] = useState(false);
@@ -109,6 +110,13 @@ export default function CACAgentDashboard() {
     fetchRequests();
     fetchServiceTypes();
   }, []);
+
+  // 10s polling on Job Inventory & My Jobs (auto-refresh when other agents claim)
+  useEffect(() => {
+    if (filter !== 'inventory' && filter !== 'mine') return;
+    const _h = setInterval(() => { if (getAgentToken()) fetchRequests(); }, 10000);
+    return () => clearInterval(_h);
+  }, [filter]);
 
   const fetchServiceTypes = async () => {
     setLoadingServiceTypes(true);
@@ -245,8 +253,10 @@ export default function CACAgentDashboard() {
     try {
       const token = getAgentToken();
       let url = '/api/cac-agent/requests?limit=50';
-      if (filter === 'mine') url += '&assigned=me';
+      if (filter === 'inventory') url = '/api/cac-agent/requests/inventory';
+      else if (filter === 'mine') url = '/api/cac-agent/requests/mine';
       else if (filter === 'unassigned') url += '&assigned=unassigned';
+      else if (filter !== 'all') url += '&status=' + filter;
       
       const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -512,8 +522,10 @@ export default function CACAgentDashboard() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="inventory">Job Inventory (unclaimed)</SelectItem>
+                        <SelectItem value="mine">My Jobs</SelectItem>
+                        <SelectItem value="processing">Processing</SelectItem>
                         <SelectItem value="all">All Requests</SelectItem>
-                        <SelectItem value="mine">My Requests</SelectItem>
                         <SelectItem value="unassigned">Unassigned</SelectItem>
                       </SelectContent>
                     </Select>
@@ -553,11 +565,13 @@ export default function CACAgentDashboard() {
                           <Button variant="outline" size="sm" onClick={() => handleViewDetails(req.id)}>
                             <Eye className="h-4 w-4" />
                           </Button>
-                          {!req.assignedAgentId && (
-                            <Button size="sm" onClick={() => handleAssign(req.id)}>
-                              Assign to Me
-                            </Button>
-                          )}
+                          <JobActionButtons
+                            job={req}
+                            agentId={agent?.id}
+                            apiBase="/api/cac-agent"
+                            token={getAgentToken() || ''}
+                            onChanged={() => { fetchRequests(); fetchStats?.(); }}
+                          />
                         </div>
                       </div>
                     ))}

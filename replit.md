@@ -66,6 +66,13 @@ Preferred communication style: Simple, everyday language.
 - **Pattern**: Service modules encapsulate business logic for wallet operations, payments, OTP, email, and third-party API integrations
 - **Third-party Integrations**: YouVerify API for identity verification, VTPass for VTU services, SendGrid for email, Paystack/PalmPay for payments
 
+### Job Inventory & Atomic Claim System
+- **Purpose**: Prevents two agents from picking the same verification job. Spans all 5 agent types (Identity, Education, JAMB, A2C, CAC).
+- **Status Flow**: `pending` (unassigned, visible to all) → `pickup` (claimed, auto-releases after 30 min if idle) → `processing` (locked indefinitely to the agent) → `completed`/`rejected`.
+- **Helper**: `Arapoint/server/src/services/agentJobClaim.ts` — `claimJob`, `releaseJob`, `markProcessing` use single-statement conditional `UPDATE … WHERE … RETURNING` (atomic, no TOCTOU race). `autoReleaseStalePickups` runs every 2 min via `startJobAutoReleaseSweeper`, releases only `pickup` jobs older than 30 min, never touches `processing`.
+- **Endpoints (all 5 route files)**: `GET /requests/inventory` (unclaimed pool), `GET /requests/mine` (own pickup+processing), `POST /requests/:id/claim`, `POST /requests/:id/release`, `POST /requests/:id/processing`. Legacy `PUT /requests/:id/status` and CAC `/assign` and A2C `/pickup` paths now enforce ownership / use atomic conditional updates.
+- **Frontend**: Each agent dashboard has "Job Inventory (unclaimed)" and "My Jobs" filter options, 10-second polling on those views, and a shared `JobActionButtons` (`Arapoint/client/src/components/agent/JobActionButtons.tsx`) showing Pick / Release / Mark Processing buttons based on job ownership.
+
 ## External Dependencies
 
 ### Payment Gateways

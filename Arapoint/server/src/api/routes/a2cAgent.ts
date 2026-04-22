@@ -287,6 +287,12 @@ router.put('/requests/:id/status', a2cAgentAuthMiddleware, async (req: Request, 
       return res.status(404).json(formatErrorResponse(404, 'Request not found'));
     }
 
+      // Ownership guard: agents may only mutate jobs assigned to them.
+      // Initial pickup must use the atomic POST /requests/:id/claim endpoint.
+      if (!request.assignedAgentId || request.assignedAgentId !== req.agentId) {
+        return res.status(403).json(formatErrorResponse(403, 'You do not own this job. Pick it from the Job Inventory first.'));
+      }
+  
     const validTransitions: Record<string, string[]> = {
       pending: ['awaiting_transfer', 'cancelled'],
       awaiting_transfer: ['confirmed', 'cancelled'],
@@ -364,23 +370,9 @@ router.post('/requests/:id/pickup', a2cAgentAuthMiddleware, async (req: Request,
       return res.status(400).json(formatErrorResponse(400, 'Receiving number is required'));
     }
 
-    const [request] = await db.select()
-      .from(a2cRequests)
-      .where(and(
-        eq(a2cRequests.id, id),
-        eq(a2cRequests.status, 'pending')
-      ))
-      .limit(1);
-
-    if (!request) {
-      return res.status(404).json(formatErrorResponse(404, 'Request not found or not available'));
-    }
-
-    if (request.assignedAgentId && request.assignedAgentId !== req.agentId) {
-      return res.status(403).json(formatErrorResponse(403, 'Request already assigned to another agent'));
-    }
-
-    await db.update(a2cRequests)
+    // Atomic conditional UPDATE — only succeeds if still pending & unclaimed.
+    // Prevents two agents racing on the legacy /pickup path.
+    const updated = await db.update(a2cRequests)
       .set({
         assignedAgentId: req.agentId!,
         assignedAt: new Date(),
@@ -388,7 +380,16 @@ router.post('/requests/:id/pickup', a2cAgentAuthMiddleware, async (req: Request,
         status: 'awaiting_transfer',
         updatedAt: new Date(),
       })
-      .where(eq(a2cRequests.id, id));
+      .where(and(
+        eq(a2cRequests.id, id),
+        eq(a2cRequests.status, 'pending'),
+        isNull(a2cRequests.assignedAgentId)
+      ))
+      .returning();
+
+    if (updated.length === 0) {
+      return res.status(409).json(formatErrorResponse(409, 'Request was just claimed by another agent or is no longer available'));
+    }
 
     await db.update(a2cAgents)
       .set({
@@ -848,3 +849,113 @@ router.put('/support-messages/mark-read', a2cAgentAuthMiddleware, async (req: Re
 });
 
 export default router;
+
+  // ============================================================================
+  // JOB INVENTORY — atomic claim, release, mark processing
+  // ============================================================================
+
+  router.get('/requests/inventory', a2cAgentAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const requests = await db.select({
+        id: a2cRequests.id,
+        trackingId: a2cRequests.trackingId,
+        network: a2cRequests.network,
+        phoneNumber: a2cRequests.phoneNumber,
+        airtimeAmount: a2cRequests.airtimeAmount,
+        conversionRate: a2cRequests.conversionRate,
+        cashAmount: a2cRequests.cashAmount,
+        receivingNumber: a2cRequests.receivingNumber,
+        bankName: a2cRequests.bankName,
+        accountNumber: a2cRequests.accountNumber,
+        accountName: a2cRequests.accountName,
+        status: a2cRequests.status,
+        customerNotes: a2cRequests.customerNotes,
+        agentNotes: a2cRequests.agentNotes,
+        assignedAgentId: a2cRequests.assignedAgentId,
+        assignedAt: a2cRequests.assignedAt,
+        createdAt: a2cRequests.createdAt,
+        userName: users.name,
+      })
+        .from(a2cRequests)
+        .leftJoin(users, eq(a2cRequests.userId, users.id))
+        .where(and(
+          eq(a2cRequests.status, 'pending'),
+          isNull(a2cRequests.assignedAgentId)
+        ))
+        .orderBy(desc(a2cRequests.createdAt));
+      res.json(formatResponse('success', 200, 'Inventory', { requests }));
+    } catch (e: any) {
+      logger.error('inventory error', { error: e.message });
+      res.status(500).json(formatErrorResponse(500, 'Failed to load inventory'));
+    }
+  });
+
+  router.get('/requests/mine', a2cAgentAuthMiddleware, async (req: Request, res: Response) => {
+    try {
+      const agentId = (req as any).agentId;
+      const requests = await db.select({
+        id: a2cRequests.id,
+        trackingId: a2cRequests.trackingId,
+        network: a2cRequests.network,
+        phoneNumber: a2cRequests.phoneNumber,
+        airtimeAmount: a2cRequests.airtimeAmount,
+        conversionRate: a2cRequests.conversionRate,
+        cashAmount: a2cRequests.cashAmount,
+        receivingNumber: a2cRequests.receivingNumber,
+        bankName: a2cRequests.bankName,
+        accountNumber: a2cRequests.accountNumber,
+        accountName: a2cRequests.accountName,
+        status: a2cRequests.status,
+        customerNotes: a2cRequests.customerNotes,
+        agentNotes: a2cRequests.agentNotes,
+        assignedAgentId: a2cRequests.assignedAgentId,
+        assignedAt: a2cRequests.assignedAt,
+        createdAt: a2cRequests.createdAt,
+        userName: users.name,
+      })
+        .from(a2cRequests)
+        .leftJoin(users, eq(a2cRequests.userId, users.id))
+        .where(and(
+          eq(a2cRequests.assignedAgentId, agentId),
+          sql`${a2cRequests.status} IN ('pickup','processing')`
+        ))
+        .orderBy(desc(a2cRequests.assignedAt));
+      res.json(formatResponse('success', 200, 'My jobs', { requests }));
+    } catch (e: any) {
+      logger.error('mine error', { error: e.message });
+      res.status(500).json(formatErrorResponse(500, 'Failed to load my jobs'));
+    }
+  });
+
+  router.post('/requests/:id/claim', a2cAgentAuthMiddleware, async (req: Request, res: Response) => {
+    const agentId = (req as any).agentId;
+    const { claimJob } = await import('../../services/agentJobClaim');
+    const r = await claimJob('a2c_requests', req.params.id, agentId);
+    if (!r.ok) {
+      const msg = r.reason === 'already_claimed' ? 'This job was just claimed by another agent'
+                : r.reason === 'not_found' ? 'Job not found'
+                : 'Job is no longer available';
+      return res.status(409).json(formatErrorResponse(409, msg));
+    }
+    logger.info('Job claimed', { table: 'a2c_requests', jobId: req.params.id, agentId });
+    res.json(formatResponse('success', 200, 'Claimed', { request: r.row }));
+  });
+
+  router.post('/requests/:id/release', a2cAgentAuthMiddleware, async (req: Request, res: Response) => {
+    const agentId = (req as any).agentId;
+    const { releaseJob } = await import('../../services/agentJobClaim');
+    const r = await releaseJob('a2c_requests', req.params.id, agentId);
+    if (!r.ok) return res.status(409).json(formatErrorResponse(409, 'Cannot release — job may already be processing or completed'));
+    logger.info('Job released', { table: 'a2c_requests', jobId: req.params.id, agentId });
+    res.json(formatResponse('success', 200, 'Released back to inventory', { request: r.row }));
+  });
+
+  router.post('/requests/:id/processing', a2cAgentAuthMiddleware, async (req: Request, res: Response) => {
+    const agentId = (req as any).agentId;
+    const { markProcessing } = await import('../../services/agentJobClaim');
+    const r = await markProcessing('a2c_requests', req.params.id, agentId);
+    if (!r.ok) return res.status(409).json(formatErrorResponse(409, 'Cannot mark processing — job not in your active queue'));
+    logger.info('Job marked processing', { table: 'a2c_requests', jobId: req.params.id, agentId });
+    res.json(formatResponse('success', 200, 'Marked as processing — auto-release disabled', { request: r.row }));
+  });
+  

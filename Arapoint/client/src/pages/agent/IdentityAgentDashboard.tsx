@@ -27,7 +27,7 @@ export default function IdentityAgentDashboard() {
   const [agent, setAgent] = useState<any>(null);
   const [stats, setStats] = useState<any>({});
   const [requests, setRequests] = useState<any[]>([]);
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState('inventory');
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showStatusUpdate, setShowStatusUpdate] = useState(false);
@@ -114,7 +114,10 @@ export default function IdentityAgentDashboard() {
     setLoading(true);
     try {
       const token = getAgentToken();
-      const response = await fetch(`/api/identity-agent/requests?status=${filter}`, {
+      const url = filter === 'inventory' ? '/api/identity-agent/requests/inventory'
+                : filter === 'mine' ? '/api/identity-agent/requests/mine'
+                : `/api/identity-agent/requests?status=${filter}`;
+      const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -131,6 +134,64 @@ export default function IdentityAgentDashboard() {
   useEffect(() => {
     if (getAgentToken()) fetchRequests();
   }, [filter]);
+
+  // 10s polling on Inventory & My Jobs tabs (real-time disappearance when claimed)
+  useEffect(() => {
+    if (filter !== 'inventory' && filter !== 'mine') return;
+    const handle = setInterval(() => {
+      if (getAgentToken()) fetchRequests();
+    }, 10000);
+    return () => clearInterval(handle);
+  }, [filter]);
+
+  const handlePickJob = async (id: string) => {
+    try {
+      const token = getAgentToken();
+      const res = await fetch(`/api/identity-agent/requests/${id}/claim`, {
+        method: 'POST', headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        toast({ title: 'Picked!', variant: 'success', description: 'Job is now in your queue.' });
+        fetchRequests(); fetchStats();
+      } else {
+        toast({ title: 'Could not pick', variant: 'destructive', description: data.message || 'Job may have just been claimed by another agent.' });
+        fetchRequests();
+      }
+    } catch { toast({ title: 'Error', variant: 'destructive', description: 'Network error' }); }
+  };
+
+  const handleReleaseJob = async (id: string) => {
+    try {
+      const token = getAgentToken();
+      const res = await fetch(`/api/identity-agent/requests/${id}/release`, {
+        method: 'POST', headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        toast({ title: 'Released', variant: 'success', description: 'Job back in inventory.' });
+        fetchRequests(); fetchStats();
+      } else {
+        toast({ title: 'Cannot release', variant: 'destructive', description: data.message || 'Job already processing or completed.' });
+      }
+    } catch { toast({ title: 'Error', variant: 'destructive', description: 'Network error' }); }
+  };
+
+  const handleMarkProcessing = async (id: string) => {
+    try {
+      const token = getAgentToken();
+      const res = await fetch(`/api/identity-agent/requests/${id}/processing`, {
+        method: 'POST', headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'success') {
+        toast({ title: 'Processing', variant: 'success', description: 'Job locked to you — auto-release disabled.' });
+        fetchRequests(); fetchStats();
+      } else {
+        toast({ title: 'Cannot mark processing', variant: 'destructive', description: data.message || 'Job not in your active queue.' });
+      }
+    } catch { toast({ title: 'Error', variant: 'destructive', description: 'Network error' }); }
+  };
 
   const handleLogout = () => {
     tokenStorage.removeItem('identityAgentToken');
@@ -342,9 +403,12 @@ export default function IdentityAgentDashboard() {
                     <SelectValue placeholder="Filter" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="inventory">Job Inventory (unclaimed)</SelectItem>
+                    <SelectItem value="mine">My Jobs</SelectItem>
                     <SelectItem value="all">All Requests</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="pending">Pending (raw)</SelectItem>
                     <SelectItem value="pickup">Picked Up</SelectItem>
+                    <SelectItem value="processing">Processing</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
                   </SelectContent>
                 </Select>
@@ -392,12 +456,27 @@ export default function IdentityAgentDashboard() {
                           {new Date(request.createdAt).toLocaleDateString()}
                         </p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap justify-end">
                         <Button variant="outline" size="sm" onClick={() => { setSelectedRequest(request); setShowDetails(true); }}>
                           <Eye className="h-4 w-4 mr-1" />
                           View
                         </Button>
-                        {request.status !== 'completed' && (
+                        {(request.status === 'pending' && !request.assignedAgentId) && (
+                          <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handlePickJob(request.id)}>
+                            Pick Job
+                          </Button>
+                        )}
+                        {request.status === 'pickup' && request.assignedAgentId === agent?.id && (
+                          <>
+                            <Button size="sm" variant="outline" onClick={() => handleReleaseJob(request.id)}>
+                              Release
+                            </Button>
+                            <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleMarkProcessing(request.id)}>
+                              Mark Processing
+                            </Button>
+                          </>
+                        )}
+                        {request.status !== 'completed' && request.assignedAgentId === agent?.id && (
                           <Button size="sm" onClick={() => { 
                             setSelectedRequest(request); 
                             setUpdateData({ status: request.status, agentNotes: request.agentNotes || '', slipUrl: request.slipUrl || '', resolvedTrackingId: request.resolvedTrackingId || '', validatedFullName: request.validatedFullName || '', validatedDateOfBirth: request.validatedDateOfBirth || '' });
