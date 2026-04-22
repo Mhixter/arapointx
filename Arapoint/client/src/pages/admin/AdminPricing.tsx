@@ -5,12 +5,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Edit, Save, X, DollarSign, TrendingUp, Layers, AlertCircle, Loader2, Plus, Trash2, RefreshCw } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Edit, Save, X, DollarSign, TrendingUp, Layers, AlertCircle, Loader2, Plus, Trash2, RefreshCw, Download, Wifi, WifiOff, Percent } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+
+interface DataPlan {
+  id: string;
+  network: string;
+  planId: string;
+  planName: string;
+  costPrice: number;
+  sellingPrice: number;
+  markupPercent: number;
+  isActive: boolean;
+  lastScrapedAt?: string;
+}
 
 interface ServicePrice {
   id: string;
@@ -101,6 +114,9 @@ const CATEGORY_LIST = ['Identity', 'Identity Agent', 'Wallet', 'Education', 'JAM
 
 const getAuthToken = () => tokenStorage.getItem('adminToken');
 
+const NETWORK_LABELS: Record<string, string> = { mtn: 'MTN', airtel: 'Airtel', glo: 'Glo', '9mobile': '9mobile' };
+const NETWORK_COLORS: Record<string, string> = { mtn: 'text-yellow-600', airtel: 'text-red-600', glo: 'text-green-600', '9mobile': 'text-green-800' };
+
 export default function AdminPricing() {
   const { toast } = useToast();
   const [pricing, setPricing] = useState<ServicePrice[]>([]);
@@ -112,6 +128,115 @@ export default function AdminPricing() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<ServicePrice | null>(null);
   const [seeding, setSeeding] = useState(false);
+
+  const [dataPlans, setDataPlans] = useState<Record<string, DataPlan[]>>({});
+  const [dataPlansLoading, setDataPlansLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [isConfigured, setIsConfigured] = useState(false);
+  const [activeNetwork, setActiveNetwork] = useState('mtn');
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+  const [editPlanForm, setEditPlanForm] = useState<{ sellingPrice: string; markupPercent: string } | null>(null);
+  const [bulkMarkup, setBulkMarkup] = useState<Record<string, string>>({});
+  const [applyingBulk, setApplyingBulk] = useState<string | null>(null);
+
+  const fetchDataPlans = async () => {
+    setDataPlansLoading(true);
+    try {
+      const token = tokenStorage.getItem('adminToken');
+      const res = await fetch('/api/admin/data-plans', { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setDataPlans(data.data.plans || {});
+        setIsConfigured(data.data.isConfigured);
+      }
+    } catch (e) {
+      console.error('Failed to fetch data plans', e);
+    } finally {
+      setDataPlansLoading(false);
+    }
+  };
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const token = tokenStorage.getItem('adminToken');
+      const res = await fetch('/api/admin/data-plans/sync', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.status === 'success') {
+        toast({ title: 'Plans Synced', variant: 'success', description: data.message });
+        fetchDataPlans();
+      } else {
+        toast({ title: 'Sync Failed', description: data.message, variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to sync plans', variant: 'destructive' });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleApplyBulkMarkup = async (network: string) => {
+    const pct = bulkMarkup[network];
+    if (!pct) return;
+    setApplyingBulk(network);
+    try {
+      const token = tokenStorage.getItem('adminToken');
+      const res = await fetch('/api/admin/data-plans/markup/bulk', {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ network, markupPercent: parseFloat(pct) }),
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        toast({ title: 'Markup Applied', variant: 'success', description: data.message });
+        fetchDataPlans();
+      } else {
+        toast({ title: 'Error', description: data.message, variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to apply markup', variant: 'destructive' });
+    } finally {
+      setApplyingBulk(null);
+    }
+  };
+
+  const handleSavePlan = async (planId: string) => {
+    if (!editPlanForm) return;
+    try {
+      const token = tokenStorage.getItem('adminToken');
+      const res = await fetch(`/api/admin/data-plans/${planId}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markupPercent: parseFloat(editPlanForm.markupPercent) }),
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        toast({ title: 'Plan Updated', variant: 'success' });
+        fetchDataPlans();
+      } else {
+        toast({ title: 'Error', description: data.message, variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to update plan', variant: 'destructive' });
+    } finally {
+      setEditingPlanId(null);
+      setEditPlanForm(null);
+    }
+  };
+
+  const handleTogglePlan = async (planId: string, isActive: boolean) => {
+    try {
+      const token = tokenStorage.getItem('adminToken');
+      await fetch(`/api/admin/data-plans/${planId}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive }),
+      });
+      fetchDataPlans();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to toggle plan', variant: 'destructive' });
+    }
+  };
 
   useEffect(() => {
     fetchPricing();
@@ -330,6 +455,188 @@ export default function AdminPricing() {
         <h2 className="text-xl sm:text-2xl font-heading font-bold tracking-tight">Pricing Management</h2>
         <p className="text-sm sm:text-base text-muted-foreground">Configure service prices and manage pricing tiers</p>
       </div>
+
+      <Tabs defaultValue="services">
+        <TabsList className="mb-4">
+          <TabsTrigger value="services">Service Pricing</TabsTrigger>
+          <TabsTrigger value="data-plans" onClick={() => { if (Object.keys(dataPlans).length === 0) fetchDataPlans(); }}>
+            Data Plans
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="data-plans">
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-base sm:text-lg">AirtimeNigeria Data Plans</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm mt-1">
+                      Fetch live plans from AirtimeNigeria, set your profit markup, and the selling prices auto-update for users.
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Badge variant={isConfigured ? "default" : "destructive"} className="gap-1 text-xs">
+                      {isConfigured ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+                      {isConfigured ? 'API Connected' : 'API Not Set'}
+                    </Badge>
+                    <Button onClick={handleSync} disabled={syncing || !isConfigured} className="gap-2">
+                      {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                      Sync Plans
+                    </Button>
+                  </div>
+                </div>
+                {!isConfigured && (
+                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-800">
+                    AirtimeNigeria API token is not configured. Go to <strong>Settings → Gateways → AirtimeNigeria</strong> to add your Bearer token first.
+                  </div>
+                )}
+              </CardHeader>
+            </Card>
+
+            {dataPlansLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : Object.keys(dataPlans).length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                  <Download className="h-10 w-10 text-muted-foreground mb-3" />
+                  <p className="font-medium">No data plans synced yet</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {isConfigured ? 'Click "Sync Plans" above to fetch current plans from AirtimeNigeria.' : 'Configure your AirtimeNigeria API token first, then sync plans.'}
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Tabs value={activeNetwork} onValueChange={setActiveNetwork}>
+                <TabsList className="mb-4 flex-wrap h-auto gap-1">
+                  {Object.keys(dataPlans).map(net => (
+                    <TabsTrigger key={net} value={net} className="capitalize">
+                      <span className={NETWORK_COLORS[net] || ''}>{NETWORK_LABELS[net] || net.toUpperCase()}</span>
+                      <Badge variant="secondary" className="ml-1.5 text-xs">{dataPlans[net]?.length || 0}</Badge>
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+
+                {Object.entries(dataPlans).map(([net, plans]) => (
+                  <TabsContent key={net} value={net}>
+                    <Card>
+                      <CardHeader className="p-4 pb-3 flex flex-row items-center justify-between">
+                        <CardTitle className="text-sm font-medium">
+                          {NETWORK_LABELS[net] || net.toUpperCase()} — {plans.length} plans
+                        </CardTitle>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">Apply % markup to all:</span>
+                          <Input
+                            type="number"
+                            placeholder="e.g. 5"
+                            className="w-20 h-8 text-sm"
+                            value={bulkMarkup[net] || ''}
+                            onChange={(e) => setBulkMarkup(prev => ({ ...prev, [net]: e.target.value }))}
+                            min="0"
+                            max="100"
+                            step="0.5"
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 gap-1"
+                            disabled={!bulkMarkup[net] || applyingBulk === net}
+                            onClick={() => handleApplyBulkMarkup(net)}
+                          >
+                            {applyingBulk === net ? <Loader2 className="h-3 w-3 animate-spin" /> : <Percent className="h-3 w-3" />}
+                            Apply All
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b bg-muted/50">
+                                <th className="p-3 text-left font-medium">Plan</th>
+                                <th className="p-3 text-left font-medium">Package Code</th>
+                                <th className="p-3 text-right font-medium">Cost Price</th>
+                                <th className="p-3 text-right font-medium">Markup %</th>
+                                <th className="p-3 text-right font-medium">Selling Price</th>
+                                <th className="p-3 text-center font-medium">Active</th>
+                                <th className="p-3 text-right font-medium">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {plans.map(plan => (
+                                <tr key={plan.id} className="border-b hover:bg-muted/30 transition-colors">
+                                  <td className="p-3 font-medium text-sm">{plan.planName}</td>
+                                  <td className="p-3">
+                                    <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{plan.planId}</code>
+                                  </td>
+                                  <td className="p-3 text-right text-muted-foreground">₦{plan.costPrice.toLocaleString()}</td>
+                                  <td className="p-3 text-right">
+                                    {editingPlanId === plan.id ? (
+                                      <Input
+                                        type="number"
+                                        value={editPlanForm?.markupPercent || ''}
+                                        onChange={(e) => setEditPlanForm(prev => prev ? {
+                                          ...prev,
+                                          markupPercent: e.target.value,
+                                          sellingPrice: (plan.costPrice * (1 + parseFloat(e.target.value || '0') / 100)).toFixed(2),
+                                        } : null)}
+                                        className="w-20 h-7 text-xs text-right"
+                                        min="0"
+                                        step="0.5"
+                                      />
+                                    ) : (
+                                      <span className="text-blue-600 font-medium">{plan.markupPercent.toFixed(1)}%</span>
+                                    )}
+                                  </td>
+                                  <td className="p-3 text-right">
+                                    {editingPlanId === plan.id ? (
+                                      <span className="font-semibold text-green-600 text-sm">
+                                        ₦{parseFloat(editPlanForm?.sellingPrice || String(plan.sellingPrice)).toLocaleString()}
+                                      </span>
+                                    ) : (
+                                      <span className="font-semibold text-green-600">₦{plan.sellingPrice.toLocaleString()}</span>
+                                    )}
+                                  </td>
+                                  <td className="p-3 text-center">
+                                    <Switch
+                                      checked={plan.isActive}
+                                      onCheckedChange={(checked) => handleTogglePlan(plan.id, checked)}
+                                      className="scale-90"
+                                    />
+                                  </td>
+                                  <td className="p-3 text-right">
+                                    {editingPlanId === plan.id ? (
+                                      <div className="flex justify-end gap-1">
+                                        <Button size="sm" variant="ghost" onClick={() => { setEditingPlanId(null); setEditPlanForm(null); }} className="h-7 w-7 p-0">
+                                          <X className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button size="sm" onClick={() => handleSavePlan(plan.id)} className="h-7 w-7 p-0">
+                                          <Save className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <Button size="sm" variant="ghost" onClick={() => { setEditingPlanId(plan.id); setEditPlanForm({ sellingPrice: String(plan.sellingPrice), markupPercent: String(plan.markupPercent) }); }} className="h-7 w-7 p-0">
+                                        <Edit className="h-3.5 w-3.5" />
+                                      </Button>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                ))}
+              </Tabs>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="services">
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
         <Card className="overflow-hidden">
@@ -733,6 +1040,8 @@ export default function AdminPricing() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

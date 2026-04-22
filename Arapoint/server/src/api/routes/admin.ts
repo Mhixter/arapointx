@@ -39,6 +39,7 @@ import {
   jambAgents,
   jambServiceRequests,
   adminNotifications,
+  scrapedDataPlans,
 } from '../../db/schema';
 import { 
   supportTickets as support_tickets, 
@@ -68,6 +69,7 @@ import {
   otpVerifications,
   loginActivities,
 } from '../../db/schema';
+import { airtimeNigeriaService } from '../../services/airtimeNigeriaService';
 import { sendEmail } from '../../services/emailService';
 import { agentWelcomeEmailHtml } from '../../utils/agentEmailTemplates';
 import { buildBroadcastEmail } from '../../utils/broadcastEmailTemplates';
@@ -375,6 +377,178 @@ router.get('/pricing/all', async (req: Request, res: Response) => {
     res.status(500).json(formatErrorResponse(500, 'Failed to get pricing'));
   }
 });
+
+// ── Data Plans Management (AirtimeNigeria) ──────────────────────────────────
+
+router.get('/data-plans', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { network } = req.query;
+    const conditions: any[] = [];
+    if (network && typeof network === 'string') {
+      conditions.push(eq(scrapedDataPlans.network, network.toLowerCase()));
+    }
+
+    const plans = conditions.length > 0
+      ? await db.select().from(scrapedDataPlans).where(and(...conditions)).orderBy(scrapedDataPlans.network, scrapedDataPlans.planName)
+      : await db.select().from(scrapedDataPlans).orderBy(scrapedDataPlans.network, scrapedDataPlans.planName);
+
+    const grouped: Record<string, any[]> = {};
+    for (const plan of plans) {
+      const net = plan.network;
+      if (!grouped[net]) grouped[net] = [];
+      grouped[net].push({
+        ...plan,
+        costPrice: parseFloat(plan.costPrice),
+        sellingPrice: parseFloat(plan.sellingPrice),
+        resellerPrice: parseFloat(plan.resellerPrice || '0'),
+        markupPercent: parseFloat((plan as any).markupPercent || '0'),
+      });
+    }
+
+    const isConfigured = airtimeNigeriaService.isConfigured();
+    res.json(formatResponse('success', 200, 'Data plans retrieved', { plans: grouped, total: plans.length, isConfigured }));
+  } catch (error: any) {
+    logger.error('Get data plans error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to get data plans'));
+  }
+});
+
+router.post('/data-plans/sync', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    if (!airtimeNigeriaService.isConfigured()) {
+      return res.status(503).json(formatErrorResponse(503, 'AirtimeNigeria API token is not configured. Go to Settings → Gateways to add it.'));
+    }
+
+    const result = await airtimeNigeriaService.fetchDataPlans();
+    if (!result.success || !result.plans) {
+      return res.status(502).json(formatErrorResponse(502, result.error || 'Failed to fetch data plans from AirtimeNigeria'));
+    }
+
+    const plans = result.plans;
+    let upserted = 0;
+
+    for (const plan of plans) {
+      const networkRaw = (plan.network || '').toLowerCase();
+      const network = networkRaw.replace(/\s+/g, '_');
+      const planId = plan.package_code;
+      if (!planId || !network) continue;
+
+      const costPrice = (plan.amount || 0).toString();
+      const existingRows = await db.select({ id: scrapedDataPlans.id, markupPercent: scrapedDataPlans.markupPercent, sellingPrice: scrapedDataPlans.sellingPrice })
+        .from(scrapedDataPlans)
+        .where(and(eq(scrapedDataPlans.network, network), eq(scrapedDataPlans.planId, planId)))
+        .limit(1);
+
+      const existing = existingRows[0];
+      const markupPct = existing ? parseFloat((existing as any).markupPercent || '0') : 0;
+      const sellingPrice = markupPct > 0
+        ? (parseFloat(costPrice) * (1 + markupPct / 100)).toFixed(2)
+        : (existing ? existing.sellingPrice : costPrice);
+
+      if (existing) {
+        await db.update(scrapedDataPlans)
+          .set({ planName: plan.name, costPrice, lastScrapedAt: new Date() })
+          .where(eq(scrapedDataPlans.id, existing.id));
+      } else {
+        await db.insert(scrapedDataPlans).values({
+          network,
+          planId,
+          planName: plan.name,
+          costPrice,
+          sellingPrice: sellingPrice as string,
+          resellerPrice: costPrice,
+          markupPercent: '0',
+          lastScrapedAt: new Date(),
+        });
+      }
+      upserted++;
+    }
+
+    logger.info('AirtimeNigeria data plans synced', { upserted, adminId: (req as any).adminId });
+    res.json(formatResponse('success', 200, `Synced ${upserted} data plans from AirtimeNigeria`, { upserted }));
+  } catch (error: any) {
+    logger.error('Data plans sync error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, `Sync failed: ${error.message}`));
+  }
+});
+
+router.put('/data-plans/:id', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { sellingPrice, markupPercent, isActive } = req.body;
+
+    const [plan] = await db.select().from(scrapedDataPlans).where(eq(scrapedDataPlans.id, id)).limit(1);
+    if (!plan) return res.status(404).json(formatErrorResponse(404, 'Plan not found'));
+
+    const updates: any = { lastScrapedAt: plan.lastScrapedAt };
+
+    if (markupPercent !== undefined) {
+      const pct = parseFloat(markupPercent);
+      const cost = parseFloat(plan.costPrice);
+      const computed = (cost * (1 + pct / 100)).toFixed(2);
+      updates.markupPercent = pct.toFixed(2);
+      updates.sellingPrice = computed;
+    } else if (sellingPrice !== undefined) {
+      const cost = parseFloat(plan.costPrice);
+      const sell = parseFloat(sellingPrice);
+      updates.sellingPrice = sell.toFixed(2);
+      updates.markupPercent = cost > 0 ? (((sell - cost) / cost) * 100).toFixed(2) : '0';
+    }
+
+    if (isActive !== undefined) updates.isActive = isActive;
+
+    await db.update(scrapedDataPlans).set(updates).where(eq(scrapedDataPlans.id, id));
+
+    res.json(formatResponse('success', 200, 'Plan updated'));
+  } catch (error: any) {
+    logger.error('Update data plan error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to update plan'));
+  }
+});
+
+router.put('/data-plans/markup/bulk', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { network, markupPercent } = req.body;
+
+    if (!network || markupPercent === undefined) {
+      return res.status(400).json(formatErrorResponse(400, 'network and markupPercent are required'));
+    }
+
+    const pct = parseFloat(markupPercent);
+    const plans = await db.select().from(scrapedDataPlans).where(eq(scrapedDataPlans.network, network.toLowerCase()));
+
+    let updated = 0;
+    for (const plan of plans) {
+      const cost = parseFloat(plan.costPrice);
+      const selling = (cost * (1 + pct / 100)).toFixed(2);
+      await db.update(scrapedDataPlans)
+        .set({ sellingPrice: selling, markupPercent: pct.toFixed(2) })
+        .where(eq(scrapedDataPlans.id, plan.id));
+      updated++;
+    }
+
+    logger.info('Bulk markup applied', { network, markupPercent: pct, updated });
+    res.json(formatResponse('success', 200, `Markup applied to ${updated} plans for ${network.toUpperCase()}`, { updated }));
+  } catch (error: any) {
+    logger.error('Bulk markup error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to apply bulk markup'));
+  }
+});
+
+router.get('/data-plans/wallet-balance', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const result = await airtimeNigeriaService.getWalletBalance();
+    if (!result.success) {
+      return res.status(502).json(formatErrorResponse(502, result.error || 'Failed to fetch balance'));
+    }
+    res.json(formatResponse('success', 200, 'Wallet balance retrieved', { balance: result.balance, currency: result.currency }));
+  } catch (error: any) {
+    logger.error('AirtimeNigeria wallet balance error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to fetch wallet balance'));
+  }
+});
+
+// ── End Data Plans Management ────────────────────────────────────────────────
 
 router.get('/identity-services', async (req: Request, res: Response) => {
   try {

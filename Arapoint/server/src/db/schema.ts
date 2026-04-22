@@ -10,6 +10,7 @@ import {
   decimal,
   date,
   index,
+  unique,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -303,9 +304,12 @@ export const scrapedDataPlans = pgTable('scraped_data_plans', {
   costPrice: decimal('cost_price', { precision: 10, scale: 2 }).notNull(),
   sellingPrice: decimal('selling_price', { precision: 10, scale: 2 }).notNull(),
   resellerPrice: decimal('reseller_price', { precision: 10, scale: 2 }).default('0'),
+  markupPercent: decimal('markup_percent', { precision: 5, scale: 2 }).default('0'),
   isActive: boolean('is_active').default(true),
   lastScrapedAt: timestamp('last_scraped_at').defaultNow(),
-});
+}, (table) => ({
+  networkPlanUnique: unique('scraped_data_plans_network_plan_unique').on(table.network, table.planId),
+}));
 
 // CAC Service Types Catalog
 export const cacServiceTypes = pgTable('cac_service_types', {
