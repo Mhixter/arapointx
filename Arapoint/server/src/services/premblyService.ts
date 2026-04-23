@@ -390,8 +390,21 @@ class PremblyService {
   }
 
   private normalizeErrorMessage(rawError: string, responseCode?: string): string {
-    const lowerError = rawError.toLowerCase();
-    
+    const lowerError = (rawError || '').toLowerCase();
+
+    // ── Prembly response-code specific mappings ───────────────────────────────
+    if (responseCode === '07' || lowerError.includes('suspended')) {
+      return 'This NIN has been suspended by NIMC. Please contact NIMC to resolve this.';
+    }
+
+    if (responseCode === '06' || lowerError.includes('watchlist') || lowerError.includes('blacklist')) {
+      return 'This ID has been flagged by NIMC. Please contact NIMC for assistance.';
+    }
+
+    if (responseCode === '05' || lowerError.includes('locked') || lowerError.includes('blocked')) {
+      return 'This ID is currently locked. Please contact NIMC to unlock your NIN.';
+    }
+
     if (
       lowerError.includes('no record') ||
       lowerError.includes('not found') ||
@@ -425,6 +438,11 @@ class PremblyService {
 
     if (lowerError.includes('timeout') || lowerError.includes('timed out')) {
       return 'Verification request timed out. Please try again.';
+    }
+
+    // Catch Prembly's generic fallback message and make it more helpful
+    if (lowerError === 'unknown error occurred' || lowerError === 'unknown error' || lowerError === 'an error occurred') {
+      return 'Verification could not be completed. Please try again or contact support if the issue persists.';
     }
     
     return rawError;
