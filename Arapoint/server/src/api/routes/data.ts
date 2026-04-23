@@ -66,7 +66,7 @@ router.post('/buy', async (req: Request, res: Response) => {
         phone: phoneNumber,
         packageCode: planId,
         maxAmount: Math.ceil(amount * 1.05),
-        callbackUrl: `${baseUrl}/webhooks/airtimenigeria`,
+        callbackUrl: `${baseUrl}/api/webhooks/airtimenigeria`,
       });
     } else {
       const vtResult = await vtpassService.purchaseData(phoneNumber, planId, amount, serviceID!);

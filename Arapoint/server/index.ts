@@ -147,19 +147,10 @@ async function pollPendingVtu(): Promise<void> {
       ...pendingData.map(r => ({ ...r, table: 'data' as const })),
     ];
     if (all.length === 0) return;
-    console.log(`[VTU Poller] Checking ${all.length} pending transaction(s)`);
-    for (const tx of all) {
-      if (!tx.reference) continue;
-      const result = await anService.checkTransactionStatus(tx.reference);
-      if (result.delivered) {
-        if (tx.table === 'airtime') {
-          await db.update(airtimeServices).set({ status: 'completed' }).where(_eq(airtimeServices.id, tx.id));
-        } else {
-          await db.update(dataServices).set({ status: 'completed' }).where(_eq(dataServices.id, tx.id));
-        }
-        console.log(`[VTU Poller] ${tx.table} tx ${tx.reference} → completed`);
-      }
-    }
+    // AirtimeNigeria has no status-check endpoint — delivery is only via webhook callback.
+    // Log stuck transactions so admins are aware; they must be resolved manually or via webhook.
+    const refs = all.map(t => `${t.table}:${t.reference}`).join(', ');
+    console.log(`[VTU Poller] ${all.length} pending transaction(s) awaiting webhook: ${refs}`);
   } catch (err: any) {
     console.warn('[VTU Poller] Error:', err.message);
   }

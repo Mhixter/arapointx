@@ -79,7 +79,7 @@ router.post('/buy', async (req: Request, res: Response) => {
         phone: phoneNumber,
         amount,
         maxAmount: Math.ceil(amount * 1.05), // 5% buffer
-        callbackUrl: `${baseUrl}/webhooks/airtimenigeria`,
+        callbackUrl: `${baseUrl}/api/webhooks/airtimenigeria`,
       });
     } else {
       const serviceID = NETWORK_SERVICE_IDS[network.toLowerCase()] || 'mtn';

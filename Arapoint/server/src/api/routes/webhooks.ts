@@ -215,15 +215,20 @@ router.post('/airtimenigeria', async (req: Request, res: Response) => {
       return;
     }
 
+    // Docs show: delivery_status at top level; data is an ARRAY of recipient objects
     const rawStatus: string = (
-      body.status ||
+      body.delivery_status ||            // top-level delivery_status (primary per docs)
+      body.status ||                     // top-level status (fallback)
+      (Array.isArray(body.data) ? body.data[0]?.delivery_status : undefined) ||
+      (Array.isArray(body.data) ? body.data[0]?.status : undefined) ||
+      body.data?.delivery_status ||      // in case data is an object
       body.data?.status ||
       body.details?.status ||
       ''
     ).toString().toLowerCase();
 
     const isDelivered = AN_DELIVERED_STATUSES.includes(rawStatus);
-    logger.info('AirtimeNigeria webhook status', { reference, rawStatus, isDelivered });
+    logger.info('AirtimeNigeria webhook status', { reference, rawStatus, isDelivered, fullBody: body });
 
     if (!isDelivered) {
       logger.info('AirtimeNigeria webhook: non-delivered status, no DB update needed', { reference, rawStatus });
