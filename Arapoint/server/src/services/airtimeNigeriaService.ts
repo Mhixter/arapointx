@@ -241,15 +241,17 @@ class AirtimeNigeriaService {
       try {
         const response = await axios.get(url, { headers: await this.getHeaders(), timeout: 15000 });
         const raw = response.data;
+        console.log(`[VTU StatusCheck] ${url} → HTTP ${response.status} body:`, JSON.stringify(raw));
         const rawStatus = (raw?.details?.status || raw?.data?.status || raw?.status || '').toString().toLowerCase();
         if (rawStatus) {
           return { success: true, status: rawStatus, delivered: DELIVERED.includes(rawStatus) };
         }
       } catch (err: any) {
+        const httpStatus = err.response?.status;
+        const httpBody = err.response?.data;
+        // Log every error — we need to see what AirtimeNigeria actually returns
+        console.log(`[VTU StatusCheck] ${url} → HTTP ${httpStatus ?? 'ERR'} error: ${err.message}`, httpBody ? JSON.stringify(httpBody) : '');
         // 404 means endpoint doesn't exist; try next
-        if (err.response?.status !== 404) {
-          logger.debug('AirtimeNigeria status check error', { url, error: err.message });
-        }
       }
     }
 

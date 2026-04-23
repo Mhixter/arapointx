@@ -137,11 +137,11 @@ async function pollPendingVtu(): Promise<void> {
   try {
     const configured = await anService.isConfiguredAsync();
     if (!configured) return;
-    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
     const pendingAirtime = await db.select({ id: airtimeServices.id, reference: airtimeServices.reference })
-      .from(airtimeServices).where(_and(_eq(airtimeServices.status, 'pending'), _gte(airtimeServices.createdAt, twoHoursAgo)));
+      .from(airtimeServices).where(_and(_eq(airtimeServices.status, 'pending'), _gte(airtimeServices.createdAt, fortyEightHoursAgo)));
     const pendingData = await db.select({ id: dataServices.id, reference: dataServices.reference })
-      .from(dataServices).where(_and(_eq(dataServices.status, 'pending'), _gte(dataServices.createdAt, twoHoursAgo)));
+      .from(dataServices).where(_and(_eq(dataServices.status, 'pending'), _gte(dataServices.createdAt, fortyEightHoursAgo)));
     const all = [
       ...pendingAirtime.map(r => ({ ...r, table: 'airtime' as const })),
       ...pendingData.map(r => ({ ...r, table: 'data' as const })),
