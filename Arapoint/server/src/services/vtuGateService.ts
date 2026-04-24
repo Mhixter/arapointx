@@ -166,11 +166,28 @@ class VTUGateService {
   }): Promise<{ success: boolean; reference?: string; data?: any; error?: string }> {
     try {
       const headers = await this.buildHeaders();
-      const net = params.network.toLowerCase().replace('9mobile', 'etisalat');
       const ref = params.reference || `vg_air_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+      // VTUGate buyairtime requires numeric service_id — look up from fetchservices
+      const normalizedNet = params.network.toLowerCase().replace(/\s/g, '').replace('9mobile', 'etisalat');
+      const servicesResult = await this.fetchServicesByType('airtime');
+      let serviceId: number | null = null;
+      if (servicesResult.success && servicesResult.services) {
+        const matched = servicesResult.services.find(s => {
+          const sn = s.network_name.toLowerCase().replace(/\s/g, '');
+          return sn.includes(normalizedNet) || normalizedNet.includes(sn);
+        });
+        if (matched) serviceId = matched.service_id;
+      }
+      if (!serviceId) {
+        logger.error('VTUGate purchaseAirtime: no service_id found for network', { network: params.network });
+        return { success: false, error: `Airtime service not found for network: ${params.network}` };
+      }
+
+      logger.info('VTUGate purchaseAirtime using service_id', { serviceId, network: params.network });
       const body = this.toFormBody({
-        network: net,
-        phone: params.phone,
+        service_id: serviceId,
+        phone_number: params.phone,
         amount: params.amount,
         reference: ref,
       });
@@ -225,8 +242,8 @@ class VTUGateService {
       logger.info('VTUGate purchaseData using service_id', { serviceId, network: params.network, planId: params.planId });
       const body = this.toFormBody({
         service_id: serviceId,
-        phone: params.phone,
-        plan_id: params.planId,
+        phone_number: params.phone,
+        plan_code: params.planId,
         amount: params.amount,
         reference: ref,
       });
