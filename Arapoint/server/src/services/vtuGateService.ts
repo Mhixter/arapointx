@@ -285,6 +285,35 @@ class VTUGateService {
     }
   }
 
+  async checkTransactionStatus(reference: string): Promise<{ success: boolean; status?: string; delivered?: boolean; failed?: boolean; error?: string }> {
+    const DELIVERED = ['delivered', 'success', 'completed', 'successful', 'processed'];
+    const FAILED = ['failed', 'error', 'reversed', 'refunded', 'failed_delivery'];
+    try {
+      const headers = await this.buildHeaders();
+      const res = await axios.post<VTUGateResponse>(
+        `${BASE_URL}/api/v1/querytransaction`,
+        this.toFormBody({ reference }),
+        { headers, timeout: 15000 }
+      );
+      const d = res.data;
+      const rawStatus = (
+        d.data?.delivery_status || d.data?.deliveryStatus ||
+        d.data?.transaction_status || d.data?.status ||
+        d.delivery_status || d.status || ''
+      ).toString().toLowerCase();
+      logger.info('VTUGate checkTransactionStatus', { reference, rawStatus, apiStatus: d.status });
+      return {
+        success: true,
+        status: rawStatus,
+        delivered: DELIVERED.includes(rawStatus),
+        failed: FAILED.includes(rawStatus),
+      };
+    } catch (err: any) {
+      logger.warn('VTUGate checkTransactionStatus error', { reference, error: err.message });
+      return { success: false, error: err.message };
+    }
+  }
+
   async verifyElectricity(params: {
     disco: string;
     meterNumber: string;
