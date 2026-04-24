@@ -303,8 +303,8 @@ class VTUGateService {
   }
 
   async checkTransactionStatus(reference: string): Promise<{ success: boolean; status?: string; delivered?: boolean; failed?: boolean; error?: string }> {
-    const DELIVERED = ['delivered', 'success', 'completed', 'successful', 'processed'];
-    const FAILED = ['failed', 'error', 'reversed', 'refunded', 'failed_delivery'];
+    const DELIVERED = ['delivered', 'success', 'completed', 'successful', 'processed', 'sent', 'paid', 'confirmed'];
+    const FAILED = ['failed', 'error', 'reversed', 'refunded', 'failed_delivery', 'cancelled', 'rejected'];
     try {
       const headers = await this.buildHeaders();
       const res = await axios.post<VTUGateResponse>(
@@ -313,17 +313,26 @@ class VTUGateService {
         { headers, timeout: 15000 }
       );
       const d = res.data;
+
+      // Extract delivery_status from whichever field VTUGate puts it in
       const rawStatus = (
         d.data?.delivery_status || d.data?.deliveryStatus ||
         d.data?.transaction_status || d.data?.status ||
-        d.delivery_status || d.status || ''
+        d.delivery_status || d.deliveryStatus || ''
       ).toString().toLowerCase();
-      logger.info('VTUGate checkTransactionStatus', { reference, rawStatus, apiStatus: d.status });
+
+      // VTUGate returns status: true/1 at the top level when the transaction was processed.
+      // If we found no specific delivery_status but the top-level API status is ok, treat as delivered.
+      const apiOk = this.isOk(d.status);
+      const delivered = DELIVERED.includes(rawStatus) || (apiOk && rawStatus === '' && !FAILED.includes(rawStatus));
+      const failed = FAILED.includes(rawStatus);
+
+      logger.info('VTUGate checkTransactionStatus', { reference, rawStatus, apiStatus: d.status, delivered, failed });
       return {
         success: true,
-        status: rawStatus,
-        delivered: DELIVERED.includes(rawStatus),
-        failed: FAILED.includes(rawStatus),
+        status: rawStatus || (apiOk ? 'delivered' : 'unknown'),
+        delivered,
+        failed,
       };
     } catch (err: any) {
       logger.warn('VTUGate checkTransactionStatus error', { reference, error: err.message });

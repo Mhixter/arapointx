@@ -124,12 +124,16 @@ router.post('/buy', async (req: Request, res: Response) => {
       return res.status(400).json(formatErrorResponse(400, userMessage, undefined, ErrorCodes.PROVIDER_ERROR));
     }
 
-    const deliveredStatuses = ['delivered', 'success', 'completed', 'successful', 'processed'];
-    // For VTUGate, also check deliveryStatus extracted from response
-    const statusToCheck = useVtuGate
-      ? ((result as any).deliveryStatus || result.data?.delivery_status || result.data?.status || '')
-      : (result.data?.status || '');
-    const txStatus = deliveredStatuses.includes(statusToCheck.toLowerCase()) ? 'completed' : 'pending';
+    // VTUGate processes synchronously — a success response means the airtime was delivered.
+    // For other providers check the delivery_status field from the response.
+    let txStatus: 'completed' | 'pending';
+    if (useVtuGate) {
+      txStatus = 'completed';
+    } else {
+      const deliveredStatuses = ['delivered', 'success', 'completed', 'successful', 'processed'];
+      const statusToCheck = result.data?.status || '';
+      txStatus = deliveredStatuses.includes(statusToCheck.toLowerCase()) ? 'completed' : 'pending';
+    }
 
     await db.insert(airtimeServices).values({
       userId: req.userId!,
