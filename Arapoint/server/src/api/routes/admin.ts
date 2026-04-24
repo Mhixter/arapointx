@@ -1760,6 +1760,71 @@ router.post('/vtugate/sync-plans', adminAuthMiddleware, async (req: Request, res
   }
 });
 
+// ── VTPass Sync Plans ─────────────────────────────────────────────────────────
+router.post('/vtpass/sync-plans', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { vtpassService } = await import('../../services/vtpassService');
+    if (!vtpassService.isConfigured()) {
+      return res.status(400).json(formatErrorResponse(400, 'VTPass API not configured'));
+    }
+    const VTPASS_NETWORKS: Array<{ serviceID: 'mtn-data' | 'airtel-data' | 'glo-data' | '9mobile-sme-data'; network: string }> = [
+      { serviceID: 'mtn-data', network: 'mtn' },
+      { serviceID: 'airtel-data', network: 'airtel' },
+      { serviceID: 'glo-data', network: 'glo' },
+      { serviceID: '9mobile-sme-data', network: '9mobile' },
+    ];
+    let total = 0;
+    const errors: string[] = [];
+    for (const { serviceID, network } of VTPASS_NETWORKS) {
+      const result = await vtpassService.getDataPlans(serviceID);
+      if (result.success && result.plans && result.plans.length > 0) {
+        for (const plan of result.plans) {
+          const planId = `vtp_${network}_${plan.variation_code || plan.id || Date.now()}`;
+          const costPrice = parseFloat(plan.variation_amount || plan.price || '0').toFixed(2);
+          const planName = plan.name || plan.variation_name || planId;
+          try {
+            const existingRows = await db.select({ id: scrapedDataPlans.id, markupPercent: scrapedDataPlans.markupPercent, sellingPrice: scrapedDataPlans.sellingPrice })
+              .from(scrapedDataPlans)
+              .where(and(eq(scrapedDataPlans.planId, planId), eq(scrapedDataPlans.provider, 'vtpass')))
+              .limit(1);
+            const existing = existingRows[0];
+            const markupPct = existing ? parseFloat((existing as any).markupPercent || '0') : 0;
+            const sellingPrice = markupPct > 0
+              ? (parseFloat(costPrice) * (1 + markupPct / 100)).toFixed(2)
+              : (existing ? existing.sellingPrice : costPrice);
+            if (existing) {
+              await db.update(scrapedDataPlans)
+                .set({ planName, costPrice, network, provider: 'vtpass', lastScrapedAt: new Date() })
+                .where(eq(scrapedDataPlans.id, existing.id));
+            } else {
+              await db.insert(scrapedDataPlans).values({
+                network,
+                planId,
+                planName,
+                costPrice,
+                sellingPrice: String(sellingPrice),
+                resellerPrice: costPrice,
+                markupPercent: '0',
+                provider: 'vtpass',
+                lastScrapedAt: new Date(),
+              });
+            }
+            total++;
+          } catch (e: any) {
+            errors.push(`${network}/${planId}: ${e.message}`);
+          }
+        }
+      } else {
+        errors.push(`${network}: ${result.error || 'No plans returned'}`);
+      }
+    }
+    res.json(formatResponse('success', 200, `VTPass plans synced: ${total} plans`, { total, errors }));
+  } catch (error: any) {
+    logger.error('VTPass plan sync error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to sync VTPass plans'));
+  }
+});
+
 // ── Identity Provider Pricing ────────────────────────────────────────────────
 router.get('/identity/pricing-info', adminAuthMiddleware, async (req: Request, res: Response) => {
   try {

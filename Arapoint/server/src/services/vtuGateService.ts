@@ -98,52 +98,72 @@ class VTUGateService {
     }
   }
 
-  async fetchDataPlans(network: string): Promise<{ success: boolean; plans?: any[]; rawResponse?: any; error?: string }> {
-    try {
-      const headers = await this.buildHeaders();
-      // VTUGate accepts: mtn, airtel, glo, etisalat (for 9mobile)
-      const networkMap: Record<string, string> = {
-        '9mobile': 'etisalat',
-        'etisalat': 'etisalat',
-        'mtn': 'mtn',
-        'airtel': 'airtel',
-        'glo': 'glo',
-      };
-      const net = networkMap[network.toLowerCase()] || network.toLowerCase();
-      const res = await axios.post<VTUGateResponse>(
-        `${BASE_URL}/api/v1/fetchdataplans`,
-        this.toFormBody({ network: net }),
-        { headers, timeout: 15000 }
-      );
-      const d = res.data;
-      logger.info('VTUGate fetchDataPlans raw response', { network: net, status: d.status, keys: Object.keys(d || {}) });
-      if (this.isOk(d.status)) {
-        // Handle multiple response shapes
-        let plans: any[] = [];
-        if (Array.isArray(d.data)) {
-          plans = d.data;
-        } else if (d.data && Array.isArray(d.data.plans)) {
-          plans = d.data.plans;
-        } else if (Array.isArray(d.plans)) {
-          plans = d.plans;
-        } else if (d.data && typeof d.data === 'object') {
-          // Data may be an object keyed by plan type
-          plans = Object.values(d.data).flat().filter(Array.isArray) as any[];
-          if (plans.length === 0) {
-            // Try direct object values if they look like plans
-            const vals = Object.values(d.data);
-            if (vals.every((v: any) => v && typeof v === 'object' && ('amount' in v || 'price' in v || 'plan' in v))) {
-              plans = vals as any[];
-            }
-          }
-        }
-        return { success: true, plans, rawResponse: d };
+  private extractPlansFromResponse(d: any): any[] {
+    if (!d) return [];
+    if (Array.isArray(d.data)) return d.data;
+    if (d.data && Array.isArray(d.data.plans)) return d.data.plans;
+    if (Array.isArray(d.plans)) return d.plans;
+    if (Array.isArray(d.result)) return d.result;
+    if (d.data && typeof d.data === 'object') {
+      const vals = Object.values(d.data);
+      // If all values are arrays, flatten them (keyed by plan type)
+      if (vals.every(v => Array.isArray(v))) {
+        return (vals as any[][]).flat();
       }
-      return { success: false, error: d.message || 'Failed to fetch data plans', rawResponse: d };
-    } catch (err: any) {
-      logger.error('VTUGate fetchDataPlans error', { network, error: err.message, responseData: err.response?.data });
-      return { success: false, error: err.response?.data?.message || err.message, rawResponse: err.response?.data };
+      // If all values look like plan objects
+      if (vals.every((v: any) => v && typeof v === 'object' && ('amount' in v || 'price' in v || 'plan' in v || 'name' in v))) {
+        return vals as any[];
+      }
     }
+    return [];
+  }
+
+  async fetchDataPlans(network: string): Promise<{ success: boolean; plans?: any[]; rawResponse?: any; error?: string }> {
+    const networkMap: Record<string, string[]> = {
+      '9mobile': ['etisalat', '9mobile', '9MOBILE', 'ETISALAT'],
+      'mtn': ['mtn', 'MTN'],
+      'airtel': ['airtel', 'AIRTEL'],
+      'glo': ['glo', 'GLO'],
+    };
+    const net = networkMap[network.toLowerCase()]?.[0] || network.toLowerCase();
+
+    // Try multiple endpoint variants — VTUGate API path may vary
+    const attempts = [
+      { method: 'GET' as const, url: `${BASE_URL}/api/v1/data-plans`, params: { network: net } },
+      { method: 'GET' as const, url: `${BASE_URL}/api/v1/data-plans`, params: { network: net.toUpperCase() } },
+      { method: 'POST' as const, url: `${BASE_URL}/api/v1/data-plans`, body: this.toFormBody({ network: net }) },
+      { method: 'GET' as const, url: `${BASE_URL}/api/v1/fetchdataplans`, params: { network: net } },
+      { method: 'POST' as const, url: `${BASE_URL}/api/v1/get-data-plans`, body: this.toFormBody({ network: net }) },
+      { method: 'GET' as const, url: `${BASE_URL}/api/v1/get-data-plans`, params: { network: net } },
+    ];
+
+    const headers = await this.buildHeaders();
+    const getHeaders = { ...headers, 'Content-Type': 'application/json' };
+
+    let lastError = '';
+    for (const attempt of attempts) {
+      try {
+        let res;
+        if (attempt.method === 'GET') {
+          res = await axios.get(attempt.url, { headers: getHeaders, params: attempt.params, timeout: 12000 });
+        } else {
+          res = await axios.post(attempt.url, attempt.body, { headers, timeout: 12000 });
+        }
+        const d = res.data;
+        logger.info('VTUGate fetchDataPlans attempt', { url: attempt.url, method: attempt.method, network: net, status: d?.status, keys: Object.keys(d || {}) });
+        if (this.isOk(d?.status)) {
+          const plans = this.extractPlansFromResponse(d);
+          return { success: true, plans, rawResponse: d };
+        }
+        lastError = d?.message || `Non-success status: ${d?.status}`;
+      } catch (err: any) {
+        const code = err.response?.status;
+        lastError = `${attempt.method} ${attempt.url}: ${code || err.message}`;
+        if (code && code !== 404 && code !== 405) break; // Only retry on 404/405
+      }
+    }
+    logger.error('VTUGate fetchDataPlans all attempts failed', { network, lastError });
+    return { success: false, error: lastError };
   }
 
   async purchaseAirtime(params: {

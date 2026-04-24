@@ -151,6 +151,17 @@ export default function AdminPricing() {
   const [vtugEditingId, setVtugEditingId] = useState<string | null>(null);
   const [vtugEditForm, setVtugEditForm] = useState<{ planName: string; costPrice: string; sellingPrice: string; markupPercent: string } | null>(null);
 
+  // VTPass plans tab state
+  const [vtpPlans, setVtpPlans] = useState<Record<string, DataPlan[]>>({});
+  const [vtpLoading, setVtpLoading] = useState(false);
+  const [vtpSyncing, setVtpSyncing] = useState(false);
+  const [vtpConfigured, setVtpConfigured] = useState(false);
+  const [vtpNetwork, setVtpNetwork] = useState('mtn');
+  const [vtpBulkMarkup, setVtpBulkMarkup] = useState<Record<string, string>>({});
+  const [vtpApplyingBulk, setVtpApplyingBulk] = useState<string | null>(null);
+  const [vtpEditingId, setVtpEditingId] = useState<string | null>(null);
+  const [vtpEditForm, setVtpEditForm] = useState<{ planName: string; costPrice: string; sellingPrice: string; markupPercent: string } | null>(null);
+
   // Identity costs tab state
   const [identityCosts, setIdentityCosts] = useState<{ prembly: { service: string; costPrice: number; description: string }[]; youverify: { service: string; costPrice: number; description: string }[]; note: string } | null>(null);
   const [identityCostsLoading, setIdentityCostsLoading] = useState(false);
@@ -360,6 +371,100 @@ export default function AdminPricing() {
     } catch { toast({ title: 'Error', description: 'Failed to toggle plan', variant: 'destructive' }); }
   };
 
+  // VTPass functions
+  const fetchVtpPlans = async () => {
+    setVtpLoading(true);
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/admin/data-plans?provider=vtpass', { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setVtpPlans(data.data.plans || {});
+      }
+    } catch (e) { console.error('Failed to fetch VTPass plans', e); }
+    finally { setVtpLoading(false); }
+  };
+
+  const handleVtpSync = async () => {
+    setVtpSyncing(true);
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/admin/vtpass/sync-plans', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.status === 'success') {
+        const total = data.data?.total ?? 0;
+        const errors: string[] = data.data?.errors ?? [];
+        if (total > 0) {
+          toast({ title: `${total} VTPass Plans Synced`, variant: 'success', description: data.message });
+          fetchVtpPlans();
+        } else {
+          const debugMsg = errors.length > 0
+            ? `0 plans synced. Details: ${errors.join(' | ')}`
+            : data.message;
+          toast({ title: 'VTPass Sync: 0 Plans', description: debugMsg, variant: 'destructive', duration: 15000 });
+        }
+      } else {
+        toast({ title: 'Sync Failed', description: data.message, variant: 'destructive', duration: 10000 });
+      }
+    } catch { toast({ title: 'Error', description: 'Failed to sync VTPass plans', variant: 'destructive' }); }
+    finally { setVtpSyncing(false); }
+  };
+
+  const handleVtpApplyBulkMarkup = async (network: string) => {
+    const pct = vtpBulkMarkup[network];
+    if (!pct) return;
+    setVtpApplyingBulk(network);
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/admin/data-plans/markup/bulk', {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ network, markupPercent: parseFloat(pct), provider: 'vtpass' }),
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        toast({ title: 'Markup Applied', variant: 'success', description: data.message });
+        fetchVtpPlans();
+      } else { toast({ title: 'Error', description: data.message, variant: 'destructive' }); }
+    } catch { toast({ title: 'Error', description: 'Failed to apply markup', variant: 'destructive' }); }
+    finally { setVtpApplyingBulk(null); }
+  };
+
+  const handleVtpSavePlan = async (planId: string) => {
+    if (!vtpEditForm) return;
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`/api/admin/data-plans/${planId}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          planName: vtpEditForm.planName,
+          costPrice: parseFloat(vtpEditForm.costPrice),
+          sellingPrice: parseFloat(vtpEditForm.sellingPrice),
+          markupPercent: parseFloat(vtpEditForm.markupPercent),
+        }),
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        toast({ title: 'Plan Updated', variant: 'success' });
+        fetchVtpPlans();
+      } else { toast({ title: 'Error', description: data.message, variant: 'destructive' }); }
+    } catch { toast({ title: 'Error', description: 'Failed to update plan', variant: 'destructive' }); }
+    finally { setVtpEditingId(null); setVtpEditForm(null); }
+  };
+
+  const handleVtpTogglePlan = async (planId: string, isActive: boolean) => {
+    try {
+      const token = getAuthToken();
+      await fetch(`/api/admin/data-plans/${planId}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive }),
+      });
+      fetchVtpPlans();
+    } catch { toast({ title: 'Error', description: 'Failed to toggle plan', variant: 'destructive' }); }
+  };
+
   const fetchIdentityCosts = async () => {
     setIdentityCostsLoading(true);
     try {
@@ -379,6 +484,7 @@ export default function AdminPricing() {
       if (data.status === 'success') {
         setIsConfigured(!!(data.data.gateways?.airtimenigeria?.configured));
         setVtugConfigured(!!(data.data.gateways?.vtugate?.configured));
+        setVtpConfigured(!!(data.data.gateways?.vtpass?.configured));
       }
     } catch (e) { console.error('Failed to fetch gateway status', e); }
   };
@@ -625,6 +731,7 @@ export default function AdminPricing() {
                       setPlanAggregator(agg);
                       if (agg === 'airtimenigeria' && Object.keys(dataPlans).length === 0) fetchDataPlans();
                       if (agg === 'vtugate' && Object.keys(vtugPlans).length === 0) fetchVtugPlans();
+                      if (agg === 'vtpass' && Object.keys(vtpPlans).length === 0) fetchVtpPlans();
                     }}
                     className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${planAggregator === agg ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
                     {agg === 'airtimenigeria' ? 'AirtimeNigeria' : agg === 'vtugate' ? 'VTUGate' : 'VTPass'}
@@ -1027,47 +1134,127 @@ export default function AdminPricing() {
             )}
             </>)}
 
-            {/* VTPass info */}
-            {planAggregator === 'vtpass' && (
-              <div className="space-y-4">
-                <Card>
-                  <CardHeader className="p-4 sm:p-6">
-                    <div className="flex items-start gap-3">
-                      <div className="p-2 bg-blue-50 rounded-lg flex-shrink-0">
-                        <Database className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-base sm:text-lg">VTPass Data Plans</CardTitle>
-                        <CardDescription className="text-xs sm:text-sm mt-1">
-                          VTPass fetches live data plans dynamically at purchase time — no pre-sync required. Plans and prices are always up to date from VTPass directly.
-                        </CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4 sm:p-6 pt-0 space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {[
-                        { label: 'MTN Data', note: 'Fetched live at purchase' },
-                        { label: 'Airtel Data', note: 'Fetched live at purchase' },
-                        { label: 'Glo Data', note: 'Fetched live at purchase' },
-                        { label: '9mobile Data', note: 'Fetched live at purchase' },
-                      ].map(item => (
-                        <div key={item.label} className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30">
-                          <Wifi className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                          <div>
-                            <p className="text-sm font-medium">{item.label}</p>
-                            <p className="text-xs text-muted-foreground">{item.note}</p>
-                          </div>
+            {/* VTPass plans */}
+            {planAggregator === 'vtpass' && (<>
+            <Card>
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-base sm:text-lg">VTPass Data Plans</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm mt-1">
+                      Sync live plans from VTPass, set your profit markup, and selling prices auto-update for users.
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Badge variant={vtpConfigured ? 'default' : 'destructive'} className={`gap-1 text-xs ${vtpConfigured ? 'bg-green-600 text-white' : ''}`}>
+                      <Wifi className="h-3 w-3" />
+                      {vtpConfigured ? 'API Connected' : 'API Not Set'}
+                    </Badge>
+                    <Button onClick={handleVtpSync} disabled={vtpSyncing || !vtpConfigured} className="gap-2">
+                      {vtpSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                      {vtpSyncing ? 'Syncing...' : 'Sync Plans'}
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+            </Card>
+
+            {vtpLoading ? (
+              <div className="flex items-center justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            ) : Object.keys(vtpPlans).length === 0 ? (
+              <Card><CardContent className="flex flex-col items-center justify-center p-12 text-center">
+                <Download className="h-10 w-10 text-muted-foreground mb-3" />
+                <p className="font-medium text-muted-foreground">No VTPass plans synced yet</p>
+                <p className="text-sm text-muted-foreground mt-1">Click "Sync Plans" above to fetch current plans from VTPass.</p>
+              </CardContent></Card>
+            ) : (
+              <Tabs value={vtpNetwork} onValueChange={setVtpNetwork}>
+                <TabsList className="flex flex-wrap h-auto gap-1 p-1">
+                  {Object.keys(vtpPlans).sort().map(net => (
+                    <TabsTrigger key={net} value={net} className="capitalize text-xs px-3 py-1.5">
+                      {net.toUpperCase()} ({vtpPlans[net]?.length || 0})
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+                {Object.entries(vtpPlans).map(([net, plans]) => (
+                  <TabsContent key={net} value={net}>
+                    <Card>
+                      <CardHeader className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div>
+                          <CardTitle className="text-sm font-semibold uppercase">{net} Plans</CardTitle>
+                          <CardDescription className="text-xs">{plans.length} plans synced</CardDescription>
                         </div>
-                      ))}
-                    </div>
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-xs text-blue-800">
-                      VTPass pricing is pass-through — the cost price shown to users comes directly from VTPass at transaction time. Set your platform markup via the <strong>Service Pricing</strong> tab to add a fixed fee on top.
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                        <div className="flex gap-2 items-center">
+                          <Input
+                            type="number" placeholder="Markup %" min="0" max="500" step="0.5"
+                            value={vtpBulkMarkup[net] || ''}
+                            onChange={e => setVtpBulkMarkup(p => ({ ...p, [net]: e.target.value }))}
+                            className="w-24 h-8 text-xs"
+                          />
+                          <Button size="sm" className="h-8 text-xs" disabled={!vtpBulkMarkup[net] || !!vtpApplyingBulk}
+                            onClick={() => handleVtpApplyBulkMarkup(net)}>
+                            {vtpApplyingBulk === net ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                            Apply to All
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead><tr className="border-b bg-muted/50">
+                              <th className="text-left p-3 font-medium">Plan Name</th>
+                              <th className="text-right p-3 font-medium">Cost (₦)</th>
+                              <th className="text-right p-3 font-medium">Markup %</th>
+                              <th className="text-right p-3 font-medium">Sell (₦)</th>
+                              <th className="text-center p-3 font-medium">Active</th>
+                              <th className="text-center p-3 font-medium">Action</th>
+                            </tr></thead>
+                            <tbody>
+                              {plans.map(plan => (
+                                <tr key={plan.id} className="border-b hover:bg-muted/30">
+                                  {vtpEditingId === plan.id && vtpEditForm ? (
+                                    <>
+                                      <td className="p-2"><Input value={vtpEditForm.planName} onChange={e => setVtpEditForm(f => f ? { ...f, planName: e.target.value } : f)} className="h-7 text-xs" /></td>
+                                      <td className="p-2"><Input type="number" value={vtpEditForm.costPrice} onChange={e => setVtpEditForm(f => f ? { ...f, costPrice: e.target.value } : f)} className="h-7 text-xs w-20 text-right" /></td>
+                                      <td className="p-2"><Input type="number" value={vtpEditForm.markupPercent} onChange={e => { const m = parseFloat(e.target.value)||0; const cp = parseFloat(vtpEditForm.costPrice)||0; setVtpEditForm(f => f ? { ...f, markupPercent: e.target.value, sellingPrice: (cp*(1+m/100)).toFixed(2) } : f); }} className="h-7 text-xs w-20 text-right" /></td>
+                                      <td className="p-2"><Input type="number" value={vtpEditForm.sellingPrice} onChange={e => setVtpEditForm(f => f ? { ...f, sellingPrice: e.target.value } : f)} className="h-7 text-xs w-20 text-right" /></td>
+                                      <td className="p-2 text-center">—</td>
+                                      <td className="p-2 text-center">
+                                        <div className="flex gap-1 justify-center">
+                                          <Button size="sm" className="h-6 text-xs px-2" onClick={() => handleVtpSavePlan(plan.id)}>Save</Button>
+                                          <Button size="sm" variant="ghost" className="h-6 text-xs px-2" onClick={() => { setVtpEditingId(null); setVtpEditForm(null); }}>Cancel</Button>
+                                        </div>
+                                      </td>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <td className="p-3">{plan.planName}</td>
+                                      <td className="p-3 text-right">₦{parseFloat(plan.costPrice).toLocaleString()}</td>
+                                      <td className="p-3 text-right text-muted-foreground">{parseFloat(plan.markupPercent||'0').toFixed(1)}%</td>
+                                      <td className="p-3 text-right font-semibold">₦{parseFloat(plan.sellingPrice).toLocaleString()}</td>
+                                      <td className="p-3 text-center">
+                                        <Switch checked={plan.isActive} onCheckedChange={v => handleVtpTogglePlan(plan.id, v)} />
+                                      </td>
+                                      <td className="p-3 text-center">
+                                        <Button size="sm" variant="ghost" className="h-6 text-xs px-2"
+                                          onClick={() => { setVtpEditingId(plan.id); setVtpEditForm({ planName: plan.planName, costPrice: plan.costPrice, sellingPrice: plan.sellingPrice, markupPercent: plan.markupPercent || '0' }); }}>
+                                          <Pencil className="h-3 w-3" />
+                                        </Button>
+                                      </td>
+                                    </>
+                                  )}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                ))}
+              </Tabs>
             )}
+            </>)}
           </div>
         </TabsContent>
 
