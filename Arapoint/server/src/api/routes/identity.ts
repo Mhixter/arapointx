@@ -11,7 +11,7 @@ import { ninLookupSchema, ninPhoneSchema, lostNinSchema } from '../validators/id
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse, generateReferenceId } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { identityVerifications, identityServiceRequests, servicePricing, identityAgents, adminUsers, adminRoles, adminNotifications, users } from '../../db/schema';
+import { identityVerifications, identityServiceRequests, servicePricing, identityAgents, adminUsers, adminRoles, adminNotifications, users, adminSettings } from '../../db/schema';
 import { eq, desc, sql, and } from 'drizzle-orm';
 import { sendEmail } from '../../services/emailService';
 import { agentNewRequestEmailHtml, SERVICE_LABELS } from '../../utils/agentEmailTemplates';
@@ -68,13 +68,38 @@ async function notifyAdmins(serviceType: string, trackingId: string, customerNam
   }
 }
 
+async function getActiveIdentityProviders(): Promise<('techhub' | 'prembly' | 'youverify')[]> {
+  // Read the admin-selected preferred provider from DB
+  let preferred: string | null = null;
+  try {
+    const [row] = await db.select({ settingValue: adminSettings.settingValue })
+      .from(adminSettings).where(eq(adminSettings.settingKey, 'active_identity_provider')).limit(1);
+    preferred = row?.settingValue?.toLowerCase() || null;
+  } catch { /* ignore */ }
+
+  const all: ('techhub' | 'prembly' | 'youverify')[] = [];
+  if (premblyService.isConfigured()) all.push('prembly');
+  if (techhubService.isConfigured()) all.push('techhub');
+  if (youverifyService.isConfigured()) all.push('youverify');
+
+  if (all.length === 0) throw new Error('No identity verification provider configured. Please configure API credentials in Settings → Gateways.');
+
+  // Put the admin-preferred provider first (if it's configured)
+  if (preferred && all.includes(preferred as any)) {
+    return [preferred as 'prembly' | 'youverify' | 'techhub', ...all.filter(p => p !== preferred)];
+  }
+  // Default priority: prembly first
+  return all;
+}
+
+// Legacy sync wrapper — only used in non-critical paths; async version preferred
 const getConfiguredProviders = (): ('techhub' | 'prembly' | 'youverify')[] => {
   const providers: ('techhub' | 'prembly' | 'youverify')[] = [];
   if (premblyService.isConfigured()) providers.push('prembly');
   if (providers.length > 0) return providers;
   if (techhubService.isConfigured()) providers.push('techhub');
   if (youverifyService.isConfigured()) providers.push('youverify');
-  if (providers.length === 0) throw new Error('No identity verification provider configured. Please configure Prembly API credentials.');
+  if (providers.length === 0) throw new Error('No identity verification provider configured.');
   return providers;
 };
 
@@ -96,7 +121,7 @@ const hasValidVerificationData = (data: any): boolean => {
 };
 
 const verifyNINWithFallback = async (nin: string): Promise<{ success: boolean; data?: any; error?: string; reference: string; provider: string; techhubSlipHtml?: string; rawResponse?: any; slipHtml?: string }> => {
-  const providers = getConfiguredProviders();
+  const providers = await getActiveIdentityProviders();
   let lastError: string | undefined;
   let techhubSlipHtml: string | undefined;
   
@@ -136,7 +161,7 @@ const verifyNINWithFallback = async (nin: string): Promise<{ success: boolean; d
 };
 
 const verifyVNINWithFallback = async (vnin: string, validationData?: { firstName?: string; lastName?: string; dateOfBirth?: string }): Promise<{ success: boolean; data?: any; error?: string; reference: string; provider: string }> => {
-  const providers = getConfiguredProviders();
+  const providers = await getActiveIdentityProviders();
   let lastError: string | undefined;
   
   for (const provider of providers) {
@@ -172,7 +197,7 @@ const verifyVNINWithFallback = async (vnin: string, validationData?: { firstName
 };
 
 const retrieveNINByPhone = async (phone: string): Promise<{ success: boolean; data?: any; error?: string; reference: string; provider: string }> => {
-  const providers = getConfiguredProviders();
+  const providers = await getActiveIdentityProviders();
   let lastError: string | undefined;
   
   for (const provider of providers) {

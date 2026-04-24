@@ -3,16 +3,35 @@ import { authMiddleware } from '../middleware/auth';
 import { idempotencyMiddleware } from '../middleware/idempotency';
 import { walletService } from '../../services/walletService';
 import { vtpassService } from '../../services/vtpassService';
+import { vtuGateService } from '../../services/vtuGateService';
 import { electricityBuySchema, electricityValidateSchema } from '../validators/vtu';
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { electricityServices } from '../../db/schema';
+import { electricityServices, adminSettings } from '../../db/schema';
 import { eq, desc } from 'drizzle-orm';
 
 const router = Router();
 router.use(authMiddleware);
 router.use(idempotencyMiddleware);
+
+async function getActiveElectricityProvider(): Promise<'vtpass' | 'vtugate'> {
+  try {
+    const [row] = await db.select({ settingValue: adminSettings.settingValue })
+      .from(adminSettings).where(eq(adminSettings.settingKey, 'active_vtu_electricity')).limit(1);
+    const val = row?.settingValue?.toLowerCase();
+    if (val === 'vtugate' && await vtuGateService.isConfiguredAsync()) return 'vtugate';
+  } catch { /* fall through */ }
+  return 'vtpass';
+}
+
+// VTUGate uses shorter disco names
+const VTPASS_TO_VTUGATE_DISCO: Record<string, string> = {
+  'ikeja-electric': 'ikeja', 'eko-electric': 'eko', 'abuja-electric': 'abuja',
+  'kano-electric': 'kano', 'portharcourt-electric': 'portharcourt', 'jos-electric': 'jos',
+  'ibadan-electric': 'ibadan', 'kaduna-electric': 'kaduna', 'enugu-electric': 'enugu',
+  'benin-electric': 'benin', 'yola-electric': 'yola',
+};
 
 const DISCO_PROVIDERS = [
   { id: 'ikeja-electric', name: 'Ikeja Electricity Distribution Company', shortName: 'IKEDC' },
@@ -53,7 +72,9 @@ router.post('/buy', async (req: Request, res: Response) => {
 
     const { discoName, meterNumber, amount, meterType = 'prepaid', phone } = validation.data;
 
-    if (!vtpassService.isConfigured()) {
+    const activeProvider = await getActiveElectricityProvider();
+
+    if (activeProvider === 'vtpass' && !vtpassService.isConfigured()) {
       return res.status(503).json(formatErrorResponse(503, 'Electricity service is not configured'));
     }
 
@@ -65,22 +86,35 @@ router.post('/buy', async (req: Request, res: Response) => {
     const serviceID = DISCO_MAP[discoName.toLowerCase()] || discoName;
     const phoneNumber = phone || '08000000000';
 
-    logger.info('Electricity purchase started', { userId: req.userId, serviceID, meterNumber: meterNumber.substring(0, 4) + '***', amount });
+    logger.info('Electricity purchase started', { userId: req.userId, provider: activeProvider, serviceID, meterNumber: meterNumber.substring(0, 4) + '***', amount });
 
-    // ATOMIC SAFETY: deduct wallet BEFORE calling VTpass so a crash after VTpass
-    // succeeds cannot deliver service for free. Refund immediately on any failure.
+    // ATOMIC SAFETY: deduct wallet BEFORE calling provider so a crash after delivery
+    // cannot give service for free. Refund immediately on any failure.
     await walletService.deductBalance(req.userId!, amount, `Electricity - ${discoName.toUpperCase()}`, 'electricity_purchase');
 
-    const result = await vtpassService.purchaseElectricity(
-      meterNumber,
-      amount,
-      serviceID,
-      meterType as 'prepaid' | 'postpaid',
-      phoneNumber
-    );
+    let result: { success: boolean; reference?: string; token?: string; data?: any; error?: string };
+
+    if (activeProvider === 'vtugate') {
+      const vtgDisco = VTPASS_TO_VTUGATE_DISCO[serviceID] || serviceID.replace('-electric', '');
+      result = await vtuGateService.purchaseElectricity({
+        disco: vtgDisco,
+        meterNumber,
+        meterType: meterType as 'prepaid' | 'postpaid',
+        amount,
+        phone: phoneNumber,
+      });
+    } else {
+      result = await vtpassService.purchaseElectricity(
+        meterNumber,
+        amount,
+        serviceID,
+        meterType as 'prepaid' | 'postpaid',
+        phoneNumber
+      );
+    }
 
     if (!result.success || !result.data) {
-      logger.warn('Electricity purchase failed — refunding wallet', { userId: req.userId, error: result.error });
+      logger.warn('Electricity purchase failed — refunding wallet', { userId: req.userId, provider: activeProvider, error: result.error });
       await walletService.addBalance(req.userId!, amount, `Refund: Failed Electricity Purchase - ${discoName.toUpperCase()}`, 'electricity_refund').catch(
         refundErr => logger.error('CRITICAL: Electricity refund failed', { userId: req.userId, amount, error: refundErr.message })
       );
@@ -95,9 +129,10 @@ router.post('/buy', async (req: Request, res: Response) => {
       reference: result.reference,
       status: result.data.status === 'delivered' ? 'completed' : 'pending',
       transactionId: result.data.transactionId,
+      provider: activeProvider,
     });
 
-    logger.info('Electricity purchase successful', { userId: req.userId, reference: result.reference, transactionId: result.data.transactionId });
+    logger.info('Electricity purchase successful', { userId: req.userId, provider: activeProvider, reference: result.reference });
 
     res.json(formatResponse('success', 200, 'Electricity purchase successful', {
       reference: result.reference,
@@ -106,22 +141,17 @@ router.post('/buy', async (req: Request, res: Response) => {
       disco: discoName.toUpperCase(),
       meterNumber,
       amount,
-      token: result.data.token,
+      token: result.token || result.data.token,
       units: result.data.units,
       customerName: result.data.customerName,
       productName: result.data.productName,
+      provider: activeProvider,
     }));
   } catch (error: any) {
     logger.error('Electricity purchase error', { error: error.message, userId: req.userId });
-    
     if (error.message === 'Insufficient wallet balance') {
       return res.status(402).json(formatErrorResponse(402, error.message));
     }
-    
-    if (error.message === 'VTPASS_API_KEY and VTPASS_SECRET_KEY are not configured') {
-      return res.status(503).json(formatErrorResponse(503, 'Electricity service is not configured'));
-    }
-    
     res.status(500).json(formatErrorResponse(500, 'Failed to process electricity purchase'));
   }
 });
@@ -137,27 +167,38 @@ router.post('/validate', async (req: Request, res: Response) => {
 
     const { discoName, meterNumber, meterType } = validation.data;
 
-    if (!vtpassService.isConfigured()) {
-      return res.status(503).json(formatErrorResponse(503, 'Electricity service is not configured'));
-    }
-
+    const activeProvider = await getActiveElectricityProvider();
     const serviceID = DISCO_MAP[discoName.toLowerCase()] || discoName;
 
-    logger.info('Meter validation request', { userId: req.userId, serviceID, meterNumber: meterNumber.substring(0, 4) + '***' });
+    logger.info('Meter validation request', { userId: req.userId, provider: activeProvider, serviceID, meterNumber: meterNumber.substring(0, 4) + '***' });
 
-    const result = await vtpassService.verifyMeter(meterNumber, serviceID, meterType as 'prepaid' | 'postpaid');
+    let result: { success: boolean; data?: any; customerName?: string; address?: string; error?: string };
+
+    if (activeProvider === 'vtugate') {
+      const vtgDisco = VTPASS_TO_VTUGATE_DISCO[serviceID] || serviceID.replace('-electric', '');
+      result = await vtuGateService.verifyElectricity({
+        disco: vtgDisco,
+        meterNumber,
+        meterType: meterType as 'prepaid' | 'postpaid',
+      });
+    } else {
+      if (!vtpassService.isConfigured()) {
+        return res.status(503).json(formatErrorResponse(503, 'Electricity service is not configured'));
+      }
+      result = await vtpassService.verifyMeter(meterNumber, serviceID, meterType as 'prepaid' | 'postpaid');
+    }
 
     if (!result.success || !result.data) {
       return res.status(400).json(formatErrorResponse(400, result.error || 'Meter validation failed'));
     }
 
     res.json(formatResponse('success', 200, 'Meter validated successfully', {
-      meterNumber: result.data.meterNumber,
-      customerName: result.data.customerName,
-      address: result.data.address,
-      meterType: result.data.meterType,
+      meterNumber: result.data.meterNumber || meterNumber,
+      customerName: result.customerName || result.data.customerName,
+      address: result.address || result.data.address,
+      meterType: result.data.meterType || meterType,
       disco: discoName,
-      canVend: result.data.canVend,
+      canVend: result.data.canVend ?? true,
     }));
   } catch (error: any) {
     logger.error('Meter validation error', { error: error.message, userId: req.userId });
