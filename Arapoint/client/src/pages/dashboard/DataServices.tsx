@@ -252,7 +252,7 @@ export default function DataServices() {
           <Card className="w-full">
             <CardHeader>
               <CardTitle>Buy Data</CardTitle>
-              <CardDescription>Test phone: 08011111111</CardDescription>
+              <CardDescription>Select network and choose a data plan</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">

@@ -146,9 +146,9 @@ const PORT = config.PORT;
     logger.info('API server ready — RPA runs in a separate process (rpa-worker)');
   });
   // Start VTU pending-transaction poller (runs immediately then every 5 min)
-  setTimeout(pollPendingVtuTransactions, 15_000); // first run 15s after startup
-  setInterval(pollPendingVtuTransactions, 60 * 1000); // check every 1 minute
-  logger.info('VTU status poller started (1min interval)');
+  setTimeout(pollPendingVtuTransactions, 10_000); // first run 10s after startup
+  setInterval(pollPendingVtuTransactions, 5_000); // poll every 5 seconds
+  logger.info('VTU status poller started (5s interval)');
 })();
 
 export default app;

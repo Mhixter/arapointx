@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { logger } from '../utils/logger';
 import { db } from '../config/database';
-import { adminSettings } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { adminSettings, scrapedDataPlans } from '../db/schema';
+import { eq, and } from 'drizzle-orm';
 
 const BASE_URL = 'https://api.vtugate.com';
 
@@ -232,21 +232,38 @@ class VTUGateService {
       const headers = await this.buildHeaders();
       const ref = params.reference || `vg_dat_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
-      // VTUGate buydata requires service_id (numeric), not network name
-      // Look up the correct service_id by matching network name from fetchservices
-      const normalizedNet = params.network.toLowerCase().replace(/\s/g, '').replace('9mobile', 'etisalat');
-      const servicesResult = await this.fetchServicesByType('data');
+      // VTUGate buydata requires the numeric service_id that belongs to the specific plan.
+      // First look it up from the stored DB record (set during sync) — this is exact.
+      // Fall back to a network-name match only if not in DB.
       let serviceId: number | null = null;
-      if (servicesResult.success && servicesResult.services) {
-        const matched = servicesResult.services.find(s => {
-          const sn = s.network_name.toLowerCase().replace(/\s/g, '');
-          return sn.includes(normalizedNet) || normalizedNet.includes(sn);
-        });
-        if (matched) serviceId = matched.service_id;
-      }
+
+      try {
+        const [planRow] = await db.select({ providerServiceId: scrapedDataPlans.providerServiceId })
+          .from(scrapedDataPlans)
+          .where(and(
+            eq(scrapedDataPlans.planId, params.planId),
+            eq(scrapedDataPlans.provider, 'vtugate'),
+          ))
+          .limit(1);
+        if (planRow?.providerServiceId) serviceId = planRow.providerServiceId;
+      } catch { /* DB lookup failed, will fall back */ }
+
       if (!serviceId) {
-        logger.error('VTUGate purchaseData: no service_id found for network', { network: params.network, normalizedNet });
-        return { success: false, error: `Data service not found for network: ${params.network}` };
+        // Fallback: match by network name across activated services
+        const normalizedNet = params.network.toLowerCase().replace(/\s/g, '').replace('9mobile', 'etisalat');
+        const servicesResult = await this.fetchServicesByType('data');
+        if (servicesResult.success && servicesResult.services) {
+          const matched = servicesResult.services.find(s => {
+            const sn = s.network_name.toLowerCase().replace(/\s/g, '');
+            return sn.includes(normalizedNet) || normalizedNet.includes(sn);
+          });
+          if (matched) serviceId = matched.service_id;
+        }
+      }
+
+      if (!serviceId) {
+        logger.error('VTUGate purchaseData: no service_id found', { network: params.network, planId: params.planId });
+        return { success: false, error: `Data service not found for plan: ${params.planId}` };
       }
 
       logger.info('VTUGate purchaseData using service_id', { serviceId, network: params.network, planId: params.planId });

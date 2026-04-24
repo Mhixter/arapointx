@@ -1739,14 +1739,14 @@ router.post('/vtugate/sync-plans', adminAuthMiddleware, async (req: Request, res
               : (existing ? existing.sellingPrice : costPrice);
             if (existing) {
               await db.update(scrapedDataPlans)
-                .set({ planName, costPrice, network, provider: 'vtugate', lastScrapedAt: new Date() })
+                .set({ planName, costPrice, network, provider: 'vtugate', providerServiceId: svc.service_id, lastScrapedAt: new Date() })
                 .where(eq(scrapedDataPlans.id, existing.id));
             } else {
               await db.insert(scrapedDataPlans).values({
                 network, planId, planName, costPrice,
                 sellingPrice: String(sellingPrice),
                 resellerPrice: costPrice, markupPercent: '0',
-                provider: 'vtugate', lastScrapedAt: new Date(),
+                provider: 'vtugate', providerServiceId: svc.service_id, lastScrapedAt: new Date(),
               });
             }
             total++;

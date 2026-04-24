@@ -184,6 +184,11 @@ async function pollPendingVtu(): Promise<void> {
           END IF;
         END $$
       `);
+      // Add provider_service_id column if missing (stores numeric VTUGate service_id per plan)
+      await _db.execute(_sql`
+        ALTER TABLE scraped_data_plans
+        ADD COLUMN IF NOT EXISTS provider_service_id INTEGER
+      `);
       console.log('[Migration] scraped_data_plans provider column ready');
     } catch (err: any) {
       console.warn('[Migration] scraped_data_plans migration skipped:', err.message);
