@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Reference Letter — Shafiu Hassan Nuhu</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@400;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #e8e8e8;
+    font-family: 'Open Sans', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 0 60px;
+  }
+
+  .print-bar {
+    width: 794px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .print-bar button {
+    background: #003580;
+    color: #fff;
+    border: none;
+    padding: 9px 22px;
+    border-radius: 5px;
+    font-size: 14px;
+    font-family: 'Open Sans', sans-serif;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .print-bar button:hover { background: #002060; }
+
+  .page {
+    width: 794px;
+    min-height: 1122px;
+    background: #fff;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  .top-bar {
+    height: 8px;
+    background: linear-gradient(90deg, #003580 0%, #0057c2 60%, #00a651 100%);
+  }
+
+  .header {
+    padding: 28px 48px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  .logo-block {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .logo-block img {
+    height: 72px;
+    width: auto;
+    object-fit: contain;
+  }
+  .logo-divider {
+    width: 2px;
+    height: 60px;
+    background: #003580;
+    opacity: 0.2;
+  }
+  .company-name-block .company-name {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+    color: #003580;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+  .company-name-block .company-tagline {
+    font-size: 10.5px;
+    color: #555;
+    margin-top: 3px;
+    letter-spacing: 0.3px;
+    font-style: italic;
+  }
+
+  .contact-block { text-align: right; }
+  .contact-block .contact-item {
+    font-size: 11px;
+    color: #444;
+    line-height: 1.8;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+  .contact-block .contact-item svg { flex-shrink: 0; color: #003580; }
+
+  .banner-stripe {
+    background: #003580;
+    color: #fff;
+    padding: 7px 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 10px;
+    letter-spacing: 0.6px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .banner-stripe .rc {
+    background: #00a651;
+    padding: 2px 10px;
+    border-radius: 3px;
+    font-size: 9px;
+    letter-spacing: 0.5px;
+  }
+
+  .letter-body {
+    flex: 1;
+    padding: 36px 56px 30px;
+    font-size: 13px;
+    color: #222;
+    line-height: 1.8;
+  }
+
+  .letter-date {
+    text-align: right;
+    margin-bottom: 28px;
+    font-size: 13px;
+    color: #333;
+  }
+
+  .addressee { margin-bottom: 24px; }
+  .addressee p { line-height: 1.7; font-size: 13px; }
+  .addressee strong { display: block; }
+
+  .subject-line {
+    text-align: center;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 13.5px;
+    color: #003580;
+    text-transform: uppercase;
+    text-decoration: underline;
+    margin: 20px 0 24px;
+    letter-spacing: 0.4px;
+  }
+
+  .salutation { margin-bottom: 16px; font-size: 13px; }
+  .body-text { margin-bottom: 14px; text-align: justify; font-size: 13px; }
+
+  .ref-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 18px 0 22px;
+    font-size: 12.5px;
+  }
+  .ref-table tr td {
+    padding: 8px 14px;
+    border: 1px solid #d0d8e8;
+  }
+  .ref-table tr td:first-child {
+    font-weight: 600;
+    color: #003580;
+    background: #f0f5ff;
+    width: 38%;
+    white-space: nowrap;
+  }
+
+  .closing { margin-top: 20px; font-size: 13px; margin-bottom: 6px; }
+
+  .signature-block {
+    margin-top: 28px;
+    display: flex;
+    align-items: flex-end;
+  }
+  .signature-img {
+    height: 110px;
+    width: auto;
+    mix-blend-mode: multiply;
+    margin-left: -8px;
+  }
+  .signatory-details {
+    margin-left: 16px;
+    padding-bottom: 4px;
+  }
+  .signatory-details .sig-name {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    color: #003580;
+    text-transform: uppercase;
+  }
+  .signatory-details .sig-title {
+    font-size: 11.5px;
+    color: #555;
+    margin-top: 2px;
+  }
+  .signatory-details .sig-company {
+    font-size: 11px;
+    color: #003580;
+    font-weight: 600;
+    margin-top: 2px;
+    text-transform: uppercase;
+  }
+
+  .footer {
+    border-top: 3px solid #003580;
+    padding: 14px 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #f5f7fb;
+  }
+  .footer-left {
+    font-size: 10px;
+    color: #003580;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  .footer-right {
+    font-size: 9.5px;
+    color: #555;
+    text-align: right;
+    line-height: 1.6;
+  }
+  .footer-bottom-bar {
+    height: 5px;
+    background: linear-gradient(90deg, #003580 0%, #0057c2 60%, #00a651 100%);
+  }
+
+  @media print {
+    body { background: #fff; padding: 0; }
+    .print-bar { display: none; }
+    .page { box-shadow: none; width: 100%; min-height: 100vh; }
+    @page { size: A4; margin: 0; }
+    .signature-img { mix-blend-mode: multiply; }
+  }
+</style>
+</head>
+<body>
+
+<div class="print-bar">
+  <button onclick="window.print()">⬇ Save / Print PDF</button>
+</div>
+
+<div class="page">
+  <div class="top-bar"></div>
+
+  <div class="header">
+    <div class="logo-block">
+      <img src="logo.png" alt="Arapoint Logo"/>
+      <div class="logo-divider"></div>
+      <div class="company-name-block">
+        <div class="company-name">Arapoint Solutions<br>Nig. Ltd</div>
+        <div class="company-tagline">Identity Verification &amp; Digital Solutions</div>
+      </div>
+    </div>
+
+    <div class="contact-block">
+      <div class="contact-item">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/></svg>
+        Behind NNPC Filling Station, Mayo Gwoi
+      </div>
+      <div class="contact-item">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 011 1V20a1 1 0 01-1 1C10.61 21 3 13.39 3 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.26.2 2.47.57 3.58a1 1 0 01-.25 1.01l-2.2 2.2z"/></svg>
+        08137362457 &nbsp;/&nbsp; 08133688584
+      </div>
+      <div class="contact-item">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+        contact@arapoint.com.ng
+      </div>
+      <div class="contact-item">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+        saidumuhammed664@gmail.com
+      </div>
+    </div>
+  </div>
+
+  <div class="banner-stripe">
+    <span>Digital Identity &bull; Verification Services &bull; Business Solutions</span>
+    <span class="rc">RC: xxxxxxxx</span>
+  </div>
+
+  <div class="letter-body">
+
+    <div class="letter-date">25th April, 2026</div>
+
+    <div class="addressee">
+      <strong>The Branch Manager,</strong>
+      <p>Providus Bank Plc,</p>
+      <p>[Branch Address],</p>
+      <p>Nigeria.</p>
+    </div>
+
+    <div class="subject-line">RE: Letter of Reference — Shafiu Hassan Nuhu</div>
+
+    <p class="salutation">Dear Sir/Madam,</p>
+
+    <p class="body-text">
+      We write with pleasure to introduce and provide this letter of reference for <strong>Mr. Shafiu Hassan Nuhu</strong>, who is a valued member of staff at <strong>Arapoint Solutions Nig. Ltd</strong>, serving in the capacity of <strong>Social Specialist</strong>. We can confirm that Mr. Shafiu Hassan Nuhu is a person of good character, sound integrity, and commendable professional standing.
+    </p>
+
+    <p class="body-text">
+      During his engagement with our organisation, Mr. Shafiu has consistently demonstrated diligence, honesty, and a high level of responsibility in the discharge of his duties. We hold him in high regard and are fully confident in vouching for his person and his professional conduct.
+    </p>
+
+    <p class="body-text">
+      Please find below his contact details for your records and verification purposes:
+    </p>
+
+    <table class="ref-table">
+      <tr><td>Full Name</td><td>Shafiu Hassan Nuhu</td></tr>
+      <tr><td>Position / Role</td><td>Social Specialist</td></tr>
+      <tr><td>Phone Number</td><td>07064343843</td></tr>
+      <tr><td>Email Address</td><td>shafiunuhu610@gmail.com</td></tr>
+      <tr><td>Organisation</td><td>Arapoint Solutions Nig. Ltd</td></tr>
+    </table>
+
+    <p class="body-text">
+      We hereby request that you extend to him every courtesy and assistance he may require in his dealings with your esteemed institution. Should you require any further information or clarification, please do not hesitate to contact us via any of the details provided in the header of this letter.
+    </p>
+
+    <p class="body-text">
+      We thank you for your time and consideration.
+    </p>
+
+    <p class="closing">Yours faithfully,</p>
+
+    <div class="signature-block">
+      <img class="signature-img" src="signature.jpg" alt="Authorised Signature"/>
+      <div class="signatory-details">
+        <div class="sig-name">Authorised Signatory</div>
+        <div class="sig-title">Director</div>
+        <div class="sig-company">Arapoint Solutions Nig. Ltd</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">Arapoint Solutions Nig. Ltd</div>
+    <div class="footer-right">
+      Behind NNPC Filling Station, Mayo Gwoi<br>
+      08137362457 &nbsp;|&nbsp; contact@arapoint.com.ng
+    </div>
+  </div>
+  <div class="footer-bottom-bar"></div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Arapoint Solutions Nig. Ltd — Letterhead</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@400;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #e8e8e8;
+    font-family: 'Open Sans', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 0 60px;
+  }
+
+  .print-bar {
+    width: 794px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .print-bar button {
+    background: #003580;
+    color: #fff;
+    border: none;
+    padding: 9px 22px;
+    border-radius: 5px;
+    font-size: 14px;
+    font-family: 'Open Sans', sans-serif;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .print-bar button:hover { background: #002060; }
+
+  .page {
+    width: 794px;
+    min-height: 1122px;
+    background: #fff;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* ── TOP ACCENT BAR ── */
+  .top-bar {
+    height: 8px;
+    background: linear-gradient(90deg, #003580 0%, #0057c2 60%, #00a651 100%);
+  }
+
+  /* ── HEADER ── */
+  .header {
+    padding: 28px 48px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  .logo-block {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .logo-block img {
+    height: 72px;
+    width: auto;
+    object-fit: contain;
+  }
+  .logo-divider {
+    width: 2px;
+    height: 60px;
+    background: #003580;
+    opacity: 0.2;
+  }
+  .company-name-block .company-name {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+    color: #003580;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+  .company-name-block .company-tagline {
+    font-size: 10.5px;
+    color: #555;
+    margin-top: 3px;
+    letter-spacing: 0.3px;
+    font-style: italic;
+  }
+
+  .contact-block {
+    text-align: right;
+  }
+  .contact-block .contact-item {
+    font-size: 11px;
+    color: #444;
+    line-height: 1.8;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+  .contact-block .contact-item svg {
+    flex-shrink: 0;
+    color: #003580;
+  }
+  .contact-block .contact-item a { color: #003580; text-decoration: none; }
+
+  /* ── BANNER STRIPE ── */
+  .banner-stripe {
+    background: #003580;
+    color: #fff;
+    padding: 7px 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 10px;
+    letter-spacing: 0.6px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .banner-stripe .rc {
+    background: #00a651;
+    padding: 2px 10px;
+    border-radius: 3px;
+    font-size: 9px;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── LETTER BODY (blank) ── */
+  .letter-body {
+    flex: 1;
+    padding: 40px 48px 30px;
+  }
+  .body-lines {
+    margin-top: 30px;
+  }
+  .body-lines .line {
+    border-bottom: 1px solid #e8e8e8;
+    height: 32px;
+  }
+
+  /* ── FOOTER ── */
+  .footer {
+    border-top: 3px solid #003580;
+    padding: 14px 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #f5f7fb;
+  }
+  .footer-left {
+    font-size: 10px;
+    color: #003580;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  .footer-right {
+    font-size: 9.5px;
+    color: #555;
+    text-align: right;
+    line-height: 1.6;
+  }
+  .footer-bottom-bar {
+    height: 5px;
+    background: linear-gradient(90deg, #003580 0%, #0057c2 60%, #00a651 100%);
+  }
+
+  /* ── PRINT ── */
+  @media print {
+    body { background: #fff; padding: 0; }
+    .print-bar { display: none; }
+    .page { box-shadow: none; width: 100%; min-height: 100vh; }
+    @page { size: A4; margin: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="print-bar">
+  <button onclick="window.print()">⬇ Save / Print PDF</button>
+</div>
+
+<div class="page">
+  <div class="top-bar"></div>
+
+  <div class="header">
+    <div class="logo-block">
+      <img src="logo.png" alt="Arapoint Logo"/>
+      <div class="logo-divider"></div>
+      <div class="company-name-block">
+        <div class="company-name">Arapoint Solutions<br>Nig. Ltd</div>
+        <div class="company-tagline">Identity Verification &amp; Digital Solutions</div>
+      </div>
+    </div>
+
+    <div class="contact-block">
+      <div class="contact-item">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/></svg>
+        Behind NNPC Filling Station, Mayo Gwoi
+      </div>
+      <div class="contact-item">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 011 1V20a1 1 0 01-1 1C10.61 21 3 13.39 3 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.26.2 2.47.57 3.58a1 1 0 01-.25 1.01l-2.2 2.2z"/></svg>
+        08137362457 &nbsp;/&nbsp; 08133688584
+      </div>
+      <div class="contact-item">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+        contact@arapoint.com.ng
+      </div>
+      <div class="contact-item">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+        saidumuhammed664@gmail.com
+      </div>
+      <div class="contact-item" style="margin-top:3px;">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2zm-1 17.93V18a1 1 0 012 0v1.93A8.001 8.001 0 014.07 13H6a1 1 0 010 2H4.07A8.001 8.001 0 0111 19.93zM4.07 11H6a1 1 0 010-2H4.07A8.001 8.001 0 0111 4.07V6a1 1 0 002 0V4.07A8.001 8.001 0 0119.93 11H18a1 1 0 010 2h1.93A8.001 8.001 0 0113 19.93V18a1 1 0 00-2 0v1.93A8.001 8.001 0 014.07 11z"/></svg>
+        www.arapoint.com.ng
+      </div>
+    </div>
+  </div>
+
+  <div class="banner-stripe">
+    <span>Digital Identity &bull; Verification Services &bull; Business Solutions</span>
+    <span class="rc">RC: xxxxxxxx</span>
+  </div>
+
+  <div class="letter-body">
+    <div class="body-lines">
+      <div class="line"></div><div class="line"></div><div class="line"></div>
+      <div class="line"></div><div class="line"></div><div class="line"></div>
+      <div class="line"></div><div class="line"></div><div class="line"></div>
+      <div class="line"></div><div class="line"></div><div class="line"></div>
+      <div class="line"></div><div class="line"></div><div class="line"></div>
+      <div class="line"></div><div class="line"></div><div class="line"></div>
+      <div class="line"></div><div class="line"></div><div class="line"></div>
+      <div class="line"></div><div class="line"></div><div class="line"></div>
+      <div class="line"></div><div class="line"></div><div class="line"></div>
+      <div class="line"></div><div class="line"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">Arapoint Solutions Nig. Ltd</div>
+    <div class="footer-right">
+      Behind NNPC Filling Station, Mayo Gwoi<br>
+      08137362457 &nbsp;|&nbsp; contact@arapoint.com.ng
+    </div>
+  </div>
+  <div class="footer-bottom-bar"></div>
+</div>
+
+</body>
+</html>
