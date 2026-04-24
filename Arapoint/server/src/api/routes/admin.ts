@@ -107,7 +107,7 @@ const agentSupportUpload = multer({
     else cb(new Error('File type not allowed'));
   },
 });
-import { eq, desc, count, sql, and, or, gt, asc, gte, lte, ilike, isNull } from 'drizzle-orm';
+import { eq, desc, count, sql, and, or, gt, asc, gte, lte, ilike, isNull, inArray } from 'drizzle-orm';
 import OpenAI from 'openai';
 
 let _openai: OpenAI | null = null;
@@ -1571,7 +1571,7 @@ router.get('/aggregator-settings', adminAuthMiddleware, async (req: Request, res
       'vtu_airtimenigeria_enabled', 'vtu_vtpass_enabled', 'vtu_vtugate_enabled',
     ];
     const rows = await db.select().from(adminSettings).where(
-      sql`setting_key = ANY(${keys})`
+      inArray(adminSettings.settingKey, keys)
     );
     const settings: Record<string, string> = {};
     rows.forEach(r => { settings[r.settingKey] = r.settingValue || ''; });

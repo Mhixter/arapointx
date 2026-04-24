@@ -15,7 +15,7 @@ import {
 const API = (path: string, opts?: RequestInit) =>
   fetch(`/api/admin${path}`, {
     ...opts,
-    headers: { Authorization: `Bearer ${tokenStorage.getToken()}`, "Content-Type": "application/json", ...(opts?.headers || {}) },
+    headers: { Authorization: `Bearer ${tokenStorage.getItem('adminToken')}`, "Content-Type": "application/json", ...(opts?.headers || {}) },
   });
 
 type Provider = 'airtimenigeria' | 'vtpass' | 'vtugate' | 'unknown';
