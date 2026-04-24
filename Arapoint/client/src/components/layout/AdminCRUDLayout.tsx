@@ -78,6 +78,7 @@ const ALL_NAV_ITEMS = [
   { href: "/admin/bvn", label: "BVN Services", icon: ShieldCheck, permission: "bvn" },
   { href: "/admin/education", label: "Education Services", icon: GraduationCap, permission: "education" },
   { href: "/admin/vtu", label: "VTU Services", icon: Smartphone, permission: "vtu" },
+  { href: "/admin/vtu-monitoring", label: "VTU Monitoring", icon: Activity, permission: "vtu" },
   { href: "/admin/cac", label: "CAC Services", icon: Building2, permission: "cac" },
   { href: "/admin/identity-agents", label: "Identity Agents", icon: IdCard, permission: "identity" },
   { href: "/admin/education-agents", label: "Education Agents", icon: GraduationCap, permission: "education" },

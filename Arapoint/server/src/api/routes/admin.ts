@@ -1414,6 +1414,14 @@ router.get('/payment-gateways/status', async (req: Request, res: Response) => {
           { key: 'airtimenigeria_api_token', label: 'API Token (Bearer)', type: 'password', required: true, value: '', hasValue: !!savedSettings['airtimenigeria_api_token'] },
         ],
       },
+      vtugate: {
+        name: 'VTUGate',
+        description: 'Airtime, data, electricity and cable TV via VTUGate unified API',
+        configured: !!(process.env.VTUGATE_API_KEY || savedSettings['vtugate_api_key']),
+        fields: [
+          { key: 'vtugate_api_key', label: 'API Key', type: 'password', required: true, value: '', hasValue: !!savedSettings['vtugate_api_key'] },
+        ],
+      },
     };
 
     res.json(formatResponse('success', 200, 'Gateway status retrieved', { gateways }));
@@ -1452,6 +1460,7 @@ router.post('/payment-gateways/save', async (req: Request, res: Response) => {
       prembly_secret_key: 'PREMBLY_SECRET_KEY',
       prembly_public_key: 'PREMBLY_PUBLIC_KEY',
       airtimenigeria_api_token: 'AIRTIMENIGERIA_API_TOKEN',
+      vtugate_api_key: 'VTUGATE_API_KEY',
     };
 
     let savedCount = 0;
@@ -1472,6 +1481,10 @@ router.post('/payment-gateways/save', async (req: Request, res: Response) => {
             // Invalidate cached token in airtimeNigeriaService if relevant
             if (key === 'airtimenigeria_api_token') {
               airtimeNigeriaService.invalidateCache();
+            }
+            if (key === 'vtugate_api_key') {
+              const { vtuGateService } = await import('../../services/vtuGateService');
+              vtuGateService.invalidateCache();
             }
           }
           savedCount++;
@@ -1535,6 +1548,207 @@ router.post('/payment-gateways/paymentpoint/test', async (req: Request, res: Res
     }
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ── VTUGate Test Connection ──────────────────────────────────────────────────
+router.post('/payment-gateways/vtugate/test', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { vtuGateService } = await import('../../services/vtuGateService');
+    const result = await vtuGateService.testConnection();
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ── Aggregator Settings (which VTU/identity provider is active) ──────────────
+router.get('/aggregator-settings', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const keys = [
+      'active_vtu_airtime', 'active_vtu_data', 'active_vtu_electricity',
+      'active_identity_provider', 'identity_prembly_enabled', 'identity_youverify_enabled',
+      'vtu_airtimenigeria_enabled', 'vtu_vtpass_enabled', 'vtu_vtugate_enabled',
+    ];
+    const rows = await db.select().from(adminSettings).where(
+      sql`setting_key = ANY(${keys})`
+    );
+    const settings: Record<string, string> = {};
+    rows.forEach(r => { settings[r.settingKey] = r.settingValue || ''; });
+    res.json(formatResponse('success', 200, 'Aggregator settings retrieved', { settings }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to get aggregator settings'));
+  }
+});
+
+router.post('/aggregator-settings', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { settings } = req.body as { settings: Record<string, string> };
+    if (!settings || typeof settings !== 'object') {
+      return res.status(400).json(formatErrorResponse(400, 'settings object required'));
+    }
+    const allowed = new Set([
+      'active_vtu_airtime', 'active_vtu_data', 'active_vtu_electricity',
+      'active_identity_provider', 'identity_prembly_enabled', 'identity_youverify_enabled',
+      'vtu_airtimenigeria_enabled', 'vtu_vtpass_enabled', 'vtu_vtugate_enabled',
+    ]);
+    for (const [key, value] of Object.entries(settings)) {
+      if (!allowed.has(key)) continue;
+      const existing = await db.select().from(adminSettings).where(eq(adminSettings.settingKey, key)).limit(1);
+      if (existing.length > 0) {
+        await db.update(adminSettings).set({ settingValue: String(value), updatedAt: new Date() }).where(eq(adminSettings.settingKey, key));
+      } else {
+        await db.insert(adminSettings).values({ settingKey: key, settingValue: String(value) });
+      }
+    }
+    logger.info('Aggregator settings updated', { settings });
+    res.json(formatResponse('success', 200, 'Aggregator settings saved'));
+  } catch (error: any) {
+    logger.error('Aggregator settings save error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to save aggregator settings'));
+  }
+});
+
+// ── VTU Monitoring Stats ─────────────────────────────────────────────────────
+router.get('/vtu-monitoring', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const [
+      airtimeAll, airtimeRecent, dataAll, dataRecent,
+      elecAll, elecRecent, cableAll, cableRecent,
+      identityAll, identityRecent,
+    ] = await Promise.all([
+      db.execute(sql`SELECT provider, status, COUNT(*)::int AS cnt FROM airtime_services GROUP BY provider, status`),
+      db.execute(sql`SELECT provider, status, COUNT(*)::int AS cnt FROM airtime_services WHERE created_at >= ${since24h} GROUP BY provider, status`),
+      db.execute(sql`SELECT provider, status, COUNT(*)::int AS cnt FROM data_services GROUP BY provider, status`),
+      db.execute(sql`SELECT provider, status, COUNT(*)::int AS cnt FROM data_services WHERE created_at >= ${since24h} GROUP BY provider, status`),
+      db.execute(sql`SELECT provider, status, COUNT(*)::int AS cnt FROM electricity_services GROUP BY provider, status`),
+      db.execute(sql`SELECT provider, status, COUNT(*)::int AS cnt FROM electricity_services WHERE created_at >= ${since24h} GROUP BY provider, status`),
+      db.execute(sql`SELECT 'vtpass' AS provider, status, COUNT(*)::int AS cnt FROM cable_services GROUP BY status`),
+      db.execute(sql`SELECT 'vtpass' AS provider, status, COUNT(*)::int AS cnt FROM cable_services WHERE created_at >= ${since24h} GROUP BY status`),
+      db.execute(sql`SELECT status, COUNT(*)::int AS cnt FROM identity_service_requests GROUP BY status`),
+      db.execute(sql`SELECT status, COUNT(*)::int AS cnt FROM identity_service_requests WHERE created_at >= ${since24h} GROUP BY status`),
+    ]);
+
+    const rollupByProvider = (rows: any[]) => {
+      const byProvider: Record<string, { total: number; completed: number; pending: number; failed: number; successRate: number }> = {};
+      for (const r of rows) {
+        const p = (r.provider as string) || 'unknown';
+        if (!byProvider[p]) byProvider[p] = { total: 0, completed: 0, pending: 0, failed: 0, successRate: 0 };
+        const cnt = Number(r.cnt || 0);
+        const st = String(r.status || '').toLowerCase();
+        byProvider[p].total += cnt;
+        if (['completed', 'success', 'successful', 'delivered'].includes(st)) byProvider[p].completed += cnt;
+        else if (st === 'pending') byProvider[p].pending += cnt;
+        else if (['failed', 'error'].includes(st)) byProvider[p].failed += cnt;
+      }
+      for (const p of Object.keys(byProvider)) {
+        const d = byProvider[p];
+        d.successRate = d.total > 0 ? Math.round((d.completed / d.total) * 100) : 0;
+      }
+      return byProvider;
+    };
+
+    const rollupIdentity = (rows: any[]) => {
+      const out = { total: 0, verified: 0, failed: 0, pending: 0, successRate: 0 };
+      for (const r of rows) {
+        const cnt = Number(r.cnt || 0);
+        const st = String(r.status || '').toLowerCase();
+        out.total += cnt;
+        if (st === 'verified') out.verified += cnt;
+        else if (st === 'failed') out.failed += cnt;
+        else out.pending += cnt;
+      }
+      out.successRate = out.total > 0 ? Math.round((out.verified / out.total) * 100) : 0;
+      return out;
+    };
+
+    res.json(formatResponse('success', 200, 'VTU monitoring data retrieved', {
+      airtime: { allTime: rollupByProvider(airtimeAll.rows as any[]), last24h: rollupByProvider(airtimeRecent.rows as any[]) },
+      data: { allTime: rollupByProvider(dataAll.rows as any[]), last24h: rollupByProvider(dataRecent.rows as any[]) },
+      electricity: { allTime: rollupByProvider(elecAll.rows as any[]), last24h: rollupByProvider(elecRecent.rows as any[]) },
+      cable: { allTime: rollupByProvider(cableAll.rows as any[]), last24h: rollupByProvider(cableRecent.rows as any[]) },
+      identity: { allTime: rollupIdentity(identityAll.rows as any[]), last24h: rollupIdentity(identityRecent.rows as any[]) },
+      generatedAt: new Date().toISOString(),
+    }));
+  } catch (error: any) {
+    logger.error('VTU monitoring error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to fetch monitoring data'));
+  }
+});
+
+// ── VTUGate Data Plans Sync ──────────────────────────────────────────────────
+router.post('/vtugate/sync-plans', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { vtuGateService } = await import('../../services/vtuGateService');
+    if (!await vtuGateService.isConfiguredAsync()) {
+      return res.status(400).json(formatErrorResponse(400, 'VTUGate API key not configured'));
+    }
+    const networks = ['mtn', 'airtel', 'glo', '9mobile'];
+    let total = 0;
+    const errors: string[] = [];
+    for (const network of networks) {
+      const result = await vtuGateService.fetchDataPlans(network);
+      if (result.success && result.plans) {
+        for (const plan of result.plans) {
+          const planId = plan.id || plan.plan_id || `vg_${network}_${plan.code || plan.package_code}`;
+          const costPrice = parseFloat(plan.amount || plan.price || plan.cost || '0');
+          const planName = plan.name || plan.description || planId;
+          const validity = plan.validity || plan.duration || '';
+          const dataSize = plan.data_size || plan.size || '';
+          try {
+            const existing = await db.execute(
+              sql`SELECT id FROM scraped_data_plans WHERE plan_id = ${String(planId)} AND provider = 'vtugate' LIMIT 1`
+            );
+            if ((existing.rows as any[]).length > 0) {
+              await db.execute(sql`
+                UPDATE scraped_data_plans SET
+                  plan_name = ${planName}, cost_price = ${costPrice}, network = ${network},
+                  validity = ${validity}, data_size = ${dataSize}, updated_at = NOW()
+                WHERE plan_id = ${String(planId)} AND provider = 'vtugate'
+              `);
+            } else {
+              await db.execute(sql`
+                INSERT INTO scraped_data_plans (plan_id, plan_name, cost_price, network, provider, validity, data_size, is_active)
+                VALUES (${String(planId)}, ${planName}, ${costPrice}, ${network}, 'vtugate', ${validity}, ${dataSize}, true)
+              `);
+            }
+            total++;
+          } catch { /* skip individual plan errors */ }
+        }
+      } else if (result.error) {
+        errors.push(`${network}: ${result.error}`);
+      }
+    }
+    res.json(formatResponse('success', 200, `VTUGate plans synced: ${total} plans`, { total, errors }));
+  } catch (error: any) {
+    logger.error('VTUGate plan sync error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to sync VTUGate plans'));
+  }
+});
+
+// ── Identity Provider Pricing ────────────────────────────────────────────────
+router.get('/identity/pricing-info', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const premblyPricing = [
+      { service: 'NIN Verification', costPrice: 30, description: 'Basic NIN lookup via Prembly IdentityPass' },
+      { service: 'BVN Verification', costPrice: 50, description: 'BVN lookup via Prembly IdentityPass' },
+      { service: 'NIN with Image', costPrice: 50, description: 'NIN lookup with facial image via Prembly' },
+      { service: 'vNIN Verification', costPrice: 30, description: 'Virtual NIN (vNIN) lookup via Prembly' },
+    ];
+    const youverifyPricing = [
+      { service: 'NIN Verification', costPrice: 30, description: 'NIN lookup via YouVerify' },
+      { service: 'BVN Verification', costPrice: 50, description: 'BVN lookup via YouVerify' },
+    ];
+    res.json(formatResponse('success', 200, 'Identity provider pricing info', {
+      prembly: premblyPricing,
+      youverify: youverifyPricing,
+      note: 'Prices in NGN. Update admin pricing settings to set your markup.',
+    }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to get identity pricing'));
   }
 });
 
@@ -5523,6 +5737,7 @@ router.get('/db/backup', adminAuthMiddleware, async (req: Request, res: Response
       bvnRows,
       ninSlipRows,
       adminUserRows,
+      developerUserRows,
     ] = await Promise.all([
       db.select({
         id: users.id,
@@ -5572,11 +5787,12 @@ router.get('/db/backup', adminAuthMiddleware, async (req: Request, res: Response
         isActive: adminUsers.isActive,
         createdAt: adminUsers.createdAt,
       }).from(adminUsers).limit(200),
+      db.execute(sql`SELECT id, email, name, company_name, phone, api_key, is_active, wallet_balance, created_at, plan FROM developer_users LIMIT 2000`).then(r => r.rows).catch(() => []),
     ]);
 
     const backup = {
       exportedAt: new Date().toISOString(),
-      version: '2.0',
+      version: '2.1',
       tables: {
         users: { count: userRows.length, data: userRows },
         transactions: { count: txRows.length, data: txRows },
@@ -5590,6 +5806,7 @@ router.get('/db/backup', adminAuthMiddleware, async (req: Request, res: Response
         bvnVerifications: { count: bvnRows.length, data: bvnRows },
         ninSlips: { count: ninSlipRows.length, data: ninSlipRows },
         adminUsers: { count: adminUserRows.length, data: adminUserRows },
+        developerUsers: { count: (developerUserRows as any[]).length, data: developerUserRows },
       },
     };
 

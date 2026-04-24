@@ -4,12 +4,27 @@ import { idempotencyMiddleware } from '../middleware/idempotency';
 import { walletService } from '../../services/walletService';
 import { vtpassService } from '../../services/vtpassService';
 import { airtimeNigeriaService } from '../../services/airtimeNigeriaService';
+import { vtuGateService } from '../../services/vtuGateService';
 import { dataBuySchema } from '../validators/vtu';
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { dataServices, scrapedDataPlans } from '../../db/schema';
+import { dataServices, scrapedDataPlans, adminSettings } from '../../db/schema';
 import { eq, desc, and } from 'drizzle-orm';
+
+async function getActiveDataProvider(): Promise<'airtimenigeria' | 'vtugate' | 'vtpass'> {
+  try {
+    const [row] = await db.select({ settingValue: adminSettings.settingValue })
+      .from(adminSettings).where(eq(adminSettings.settingKey, 'active_vtu_data')).limit(1);
+    const v = row?.settingValue;
+    if (v === 'vtugate' && await vtuGateService.isConfiguredAsync()) return 'vtugate';
+    if (v === 'airtimenigeria' && await airtimeNigeriaService.isConfiguredAsync()) return 'airtimenigeria';
+    if (v === 'vtpass' && vtpassService.isConfigured()) return 'vtpass';
+  } catch { /* fall through */ }
+  if (await airtimeNigeriaService.isConfiguredAsync()) return 'airtimenigeria';
+  if (await vtuGateService.isConfiguredAsync()) return 'vtugate';
+  return 'vtpass';
+}
 
 const router = Router();
 router.use(authMiddleware);
@@ -35,10 +50,11 @@ router.post('/buy', async (req: Request, res: Response) => {
 
     const { network, phoneNumber, planId, planName, amount } = validation.data;
 
-    const useAirtimeNigeria = await airtimeNigeriaService.isConfiguredAsync();
-    const useVtpass = vtpassService.isConfigured();
+    const activeProvider = await getActiveDataProvider();
+    const useAirtimeNigeria = activeProvider === 'airtimenigeria';
+    const useVtuGate = activeProvider === 'vtugate';
 
-    if (!useAirtimeNigeria && !useVtpass) {
+    if (!useAirtimeNigeria && !useVtuGate && !vtpassService.isConfigured()) {
       return res.status(503).json(formatErrorResponse(503, 'Data service is not configured. Please contact support.'));
     }
 
@@ -47,10 +63,10 @@ router.post('/buy', async (req: Request, res: Response) => {
       return res.status(402).json(formatErrorResponse(402, 'Insufficient wallet balance'));
     }
 
-    logger.info('Data purchase started', { userId: req.userId, network, planId, provider: useAirtimeNigeria ? 'AirtimeNigeria' : 'VTPass', phone: phoneNumber.substring(0, 4) + '***' });
+    logger.info('Data purchase started', { userId: req.userId, network, planId, provider: activeProvider, phone: phoneNumber.substring(0, 4) + '***' });
 
     const serviceID = NETWORK_SERVICE_IDS[network.toLowerCase()];
-    if (!serviceID && !useAirtimeNigeria) {
+    if (!serviceID && !useAirtimeNigeria && !useVtuGate) {
       return res.status(400).json(formatErrorResponse(400, 'Invalid network provider'));
     }
 
@@ -68,6 +84,8 @@ router.post('/buy', async (req: Request, res: Response) => {
         maxAmount: Math.ceil(amount * 1.05),
         callbackUrl: `${baseUrl}/api/webhooks/airtimenigeria`,
       });
+    } else if (useVtuGate) {
+      result = await vtuGateService.purchaseData({ network, phone: phoneNumber, planId, amount });
     } else {
       const vtResult = await vtpassService.purchaseData(phoneNumber, planId, amount, serviceID!);
       result = vtResult;
@@ -99,9 +117,10 @@ router.post('/buy', async (req: Request, res: Response) => {
       reference: result.reference,
       status: txStatus,
       transactionId: result.data?.transactionId || result.reference,
+      provider: activeProvider,
     });
 
-    logger.info('Data purchase successful', { userId: req.userId, reference: result.reference, provider: useAirtimeNigeria ? 'AirtimeNigeria' : 'VTPass' });
+    logger.info('Data purchase successful', { userId: req.userId, reference: result.reference, provider: activeProvider });
 
     res.json(formatResponse('success', 200, 'Data purchase successful', {
       reference: result.reference,

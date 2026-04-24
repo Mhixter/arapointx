@@ -82,6 +82,7 @@ import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminBVNServices from "@/pages/admin/AdminBVNServices";
 import AdminEducationServices from "@/pages/admin/AdminEducationServices";
 import AdminVTUServices from "@/pages/admin/AdminVTUServices";
+import AdminVTUMonitoring from "@/pages/admin/AdminVTUMonitoring";
 import AdminIdentityServices from "@/pages/admin/AdminIdentityServices";
 import AdminUserManagement from "@/pages/admin/AdminUserManagement";
 import AdminAnalytics from "@/pages/admin/AdminAnalytics";
@@ -176,6 +177,11 @@ function Router() {
       <Route path="/admin/vtu">
         <AdminCRUDLayout>
           <AdminVTUServices />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/vtu-monitoring">
+        <AdminCRUDLayout>
+          <AdminVTUMonitoring />
         </AdminCRUDLayout>
       </Route>
       <Route path="/admin/users">

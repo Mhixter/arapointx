@@ -5,14 +5,29 @@ import { ErrorCodes } from '../../utils/errorCodes';
 import { walletService } from '../../services/walletService';
 import { vtpassService } from '../../services/vtpassService';
 import { airtimeNigeriaService } from '../../services/airtimeNigeriaService';
+import { vtuGateService } from '../../services/vtuGateService';
 import { pricingService } from '../../services/pricingService';
 import { airtimeBuySchema } from '../validators/vtu';
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { airtimeServices, a2cRequests, a2cPhoneInventory, a2cAgents, a2cStatusHistory, users } from '../../db/schema';
+import { airtimeServices, a2cRequests, a2cPhoneInventory, a2cAgents, a2cStatusHistory, users, adminSettings } from '../../db/schema';
 import { whatsappService } from '../../services/whatsappService';
 import { eq, desc, and, sql, asc, gte, notInArray } from 'drizzle-orm';
+
+async function getActiveAirtimeProvider(): Promise<'airtimenigeria' | 'vtugate' | 'vtpass'> {
+  try {
+    const [row] = await db.select({ settingValue: adminSettings.settingValue })
+      .from(adminSettings).where(eq(adminSettings.settingKey, 'active_vtu_airtime')).limit(1);
+    const v = row?.settingValue;
+    if (v === 'vtugate' && await vtuGateService.isConfiguredAsync()) return 'vtugate';
+    if (v === 'airtimenigeria' && await airtimeNigeriaService.isConfiguredAsync()) return 'airtimenigeria';
+    if (v === 'vtpass' && vtpassService.isConfigured()) return 'vtpass';
+  } catch { /* fall through */ }
+  if (await airtimeNigeriaService.isConfiguredAsync()) return 'airtimenigeria';
+  if (await vtuGateService.isConfiguredAsync()) return 'vtugate';
+  return 'vtpass';
+}
 
 const router = Router();
 router.use(authMiddleware);
@@ -49,22 +64,24 @@ router.post('/buy', async (req: Request, res: Response) => {
 
     const { network, phoneNumber, amount } = validation.data;
 
-    const useAirtimeNigeria = await airtimeNigeriaService.isConfiguredAsync();
-    const useVtpass = vtpassService.isConfigured();
+    const activeProvider = await getActiveAirtimeProvider();
+    const useAirtimeNigeria = activeProvider === 'airtimenigeria';
+    const useVtuGate = activeProvider === 'vtugate';
+    const useVtpass = activeProvider === 'vtpass';
 
-    if (!useAirtimeNigeria && !useVtpass) {
+    if (!useAirtimeNigeria && !useVtuGate && !vtpassService.isConfigured()) {
       return res.status(503).json(formatErrorResponse(503, 'Airtime service is not configured. Please contact support.', undefined, ErrorCodes.SERVICE_UNAVAILABLE));
     }
 
     const balance = await walletService.getBalance(req.userId!);
-    // AirtimeNigeria: user pays full amount (no extra discount). VTPass: 2% discount already baked in.
-    const userChargedAmount = useAirtimeNigeria ? amount : amount * 0.98;
+    // AirtimeNigeria/VTUGate: user pays full amount. VTPass: 2% discount baked in.
+    const userChargedAmount = (useAirtimeNigeria || useVtuGate) ? amount : amount * 0.98;
 
     if (balance.balance < userChargedAmount) {
       return res.status(402).json(formatErrorResponse(402, 'Insufficient wallet balance', undefined, ErrorCodes.INSUFFICIENT_BALANCE));
     }
 
-    logger.info('Airtime purchase started', { userId: req.userId, network, amount, provider: useAirtimeNigeria ? 'AirtimeNigeria' : 'VTPass', phone: phoneNumber.substring(0, 4) + '***' });
+    logger.info('Airtime purchase started', { userId: req.userId, network, amount, provider: activeProvider, phone: phoneNumber.substring(0, 4) + '***' });
 
     // Deduct wallet BEFORE calling provider so a crash after provider succeeds cannot deliver for free
     const deduction = await walletService.deductBalance(req.userId!, userChargedAmount, `Airtime Purchase - ${network.toUpperCase()}`, 'airtime_purchase');
@@ -81,6 +98,8 @@ router.post('/buy', async (req: Request, res: Response) => {
         maxAmount: Math.ceil(amount * 1.05), // 5% buffer
         callbackUrl: `${baseUrl}/api/webhooks/airtimenigeria`,
       });
+    } else if (useVtuGate) {
+      result = await vtuGateService.purchaseAirtime({ network, phone: phoneNumber, amount });
     } else {
       const serviceID = NETWORK_SERVICE_IDS[network.toLowerCase()] || 'mtn';
       const vtResult = await vtpassService.purchaseAirtime(phoneNumber, amount, serviceID);
@@ -88,7 +107,7 @@ router.post('/buy', async (req: Request, res: Response) => {
     }
 
     if (!result.success) {
-      logger.warn('Airtime purchase failed — refunding wallet', { userId: req.userId, error: result.error });
+      logger.warn('Airtime purchase failed — refunding wallet', { userId: req.userId, error: result.error, provider: activeProvider });
       await walletService.refundBalance(req.userId!, userChargedAmount, deduction.reference).catch(
         refundErr => logger.error('CRITICAL: Airtime refund failed', { userId: req.userId, amount: userChargedAmount, error: refundErr.message })
       );
@@ -111,9 +130,10 @@ router.post('/buy', async (req: Request, res: Response) => {
       reference: result.reference,
       status: txStatus,
       transactionId: result.data?.transactionId || result.reference,
+      provider: activeProvider,
     });
 
-    logger.info('Airtime purchase successful', { userId: req.userId, reference: result.reference, provider: useAirtimeNigeria ? 'AirtimeNigeria' : 'VTPass' });
+    logger.info('Airtime purchase successful', { userId: req.userId, reference: result.reference, provider: activeProvider });
 
     res.json(formatResponse('success', 200, 'Airtime purchase successful', {
       reference: result.reference,

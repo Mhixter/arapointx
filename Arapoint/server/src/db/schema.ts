@@ -149,6 +149,7 @@ export const airtimeServices = pgTable('airtime_services', {
   transactionId: varchar('transaction_id', { length: 100 }).unique(),
   status: varchar('status', { length: 50 }),
   reference: varchar('reference', { length: 100 }),
+  provider: varchar('provider', { length: 50 }),
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => [
   index('airtime_user_idx').on(table.userId),
@@ -167,6 +168,7 @@ export const dataServices = pgTable('data_services', {
   transactionId: varchar('transaction_id', { length: 100 }).unique(),
   status: varchar('status', { length: 50 }),
   reference: varchar('reference', { length: 100 }),
+  provider: varchar('provider', { length: 50 }),
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => [
   index('data_svc_user_idx').on(table.userId),
@@ -183,6 +185,7 @@ export const electricityServices = pgTable('electricity_services', {
   transactionId: varchar('transaction_id', { length: 100 }).unique(),
   status: varchar('status', { length: 50 }),
   reference: varchar('reference', { length: 100 }),
+  provider: varchar('provider', { length: 50 }),
   createdAt: timestamp('created_at').defaultNow(),
 }, (table) => [
   index('elec_user_idx').on(table.userId),
