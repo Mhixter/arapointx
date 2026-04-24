@@ -98,24 +98,51 @@ class VTUGateService {
     }
   }
 
-  async fetchDataPlans(network: string): Promise<{ success: boolean; plans?: any[]; error?: string }> {
+  async fetchDataPlans(network: string): Promise<{ success: boolean; plans?: any[]; rawResponse?: any; error?: string }> {
     try {
       const headers = await this.buildHeaders();
-      const net = network.toLowerCase().replace('9mobile', 'etisalat');
+      // VTUGate accepts: mtn, airtel, glo, etisalat (for 9mobile)
+      const networkMap: Record<string, string> = {
+        '9mobile': 'etisalat',
+        'etisalat': 'etisalat',
+        'mtn': 'mtn',
+        'airtel': 'airtel',
+        'glo': 'glo',
+      };
+      const net = networkMap[network.toLowerCase()] || network.toLowerCase();
       const res = await axios.post<VTUGateResponse>(
         `${BASE_URL}/api/v1/fetchdataplans`,
         this.toFormBody({ network: net }),
         { headers, timeout: 15000 }
       );
       const d = res.data;
+      logger.info('VTUGate fetchDataPlans raw response', { network: net, status: d.status, keys: Object.keys(d || {}) });
       if (this.isOk(d.status)) {
-        const plans = Array.isArray(d.data) ? d.data : d.data?.plans || [];
-        return { success: true, plans };
+        // Handle multiple response shapes
+        let plans: any[] = [];
+        if (Array.isArray(d.data)) {
+          plans = d.data;
+        } else if (d.data && Array.isArray(d.data.plans)) {
+          plans = d.data.plans;
+        } else if (Array.isArray(d.plans)) {
+          plans = d.plans;
+        } else if (d.data && typeof d.data === 'object') {
+          // Data may be an object keyed by plan type
+          plans = Object.values(d.data).flat().filter(Array.isArray) as any[];
+          if (plans.length === 0) {
+            // Try direct object values if they look like plans
+            const vals = Object.values(d.data);
+            if (vals.every((v: any) => v && typeof v === 'object' && ('amount' in v || 'price' in v || 'plan' in v))) {
+              plans = vals as any[];
+            }
+          }
+        }
+        return { success: true, plans, rawResponse: d };
       }
-      return { success: false, error: d.message || 'Failed to fetch data plans' };
+      return { success: false, error: d.message || 'Failed to fetch data plans', rawResponse: d };
     } catch (err: any) {
-      logger.error('VTUGate fetchDataPlans error', { network, error: err.message });
-      return { success: false, error: err.response?.data?.message || err.message };
+      logger.error('VTUGate fetchDataPlans error', { network, error: err.message, responseData: err.response?.data });
+      return { success: false, error: err.response?.data?.message || err.message, rawResponse: err.response?.data };
     }
   }
 

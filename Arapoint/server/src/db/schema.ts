@@ -308,10 +308,11 @@ export const scrapedDataPlans = pgTable('scraped_data_plans', {
   sellingPrice: decimal('selling_price', { precision: 10, scale: 2 }).notNull(),
   resellerPrice: decimal('reseller_price', { precision: 10, scale: 2 }).default('0'),
   markupPercent: decimal('markup_percent', { precision: 5, scale: 2 }).default('0'),
+  provider: varchar('provider', { length: 50 }).default('airtimenigeria'),
   isActive: boolean('is_active').default(true),
   lastScrapedAt: timestamp('last_scraped_at').defaultNow(),
 }, (table) => ({
-  networkPlanUnique: unique('scraped_data_plans_network_plan_unique').on(table.network, table.planId),
+  networkPlanProviderUnique: unique('scraped_data_plans_network_plan_provider_unique').on(table.network, table.planId, table.provider),
 }));
 
 // CAC Service Types Catalog

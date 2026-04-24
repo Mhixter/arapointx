@@ -286,8 +286,18 @@ export default function AdminPricing() {
       const res = await fetch('/api/admin/vtugate/sync-plans', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (data.status === 'success') {
-        toast({ title: 'VTUGate Plans Synced', variant: 'success', description: data.message });
-        fetchVtugPlans();
+        const total = data.data?.total ?? 0;
+        const errors: string[] = data.data?.errors ?? [];
+        if (total > 0) {
+          toast({ title: 'VTUGate Plans Synced', variant: 'success', description: data.message });
+          fetchVtugPlans();
+        } else {
+          // Show detailed debug info when 0 plans are returned
+          const debugMsg = errors.length > 0
+            ? `0 plans synced. API response details: ${errors.join(' | ')}`
+            : data.message;
+          toast({ title: 'VTUGate Sync: 0 Plans', description: debugMsg, variant: 'destructive', duration: 20000 });
+        }
       } else {
         toast({ title: 'Sync Failed', description: data.message, variant: 'destructive', duration: 10000 });
       }

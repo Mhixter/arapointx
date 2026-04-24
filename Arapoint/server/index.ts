@@ -157,6 +157,39 @@ async function pollPendingVtu(): Promise<void> {
 }
 
 (async () => {
+  // Run startup schema migrations (safe, idempotent)
+  await (async () => {
+    try {
+      const { db: _db } = await import('./src/config/database');
+      const { sql: _sql } = await import('drizzle-orm');
+      // Add provider column if missing (default = airtimenigeria for all existing plans)
+      await _db.execute(_sql`
+        ALTER TABLE scraped_data_plans
+        ADD COLUMN IF NOT EXISTS provider VARCHAR(50) NOT NULL DEFAULT 'airtimenigeria'
+      `);
+      // Drop old unique constraint if it exists (network+plan_id only — no provider)
+      await _db.execute(_sql`
+        ALTER TABLE scraped_data_plans
+        DROP CONSTRAINT IF EXISTS scraped_data_plans_network_plan_unique
+      `);
+      // Add new unique constraint (network+plan_id+provider) if not exists
+      await _db.execute(_sql`
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'scraped_data_plans_network_plan_provider_unique'
+          ) THEN
+            ALTER TABLE scraped_data_plans
+            ADD CONSTRAINT scraped_data_plans_network_plan_provider_unique
+            UNIQUE (network, plan_id, provider);
+          END IF;
+        END $$
+      `);
+      console.log('[Migration] scraped_data_plans provider column ready');
+    } catch (err: any) {
+      console.warn('[Migration] scraped_data_plans migration skipped:', err.message);
+    }
+  })();
+
   await seedPricing().catch(err => console.log('Pricing seed skipped:', err.message));
   await seedAdmin().catch(err => console.log('Admin seed skipped:', err.message));
   await loadGatewayCredentials().catch(err => console.log('Gateway credentials load skipped:', err.message));

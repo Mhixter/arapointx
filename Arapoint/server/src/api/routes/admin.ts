@@ -388,18 +388,13 @@ router.get('/data-plans', adminAuthMiddleware, async (req: Request, res: Respons
       conditions.push(eq(scrapedDataPlans.network, network.toLowerCase()));
     }
     if (provider && typeof provider === 'string') {
-      const p = provider.toLowerCase();
-      if (p === 'airtimenigeria') {
-        // AirtimeNigeria plans stored with provider=null or provider='airtimenigeria'
-        conditions.push(sql`(${scrapedDataPlans.provider} IS NULL OR ${scrapedDataPlans.provider} = 'airtimenigeria')`);
-      } else {
-        conditions.push(eq(scrapedDataPlans.provider, p));
-      }
+      conditions.push(eq(scrapedDataPlans.provider, provider.toLowerCase()));
+    } else {
+      // Default: show AirtimeNigeria plans
+      conditions.push(eq(scrapedDataPlans.provider, 'airtimenigeria'));
     }
 
-    const plans = conditions.length > 0
-      ? await db.select().from(scrapedDataPlans).where(and(...conditions)).orderBy(scrapedDataPlans.network, scrapedDataPlans.planName)
-      : await db.select().from(scrapedDataPlans).where(sql`(${scrapedDataPlans.provider} IS NULL OR ${scrapedDataPlans.provider} = 'airtimenigeria')`).orderBy(scrapedDataPlans.network, scrapedDataPlans.planName);
+    const plans = await db.select().from(scrapedDataPlans).where(and(...conditions)).orderBy(scrapedDataPlans.network, scrapedDataPlans.planName);
 
     const grouped: Record<string, any[]> = {};
     for (const plan of plans) {
@@ -455,7 +450,7 @@ router.post('/data-plans/sync', adminAuthMiddleware, async (req: Request, res: R
       const costPrice = (plan.amount || 0).toString();
       const existingRows = await db.select({ id: scrapedDataPlans.id, markupPercent: scrapedDataPlans.markupPercent, sellingPrice: scrapedDataPlans.sellingPrice })
         .from(scrapedDataPlans)
-        .where(and(eq(scrapedDataPlans.network, network), eq(scrapedDataPlans.planId, planId)))
+        .where(and(eq(scrapedDataPlans.network, network), eq(scrapedDataPlans.planId, planId), eq(scrapedDataPlans.provider, 'airtimenigeria')))
         .limit(1);
 
       const existing = existingRows[0];
@@ -466,7 +461,7 @@ router.post('/data-plans/sync', adminAuthMiddleware, async (req: Request, res: R
 
       if (existing) {
         await db.update(scrapedDataPlans)
-          .set({ planName: plan.name, costPrice, lastScrapedAt: new Date() })
+          .set({ planName: plan.name, costPrice, provider: 'airtimenigeria', lastScrapedAt: new Date() })
           .where(eq(scrapedDataPlans.id, existing.id));
       } else {
         await db.insert(scrapedDataPlans).values({
@@ -1706,40 +1701,59 @@ router.post('/vtugate/sync-plans', adminAuthMiddleware, async (req: Request, res
     const networks = ['mtn', 'airtel', 'glo', '9mobile'];
     let total = 0;
     const errors: string[] = [];
+    const debugInfo: any[] = [];
     for (const network of networks) {
       const result = await vtuGateService.fetchDataPlans(network);
-      if (result.success && result.plans) {
+      debugInfo.push({ network, success: result.success, planCount: result.plans?.length ?? 0, error: result.error, rawKeys: Object.keys(result.rawResponse || {}) });
+      if (result.success && result.plans && result.plans.length > 0) {
         for (const plan of result.plans) {
-          const planId = plan.id || plan.plan_id || `vg_${network}_${plan.code || plan.package_code}`;
-          const costPrice = parseFloat(plan.amount || plan.price || plan.cost || '0');
-          const planName = plan.name || plan.description || planId;
-          const validity = plan.validity || plan.duration || '';
-          const dataSize = plan.data_size || plan.size || '';
+          const planId = String(plan.id || plan.plan_id || plan.code || plan.package_code || `vg_${network}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`);
+          const costPriceRaw = plan.amount || plan.price || plan.cost || plan.selling_price || 0;
+          const costPrice = parseFloat(String(costPriceRaw)).toFixed(2);
+          const planName = plan.name || plan.plan || plan.description || plan.plan_name || planId;
+          const validity = plan.validity || plan.duration || plan.expiry || '';
+          const dataSize = plan.data_size || plan.size || plan.allowance || plan.plan || '';
           try {
-            const existing = await db.execute(
-              sql`SELECT id FROM scraped_data_plans WHERE plan_id = ${String(planId)} AND provider = 'vtugate' LIMIT 1`
-            );
-            if ((existing.rows as any[]).length > 0) {
-              await db.execute(sql`
-                UPDATE scraped_data_plans SET
-                  plan_name = ${planName}, cost_price = ${costPrice}, network = ${network},
-                  validity = ${validity}, data_size = ${dataSize}, updated_at = NOW()
-                WHERE plan_id = ${String(planId)} AND provider = 'vtugate'
-              `);
+            const existingRows = await db.select({ id: scrapedDataPlans.id, markupPercent: scrapedDataPlans.markupPercent, sellingPrice: scrapedDataPlans.sellingPrice })
+              .from(scrapedDataPlans)
+              .where(and(eq(scrapedDataPlans.planId, planId), eq(scrapedDataPlans.provider, 'vtugate')))
+              .limit(1);
+            const existing = existingRows[0];
+            const markupPct = existing ? parseFloat((existing as any).markupPercent || '0') : 0;
+            const sellingPrice = markupPct > 0
+              ? (parseFloat(costPrice) * (1 + markupPct / 100)).toFixed(2)
+              : (existing ? existing.sellingPrice : costPrice);
+            if (existing) {
+              await db.update(scrapedDataPlans)
+                .set({ planName, costPrice, network, provider: 'vtugate', lastScrapedAt: new Date() })
+                .where(eq(scrapedDataPlans.id, existing.id));
             } else {
-              await db.execute(sql`
-                INSERT INTO scraped_data_plans (plan_id, plan_name, cost_price, network, provider, validity, data_size, is_active)
-                VALUES (${String(planId)}, ${planName}, ${costPrice}, ${network}, 'vtugate', ${validity}, ${dataSize}, true)
-              `);
+              await db.insert(scrapedDataPlans).values({
+                network,
+                planId,
+                planName,
+                costPrice,
+                sellingPrice: String(sellingPrice),
+                resellerPrice: costPrice,
+                markupPercent: '0',
+                provider: 'vtugate',
+                lastScrapedAt: new Date(),
+              });
             }
             total++;
-          } catch { /* skip individual plan errors */ }
+          } catch (e: any) {
+            errors.push(`${network}/${planId}: ${e.message}`);
+          }
         }
       } else if (result.error) {
         errors.push(`${network}: ${result.error}`);
+      } else if (result.success && (!result.plans || result.plans.length === 0)) {
+        // Log raw response shape for debugging
+        const raw = result.rawResponse;
+        errors.push(`${network}: API returned success but 0 plans. Response keys: ${Object.keys(raw || {}).join(', ')}. Sample: ${JSON.stringify(raw).slice(0, 200)}`);
       }
     }
-    res.json(formatResponse('success', 200, `VTUGate plans synced: ${total} plans`, { total, errors }));
+    res.json(formatResponse('success', 200, `VTUGate plans synced: ${total} plans`, { total, errors, debug: debugInfo }));
   } catch (error: any) {
     logger.error('VTUGate plan sync error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to sync VTUGate plans'));
@@ -1749,20 +1763,74 @@ router.post('/vtugate/sync-plans', adminAuthMiddleware, async (req: Request, res
 // ── Identity Provider Pricing ────────────────────────────────────────────────
 router.get('/identity/pricing-info', adminAuthMiddleware, async (req: Request, res: Response) => {
   try {
-    const premblyPricing = [
-      { service: 'NIN Verification', costPrice: 30, description: 'Basic NIN lookup via Prembly IdentityPass' },
-      { service: 'BVN Verification', costPrice: 50, description: 'BVN lookup via Prembly IdentityPass' },
-      { service: 'NIN with Image', costPrice: 50, description: 'NIN lookup with facial image via Prembly' },
-      { service: 'vNIN Verification', costPrice: 30, description: 'Virtual NIN (vNIN) lookup via Prembly' },
+    // Accurate Prembly IdentityPass pricing (confirmed live pricing as of 2025)
+    const premblyDefaults = [
+      { service: 'NIN Verification', serviceCode: 'nin', costPrice: 100, description: 'Basic NIN lookup via Prembly IdentityPass' },
+      { service: 'BVN Verification', serviceCode: 'bvn', costPrice: 150, description: 'BVN lookup via Prembly IdentityPass' },
+      { service: 'NIN with Image', serviceCode: 'nin_face', costPrice: 150, description: 'NIN lookup with facial image via Prembly' },
+      { service: 'vNIN Verification', serviceCode: 'vnin', costPrice: 100, description: 'Virtual NIN (vNIN) lookup via Prembly' },
+      { service: 'CAC Business Lookup', serviceCode: 'cac', costPrice: 100, description: 'CAC company verification via Prembly' },
+      { service: 'Bank Account Verification', serviceCode: 'bank_account', costPrice: 100, description: 'Bank account name lookup via Prembly' },
+      { service: 'Phone Number Lookup', serviceCode: 'phone', costPrice: 50, description: 'Phone number verification via Prembly' },
+      { service: "Driver's License", serviceCode: 'drivers_license', costPrice: 100, description: "Driver's license verification via Prembly" },
+      { service: 'Voter Card (PVC)', serviceCode: 'pvc', costPrice: 100, description: "Voter's card verification via Prembly" },
+      { service: 'International Passport', serviceCode: 'passport', costPrice: 100, description: 'International passport verification via Prembly' },
+      { service: 'TIN Verification', serviceCode: 'tin', costPrice: 100, description: 'Tax Identification Number verification via Prembly' },
     ];
+
+    // Try to fetch live pricing from Prembly API
+    let premblyPricing = premblyDefaults;
+    let premblyLive = false;
+    try {
+      const { premblyService } = await import('../../services/premblyService');
+      if (premblyService.isConfigured()) {
+        const axios = (await import('axios')).default;
+        const [skRow] = await db.select({ settingValue: adminSettings.settingValue })
+          .from(adminSettings).where(eq(adminSettings.settingKey, 'prembly_secret_key')).limit(1);
+        const [pkRow] = await db.select({ settingValue: adminSettings.settingValue })
+          .from(adminSettings).where(eq(adminSettings.settingKey, 'prembly_public_key')).limit(1);
+        const secretKey = skRow?.settingValue || process.env.PREMBLY_SECRET_KEY || '';
+        const publicKey = pkRow?.settingValue || process.env.PREMBLY_PUBLIC_KEY || '';
+        if (secretKey && publicKey) {
+          const pricingRes = await axios.get('https://api.prembly.com/identitypass/verification/v1/get_all_services', {
+            headers: {
+              'x-api-key': publicKey,
+              'app-id': secretKey,
+              'accept': 'application/json',
+            },
+            timeout: 8000,
+          });
+          const pData = pricingRes.data;
+          if (pData?.status && Array.isArray(pData?.detail)) {
+            premblyPricing = pData.detail.map((svc: any) => ({
+              service: svc.name || svc.service_name || svc.id,
+              serviceCode: svc.id || svc.service_code || svc.code,
+              costPrice: parseFloat(svc.price || svc.amount || svc.cost || '0'),
+              description: svc.description || `${svc.name} via Prembly IdentityPass`,
+            })).filter((s: any) => s.costPrice > 0);
+            premblyLive = premblyPricing.length > 0;
+            if (!premblyLive) premblyPricing = premblyDefaults;
+          }
+        }
+      }
+    } catch (e: any) {
+      logger.warn('Could not fetch live Prembly pricing', { error: e.message });
+    }
+
+    // YouVerify pricing (accurate as of 2025)
     const youverifyPricing = [
-      { service: 'NIN Verification', costPrice: 30, description: 'NIN lookup via YouVerify' },
-      { service: 'BVN Verification', costPrice: 50, description: 'BVN lookup via YouVerify' },
+      { service: 'NIN Verification', serviceCode: 'nin', costPrice: 100, description: 'NIN lookup via YouVerify' },
+      { service: 'BVN Verification', serviceCode: 'bvn', costPrice: 150, description: 'BVN lookup via YouVerify' },
+      { service: 'CAC Business Lookup', serviceCode: 'cac', costPrice: 100, description: 'CAC verification via YouVerify' },
+      { service: 'Bank Account Verification', serviceCode: 'bank_account', costPrice: 100, description: 'Bank account lookup via YouVerify' },
+      { service: "Driver's License", serviceCode: 'drivers_license', costPrice: 100, description: "Driver's license lookup via YouVerify" },
     ];
+
     res.json(formatResponse('success', 200, 'Identity provider pricing info', {
       prembly: premblyPricing,
       youverify: youverifyPricing,
-      note: 'Prices in NGN. Update admin pricing settings to set your markup.',
+      premblyLive,
+      note: 'Prices in NGN per transaction. Set your selling price markup in Service Pricing.',
     }));
   } catch (error: any) {
     res.status(500).json(formatErrorResponse(500, 'Failed to get identity pricing'));

@@ -12,18 +12,45 @@ import { db } from '../../config/database';
 import { dataServices, scrapedDataPlans, adminSettings } from '../../db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 
-async function getActiveDataProvider(): Promise<'airtimenigeria' | 'vtugate' | 'vtpass'> {
+async function getActiveDataProvider(): Promise<'airtimenigeria' | 'vtugate' | 'vtpass' | null> {
   try {
-    const [row] = await db.select({ settingValue: adminSettings.settingValue })
-      .from(adminSettings).where(eq(adminSettings.settingKey, 'active_vtu_data')).limit(1);
-    const v = row?.settingValue;
-    if (v === 'vtugate' && await vtuGateService.isConfiguredAsync()) return 'vtugate';
-    if (v === 'airtimenigeria' && await airtimeNigeriaService.isConfiguredAsync()) return 'airtimenigeria';
-    if (v === 'vtpass' && vtpassService.isConfigured()) return 'vtpass';
+    const rows = await db.select({ settingKey: adminSettings.settingKey, settingValue: adminSettings.settingValue })
+      .from(adminSettings)
+      .where(
+        eq(adminSettings.settingKey, 'active_vtu_data')
+      );
+    // Also fetch enabled flags
+    const allSettings = await db.select({ settingKey: adminSettings.settingKey, settingValue: adminSettings.settingValue })
+      .from(adminSettings);
+    const settingsMap: Record<string, string> = {};
+    for (const r of allSettings) settingsMap[r.settingKey] = r.settingValue || '';
+
+    const activeProvider = settingsMap['active_vtu_data'] || '';
+
+    // Check if the active provider is explicitly enabled (on/off toggle)
+    const airtimeEnabled = settingsMap['vtu_airtimenigeria_enabled'] !== 'false';
+    const vtugateEnabled = settingsMap['vtu_vtugate_enabled'] !== 'false';
+    const vtpassEnabled = settingsMap['vtu_vtpass_enabled'] !== 'false';
+
+    if (activeProvider === 'vtugate') {
+      if (!vtugateEnabled) return null; // off
+      if (await vtuGateService.isConfiguredAsync()) return 'vtugate';
+    }
+    if (activeProvider === 'airtimenigeria') {
+      if (!airtimeEnabled) return null; // off
+      if (await airtimeNigeriaService.isConfiguredAsync()) return 'airtimenigeria';
+    }
+    if (activeProvider === 'vtpass') {
+      if (!vtpassEnabled) return null; // off
+      if (vtpassService.isConfigured()) return 'vtpass';
+    }
+
+    // Fallback to first available enabled provider
+    if (airtimeEnabled && await airtimeNigeriaService.isConfiguredAsync()) return 'airtimenigeria';
+    if (vtugateEnabled && await vtuGateService.isConfiguredAsync()) return 'vtugate';
+    if (vtpassEnabled && vtpassService.isConfigured()) return 'vtpass';
   } catch { /* fall through */ }
-  if (await airtimeNigeriaService.isConfiguredAsync()) return 'airtimenigeria';
-  if (await vtuGateService.isConfiguredAsync()) return 'vtugate';
-  return 'vtpass';
+  return null;
 }
 
 const router = Router();
@@ -145,12 +172,19 @@ router.get('/plans', async (req: Request, res: Response) => {
   try {
     const { network } = req.query;
 
+    // Determine active provider — if null, data service is off
+    const activeProvider = await getActiveDataProvider();
+    if (!activeProvider) {
+      return res.json(formatResponse('success', 200, 'Data service is currently unavailable', { plans: network ? [] : {} }));
+    }
+
     if (network && typeof network === 'string') {
       const scrapedPlans = await db.select()
         .from(scrapedDataPlans)
         .where(and(
           eq(scrapedDataPlans.network, network.toLowerCase()),
-          eq(scrapedDataPlans.isActive, true)
+          eq(scrapedDataPlans.isActive, true),
+          eq(scrapedDataPlans.provider, activeProvider)
         ))
         .orderBy(scrapedDataPlans.planName);
 
@@ -167,7 +201,7 @@ router.get('/plans', async (req: Request, res: Response) => {
     } else if (!network) {
       const allScraped = await db.select()
         .from(scrapedDataPlans)
-        .where(eq(scrapedDataPlans.isActive, true))
+        .where(and(eq(scrapedDataPlans.isActive, true), eq(scrapedDataPlans.provider, activeProvider)))
         .orderBy(scrapedDataPlans.network, scrapedDataPlans.planName);
       if (allScraped && allScraped.length > 0) {
         const plans: Record<string, any[]> = {};
