@@ -1698,21 +1698,35 @@ router.post('/vtugate/sync-plans', adminAuthMiddleware, async (req: Request, res
     if (!await vtuGateService.isConfiguredAsync()) {
       return res.status(400).json(formatErrorResponse(400, 'VTUGate API key not configured'));
     }
-    const networks = ['mtn', 'airtel', 'glo', '9mobile'];
+    // Step 1: Fetch all data services to get numeric service_ids + network names
+    const servicesResult = await vtuGateService.fetchServicesByType('data');
+    if (!servicesResult.success || !servicesResult.services || servicesResult.services.length === 0) {
+      return res.json(formatResponse('success', 200,
+        `VTUGate: Could not fetch data services. ${servicesResult.error || 'No services returned'}`,
+        { total: 0, errors: [servicesResult.error || 'fetchservices returned empty list'] }
+      ));
+    }
+
+    const services = servicesResult.services;
+    logger.info('VTUGate data services fetched', { count: services.length, services: services.map(s => ({ id: s.service_id, name: s.network_name })) });
+
     let total = 0;
     const errors: string[] = [];
-    const debugInfo: any[] = [];
-    for (const network of networks) {
-      const result = await vtuGateService.fetchDataPlans(network);
-      debugInfo.push({ network, success: result.success, planCount: result.plans?.length ?? 0, error: result.error, rawKeys: Object.keys(result.rawResponse || {}) });
+
+    // Step 2: For each service, fetch its data plans
+    for (const svc of services) {
+      const result = await vtuGateService.fetchDataPlansByServiceId(svc.service_id);
+
+      // Normalize network name: "MTN" → "mtn", "9mobile" / "etisalat" → "9mobile"
+      const rawNet = (svc.network_name || '').toLowerCase().trim();
+      const network = rawNet === 'etisalat' ? '9mobile' : rawNet.replace(/\s+/g, '_');
+
       if (result.success && result.plans && result.plans.length > 0) {
         for (const plan of result.plans) {
-          const planId = String(plan.id || plan.plan_id || plan.code || plan.package_code || `vg_${network}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`);
+          const planId = String(plan.id || plan.plan_id || plan.code || plan.package_code || `vg_${svc.service_id}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`);
           const costPriceRaw = plan.amount || plan.price || plan.cost || plan.selling_price || 0;
           const costPrice = parseFloat(String(costPriceRaw)).toFixed(2);
           const planName = plan.name || plan.plan || plan.description || plan.plan_name || planId;
-          const validity = plan.validity || plan.duration || plan.expiry || '';
-          const dataSize = plan.data_size || plan.size || plan.allowance || plan.plan || '';
           try {
             const existingRows = await db.select({ id: scrapedDataPlans.id, markupPercent: scrapedDataPlans.markupPercent, sellingPrice: scrapedDataPlans.sellingPrice })
               .from(scrapedDataPlans)
@@ -1729,15 +1743,10 @@ router.post('/vtugate/sync-plans', adminAuthMiddleware, async (req: Request, res
                 .where(eq(scrapedDataPlans.id, existing.id));
             } else {
               await db.insert(scrapedDataPlans).values({
-                network,
-                planId,
-                planName,
-                costPrice,
+                network, planId, planName, costPrice,
                 sellingPrice: String(sellingPrice),
-                resellerPrice: costPrice,
-                markupPercent: '0',
-                provider: 'vtugate',
-                lastScrapedAt: new Date(),
+                resellerPrice: costPrice, markupPercent: '0',
+                provider: 'vtugate', lastScrapedAt: new Date(),
               });
             }
             total++;
@@ -1745,15 +1754,13 @@ router.post('/vtugate/sync-plans', adminAuthMiddleware, async (req: Request, res
             errors.push(`${network}/${planId}: ${e.message}`);
           }
         }
-      } else if (result.error) {
-        errors.push(`${network}: ${result.error}`);
-      } else if (result.success && (!result.plans || result.plans.length === 0)) {
-        // Log raw response shape for debugging
+      } else {
         const raw = result.rawResponse;
-        errors.push(`${network}: API returned success but 0 plans. Response keys: ${Object.keys(raw || {}).join(', ')}. Sample: ${JSON.stringify(raw).slice(0, 200)}`);
+        const detail = result.error || (raw ? `keys: ${Object.keys(raw).join(',')} sample: ${JSON.stringify(raw).slice(0, 120)}` : 'no response');
+        errors.push(`service_id=${svc.service_id} (${svc.network_name}): ${detail}`);
       }
     }
-    res.json(formatResponse('success', 200, `VTUGate plans synced: ${total} plans`, { total, errors, debug: debugInfo }));
+    res.json(formatResponse('success', 200, `VTUGate plans synced: ${total} plans from ${services.length} services`, { total, errors, servicesFound: services.length }));
   } catch (error: any) {
     logger.error('VTUGate plan sync error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to sync VTUGate plans'));

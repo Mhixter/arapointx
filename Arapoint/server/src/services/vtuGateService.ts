@@ -4,7 +4,7 @@ import { db } from '../config/database';
 import { adminSettings } from '../db/schema';
 import { eq } from 'drizzle-orm';
 
-const BASE_URL = 'https://vtugate.com';
+const BASE_URL = 'https://api.vtugate.com';
 
 interface VTUGateResponse {
   status: boolean | string | number;
@@ -79,17 +79,20 @@ class VTUGateService {
     return s === 'success' || s === 'true' || s === '1' || s === 'ok';
   }
 
-  async fetchServices(): Promise<{ success: boolean; data?: any; error?: string }> {
+  // Fetch all services of a given type (airtime, data, tv, electricity, education)
+  async fetchServicesByType(serviceType: string): Promise<{ success: boolean; services?: Array<{ service_id: number; network_name: string; provider: string }>; error?: string }> {
     try {
       const headers = await this.buildHeaders();
       const res = await axios.post<VTUGateResponse>(
         `${BASE_URL}/api/v1/fetchservices`,
-        this.toFormBody({}),
+        this.toFormBody({ service_type: serviceType }),
         { headers, timeout: 15000 }
       );
       const d = res.data;
+      logger.info('VTUGate fetchServices response', { serviceType, status: d.status, count: Array.isArray(d.data) ? d.data.length : 0 });
       if (this.isOk(d.status)) {
-        return { success: true, data: d.data || d };
+        const services = Array.isArray(d.data) ? d.data : [];
+        return { success: true, services };
       }
       return { success: false, error: d.message || 'Failed to fetch services' };
     } catch (err: any) {
@@ -98,72 +101,57 @@ class VTUGateService {
     }
   }
 
-  private extractPlansFromResponse(d: any): any[] {
-    if (!d) return [];
-    if (Array.isArray(d.data)) return d.data;
-    if (d.data && Array.isArray(d.data.plans)) return d.data.plans;
-    if (Array.isArray(d.plans)) return d.plans;
-    if (Array.isArray(d.result)) return d.result;
-    if (d.data && typeof d.data === 'object') {
-      const vals = Object.values(d.data);
-      // If all values are arrays, flatten them (keyed by plan type)
-      if (vals.every(v => Array.isArray(v))) {
-        return (vals as any[][]).flat();
+  // Fetch data plans for a specific service_id (numeric ID from fetchServices)
+  async fetchDataPlansByServiceId(serviceId: number): Promise<{ success: boolean; plans?: any[]; rawResponse?: any; error?: string }> {
+    try {
+      const headers = await this.buildHeaders();
+      const res = await axios.post<VTUGateResponse>(
+        `${BASE_URL}/api/v1/fetchdataplans`,
+        this.toFormBody({ service_id: serviceId }),
+        { headers, timeout: 15000 }
+      );
+      const d = res.data;
+      logger.info('VTUGate fetchDataPlans response', { serviceId, status: d.status, dataType: typeof d.data, isArray: Array.isArray(d.data), count: Array.isArray(d.data) ? d.data.length : 0 });
+      if (this.isOk(d.status)) {
+        let plans: any[] = [];
+        if (Array.isArray(d.data)) {
+          plans = d.data;
+        } else if (d.data && Array.isArray(d.data.plans)) {
+          plans = d.data.plans;
+        } else if (Array.isArray(d.plans)) {
+          plans = d.plans;
+        }
+        return { success: true, plans, rawResponse: d };
       }
-      // If all values look like plan objects
-      if (vals.every((v: any) => v && typeof v === 'object' && ('amount' in v || 'price' in v || 'plan' in v || 'name' in v))) {
-        return vals as any[];
-      }
+      return { success: false, error: d.message || 'Failed to fetch data plans', rawResponse: d };
+    } catch (err: any) {
+      logger.error('VTUGate fetchDataPlansByServiceId error', { serviceId, error: err.message });
+      return { success: false, error: err.response?.data?.message || err.message, rawResponse: err.response?.data };
     }
-    return [];
   }
 
+  // Legacy method — kept for backward compatibility with purchase endpoints
   async fetchDataPlans(network: string): Promise<{ success: boolean; plans?: any[]; rawResponse?: any; error?: string }> {
-    const networkMap: Record<string, string[]> = {
-      '9mobile': ['etisalat', '9mobile', '9MOBILE', 'ETISALAT'],
-      'mtn': ['mtn', 'MTN'],
-      'airtel': ['airtel', 'AIRTEL'],
-      'glo': ['glo', 'GLO'],
-    };
-    const net = networkMap[network.toLowerCase()]?.[0] || network.toLowerCase();
-
-    // Try multiple endpoint variants — VTUGate API path may vary
-    const attempts = [
-      { method: 'GET' as const, url: `${BASE_URL}/api/v1/data-plans`, params: { network: net } },
-      { method: 'GET' as const, url: `${BASE_URL}/api/v1/data-plans`, params: { network: net.toUpperCase() } },
-      { method: 'POST' as const, url: `${BASE_URL}/api/v1/data-plans`, body: this.toFormBody({ network: net }) },
-      { method: 'GET' as const, url: `${BASE_URL}/api/v1/fetchdataplans`, params: { network: net } },
-      { method: 'POST' as const, url: `${BASE_URL}/api/v1/get-data-plans`, body: this.toFormBody({ network: net }) },
-      { method: 'GET' as const, url: `${BASE_URL}/api/v1/get-data-plans`, params: { network: net } },
-    ];
-
-    const headers = await this.buildHeaders();
-    const getHeaders = { ...headers, 'Content-Type': 'application/json' };
-
-    let lastError = '';
-    for (const attempt of attempts) {
-      try {
-        let res;
-        if (attempt.method === 'GET') {
-          res = await axios.get(attempt.url, { headers: getHeaders, params: attempt.params, timeout: 12000 });
-        } else {
-          res = await axios.post(attempt.url, attempt.body, { headers, timeout: 12000 });
+    // For purchase-time lookups, try fetching all data services and find by network name
+    try {
+      const servicesResult = await this.fetchServicesByType('data');
+      if (servicesResult.success && servicesResult.services) {
+        const normalizedNetwork = network.toLowerCase().replace('9mobile', 'etisalat');
+        const matched = servicesResult.services.filter(s =>
+          s.network_name.toLowerCase().includes(normalizedNetwork) ||
+          normalizedNetwork.includes(s.network_name.toLowerCase())
+        );
+        if (matched.length > 0) {
+          const allPlans: any[] = [];
+          for (const svc of matched) {
+            const result = await this.fetchDataPlansByServiceId(svc.service_id);
+            if (result.success && result.plans) allPlans.push(...result.plans);
+          }
+          return { success: true, plans: allPlans };
         }
-        const d = res.data;
-        logger.info('VTUGate fetchDataPlans attempt', { url: attempt.url, method: attempt.method, network: net, status: d?.status, keys: Object.keys(d || {}) });
-        if (this.isOk(d?.status)) {
-          const plans = this.extractPlansFromResponse(d);
-          return { success: true, plans, rawResponse: d };
-        }
-        lastError = d?.message || `Non-success status: ${d?.status}`;
-      } catch (err: any) {
-        const code = err.response?.status;
-        lastError = `${attempt.method} ${attempt.url}: ${code || err.message}`;
-        if (code && code !== 404 && code !== 405) break; // Only retry on 404/405
       }
-    }
-    logger.error('VTUGate fetchDataPlans all attempts failed', { network, lastError });
-    return { success: false, error: lastError };
+    } catch { /* fall through */ }
+    return { success: false, error: 'No data services found for network: ' + network };
   }
 
   async purchaseAirtime(params: {
