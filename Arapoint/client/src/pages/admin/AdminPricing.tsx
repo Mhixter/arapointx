@@ -361,8 +361,21 @@ export default function AdminPricing() {
     finally { setIdentityCostsLoading(false); }
   };
 
+  const fetchGatewayStatus = async () => {
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/admin/payment-gateways/status', { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setIsConfigured(!!(data.data.gateways?.airtimenigeria?.configured));
+        setVtugConfigured(!!(data.data.gateways?.vtugate?.configured));
+      }
+    } catch (e) { console.error('Failed to fetch gateway status', e); }
+  };
+
   useEffect(() => {
     fetchPricing();
+    fetchGatewayStatus();
   }, []);
 
   const fetchPricing = async () => {
@@ -582,7 +595,7 @@ export default function AdminPricing() {
       <Tabs defaultValue="services">
         <TabsList className="mb-4 flex-wrap h-auto gap-1">
           <TabsTrigger value="services">Service Pricing</TabsTrigger>
-          <TabsTrigger value="data-plans" onClick={() => { if (Object.keys(dataPlans).length === 0) fetchDataPlans(); }}>
+          <TabsTrigger value="data-plans" onClick={() => { fetchGatewayStatus(); if (Object.keys(dataPlans).length === 0) fetchDataPlans(); }}>
             Data Plans
           </TabsTrigger>
           <TabsTrigger value="identity-costs" onClick={() => { if (!identityCosts) fetchIdentityCosts(); }}>
