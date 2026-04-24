@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Edit, Save, X, DollarSign, TrendingUp, Layers, AlertCircle, Loader2, Plus, Trash2, RefreshCw, Download, Wifi, WifiOff, Percent } from "lucide-react";
+import { Edit, Save, X, DollarSign, TrendingUp, Layers, AlertCircle, Loader2, Plus, Trash2, RefreshCw, Download, Wifi, WifiOff, Percent, ShieldCheck, Database } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -139,6 +139,21 @@ export default function AdminPricing() {
   const [bulkMarkup, setBulkMarkup] = useState<Record<string, string>>({});
   const [applyingBulk, setApplyingBulk] = useState<string | null>(null);
 
+  // VTUGate plans tab state
+  const [vtugPlans, setVtugPlans] = useState<Record<string, DataPlan[]>>({});
+  const [vtugLoading, setVtugLoading] = useState(false);
+  const [vtugSyncing, setVtugSyncing] = useState(false);
+  const [vtugConfigured, setVtugConfigured] = useState(false);
+  const [vtugNetwork, setVtugNetwork] = useState('mtn');
+  const [vtugBulkMarkup, setVtugBulkMarkup] = useState<Record<string, string>>({});
+  const [vtugApplyingBulk, setVtugApplyingBulk] = useState<string | null>(null);
+  const [vtugEditingId, setVtugEditingId] = useState<string | null>(null);
+  const [vtugEditForm, setVtugEditForm] = useState<{ planName: string; costPrice: string; sellingPrice: string; markupPercent: string } | null>(null);
+
+  // Identity costs tab state
+  const [identityCosts, setIdentityCosts] = useState<{ prembly: { service: string; costPrice: number; description: string }[]; youverify: { service: string; costPrice: number; description: string }[]; note: string } | null>(null);
+  const [identityCostsLoading, setIdentityCostsLoading] = useState(false);
+
   const fetchDataPlans = async () => {
     setDataPlansLoading(true);
     try {
@@ -247,6 +262,102 @@ export default function AdminPricing() {
     } catch {
       toast({ title: 'Error', description: 'Failed to toggle plan', variant: 'destructive' });
     }
+  };
+
+  const fetchVtugPlans = async () => {
+    setVtugLoading(true);
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/admin/data-plans?provider=vtugate', { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setVtugPlans(data.data.plans || {});
+        setVtugConfigured(data.data.vtuGateConfigured || false);
+      }
+    } catch (e) { console.error('Failed to fetch VTUGate plans', e); }
+    finally { setVtugLoading(false); }
+  };
+
+  const handleVtugSync = async () => {
+    setVtugSyncing(true);
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/admin/vtugate/sync-plans', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.status === 'success') {
+        toast({ title: 'VTUGate Plans Synced', variant: 'success', description: data.message });
+        fetchVtugPlans();
+      } else {
+        toast({ title: 'Sync Failed', description: data.message, variant: 'destructive', duration: 10000 });
+      }
+    } catch { toast({ title: 'Error', description: 'Failed to sync VTUGate plans', variant: 'destructive' }); }
+    finally { setVtugSyncing(false); }
+  };
+
+  const handleVtugApplyBulkMarkup = async (network: string) => {
+    const pct = vtugBulkMarkup[network];
+    if (!pct) return;
+    setVtugApplyingBulk(network);
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/admin/data-plans/markup/bulk', {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ network, markupPercent: parseFloat(pct), provider: 'vtugate' }),
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        toast({ title: 'Markup Applied', variant: 'success', description: data.message });
+        fetchVtugPlans();
+      } else { toast({ title: 'Error', description: data.message, variant: 'destructive' }); }
+    } catch { toast({ title: 'Error', description: 'Failed to apply markup', variant: 'destructive' }); }
+    finally { setVtugApplyingBulk(null); }
+  };
+
+  const handleVtugSavePlan = async (planId: string) => {
+    if (!vtugEditForm) return;
+    try {
+      const token = getAuthToken();
+      const res = await fetch(`/api/admin/data-plans/${planId}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          planName: vtugEditForm.planName,
+          costPrice: parseFloat(vtugEditForm.costPrice),
+          sellingPrice: parseFloat(vtugEditForm.sellingPrice),
+          markupPercent: parseFloat(vtugEditForm.markupPercent),
+        }),
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        toast({ title: 'Plan Updated', variant: 'success' });
+        fetchVtugPlans();
+      } else { toast({ title: 'Error', description: data.message, variant: 'destructive' }); }
+    } catch { toast({ title: 'Error', description: 'Failed to update plan', variant: 'destructive' }); }
+    finally { setVtugEditingId(null); setVtugEditForm(null); }
+  };
+
+  const handleVtugTogglePlan = async (planId: string, isActive: boolean) => {
+    try {
+      const token = getAuthToken();
+      await fetch(`/api/admin/data-plans/${planId}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive }),
+      });
+      fetchVtugPlans();
+    } catch { toast({ title: 'Error', description: 'Failed to toggle plan', variant: 'destructive' }); }
+  };
+
+  const fetchIdentityCosts = async () => {
+    setIdentityCostsLoading(true);
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/admin/identity/pricing-info', { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.status === 'success') setIdentityCosts(data.data);
+    } catch (e) { console.error('Failed to fetch identity pricing', e); }
+    finally { setIdentityCostsLoading(false); }
   };
 
   useEffect(() => {
@@ -468,10 +579,16 @@ export default function AdminPricing() {
       </div>
 
       <Tabs defaultValue="services">
-        <TabsList className="mb-4">
+        <TabsList className="mb-4 flex-wrap h-auto gap-1">
           <TabsTrigger value="services">Service Pricing</TabsTrigger>
           <TabsTrigger value="data-plans" onClick={() => { if (Object.keys(dataPlans).length === 0) fetchDataPlans(); }}>
-            Data Plans
+            AirtimeNigeria Plans
+          </TabsTrigger>
+          <TabsTrigger value="vtugate-plans" onClick={() => { if (Object.keys(vtugPlans).length === 0) fetchVtugPlans(); }}>
+            VTUGate Plans
+          </TabsTrigger>
+          <TabsTrigger value="identity-costs" onClick={() => { if (!identityCosts) fetchIdentityCosts(); }}>
+            Identity Costs
           </TabsTrigger>
         </TabsList>
 
@@ -692,6 +809,347 @@ export default function AdminPricing() {
                   </TabsContent>
                 ))}
               </Tabs>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* ── VTUGate Plans Tab ─────────────────────────────────────── */}
+        <TabsContent value="vtugate-plans">
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-base sm:text-lg">VTUGate Data Plans</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm mt-1">
+                      Sync live plans from VTUGate, set your profit markup, and selling prices auto-update for users.
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Badge variant={vtugConfigured ? "default" : "destructive"} className="gap-1 text-xs">
+                      {vtugConfigured ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+                      {vtugConfigured ? 'API Connected' : 'API Not Set'}
+                    </Badge>
+                    <Button onClick={handleVtugSync} disabled={vtugSyncing || !vtugConfigured} className="gap-2">
+                      {vtugSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                      Sync Plans
+                    </Button>
+                  </div>
+                </div>
+                {!vtugConfigured && (
+                  <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-800">
+                    VTUGate API key is not configured. Go to <strong>Settings → Gateways → VTUGate</strong> to add your API key first.
+                  </div>
+                )}
+              </CardHeader>
+            </Card>
+
+            {vtugLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : Object.keys(vtugPlans).length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                  <Download className="h-10 w-10 text-muted-foreground mb-3" />
+                  <p className="font-medium">No VTUGate plans synced yet</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {vtugConfigured ? 'Click "Sync Plans" above to fetch current plans from VTUGate.' : 'Configure your VTUGate API key first, then sync plans.'}
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Tabs value={vtugNetwork} onValueChange={setVtugNetwork}>
+                <TabsList className="mb-4 flex-wrap h-auto gap-1">
+                  {Object.keys(vtugPlans).map(net => (
+                    <TabsTrigger key={net} value={net} className="capitalize">
+                      <span className={NETWORK_COLORS[net] || ''}>{NETWORK_LABELS[net] || net.toUpperCase()}</span>
+                      <Badge variant="secondary" className="ml-1.5 text-xs">{vtugPlans[net]?.length || 0}</Badge>
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+
+                {Object.entries(vtugPlans).map(([net, plans]) => (
+                  <TabsContent key={net} value={net}>
+                    <Card>
+                      <CardHeader className="p-4 pb-3 flex flex-row items-center justify-between">
+                        <CardTitle className="text-sm font-medium">
+                          {NETWORK_LABELS[net] || net.toUpperCase()} — {plans.length} plans
+                        </CardTitle>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">Apply % markup to all:</span>
+                          <Input
+                            type="number"
+                            placeholder="e.g. 5"
+                            className="w-20 h-8 text-sm"
+                            value={vtugBulkMarkup[net] || ''}
+                            onChange={(e) => setVtugBulkMarkup(prev => ({ ...prev, [net]: e.target.value }))}
+                            min="0" max="100" step="0.5"
+                          />
+                          <Button
+                            size="sm" variant="outline" className="h-8 gap-1"
+                            disabled={!vtugBulkMarkup[net] || vtugApplyingBulk === net}
+                            onClick={() => handleVtugApplyBulkMarkup(net)}
+                          >
+                            {vtugApplyingBulk === net ? <Loader2 className="h-3 w-3 animate-spin" /> : <Percent className="h-3 w-3" />}
+                            Apply All
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
+                          <table className="w-full text-sm min-w-[750px]">
+                            <thead className="sticky top-0 z-10 bg-background">
+                              <tr className="border-b bg-muted/50">
+                                <th className="p-3 text-left font-medium min-w-[200px]">Plan Name <span className="text-xs font-normal text-muted-foreground">(shown to users)</span></th>
+                                <th className="p-3 text-left font-medium w-[120px]">Code</th>
+                                <th className="p-3 text-right font-medium w-[110px]">Cost Price</th>
+                                <th className="p-3 text-right font-medium w-[100px]">Markup %</th>
+                                <th className="p-3 text-right font-medium w-[120px]">User Price</th>
+                                <th className="p-3 text-center font-medium w-[70px]">Active</th>
+                                <th className="p-3 text-right font-medium w-[80px]">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {plans.map(plan => (
+                                <tr key={plan.id} className={`border-b transition-colors ${plan.isActive ? 'hover:bg-muted/30' : 'opacity-50 bg-muted/10'}`}>
+                                  <td className="p-3">
+                                    {vtugEditingId === plan.id ? (
+                                      <Input value={vtugEditForm?.planName || ''} onChange={(e) => setVtugEditForm(prev => prev ? { ...prev, planName: e.target.value } : null)} className="h-7 text-xs w-full" placeholder="Display name for users" />
+                                    ) : (
+                                      <span className="font-medium">{plan.planName}</span>
+                                    )}
+                                  </td>
+                                  <td className="p-3">
+                                    <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{plan.planId}</code>
+                                  </td>
+                                  <td className="p-3 text-right text-muted-foreground">
+                                    {vtugEditingId === plan.id ? (
+                                      <Input type="number" value={vtugEditForm?.costPrice || ''}
+                                        onChange={(e) => {
+                                          const cost = parseFloat(e.target.value || '0');
+                                          const markup = parseFloat(vtugEditForm?.markupPercent || '0');
+                                          setVtugEditForm(prev => prev ? { ...prev, costPrice: e.target.value, sellingPrice: markup > 0 ? (cost * (1 + markup / 100)).toFixed(2) : prev.sellingPrice } : null);
+                                        }}
+                                        className="w-24 h-7 text-xs text-right" min="0" step="1" />
+                                    ) : <span>₦{plan.costPrice.toLocaleString()}</span>}
+                                  </td>
+                                  <td className="p-3 text-right">
+                                    {vtugEditingId === plan.id ? (
+                                      <Input type="number" value={vtugEditForm?.markupPercent || ''}
+                                        onChange={(e) => {
+                                          const markup = parseFloat(e.target.value || '0');
+                                          const cost = parseFloat(vtugEditForm?.costPrice || '0');
+                                          setVtugEditForm(prev => prev ? { ...prev, markupPercent: e.target.value, sellingPrice: (cost * (1 + markup / 100)).toFixed(2) } : null);
+                                        }}
+                                        className="w-20 h-7 text-xs text-right" min="0" max="100" step="0.5" />
+                                    ) : (
+                                      <Badge variant={plan.markupPercent > 0 ? "secondary" : "outline"} className="text-xs">
+                                        {plan.markupPercent > 0 ? `+${plan.markupPercent}%` : 'No markup'}
+                                      </Badge>
+                                    )}
+                                  </td>
+                                  <td className="p-3 text-right font-medium text-green-700">
+                                    {vtugEditingId === plan.id ? (
+                                      <Input type="number" value={vtugEditForm?.sellingPrice || ''}
+                                        onChange={(e) => {
+                                          const sell = parseFloat(e.target.value || '0');
+                                          const cost = parseFloat(vtugEditForm?.costPrice || '0');
+                                          setVtugEditForm(prev => prev ? { ...prev, sellingPrice: e.target.value, markupPercent: cost > 0 ? (((sell - cost) / cost) * 100).toFixed(2) : '0' } : null);
+                                        }}
+                                        className="w-24 h-7 text-xs text-right" min="0" step="1" />
+                                    ) : <span>₦{plan.sellingPrice.toLocaleString()}</span>}
+                                  </td>
+                                  <td className="p-3 text-center">
+                                    <Switch checked={plan.isActive} onCheckedChange={(v) => handleVtugTogglePlan(plan.id, v)} />
+                                  </td>
+                                  <td className="p-3 text-right">
+                                    {vtugEditingId === plan.id ? (
+                                      <div className="flex gap-1 justify-end">
+                                        <Button size="sm" variant="default" onClick={() => handleVtugSavePlan(plan.id)} className="h-7 w-7 p-0"><Save className="h-3.5 w-3.5" /></Button>
+                                        <Button size="sm" variant="ghost" onClick={() => { setVtugEditingId(null); setVtugEditForm(null); }} className="h-7 w-7 p-0"><X className="h-3.5 w-3.5" /></Button>
+                                      </div>
+                                    ) : (
+                                      <Button size="sm" variant="ghost" onClick={() => { setVtugEditingId(plan.id); setVtugEditForm({ planName: plan.planName, costPrice: String(plan.costPrice), sellingPrice: String(plan.sellingPrice), markupPercent: String(plan.markupPercent) }); }} className="h-7 w-7 p-0">
+                                        <Edit className="h-3.5 w-3.5" />
+                                      </Button>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                ))}
+              </Tabs>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* ── Identity Provider Costs Tab ───────────────────────────── */}
+        <TabsContent value="identity-costs">
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="p-4 sm:p-6 flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5 text-blue-600" />
+                    Identity Provider Cost Prices
+                  </CardTitle>
+                  <CardDescription className="text-xs sm:text-sm mt-1">
+                    Wholesale cost per verification from each identity provider. Use these to set profitable markups in Service Pricing.
+                  </CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={fetchIdentityCosts} disabled={identityCostsLoading} className="gap-2 flex-shrink-0">
+                  {identityCostsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                  Refresh
+                </Button>
+              </CardHeader>
+            </Card>
+
+            {identityCostsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : !identityCosts ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                  <Database className="h-10 w-10 text-muted-foreground mb-3" />
+                  <p className="font-medium">No pricing info loaded</p>
+                  <p className="text-sm text-muted-foreground mt-1">Click the tab to load identity provider cost data.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Prembly */}
+                <Card>
+                  <CardHeader className="p-4 pb-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Badge className="bg-blue-600 text-white text-xs">Prembly</Badge>
+                      IdentityPass Cost Schedule
+                    </CardTitle>
+                    <CardDescription className="text-xs">Wholesale prices charged by Prembly per API call (NGN)</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/40">
+                          <th className="p-3 text-left font-medium">Service</th>
+                          <th className="p-3 text-right font-medium">Cost Price</th>
+                          <th className="p-3 text-left font-medium text-muted-foreground">Note</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {identityCosts.prembly.map((row, i) => {
+                          const sellingEntry = pricing.find(p => p.serviceType === 'nin_verification' && row.service.toLowerCase().includes('nin') && !row.service.toLowerCase().includes('bvn'));
+                          return (
+                            <tr key={i} className="border-b hover:bg-muted/30">
+                              <td className="p-3 font-medium">{row.service}</td>
+                              <td className="p-3 text-right text-orange-700 font-semibold">₦{row.costPrice.toLocaleString()}</td>
+                              <td className="p-3 text-xs text-muted-foreground">{row.description}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </CardContent>
+                </Card>
+
+                {/* YouVerify */}
+                <Card>
+                  <CardHeader className="p-4 pb-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Badge className="bg-green-600 text-white text-xs">YouVerify</Badge>
+                      Cost Schedule
+                    </CardTitle>
+                    <CardDescription className="text-xs">Wholesale prices charged by YouVerify per API call (NGN)</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/40">
+                          <th className="p-3 text-left font-medium">Service</th>
+                          <th className="p-3 text-right font-medium">Cost Price</th>
+                          <th className="p-3 text-left font-medium text-muted-foreground">Note</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {identityCosts.youverify.map((row, i) => (
+                          <tr key={i} className="border-b hover:bg-muted/30">
+                            <td className="p-3 font-medium">{row.service}</td>
+                            <td className="p-3 text-right text-orange-700 font-semibold">₦{row.costPrice.toLocaleString()}</td>
+                            <td className="p-3 text-xs text-muted-foreground">{row.description}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </CardContent>
+                </Card>
+
+                {/* Selling prices from service pricing */}
+                <Card className="lg:col-span-2">
+                  <CardHeader className="p-4 pb-3">
+                    <CardTitle className="text-sm font-semibold">Your Selling Prices vs Provider Cost (Identity Services)</CardTitle>
+                    <CardDescription className="text-xs">Compare what you charge users against provider cost to verify margins. Edit selling prices in the Service Pricing tab.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm min-w-[600px]">
+                        <thead>
+                          <tr className="border-b bg-muted/40">
+                            <th className="p-3 text-left font-medium">Service</th>
+                            <th className="p-3 text-right font-medium">Provider Cost</th>
+                            <th className="p-3 text-right font-medium">Your Selling Price</th>
+                            <th className="p-3 text-right font-medium">Margin</th>
+                            <th className="p-3 text-center font-medium">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pricing.filter(p => ['nin_verification','bvn_verification','nin_phone'].includes(p.serviceType)).map(p => {
+                            const providerCost = p.serviceType === 'bvn_verification' ? 50 : 30;
+                            const margin = p.price - providerCost;
+                            const marginPct = providerCost > 0 ? ((margin / providerCost) * 100).toFixed(1) : '0';
+                            return (
+                              <tr key={p.id} className="border-b hover:bg-muted/30">
+                                <td className="p-3 font-medium">{p.serviceName}</td>
+                                <td className="p-3 text-right text-muted-foreground">₦{providerCost.toLocaleString()}</td>
+                                <td className="p-3 text-right font-semibold">₦{p.price.toLocaleString()}</td>
+                                <td className={`p-3 text-right font-semibold ${margin >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                                  {margin >= 0 ? '+' : ''}₦{margin.toLocaleString()} ({marginPct}%)
+                                </td>
+                                <td className="p-3 text-center">
+                                  {margin < 0 ? (
+                                    <Badge variant="destructive" className="text-xs">Selling at loss</Badge>
+                                  ) : margin === 0 ? (
+                                    <Badge variant="outline" className="text-xs">Break-even</Badge>
+                                  ) : (
+                                    <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">Profitable</Badge>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          {pricing.filter(p => ['nin_verification','bvn_verification','nin_phone'].includes(p.serviceType)).length === 0 && (
+                            <tr>
+                              <td colSpan={5} className="p-6 text-center text-muted-foreground text-sm">
+                                No identity service prices configured yet. Set them in the Service Pricing tab.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                    {identityCosts.note && (
+                      <div className="p-3 border-t text-xs text-muted-foreground bg-muted/20">
+                        {identityCosts.note}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             )}
           </div>
         </TabsContent>

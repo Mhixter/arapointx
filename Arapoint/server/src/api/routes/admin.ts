@@ -382,10 +382,13 @@ router.get('/pricing/all', async (req: Request, res: Response) => {
 
 router.get('/data-plans', adminAuthMiddleware, async (req: Request, res: Response) => {
   try {
-    const { network } = req.query;
+    const { network, provider } = req.query;
     const conditions: any[] = [];
     if (network && typeof network === 'string') {
       conditions.push(eq(scrapedDataPlans.network, network.toLowerCase()));
+    }
+    if (provider && typeof provider === 'string') {
+      conditions.push(eq(scrapedDataPlans.provider, provider.toLowerCase()));
     }
 
     const plans = conditions.length > 0
@@ -406,7 +409,9 @@ router.get('/data-plans', adminAuthMiddleware, async (req: Request, res: Respons
     }
 
     const isConfigured = await airtimeNigeriaService.isConfiguredAsync();
-    res.json(formatResponse('success', 200, 'Data plans retrieved', { plans: grouped, total: plans.length, isConfigured }));
+    const { vtuGateService: vgs } = await import('../../services/vtuGateService');
+    const vtuGateConfigured = await vgs.isConfiguredAsync();
+    res.json(formatResponse('success', 200, 'Data plans retrieved', { plans: grouped, total: plans.length, isConfigured, vtuGateConfigured }));
   } catch (error: any) {
     logger.error('Get data plans error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to get data plans'));
@@ -545,14 +550,18 @@ router.put('/data-plans/:id', adminAuthMiddleware, async (req: Request, res: Res
 
 router.put('/data-plans/markup/bulk', adminAuthMiddleware, async (req: Request, res: Response) => {
   try {
-    const { network, markupPercent } = req.body;
+    const { network, markupPercent, provider } = req.body;
 
     if (!network || markupPercent === undefined) {
       return res.status(400).json(formatErrorResponse(400, 'network and markupPercent are required'));
     }
 
     const pct = parseFloat(markupPercent);
-    const plans = await db.select().from(scrapedDataPlans).where(eq(scrapedDataPlans.network, network.toLowerCase()));
+    const conditions: any[] = [eq(scrapedDataPlans.network, network.toLowerCase())];
+    if (provider && typeof provider === 'string') {
+      conditions.push(eq(scrapedDataPlans.provider, provider.toLowerCase()));
+    }
+    const plans = await db.select().from(scrapedDataPlans).where(and(...conditions));
 
     let updated = 0;
     for (const plan of plans) {
