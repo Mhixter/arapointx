@@ -388,12 +388,18 @@ router.get('/data-plans', adminAuthMiddleware, async (req: Request, res: Respons
       conditions.push(eq(scrapedDataPlans.network, network.toLowerCase()));
     }
     if (provider && typeof provider === 'string') {
-      conditions.push(eq(scrapedDataPlans.provider, provider.toLowerCase()));
+      const p = provider.toLowerCase();
+      if (p === 'airtimenigeria') {
+        // AirtimeNigeria plans stored with provider=null or provider='airtimenigeria'
+        conditions.push(sql`(${scrapedDataPlans.provider} IS NULL OR ${scrapedDataPlans.provider} = 'airtimenigeria')`);
+      } else {
+        conditions.push(eq(scrapedDataPlans.provider, p));
+      }
     }
 
     const plans = conditions.length > 0
       ? await db.select().from(scrapedDataPlans).where(and(...conditions)).orderBy(scrapedDataPlans.network, scrapedDataPlans.planName)
-      : await db.select().from(scrapedDataPlans).orderBy(scrapedDataPlans.network, scrapedDataPlans.planName);
+      : await db.select().from(scrapedDataPlans).where(sql`(${scrapedDataPlans.provider} IS NULL OR ${scrapedDataPlans.provider} = 'airtimenigeria')`).orderBy(scrapedDataPlans.network, scrapedDataPlans.planName);
 
     const grouped: Record<string, any[]> = {};
     for (const plan of plans) {
@@ -409,8 +415,9 @@ router.get('/data-plans', adminAuthMiddleware, async (req: Request, res: Respons
     }
 
     const isConfigured = await airtimeNigeriaService.isConfiguredAsync();
-    const { vtuGateService: vgs } = await import('../../services/vtuGateService');
-    const vtuGateConfigured = await vgs.isConfiguredAsync();
+    const [vtuKeyRow] = await db.select({ settingValue: adminSettings.settingValue })
+      .from(adminSettings).where(eq(adminSettings.settingKey, 'vtugate_api_key')).limit(1);
+    const vtuGateConfigured = !!(process.env.VTUGATE_API_KEY || vtuKeyRow?.settingValue);
     res.json(formatResponse('success', 200, 'Data plans retrieved', { plans: grouped, total: plans.length, isConfigured, vtuGateConfigured }));
   } catch (error: any) {
     logger.error('Get data plans error', { error: error.message });
@@ -470,6 +477,7 @@ router.post('/data-plans/sync', adminAuthMiddleware, async (req: Request, res: R
           sellingPrice: sellingPrice as string,
           resellerPrice: costPrice,
           markupPercent: '0',
+          provider: 'airtimenigeria',
           lastScrapedAt: new Date(),
         });
       }

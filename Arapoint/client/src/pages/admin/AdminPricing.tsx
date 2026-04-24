@@ -138,6 +138,7 @@ export default function AdminPricing() {
   const [editPlanForm, setEditPlanForm] = useState<{ planName: string; costPrice: string; sellingPrice: string; markupPercent: string } | null>(null);
   const [bulkMarkup, setBulkMarkup] = useState<Record<string, string>>({});
   const [applyingBulk, setApplyingBulk] = useState<string | null>(null);
+  const [planAggregator, setPlanAggregator] = useState<'airtimenigeria' | 'vtugate' | 'vtpass'>('airtimenigeria');
 
   // VTUGate plans tab state
   const [vtugPlans, setVtugPlans] = useState<Record<string, DataPlan[]>>({});
@@ -158,7 +159,7 @@ export default function AdminPricing() {
     setDataPlansLoading(true);
     try {
       const token = tokenStorage.getItem('adminToken');
-      const res = await fetch('/api/admin/data-plans', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch('/api/admin/data-plans?provider=airtimenigeria', { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (data.status === 'success') {
         setDataPlans(data.data.plans || {});
@@ -582,10 +583,7 @@ export default function AdminPricing() {
         <TabsList className="mb-4 flex-wrap h-auto gap-1">
           <TabsTrigger value="services">Service Pricing</TabsTrigger>
           <TabsTrigger value="data-plans" onClick={() => { if (Object.keys(dataPlans).length === 0) fetchDataPlans(); }}>
-            AirtimeNigeria Plans
-          </TabsTrigger>
-          <TabsTrigger value="vtugate-plans" onClick={() => { if (Object.keys(vtugPlans).length === 0) fetchVtugPlans(); }}>
-            VTUGate Plans
+            Data Plans
           </TabsTrigger>
           <TabsTrigger value="identity-costs" onClick={() => { if (!identityCosts) fetchIdentityCosts(); }}>
             Identity Costs
@@ -594,6 +592,26 @@ export default function AdminPricing() {
 
         <TabsContent value="data-plans">
           <div className="space-y-4">
+            {/* Aggregator selector */}
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-muted-foreground flex-shrink-0">Provider:</span>
+              <div className="flex gap-1 p-1 bg-muted rounded-lg">
+                {(['airtimenigeria', 'vtugate', 'vtpass'] as const).map(agg => (
+                  <button key={agg}
+                    onClick={() => {
+                      setPlanAggregator(agg);
+                      if (agg === 'airtimenigeria' && Object.keys(dataPlans).length === 0) fetchDataPlans();
+                      if (agg === 'vtugate' && Object.keys(vtugPlans).length === 0) fetchVtugPlans();
+                    }}
+                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${planAggregator === agg ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                    {agg === 'airtimenigeria' ? 'AirtimeNigeria' : agg === 'vtugate' ? 'VTUGate' : 'VTPass'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* AirtimeNigeria plans */}
+            {planAggregator === 'airtimenigeria' && (<>
             <Card>
               <CardHeader className="p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -810,12 +828,10 @@ export default function AdminPricing() {
                 ))}
               </Tabs>
             )}
-          </div>
-        </TabsContent>
+            </>)}
 
-        {/* ── VTUGate Plans Tab ─────────────────────────────────────── */}
-        <TabsContent value="vtugate-plans">
-          <div className="space-y-4">
+            {/* VTUGate plans */}
+            {planAggregator === 'vtugate' && (<>
             <Card>
               <CardHeader className="p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -985,6 +1001,49 @@ export default function AdminPricing() {
                   </TabsContent>
                 ))}
               </Tabs>
+            )}
+            </>)}
+
+            {/* VTPass info */}
+            {planAggregator === 'vtpass' && (
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader className="p-4 sm:p-6">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-blue-50 rounded-lg flex-shrink-0">
+                        <Database className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-base sm:text-lg">VTPass Data Plans</CardTitle>
+                        <CardDescription className="text-xs sm:text-sm mt-1">
+                          VTPass fetches live data plans dynamically at purchase time — no pre-sync required. Plans and prices are always up to date from VTPass directly.
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4 sm:p-6 pt-0 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {[
+                        { label: 'MTN Data', note: 'Fetched live at purchase' },
+                        { label: 'Airtel Data', note: 'Fetched live at purchase' },
+                        { label: 'Glo Data', note: 'Fetched live at purchase' },
+                        { label: '9mobile Data', note: 'Fetched live at purchase' },
+                      ].map(item => (
+                        <div key={item.label} className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30">
+                          <Wifi className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium">{item.label}</p>
+                            <p className="text-xs text-muted-foreground">{item.note}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md text-xs text-blue-800">
+                      VTPass pricing is pass-through — the cost price shown to users comes directly from VTPass at transaction time. Set your platform markup via the <strong>Service Pricing</strong> tab to add a fixed fee on top.
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             )}
           </div>
         </TabsContent>
