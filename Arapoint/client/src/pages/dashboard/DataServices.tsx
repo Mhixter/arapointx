@@ -318,7 +318,7 @@ export default function DataServices() {
                       <SelectTrigger className="w-full h-12 text-base">
                         <SelectValue placeholder={loadingPlans ? "Loading plans..." : "Select Data Plan"} />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="max-h-64 overflow-y-auto">
                         {plans.map((plan: any) => (
                           <SelectItem key={plan.variation_code} value={plan.variation_code} className="py-3">
                             {plan.name} - ₦{parseInt(plan.variation_amount).toLocaleString()}

@@ -203,10 +203,28 @@ class VTUGateService {
   }): Promise<{ success: boolean; reference?: string; data?: any; error?: string }> {
     try {
       const headers = await this.buildHeaders();
-      const net = params.network.toLowerCase().replace('9mobile', 'etisalat');
       const ref = params.reference || `vg_dat_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+      // VTUGate buydata requires service_id (numeric), not network name
+      // Look up the correct service_id by matching network name from fetchservices
+      const normalizedNet = params.network.toLowerCase().replace(/\s/g, '').replace('9mobile', 'etisalat');
+      const servicesResult = await this.fetchServicesByType('data');
+      let serviceId: number | null = null;
+      if (servicesResult.success && servicesResult.services) {
+        const matched = servicesResult.services.find(s => {
+          const sn = s.network_name.toLowerCase().replace(/\s/g, '');
+          return sn.includes(normalizedNet) || normalizedNet.includes(sn);
+        });
+        if (matched) serviceId = matched.service_id;
+      }
+      if (!serviceId) {
+        logger.error('VTUGate purchaseData: no service_id found for network', { network: params.network, normalizedNet });
+        return { success: false, error: `Data service not found for network: ${params.network}` };
+      }
+
+      logger.info('VTUGate purchaseData using service_id', { serviceId, network: params.network, planId: params.planId });
       const body = this.toFormBody({
-        network: net,
+        service_id: serviceId,
         phone: params.phone,
         plan_id: params.planId,
         amount: params.amount,
