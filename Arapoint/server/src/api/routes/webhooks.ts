@@ -189,6 +189,85 @@ router.post('/payvessel', async (req: Request, res: Response) => {
   }
 });
 
+// ─── VTUGate Delivery Webhook ────────────────────────────────────────────────
+// VTUGate POSTs to this URL when airtime/data transaction status changes.
+router.post('/vtugate', async (req: Request, res: Response) => {
+  res.json({ status: 'ok' });
+
+  try {
+    const body = req.body || {};
+    logger.info('VTUGate webhook received', { body });
+
+    const reference: string = (
+      body.reference ||
+      body.transaction_reference ||
+      body.transactionReference ||
+      body.data?.reference ||
+      ''
+    ).toString().trim();
+
+    if (!reference) {
+      logger.warn('VTUGate webhook: no reference in payload', { body });
+      return;
+    }
+
+    const rawStatus: string = (
+      body.delivery_status ||
+      body.status ||
+      body.transaction_status ||
+      body.data?.delivery_status ||
+      body.data?.status ||
+      ''
+    ).toString().toLowerCase();
+
+    const VG_DELIVERED = ['delivered', 'success', 'completed', 'successful', 'processed'];
+    const VG_FAILED = ['failed', 'error', 'reversed', 'refunded'];
+    const isDelivered = VG_DELIVERED.includes(rawStatus);
+    const isFailed = VG_FAILED.includes(rawStatus);
+
+    logger.info('VTUGate webhook status', { reference, rawStatus, isDelivered, isFailed });
+
+    if (!isDelivered && !isFailed) {
+      logger.info('VTUGate webhook: intermediate status, skipping DB update', { reference, rawStatus });
+      return;
+    }
+
+    const newStatus = isDelivered ? 'completed' : 'failed';
+
+    // Try airtime first
+    const [airtimeTx] = await db.select({ id: airtimeServices.id, status: airtimeServices.status })
+      .from(airtimeServices)
+      .where(or(eq(airtimeServices.reference, reference), eq(airtimeServices.transactionId, reference)))
+      .limit(1);
+
+    if (airtimeTx) {
+      if (airtimeTx.status !== newStatus) {
+        await db.update(airtimeServices).set({ status: newStatus }).where(eq(airtimeServices.id, airtimeTx.id));
+        logger.info('VTUGate webhook: airtime tx status updated', { reference, newStatus });
+      }
+      return;
+    }
+
+    // Fall back to data
+    const [dataTx] = await db.select({ id: dataServices.id, status: dataServices.status })
+      .from(dataServices)
+      .where(or(eq(dataServices.reference, reference), eq(dataServices.transactionId, reference)))
+      .limit(1);
+
+    if (dataTx) {
+      if (dataTx.status !== newStatus) {
+        await db.update(dataServices).set({ status: newStatus }).where(eq(dataServices.id, dataTx.id));
+        logger.info('VTUGate webhook: data tx status updated', { reference, newStatus });
+      }
+      return;
+    }
+
+    logger.warn('VTUGate webhook: no matching transaction found', { reference });
+  } catch (error: any) {
+    logger.error('VTUGate webhook processing error', { error: error.message, body: req.body });
+  }
+});
+
 // ─── AirtimeNigeria Delivery Webhook ─────────────────────────────────────────
 // AirtimeNigeria calls this URL when airtime/data delivery status changes.
 // We always return HTTP 200 quickly to stop retries, then process async.

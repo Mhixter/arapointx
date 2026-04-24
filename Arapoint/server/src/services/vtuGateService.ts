@@ -163,7 +163,8 @@ class VTUGateService {
     phone: string;
     amount: number;
     reference?: string;
-  }): Promise<{ success: boolean; reference?: string; data?: any; error?: string }> {
+    callbackUrl?: string;
+  }): Promise<{ success: boolean; reference?: string; deliveryStatus?: string; data?: any; error?: string }> {
     try {
       const headers = await this.buildHeaders();
       const ref = params.reference || `vg_air_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -185,12 +186,14 @@ class VTUGateService {
       }
 
       logger.info('VTUGate purchaseAirtime using service_id', { serviceId, network: params.network });
-      const body = this.toFormBody({
+      const bodyParams: Record<string, any> = {
         service_id: serviceId,
         phone_number: params.phone,
         amount: params.amount,
         reference: ref,
-      });
+      };
+      if (params.callbackUrl) bodyParams.callback_url = params.callbackUrl;
+      const body = this.toFormBody(bodyParams);
       const res = await axios.post<VTUGateResponse>(
         `${BASE_URL}/api/v1/buyairtime`,
         body,
@@ -198,10 +201,16 @@ class VTUGateService {
       );
       const d = res.data;
       if (this.isOk(d.status)) {
+        const dataObj = d.data || d;
+        const deliveryStatus = (
+          dataObj?.delivery_status || dataObj?.deliveryStatus ||
+          dataObj?.transaction_status || dataObj?.status || ''
+        ).toString().toLowerCase();
         return {
           success: true,
-          reference: d.reference || d.transaction_id || d.transactionId || ref,
-          data: d.data || d,
+          reference: d.reference || d.transaction_id || d.transactionId || dataObj?.reference || ref,
+          deliveryStatus,
+          data: dataObj,
         };
       }
       return { success: false, error: d.message || 'Airtime purchase failed', reference: ref };
@@ -217,7 +226,8 @@ class VTUGateService {
     planId: string;
     amount: number;
     reference?: string;
-  }): Promise<{ success: boolean; reference?: string; data?: any; error?: string }> {
+    callbackUrl?: string;
+  }): Promise<{ success: boolean; reference?: string; deliveryStatus?: string; data?: any; error?: string }> {
     try {
       const headers = await this.buildHeaders();
       const ref = params.reference || `vg_dat_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -240,13 +250,15 @@ class VTUGateService {
       }
 
       logger.info('VTUGate purchaseData using service_id', { serviceId, network: params.network, planId: params.planId });
-      const body = this.toFormBody({
+      const bodyParams: Record<string, any> = {
         service_id: serviceId,
         phone_number: params.phone,
         plan_code: params.planId,
         amount: params.amount,
         reference: ref,
-      });
+      };
+      if (params.callbackUrl) bodyParams.callback_url = params.callbackUrl;
+      const body = this.toFormBody(bodyParams);
       const res = await axios.post<VTUGateResponse>(
         `${BASE_URL}/api/v1/buydata`,
         body,
@@ -254,10 +266,16 @@ class VTUGateService {
       );
       const d = res.data;
       if (this.isOk(d.status)) {
+        const dataObj = d.data || d;
+        const deliveryStatus = (
+          dataObj?.delivery_status || dataObj?.deliveryStatus ||
+          dataObj?.transaction_status || dataObj?.status || ''
+        ).toString().toLowerCase();
         return {
           success: true,
-          reference: d.reference || d.transaction_id || d.transactionId || ref,
-          data: d.data || d,
+          reference: d.reference || d.transaction_id || d.transactionId || dataObj?.reference || ref,
+          deliveryStatus,
+          data: dataObj,
         };
       }
       return { success: false, error: d.message || 'Data purchase failed', reference: ref };

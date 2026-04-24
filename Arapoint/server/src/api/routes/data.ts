@@ -112,7 +112,12 @@ router.post('/buy', async (req: Request, res: Response) => {
         callbackUrl: `${baseUrl}/api/webhooks/airtimenigeria`,
       });
     } else if (useVtuGate) {
-      result = await vtuGateService.purchaseData({ network, phone: phoneNumber, planId, amount });
+      const vgBaseUrl = process.env.WEBHOOK_BASE_URL ||
+        (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'https://arapoint.com.ng');
+      result = await vtuGateService.purchaseData({
+        network, phone: phoneNumber, planId, amount,
+        callbackUrl: `${vgBaseUrl}/api/webhooks/vtugate`,
+      });
     } else {
       const vtResult = await vtpassService.purchaseData(phoneNumber, planId, amount, serviceID!);
       result = vtResult;
@@ -133,7 +138,11 @@ router.post('/buy', async (req: Request, res: Response) => {
     }
 
     const deliveredStatuses = ['delivered', 'success', 'completed', 'successful', 'processed'];
-    const txStatus = deliveredStatuses.includes((result.data?.status || '').toLowerCase()) ? 'completed' : 'pending';
+    // For VTUGate, check deliveryStatus extracted from the response object
+    const statusToCheck = useVtuGate
+      ? ((result as any).deliveryStatus || result.data?.delivery_status || result.data?.status || '')
+      : (result.data?.status || '');
+    const txStatus = deliveredStatuses.includes(statusToCheck.toLowerCase()) ? 'completed' : 'pending';
 
     await db.insert(dataServices).values({
       userId: req.userId!,
