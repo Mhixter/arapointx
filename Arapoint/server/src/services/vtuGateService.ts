@@ -114,12 +114,16 @@ class VTUGateService {
       logger.info('VTUGate fetchDataPlans response', { serviceId, status: d.status, dataType: typeof d.data, isArray: Array.isArray(d.data), count: Array.isArray(d.data) ? d.data.length : 0 });
       if (this.isOk(d.status)) {
         let plans: any[] = [];
-        if (Array.isArray(d.data)) {
+        if (d.data && Array.isArray(d.data.data_plans)) {
+          plans = d.data.data_plans;
+        } else if (Array.isArray(d.data)) {
           plans = d.data;
         } else if (d.data && Array.isArray(d.data.plans)) {
           plans = d.data.plans;
         } else if (Array.isArray(d.plans)) {
           plans = d.plans;
+        } else if (Array.isArray(d.data_plans)) {
+          plans = d.data_plans;
         }
         return { success: true, plans, rawResponse: d };
       }
