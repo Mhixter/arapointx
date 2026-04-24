@@ -14,6 +14,7 @@ import { db } from "./src/config/database";
 import { airtimeServices, dataServices } from "./src/db/schema";
 import { eq as _eq, and as _and, gte as _gte } from "drizzle-orm";
 import { airtimeNigeriaService as anService } from "./src/services/airtimeNigeriaService";
+import { vtuGateService } from "./src/services/vtuGateService";
 
 // ── Process-level crash guards ─────────────────────────────────────────────────
 // Prevents a single unhandled error from taking down the entire server process.
@@ -131,26 +132,63 @@ app.use((req, res, next) => {
 });
 
 // ── VTU Pending-Transaction Poller ────────────────────────────────────────────
-// Checks pending airtime/data txns every 5 min via AirtimeNigeria status API.
-// Fallback for when the webhook callback fails (e.g., wrong URL was sent).
+// Polls pending airtime/data txns every 5 s, routing by provider:
+//   - vtugate   → calls VTUGate querytransaction API to get live status
+//   - others    → delivery is via webhook only; just logs stuck transactions
 async function pollPendingVtu(): Promise<void> {
   try {
-    const configured = await anService.isConfiguredAsync();
-    if (!configured) return;
-    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
-    const pendingAirtime = await db.select({ id: airtimeServices.id, reference: airtimeServices.reference })
-      .from(airtimeServices).where(_and(_eq(airtimeServices.status, 'pending'), _gte(airtimeServices.createdAt, fortyEightHoursAgo)));
-    const pendingData = await db.select({ id: dataServices.id, reference: dataServices.reference })
-      .from(dataServices).where(_and(_eq(dataServices.status, 'pending'), _gte(dataServices.createdAt, fortyEightHoursAgo)));
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+
+    const pendingAirtime = await db.select({
+      id: airtimeServices.id,
+      reference: airtimeServices.reference,
+      provider: airtimeServices.provider,
+    }).from(airtimeServices)
+      .where(_and(_eq(airtimeServices.status, 'pending'), _gte(airtimeServices.createdAt, twoHoursAgo)));
+
+    const pendingData = await db.select({
+      id: dataServices.id,
+      reference: dataServices.reference,
+      provider: dataServices.provider,
+    }).from(dataServices)
+      .where(_and(_eq(dataServices.status, 'pending'), _gte(dataServices.createdAt, twoHoursAgo)));
+
     const all = [
       ...pendingAirtime.map(r => ({ ...r, table: 'airtime' as const })),
       ...pendingData.map(r => ({ ...r, table: 'data' as const })),
     ];
     if (all.length === 0) return;
-    // AirtimeNigeria has no status-check endpoint — delivery is only via webhook callback.
-    // Log stuck transactions so admins are aware; they must be resolved manually or via webhook.
-    const refs = all.map(t => `${t.table}:${t.reference}`).join(', ');
-    console.log(`[VTU Poller] ${all.length} pending transaction(s) awaiting webhook: ${refs}`);
+
+    for (const tx of all) {
+      if (!tx.reference) continue;
+      try {
+        const provider = (tx.provider || '').toLowerCase();
+
+        if (provider === 'vtugate') {
+          const result = await vtuGateService.checkTransactionStatus(tx.reference);
+          if (result.delivered) {
+            if (tx.table === 'airtime') {
+              await db.update(airtimeServices).set({ status: 'completed' }).where(_eq(airtimeServices.id, tx.id));
+            } else {
+              await db.update(dataServices).set({ status: 'completed' }).where(_eq(dataServices.id, tx.id));
+            }
+            console.log(`[VTU Poller] ${tx.table} ${tx.reference} (vtugate) → completed`);
+          } else if (result.failed) {
+            if (tx.table === 'airtime') {
+              await db.update(airtimeServices).set({ status: 'failed' }).where(_eq(airtimeServices.id, tx.id));
+            } else {
+              await db.update(dataServices).set({ status: 'failed' }).where(_eq(dataServices.id, tx.id));
+            }
+            console.log(`[VTU Poller] ${tx.table} ${tx.reference} (vtugate) → failed`);
+          }
+        } else {
+          // AirtimeNigeria / VTPass have no pull status endpoint — delivery via webhook only.
+          // Nothing to do here; webhook handler will update status when called.
+        }
+      } catch (txErr: any) {
+        console.warn(`[VTU Poller] error checking ${tx.reference}:`, txErr.message);
+      }
+    }
   } catch (err: any) {
     console.warn('[VTU Poller] Error:', err.message);
   }
@@ -261,9 +299,9 @@ async function pollPendingVtu(): Promise<void> {
         }).catch(() => {});
       }, 5000);
 
-      setTimeout(pollPendingVtu, 20_000); // first run 20s after startup
-      setInterval(pollPendingVtu, 5 * 60 * 1000);
-      log('VTU status poller started (5min interval)');
+      setTimeout(pollPendingVtu, 10_000); // first run 10s after startup
+      setInterval(pollPendingVtu, 5_000); // poll every 5 seconds
+      log('VTU status poller started (5s interval)');
 
       // Self-ping every 3 minutes via the public URL to keep Autoscale from sleeping
       if (process.env.NODE_ENV === 'production') {
