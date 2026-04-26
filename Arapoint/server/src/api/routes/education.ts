@@ -1231,17 +1231,94 @@ router.get('/jamb-slip-status/:jobId', authMiddleware, async (req: Request, res:
 
     const result = (job.result || {}) as any;
     const slipUrl = result.slipUrl || null;
+    const siteClosed = job.errorMessage?.includes('site_closed') || job.errorMessage?.includes('portal is currently closed') || false;
 
     res.json(formatResponse('success', 200, 'Job status retrieved', {
       jobId: job.id,
       status: job.status,
       slipUrl,
+      siteClosed,
       errorMessage: job.errorMessage || null,
       registrationNumber: result.registrationNumber || null,
     }));
   } catch (error: any) {
     logger.error('JAMB slip status error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to get job status'));
+  }
+});
+
+// ─── JAMB Slip Download Proxy (by RPA Job ID) ────────────────────────────────
+router.get('/jamb-slip-download-job/:jobId', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { jobId } = req.params;
+    const [job] = await db.select().from(rpaJobs)
+      .where(and(eq(rpaJobs.id, jobId), eq(rpaJobs.userId, req.userId!)))
+      .limit(1);
+
+    if (!job) return res.status(404).json(formatErrorResponse(404, 'Job not found'));
+
+    const result = (job.result || {}) as any;
+    const slipUrl: string | null = result.slipUrl || null;
+    const regNo = (result.registrationNumber || 'JAMB').replace(/[^a-zA-Z0-9]/g, '_');
+
+    if (!slipUrl) return res.status(404).json(formatErrorResponse(404, 'Slip not available yet'));
+
+    res.setHeader('Content-Disposition', `attachment; filename="JAMB_Slip_${regNo}.pdf"`);
+    res.setHeader('Content-Type', 'application/pdf');
+
+    if (slipUrl.startsWith('/objects/')) {
+      const fileKey = await objectStorageService.getObjectEntityFile(slipUrl);
+      await objectStorageService.downloadObject(fileKey, res);
+    } else if (slipUrl.startsWith('/uploads/')) {
+      const filePath = path.join(process.cwd(), slipUrl);
+      if (!fs.existsSync(filePath)) return res.status(404).json(formatErrorResponse(404, 'File not found on disk'));
+      fs.createReadStream(filePath).pipe(res);
+    } else {
+      return res.redirect(302, slipUrl);
+    }
+  } catch (error: any) {
+    logger.error('JAMB slip download (job) error', { error: error.message });
+    if (!res.headersSent) res.status(500).json(formatErrorResponse(500, 'Download failed'));
+  }
+});
+
+// ─── JAMB Slip Download Proxy (by Service Request ID — for history) ──────────
+router.get('/jamb-slip-download-req/:reqId', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { reqId } = req.params;
+    const [jambReq] = await db.select({
+      id: jambServiceRequests.id,
+      userId: jambServiceRequests.userId,
+      resultUrl: jambServiceRequests.resultUrl,
+      registrationNumber: jambServiceRequests.registrationNumber,
+    })
+      .from(jambServiceRequests)
+      .where(and(eq(jambServiceRequests.id, reqId), eq(jambServiceRequests.userId, req.userId!)))
+      .limit(1);
+
+    if (!jambReq) return res.status(404).json(formatErrorResponse(404, 'Request not found'));
+
+    const slipUrl: string | null = jambReq.resultUrl || null;
+    const regNo = (jambReq.registrationNumber || 'JAMB').replace(/[^a-zA-Z0-9]/g, '_');
+
+    if (!slipUrl) return res.status(404).json(formatErrorResponse(404, 'Slip not available yet'));
+
+    res.setHeader('Content-Disposition', `attachment; filename="JAMB_Slip_${regNo}.pdf"`);
+    res.setHeader('Content-Type', 'application/pdf');
+
+    if (slipUrl.startsWith('/objects/')) {
+      const fileKey = await objectStorageService.getObjectEntityFile(slipUrl);
+      await objectStorageService.downloadObject(fileKey, res);
+    } else if (slipUrl.startsWith('/uploads/')) {
+      const filePath = path.join(process.cwd(), slipUrl);
+      if (!fs.existsSync(filePath)) return res.status(404).json(formatErrorResponse(404, 'File not found on disk'));
+      fs.createReadStream(filePath).pipe(res);
+    } else {
+      return res.redirect(302, slipUrl);
+    }
+  } catch (error: any) {
+    logger.error('JAMB slip download (req) error', { error: error.message });
+    if (!res.headersSent) res.status(500).json(formatErrorResponse(500, 'Download failed'));
   }
 });
 

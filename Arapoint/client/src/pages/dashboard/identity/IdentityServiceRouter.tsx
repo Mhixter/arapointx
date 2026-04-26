@@ -1082,6 +1082,9 @@ function TransactionsHistory() {
                 if (fields.lga) details.push({ label: 'LGA', value: fields.lga });
                 if (fields.parentName) details.push({ label: 'Parent/Guardian', value: fields.parentName });
                 if (req.customerNotes) details.push({ label: 'Notes', value: req.customerNotes });
+                if (req.agentNotes) details.push({ label: 'Agent Notes', value: req.agentNotes });
+
+                const hasResolvedTracking = req.resolvedTrackingId && req.resolvedTrackingId !== req.newTrackingId;
 
                 return (
                   <div key={req.id} className="rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
@@ -1098,6 +1101,22 @@ function TransactionsHistory() {
                         <p className="text-sm font-semibold text-primary">₦{parseFloat(req.fee).toLocaleString()}</p>
                       </div>
                     </div>
+
+                    {hasResolvedTracking && (
+                      <div className="px-4 py-3 bg-green-50 dark:bg-green-950/30 border-t border-green-200 dark:border-green-800 flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold text-green-700 dark:text-green-400 uppercase tracking-wide">Resolved Tracking ID</p>
+                          <p className="text-base font-bold text-green-900 dark:text-green-200 tracking-widest font-mono mt-0.5">{req.resolvedTrackingId}</p>
+                        </div>
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(req.resolvedTrackingId); }}
+                          className="text-xs text-green-700 dark:text-green-400 hover:underline flex-shrink-0"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    )}
+
                     {details.length > 0 && (
                       <div className="px-4 pb-4 pt-0 bg-muted/20 border-t border-gray-100 dark:border-gray-800">
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 pt-3">Submitted Details</p>

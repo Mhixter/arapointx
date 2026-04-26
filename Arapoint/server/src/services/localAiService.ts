@@ -1,5 +1,5 @@
 import { db } from '../config/database';
-import { aiKnowledgeBase, aiUnresolvedQueries, supportMessages } from '../db/schema';
+import { aiKnowledgeBase, aiUnresolvedQueries, supportMessages, adminSettings } from '../db/schema';
 import { eq, desc, sql as sqlExpr, and } from 'drizzle-orm';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -54,10 +54,39 @@ interface KbEntry {
 }
 
 let _openai: OpenAI | null = null;
+let _cachedApiKey: string | null = null;
+
+async function resolveOpenAIKey(): Promise<string | null> {
+  try {
+    const [setting] = await db.select({ value: adminSettings.settingValue })
+      .from(adminSettings)
+      .where(eq(adminSettings.settingKey, 'openai_api_key'))
+      .limit(1);
+    if (setting?.value && setting.value.trim() && setting.value !== 'placeholder') {
+      return setting.value.trim();
+    }
+  } catch {}
+  const envKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  return (envKey && envKey !== 'placeholder') ? envKey : null;
+}
+
 function getOpenAI(): OpenAI | null {
-  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  const apiKey = _cachedApiKey || process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
   if (!apiKey || apiKey === 'placeholder') return null;
-  if (!_openai) {
+  if (!_openai || _cachedApiKey !== apiKey) {
+    _openai = new OpenAI({
+      apiKey,
+      baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined,
+    });
+  }
+  return _openai;
+}
+
+async function getOpenAIAsync(): Promise<OpenAI | null> {
+  const apiKey = await resolveOpenAIKey();
+  if (!apiKey) return null;
+  if (_cachedApiKey !== apiKey) {
+    _cachedApiKey = apiKey;
     _openai = new OpenAI({
       apiKey,
       baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined,
@@ -326,7 +355,7 @@ class LocalAiService {
   }
 
   private async processWithOpenAI(query: string, conversationId?: string): Promise<{ answer: string; shouldEscalate: boolean } | null> {
-    const openai = getOpenAI();
+    const openai = await getOpenAIAsync();
     if (!openai) return null;
 
     try {

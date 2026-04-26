@@ -45,6 +45,7 @@ export default function AdminSettings() {
     smtpFromEmail: "",
     supportWhatsappChannel: "",
     supportWhatsappGroup: "",
+    openaiApiKey: "",
   });
   const [testEmail, setTestEmail] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
@@ -78,6 +79,7 @@ export default function AdminSettings() {
     nabtebUrl: 'rpa_provider_url_nabteb',
     nbaisUrl: 'rpa_provider_url_nbais',
     jambSlipUrl: 'rpa_provider_url_jamb_slip',
+    openaiApiKey: 'openai_api_key',
   };
 
   const booleanKeys = ['maintenanceMode', 'emailNotifications', 'smsNotifications', 'twoFactorAuth'];
@@ -313,7 +315,8 @@ export default function AdminSettings() {
       [settingsMap.nabtebUrl]: settings.nabtebUrl,
       [settingsMap.nbaisUrl]: settings.nbaisUrl,
       [settingsMap.jambSlipUrl]: settings.jambSlipUrl,
-    }, "Education");
+      [settingsMap.openaiApiKey]: settings.openaiApiKey,
+    }, "Education & AI");
   };
 
   const handleSaveAdvanced = () => {
@@ -1161,10 +1164,40 @@ export default function AdminSettings() {
               </div>
             </CardContent>
           </Card>
+          <Card>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">AI Support Configuration</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Configure the OpenAI API key for the Ara support chatbot. Overrides the environment variable when set.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
+              <div className="space-y-1.5 sm:space-y-2">
+                <Label htmlFor="openai-api-key" className="text-xs sm:text-sm">OpenAI API Key</Label>
+                <div className="relative">
+                  <Input
+                    id="openai-api-key"
+                    type={showPasswords['openaiApiKey'] ? "text" : "password"}
+                    placeholder="sk-..."
+                    value={settings.openaiApiKey || ""}
+                    onChange={(e) => setSettings(prev => ({ ...prev, openaiApiKey: e.target.value }))}
+                    className="h-8 sm:h-9 text-sm pr-10 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswords(prev => ({ ...prev, openaiApiKey: !prev.openaiApiKey }))}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPasswords['openaiApiKey'] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">Enter your OpenAI API key to enable the Ara AI support chatbot. Leave blank to use the system environment variable.</p>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="flex justify-end pt-2">
             <Button onClick={handleSaveEducation} size="sm" className="h-9 sm:h-10 text-xs sm:text-sm px-4 sm:px-6">
               <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
-              Save Education Settings
+              Save Education & AI Settings
             </Button>
           </div>
         </TabsContent>

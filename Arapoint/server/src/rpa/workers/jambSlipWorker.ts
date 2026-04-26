@@ -65,8 +65,29 @@ export class JAMBSlipWorker extends BaseWorker {
       const page = this.engine.getPage()!;
 
       logger.info('Navigating to JAMB slip portal', { url: portalUrl });
-      await page.goto(portalUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+      try {
+        await page.goto(portalUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+      } catch (navErr: any) {
+        logger.warn('JAMB slip portal navigation timeout, continuing anyway', { error: navErr.message });
+      }
       await this.engine.sleep(2000);
+
+      const initialContent = await page.content();
+      if (this.detectSiteClosed(initialContent)) {
+        logger.warn('JAMB slip portal is closed on initial load');
+        return this.createErrorResult('site_closed: The JAMB slip printing portal is currently closed. Please try again when the portal reopens.');
+      }
+
+      const httpStatusCode = await page.evaluate(() => {
+        const bodyText = document.body?.innerText || '';
+        if (bodyText.includes('404') && (bodyText.toLowerCase().includes('not found') || bodyText.toLowerCase().includes('page not found'))) return 404;
+        if (bodyText.includes('503') || bodyText.toLowerCase().includes('service unavailable')) return 503;
+        return 200;
+      }).catch(() => 200);
+
+      if (httpStatusCode === 503) {
+        return this.createErrorResult('site_closed: The JAMB slip printing portal is reporting Service Unavailable (503). Please try again later.');
+      }
 
       const inputSelector = await this.findInput(page);
       if (!inputSelector) {
@@ -171,8 +192,40 @@ export class JAMBSlipWorker extends BaseWorker {
     return false;
   }
 
+  private detectSiteClosed(html: string): boolean {
+    const lower = html.toLowerCase();
+    const closedPhrases = [
+      'slip printing is currently closed',
+      'portal is currently closed',
+      'site is currently closed',
+      'portal closed',
+      'printing closed',
+      'currently unavailable',
+      'service unavailable',
+      'site under maintenance',
+      'under maintenance',
+      'maintenance mode',
+      'temporarily unavailable',
+      'slip printing will resume',
+      'portal will be open',
+      'printing portal is closed',
+      '503 service',
+      'access denied',
+      'forbidden access',
+    ];
+    for (const phrase of closedPhrases) {
+      if (lower.includes(phrase)) return true;
+    }
+    return false;
+  }
+
   private detectError(html: string): string | null {
     const lower = html.toLowerCase();
+
+    if (this.detectSiteClosed(html)) {
+      return 'site_closed: The JAMB slip printing portal is currently closed. Please try again when the portal reopens.';
+    }
+
     const errorPhrases = [
       'invalid registration',
       'not found',

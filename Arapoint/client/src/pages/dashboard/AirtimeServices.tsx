@@ -244,10 +244,12 @@ export default function AirtimeServices() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => setView('menu')}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
+        <Link href="/dashboard/vtu">
+          <Button variant="ghost" size="sm">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to VTU
+          </Button>
+        </Link>
       </div>
 
       <div>

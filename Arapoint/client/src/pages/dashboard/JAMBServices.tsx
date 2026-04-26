@@ -133,6 +133,8 @@ export default function JAMBServices() {
   const [slipUrl, setSlipUrl] = useState<string | null>(null);
   const [slipError, setSlipError] = useState<string | null>(null);
   const [slipProgress, setSlipProgress] = useState(0);
+  const [slipSiteClosed, setSlipSiteClosed] = useState(false);
+  const [downloadingSlip, setDownloadingSlip] = useState(false);
   const slipPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopSlipPolling = useCallback(() => {
@@ -164,11 +166,35 @@ export default function JAMBServices() {
       } else if (job.status === 'failed') {
         stopSlipPolling();
         setSlipStatus('failed');
+        setSlipSiteClosed(!!job.siteClosed);
         setSlipError(job.errorMessage || 'The JAMB portal could not retrieve your slip. Please check your registration number and try again.');
         setSlipProgress(0);
       }
     } catch {}
   }, [stopSlipPolling, toast]);
+
+  const downloadSlipPdf = useCallback(async () => {
+    if (!slipJobId) return;
+    setDownloadingSlip(true);
+    try {
+      const token = tokenStorage.getItem('accessToken') || '';
+      const res = await fetch(`/api/education/jamb-slip-download-job/${slipJobId}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `JAMB_Slip_${slipRegNo}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: 'Download Failed', description: 'Could not download the slip. Please try again.', variant: 'destructive' });
+    } finally {
+      setDownloadingSlip(false);
+    }
+  }, [slipJobId, slipRegNo, toast]);
 
   const handleSlipSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -215,6 +241,8 @@ export default function JAMBServices() {
     setSlipUrl(null);
     setSlipError(null);
     setSlipProgress(0);
+    setSlipSiteClosed(false);
+    setDownloadingSlip(false);
   };
 
   useEffect(() => stopSlipPolling, [stopSlipPolling]);
@@ -272,16 +300,17 @@ export default function JAMBServices() {
     }
   };
 
-  const downloadDocument = async (requestId: string, docId: string, fileName: string) => {
+  const downloadDocument = async (requestId: string, docId: string, fileName: string, isExamSlip = false) => {
     setDownloadingDocId(docId);
     try {
       const token = tokenStorage.getItem('accessToken');
-      const response = await fetch(`/api/education/jamb-requests/${requestId}/documents/${docId}/download`, {
+      const endpoint = isExamSlip
+        ? `/api/education/jamb-slip-download-req/${requestId}`
+        : `/api/education/jamb-requests/${requestId}/documents/${docId}/download`;
+      const response = await fetch(endpoint, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!response.ok) {
-        throw new Error('Download failed');
-      }
+      if (!response.ok) throw new Error('Download failed');
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -541,11 +570,9 @@ export default function JAMBServices() {
                           </div>
                           <div className="flex items-center gap-2">
                             {req.serviceType === 'exam-slip' && req.status === 'completed' && req.resultUrl && (
-                              <Button size="sm" className="h-7 text-xs px-3" asChild>
-                                <a href={req.resultUrl} download={`JAMB_Slip_${req.registrationNumber}.pdf`} target="_blank" rel="noopener noreferrer">
-                                  <Download className="h-3.5 w-3.5 mr-1" />
-                                  Download
-                                </a>
+                              <Button size="sm" className="h-7 text-xs px-3" onClick={() => downloadDocument(req.id, req.id, `JAMB_Slip_${req.registrationNumber || 'slip'}.pdf`)}>
+                                {downloadingDocId === req.id ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Download className="h-3.5 w-3.5 mr-1" />}
+                                Download
                               </Button>
                             )}
                             <Button variant="outline" size="sm" className="h-7 text-xs px-3" onClick={() => openHistoryDetail(req)}>
@@ -638,11 +665,15 @@ export default function JAMBServices() {
                           <p className="text-xs text-green-600 dark:text-green-400">{selectedHistoryRequest.registrationNumber}</p>
                         </div>
                       </div>
-                      <Button size="sm" asChild>
-                        <a href={selectedHistoryRequest.resultUrl} download={`JAMB_Slip_${selectedHistoryRequest.registrationNumber}.pdf`} target="_blank" rel="noopener noreferrer">
-                          <Download className="h-4 w-4 mr-1.5" />
-                          Download PDF
-                        </a>
+                      <Button
+                        size="sm"
+                        disabled={downloadingDocId === selectedHistoryRequest.id}
+                        onClick={() => downloadDocument(selectedHistoryRequest.id, selectedHistoryRequest.id, `JAMB_Slip_${selectedHistoryRequest.registrationNumber || 'slip'}.pdf`, true)}
+                      >
+                        {downloadingDocId === selectedHistoryRequest.id
+                          ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                          : <Download className="h-4 w-4 mr-1.5" />}
+                        Download PDF
                       </Button>
                     </div>
                   </div>
@@ -897,7 +928,7 @@ export default function JAMBServices() {
             </div>
           )}
 
-          {slipStatus === 'completed' && slipUrl && (
+          {slipStatus === 'completed' && slipJobId && (
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
               <div className="flex items-center gap-2 flex-1">
                 <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
@@ -907,11 +938,9 @@ export default function JAMBServices() {
                 </div>
               </div>
               <div className="flex gap-2 flex-shrink-0">
-                <Button size="sm" asChild>
-                  <a href={slipUrl} download={`JAMB_Slip_${slipRegNo}.pdf`} target="_blank" rel="noopener noreferrer">
-                    <Download className="h-4 w-4 mr-1.5" />
-                    Download PDF
-                  </a>
+                <Button size="sm" onClick={downloadSlipPdf} disabled={downloadingSlip}>
+                  {downloadingSlip ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Download className="h-4 w-4 mr-1.5" />}
+                  Download PDF
                 </Button>
                 <Button size="sm" variant="outline" onClick={resetSlip}>
                   New Slip
@@ -925,10 +954,30 @@ export default function JAMBServices() {
               <div className="flex items-start gap-2">
                 <XCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-red-700">Could not retrieve slip</p>
+                  <p className="text-sm font-medium text-red-700">
+                    {slipSiteClosed ? 'JAMB Slip Printing Portal is Currently Closed' : 'Could not retrieve slip'}
+                  </p>
                   <p className="text-xs text-muted-foreground">{slipError}</p>
                 </div>
               </div>
+              {slipSiteClosed && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-3 space-y-2">
+                  <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">Portal Closed — Try JAMB Result Check Instead</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400">The exam slip printing portal is currently unavailable. You can check your JAMB result score directly on the JAMB e-Facility portal.</p>
+                  <div className="flex gap-2 flex-wrap">
+                    <Button size="sm" variant="outline" className="border-amber-300 text-amber-800 hover:bg-amber-100" asChild>
+                      <a href="https://efacility.jamb.gov.ng/" target="_blank" rel="noopener noreferrer">
+                        Check JAMB Results
+                      </a>
+                    </Button>
+                    <Button size="sm" variant="outline" asChild>
+                      <a href="https://www.jamb.gov.ng/checkresult/" target="_blank" rel="noopener noreferrer">
+                        JAMB Score Portal
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+              )}
               <Button size="sm" variant="outline" onClick={resetSlip}>
                 Try Again
               </Button>
