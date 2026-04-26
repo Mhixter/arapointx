@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLocation } from "wouter";
-import { Users, DollarSign, AlertTriangle, FileCheck, ShieldCheck, BookOpen, Smartphone, Loader2, MessageSquare, Receipt, Bell, X, Baby } from "lucide-react";
+import { Users, DollarSign, AlertTriangle, FileCheck, ShieldCheck, BookOpen, Smartphone, Loader2, MessageSquare, Receipt, Bell, X, Baby, Wallet, Code2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminApi } from "@/lib/api";
@@ -96,6 +96,20 @@ export default function AdminDashboard() {
       value: statsLoading ? '...' : (stats?.pendingJobs || 0).toLocaleString(),
       icon: AlertTriangle, 
       color: 'text-red-600' 
+    },
+    {
+      name: 'Users Balance',
+      value: statsLoading ? '...' : formatCurrency(stats?.totalUsersBalance || 0),
+      icon: Wallet,
+      color: 'text-emerald-600',
+      subtitle: 'Total wallet balance of all users',
+    },
+    {
+      name: 'Developers Balance',
+      value: statsLoading ? '...' : formatCurrency(stats?.totalDevelopersBalance || 0),
+      icon: Code2,
+      color: 'text-violet-600',
+      subtitle: 'Total wallet balance of all developers',
     },
   ];
 
@@ -234,7 +248,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 lg:gap-4">
         {adminStats.map((stat) => (
           <Card
             key={stat.name}
@@ -246,9 +260,12 @@ export default function AdminDashboard() {
               <stat.icon className={`h-3 w-3 sm:h-4 sm:w-4 ${stat.color} flex-shrink-0`} />
             </CardHeader>
             <CardContent className="p-3 sm:p-4 pt-0">
-              <div className="text-lg sm:text-xl lg:text-2xl font-bold truncate">{stat.value}</div>
+              <div className={`text-lg sm:text-xl lg:text-2xl font-bold truncate ${stat.color}`}>{stat.value}</div>
               {stat.name === 'Pending' && (stats?.pendingJobs || 0) > 0 && (
                 <p className="text-[10px] text-red-500 mt-0.5">Click to view →</p>
+              )}
+              {(stat as any).subtitle && (
+                <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{(stat as any).subtitle}</p>
               )}
             </CardContent>
           </Card>

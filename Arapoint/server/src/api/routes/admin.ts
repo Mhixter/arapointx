@@ -211,6 +211,17 @@ router.get('/stats', async (req: Request, res: Response) => {
       services: weeklyData.find(w => w.day === day)?.services || 0
     }));
 
+    const [usersWalletResult] = await db.select({
+      total: sql<string>`COALESCE(SUM(wallet_balance), 0)`
+    }).from(users);
+
+    const devWalletResult = await db.execute(
+      sql`SELECT COALESCE(SUM(wallet_balance), 0)::text AS total FROM developer_users`
+    ).catch(() => ({ rows: [{ total: '0' }] }));
+
+    const totalUsersBalance = parseFloat(usersWalletResult?.total || '0');
+    const totalDevelopersBalance = parseFloat((devWalletResult.rows[0] as any)?.total || '0');
+
     logger.info('Admin stats request', { userId: req.userId });
 
     res.json(formatResponse('success', 200, 'Admin statistics retrieved', {
@@ -222,6 +233,8 @@ router.get('/stats', async (req: Request, res: Response) => {
       bvnServices: bvnCount?.count || 0,
       educationServices: educationCount?.count || 0,
       vtuServices: (airtimeCount?.count || 0) + (dataCount?.count || 0),
+      totalUsersBalance,
+      totalDevelopersBalance,
       chartData,
     }));
   } catch (error: any) {
