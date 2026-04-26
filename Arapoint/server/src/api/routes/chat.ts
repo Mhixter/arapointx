@@ -3,7 +3,7 @@ import { db } from '../../config/database';
 import {
   aiChatSessions, aiChatMessages, users, supportTickets,
   supportConversations, supportMessages, supportQueue, transactions,
-  virtualAccounts,
+  virtualAccounts, adminSettings,
 } from '../../db/schema';
 import { eq, desc, sql } from 'drizzle-orm';
 import { logger } from '../../utils/logger';
@@ -69,13 +69,31 @@ const router = Router();
   }
 })();
 
-function getOpenAI(): OpenAI | null {
-  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-  if (!apiKey) return null;
-  return new OpenAI({
-    apiKey,
-    baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined,
-  });
+let _cachedOpenAI: OpenAI | null = null;
+let _cachedChatApiKey: string | null = null;
+
+async function getOpenAI(): Promise<OpenAI | null> {
+  try {
+    const [setting] = await db.select({ value: adminSettings.settingValue })
+      .from(adminSettings)
+      .where(eq(adminSettings.settingKey, 'openai_api_key'))
+      .limit(1);
+    if (setting?.value && setting.value.trim() && setting.value !== 'placeholder') {
+      const key = setting.value.trim();
+      if (_cachedChatApiKey !== key) {
+        _cachedChatApiKey = key;
+        _cachedOpenAI = new OpenAI({ apiKey: key, baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined });
+      }
+      return _cachedOpenAI;
+    }
+  } catch {}
+  const envKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  if (!envKey || envKey === 'placeholder') return null;
+  if (_cachedChatApiKey !== envKey) {
+    _cachedChatApiKey = envKey;
+    _cachedOpenAI = new OpenAI({ apiKey: envKey, baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined });
+  }
+  return _cachedOpenAI;
 }
 
 async function resolveUser(req: Request): Promise<{ userId: string; user: any } | null> {
@@ -417,9 +435,9 @@ router.post('/message', async (req: Request, res: Response) => {
       return res.status(400).json({ status: 'error', code: 400, message: 'sessionId and message are required' });
     }
 
-    const openai = getOpenAI();
+    const openai = await getOpenAI();
     if (!openai) {
-      return res.status(503).json({ status: 'error', code: 503, message: 'AI service unavailable' });
+      return res.status(503).json({ status: 'error', code: 503, message: 'AI service unavailable — no API key configured. Please contact support.' });
     }
 
     const [session] = await db.select().from(aiChatSessions).where(eq(aiChatSessions.id, sessionId)).limit(1);
