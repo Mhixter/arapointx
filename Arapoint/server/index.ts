@@ -303,16 +303,23 @@ async function pollPendingVtu(): Promise<void> {
       setInterval(pollPendingVtu, 5_000); // poll every 5 seconds
       log('VTU status poller started (5s interval)');
 
-      // Self-ping every 3 minutes via the public URL to keep Autoscale from sleeping
+      // Self-ping every 25 seconds via the public URL to keep Autoscale from sleeping.
+      // Also pings the developer subdomain URL so both stay warm independently.
       if (process.env.NODE_ENV === 'production') {
         const siteUrl = (process.env.SITE_URL || 'https://arapoint.com.ng').replace(/\/$/, '');
-        const pingUrl = `${siteUrl}/api/ping`;
+        const pingUrls = [
+          `${siteUrl}/api/ping`,
+          `https://developer.arapoint.com.ng/api/ping`,
+        ];
         const doPing = () => {
           import('https').then(({ default: https }) => {
-            https.get(pingUrl, (r) => r.resume()).on('error', () => {});
+            for (const url of pingUrls) {
+              https.get(url, (r) => r.resume()).on('error', () => {});
+            }
           }).catch(() => {});
         };
-        setInterval(doPing, 60 * 1000);
+        doPing(); // immediate first ping on startup
+        setInterval(doPing, 25 * 1000);
       }
     },
   );
