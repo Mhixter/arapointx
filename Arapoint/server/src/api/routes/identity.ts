@@ -654,9 +654,13 @@ router.get('/pricing', async (req: Request, res: Response) => {
   try {
     const { pricingService } = await import('../../services/pricingService');
     
-    const [ninLookup, ninPhone] = await Promise.all([
+    const [ninLookup, ninPhone, ipeClearance, ninValidation, birthAttestation, ninPersonalization] = await Promise.all([
       pricingService.getPricing('nin_lookup'),
       pricingService.getPricing('nin_phone'),
+      pricingService.getPricing('ipe_clearance'),
+      pricingService.getPricing('nin_validation'),
+      pricingService.getPricing('birth_attestation'),
+      pricingService.getPricing('nin_personalization'),
     ]);
     
     const slipPricing = {
@@ -665,6 +669,10 @@ router.get('/pricing', async (req: Request, res: Response) => {
       standard: ninLookup.price + 100,
       premium: ninLookup.price + 100,
       nin_phone: ninPhone.price,
+      ipe_clearance: ipeClearance.price,
+      nin_validation: ninValidation.price,
+      birth_attestation: birthAttestation.price,
+      nin_personalization: ninPersonalization.price,
     };
     
     res.json(formatResponse('success', 200, 'NIN pricing retrieved', { pricing: slipPricing }));

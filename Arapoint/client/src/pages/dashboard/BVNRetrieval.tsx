@@ -34,7 +34,8 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import {
   Select,
@@ -54,6 +55,18 @@ export default function BVNRetrieval() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [selectedService, setSelectedService] = useState<string | null>(null);
+
+  const { data: bvnPricingData } = useQuery({
+    queryKey: ['/api/bvn/pricing'],
+    queryFn: async () => {
+      try {
+        const res = await fetch('/api/bvn/pricing');
+        const json = await res.json();
+        return json.data?.pricing || null;
+      } catch { return null; }
+    },
+    staleTime: 60000,
+  });
   const [bvn, setBvn] = useState("");
   const [retrievedData, setRetrievedData] = useState<any>(null);
   const [slipHtml, setSlipHtml] = useState<string | null>(null);
@@ -62,6 +75,18 @@ export default function BVNRetrieval() {
   const slipContainerRef = useRef<HTMLDivElement>(null);
 
   const [changeCategory, setChangeCategory] = useState<"name" | "dob" | "">("");
+
+  const bvnServices = useMemo(() => [
+    { id: "retrieval", name: "BVN Retrieval", icon: FileSearch, color: "text-cyan-600", bg: "bg-cyan-50 dark:bg-cyan-900/20", border: "border-cyan-200 dark:border-cyan-800", accent: "bg-cyan-600", desc: "Recover lost BVN details instantly. Get full name, photo, and all registered information.", price: bvnPricingData?.bvn_retrieval ?? 100 },
+    { id: "modification", name: "BVN Modification", icon: FilePenLine, color: "text-violet-600", bg: "bg-violet-50 dark:bg-violet-900/20", border: "border-violet-200 dark:border-violet-800", accent: "bg-violet-600", desc: "Update name or date of birth on your BVN. Agent enrollment only — not for bank-enrolled BVNs.", price: Math.max(bvnPricingData?.bvn_modification_name ?? 2500, bvnPricingData?.bvn_modification_dob ?? 2500) },
+  ], [bvnPricingData]);
+
+  const modPrice = useMemo(() => {
+    if (changeCategory === 'name') return bvnPricingData?.bvn_modification_name ?? 2500;
+    if (changeCategory === 'dob') return bvnPricingData?.bvn_modification_dob ?? 2500;
+    return bvnPricingData?.bvn_modification_name ?? 2500;
+  }, [changeCategory, bvnPricingData]);
+
   const [oldName, setOldName] = useState("");
   const [newName, setNewName] = useState("");
   const [oldDOB, setOldDOB] = useState("");
@@ -223,7 +248,7 @@ export default function BVNRetrieval() {
         <div className="space-y-3">
           <h3 className="text-base font-bold">Choose a Service</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {BVN_SERVICES.map((service) => (
+            {bvnServices.map((service) => (
               <button
                 key={service.id}
                 onClick={() => setSelectedService(service.id)}
@@ -273,7 +298,7 @@ export default function BVNRetrieval() {
           </Button>
           <div>
             <h2 className="text-2xl font-bold">BVN Modification</h2>
-            <p className="text-sm text-muted-foreground">Agent enrollment only · ₦2,500 (includes affidavit fees)</p>
+            <p className="text-sm text-muted-foreground">Agent enrollment only · ₦{modPrice.toLocaleString()} (includes affidavit fees)</p>
           </div>
         </div>
 
@@ -285,7 +310,7 @@ export default function BVNRetrieval() {
               <strong>DO NOT submit if your BVN was enrolled at a BANK.</strong> This service is ONLY for BVNs enrolled by agents.
               If you enrolled at a bank branch, please visit the bank for modifications.
             </p>
-            <p className="text-amber-700 dark:text-amber-300 font-medium">Cost: ₦2,500 · Processing: 3–5 business days</p>
+            <p className="text-amber-700 dark:text-amber-300 font-medium">Cost: ₦{modPrice.toLocaleString()} · Processing: 3–5 business days</p>
           </div>
         </div>
 
@@ -387,7 +412,7 @@ export default function BVNRetrieval() {
                   </div>
 
                   <Button type="submit" className="w-full h-12 text-base font-semibold" disabled={loading}>
-                    {loading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Submitting...</> : "Submit Modification Request — ₦2,500"}
+                    {loading ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Submitting...</> : `Submit Modification Request — ₦${modPrice.toLocaleString()}`}
                   </Button>
                 </form>
               </CardContent>
@@ -580,7 +605,7 @@ export default function BVNRetrieval() {
                   </div>
                   <div className="flex items-center justify-between py-1.5">
                     <span className="text-muted-foreground">Amount Paid</span>
-                    <span className="font-bold text-primary">₦2,500</span>
+                    <span className="font-bold text-primary">₦{(selectedHistoryItem.fee ? Number(selectedHistoryItem.fee).toLocaleString() : modPrice.toLocaleString())}</span>
                   </div>
                 </div>
 
@@ -617,7 +642,7 @@ export default function BVNRetrieval() {
                     {nin.trim() && <div className="flex justify-between"><span className="text-muted-foreground">NIN</span><span className="font-mono font-medium">{nin.substring(0, 4)}****{nin.substring(8)}</span></div>}
                     <div className="flex justify-between"><span className="text-muted-foreground">Change Type</span><span className="font-medium">{changeCategory === 'name' ? 'Name Change' : 'Date of Birth Change'}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Phone</span><span className="font-medium">{phoneNumber}</span></div>
-                    <div className="flex justify-between border-t pt-2"><span className="font-semibold">Cost</span><span className="font-bold text-primary">₦2,500</span></div>
+                    <div className="flex justify-between border-t pt-2"><span className="font-semibold">Cost</span><span className="font-bold text-primary">₦{modPrice.toLocaleString()}</span></div>
                   </div>
                   <p className="text-xs text-muted-foreground">Amount includes affidavit and agent processing fees. Processing typically takes 3–5 business days.</p>
                 </div>
@@ -683,7 +708,7 @@ export default function BVNRetrieval() {
 
   /* ────────────── BVN Retrieval Form ────────────── */
   if (!retrievedData) {
-    const service = BVN_SERVICES.find(s => s.id === selectedService);
+    const service = bvnServices.find(s => s.id === selectedService);
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">

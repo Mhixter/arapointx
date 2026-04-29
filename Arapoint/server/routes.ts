@@ -334,12 +334,16 @@ export async function registerRoutes(
   app.get('/api/identity/pricing', publicRateLimiter, async (req, res) => {
     try {
       const { pricingService } = await import('./src/services/pricingService');
-      const [slipInfo, slipRegular, slipStandard, slipPremium, ninPhone] = await Promise.all([
+      const [slipInfo, slipRegular, slipStandard, slipPremium, ninPhone, ipeClearance, ninValidation, birthAttestation, ninPersonalization] = await Promise.all([
         pricingService.getPricing('nin_slip_information'),
         pricingService.getPricing('nin_slip_regular'),
         pricingService.getPricing('nin_slip_standard'),
         pricingService.getPricing('nin_slip_premium'),
         pricingService.getPricing('nin_phone'),
+        pricingService.getPricing('ipe_clearance'),
+        pricingService.getPricing('nin_validation'),
+        pricingService.getPricing('birth_attestation'),
+        pricingService.getPricing('nin_personalization'),
       ]);
       const slipPricing = {
         information: slipInfo.price,
@@ -347,6 +351,10 @@ export async function registerRoutes(
         standard: slipStandard.price,
         premium: slipPremium.price,
         nin_phone: ninPhone.price,
+        ipe_clearance: ipeClearance.price,
+        nin_validation: ninValidation.price,
+        birth_attestation: birthAttestation.price,
+        nin_personalization: ninPersonalization.price,
       };
       res.json({ status: 'success', code: 200, message: 'NIN pricing retrieved', data: { pricing: slipPricing } });
     } catch (error: any) {

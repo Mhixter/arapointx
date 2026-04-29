@@ -68,6 +68,27 @@ const verifyBVNWithFallback = async (bvn: string, isPremium: boolean) => {
 };
 
 const router = Router();
+
+router.get('/pricing', async (_req: Request, res: Response) => {
+  try {
+    const { pricingService } = await import('../../services/pricingService');
+    const [retrieval, modName, modDob] = await Promise.all([
+      pricingService.getPricing('bvn_retrieval'),
+      pricingService.getPricing('bvn_modification_name'),
+      pricingService.getPricing('bvn_modification_dob'),
+    ]);
+    res.json(formatResponse('success', 200, 'BVN pricing retrieved', {
+      pricing: {
+        bvn_retrieval: retrieval.price,
+        bvn_modification_name: modName.price,
+        bvn_modification_dob: modDob.price,
+      }
+    }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to fetch BVN pricing'));
+  }
+});
+
 router.use(authMiddleware);
 
 const getServicePrice = async (serviceType: string, defaultPrice: number): Promise<number> => {

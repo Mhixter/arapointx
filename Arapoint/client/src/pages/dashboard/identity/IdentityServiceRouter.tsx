@@ -25,20 +25,20 @@ const DEFAULT_SLIP_TYPES = [
   { id: "premium", name: "Premium Slip", price: 300, image: slipPremium },
 ];
 
-const IPE_STATUS_OPTIONS = [
-  { id: "in_processing_error", name: "InProcessing Error", price: 1000 },
-  { id: "still_being_process", name: "Still Being Process", price: 1000 },
-  { id: "new_enrollment", name: "New Enrollment For Tracking ID", price: 1000 },
-  { id: "invalid_tracking", name: "Invalid Tracking ID", price: 1000 },
+const IPE_STATUS_OPTION_DEFS = [
+  { id: "in_processing_error", name: "InProcessing Error" },
+  { id: "still_being_process", name: "Still Being Process" },
+  { id: "new_enrollment", name: "New Enrollment For Tracking ID" },
+  { id: "invalid_tracking", name: "Invalid Tracking ID" },
 ];
 
-const VALIDATION_OPTIONS = [
-  { id: "no_record_found", name: "No Record Found", price: 1000 },
-  { id: "update_record", name: "Update Record", price: 1000 },
-  { id: "validate_modification", name: "Validate Modification", price: 1000 },
-  { id: "vnin_validation", name: "V-NIN Validation", price: 1000 },
-  { id: "photograph_error", name: "Photograph Error", price: 1000 },
-  { id: "bypass_nin", name: "Bypass NIN", price: 1000 },
+const VALIDATION_OPTION_DEFS = [
+  { id: "no_record_found", name: "No Record Found" },
+  { id: "update_record", name: "Update Record" },
+  { id: "validate_modification", name: "Validate Modification" },
+  { id: "vnin_validation", name: "V-NIN Validation" },
+  { id: "photograph_error", name: "Photograph Error" },
+  { id: "bypass_nin", name: "Bypass NIN" },
 ];
 
 const IPE_SLIP_TYPES = [
@@ -296,6 +296,16 @@ function ServiceContent({ service }: { service: any }) {
       { id: "standard",    name: "Standard Slip",    price: pricing?.standard    || 300, image: slipStandard },
       { id: "premium",     name: "Premium Slip",     price: pricing?.premium     || 300, image: slipPremium },
     ];
+  }, [pricingData]);
+
+  const IPE_STATUS_OPTIONS = useMemo(() => {
+    const p = pricingData?.ipe_clearance || 1000;
+    return IPE_STATUS_OPTION_DEFS.map(o => ({ ...o, price: p }));
+  }, [pricingData]);
+
+  const VALIDATION_OPTIONS = useMemo(() => {
+    const p = pricingData?.nin_validation || 1000;
+    return VALIDATION_OPTION_DEFS.map(o => ({ ...o, price: p }));
   }, [pricingData]);
 
   const getAuthToken = () => tokenStorage.getItem('accessToken');
@@ -980,7 +990,9 @@ function ServiceContent({ service }: { service: any }) {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">Service fee:</span>
-                  <Badge variant="secondary" className="text-base px-3 py-1 font-bold text-primary">Agent Quoted</Badge>
+                  <Badge variant="secondary" className="text-base px-3 py-1 font-bold text-primary">
+                    ₦{(pricingData?.birth_attestation || 2000).toLocaleString()}.00
+                  </Badge>
                 </div>
                 <SubmitBtn loading={isLoading} disabled={!consentChecked} label="Request Certificate" icon={FileText} />
               </div>
