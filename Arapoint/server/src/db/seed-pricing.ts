@@ -10,6 +10,8 @@ const pricingRecords = [
   { serviceType: 'nin_phone', serviceName: 'NIN By Phone', price: '180.00', description: 'Retrieve NIN using phone number', isActive: true },
   { serviceType: 'nin_tracking', serviceName: 'NIN With Tracking ID', price: '250.00', description: 'Verify NIN using NIMC tracking ID', isActive: true },
   { serviceType: 'bvn_verification', serviceName: 'BVN Verification', price: '200.00', description: 'Download your BVN slip', isActive: true },
+  { serviceType: 'bvn_modification_name', serviceName: 'BVN Name Modification', price: '2500.00', description: 'Modify name on BVN record', isActive: true },
+  { serviceType: 'bvn_modification_dob', serviceName: 'BVN Date of Birth Modification', price: '2500.00', description: 'Modify date of birth on BVN record', isActive: true },
   { serviceType: 'ipe_clearance', serviceName: 'IPE Clearance', price: '1000.00', description: 'Clear IPE errors and enrollment issues', isActive: true },
   { serviceType: 'validation_nin', serviceName: 'NIN Validation', price: '1000.00', description: 'Record validation and corrections', isActive: true },
   { serviceType: 'jamb_result', serviceName: 'JAMB Result', price: '500.00', description: 'Check JAMB examination results', isActive: true },

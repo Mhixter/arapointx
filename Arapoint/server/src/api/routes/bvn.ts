@@ -243,7 +243,9 @@ router.post('/modify', async (req: Request, res: Response) => {
       ));
     }
 
-    const price = await getServicePrice('bvn_modification', 2500);
+    const changeCategory = validation.data.changeCategory;
+    const priceKey = changeCategory === 'name' ? 'bvn_modification_name' : 'bvn_modification_dob';
+    const price = await getServicePrice(priceKey, 2500);
     const requestId = generateReferenceId();
 
     const balance = await walletService.getBalance(req.userId!);
@@ -251,7 +253,8 @@ router.post('/modify', async (req: Request, res: Response) => {
       return res.status(402).json(formatErrorResponse(402, `Insufficient wallet balance. You need ₦${price.toLocaleString()} but have ₦${balance.balance.toLocaleString()}.`));
     }
 
-    await walletService.deductBalance(req.userId!, price, 'BVN Modification Request', 'bvn_modification');
+    const modLabel = changeCategory === 'name' ? 'BVN Name Modification' : 'BVN Date of Birth Modification';
+    await walletService.deductBalance(req.userId!, price, modLabel, priceKey);
 
     await db.insert(bvnServices).values({
       userId: req.userId!,

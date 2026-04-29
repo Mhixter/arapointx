@@ -1,7 +1,7 @@
 import { tokenStorage } from '@/lib/tokenStorage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, CreditCard, ArrowUpRight, ArrowDownRight, ShieldCheck, GraduationCap, Loader2, Copy, Building2, AlertTriangle, Smartphone, Zap, Tv, Banknote, FileText, ChevronRight, Wifi, History, RotateCw } from "lucide-react";
+import { CheckCircle2, CreditCard, ArrowUpRight, ArrowDownRight, ShieldCheck, GraduationCap, Loader2, Copy, Building2, AlertTriangle, Smartphone, Zap, Tv, Banknote, FileText, ChevronRight, Wifi, History, RotateCw, Gift, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { useEffect, useState, useCallback } from "react";
@@ -52,6 +52,7 @@ interface VirtualAccount {
 
 export default function Overview() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [virtualAccount, setVirtualAccount] = useState<VirtualAccount | null>(null);
   const [accountLoading, setAccountLoading] = useState(true);
   const [generatingAccount, setGeneratingAccount] = useState(false);
@@ -114,6 +115,41 @@ export default function Overview() {
     staleTime: 5000,
     enabled: !!token,
   });
+
+  const { data: commissionData, refetch: refetchCommission } = useQuery({
+    queryKey: ['dashboard', 'commission'],
+    queryFn: async () => {
+      const headers = { Authorization: `Bearer ${getAuthToken()}`, 'Content-Type': 'application/json' };
+      const res = await fetch('/api/dashboard/commission', { headers });
+      if (!res.ok) return { commissionBalance: 0 };
+      const data = await res.json();
+      return data.data || { commissionBalance: 0 };
+    },
+    enabled: !!token,
+    staleTime: 10000,
+  });
+
+  const [converting, setConverting] = useState(false);
+
+  const handleConvertCommission = async () => {
+    setConverting(true);
+    try {
+      const headers = { Authorization: `Bearer ${getAuthToken()}`, 'Content-Type': 'application/json' };
+      const res = await fetch('/api/dashboard/commission/convert', { method: 'POST', headers });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Commission Converted!", description: data.message, variant: "success" });
+        refetchCommission();
+        queryClient.invalidateQueries({ queryKey: ['dashboard', 'stats'] });
+      } else {
+        toast({ title: "Error", description: data.message || "Failed to convert commission", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to convert commission", variant: "destructive" });
+    } finally {
+      setConverting(false);
+    }
+  };
 
   const loading = statsLoading;
 
@@ -235,6 +271,7 @@ export default function Overview() {
   }
 
   const walletBalance = stats?.user?.walletBalance || 0;
+  const commissionBalance = commissionData?.commissionBalance || 0;
   const totalTransactions = stats?.stats?.totalTransactions || 0;
   const totalVerifications = stats?.stats?.totalVerifications || 0;
 
@@ -268,6 +305,27 @@ export default function Overview() {
                 </Button>
               </Link>
             </div>
+            {commissionBalance > 0 && (
+              <div className="mt-4 pt-4 border-t border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Gift className="h-4 w-4 text-amber-400" />
+                  <div>
+                    <p className="text-xs text-white/60">Commission Balance</p>
+                    <p className="text-lg font-bold text-amber-400">₦{commissionBalance.toLocaleString()}</p>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleConvertCommission}
+                  disabled={converting}
+                  className="border-amber-400/50 text-amber-300 hover:bg-amber-400/10 hover:text-amber-200 bg-transparent text-xs"
+                >
+                  {converting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <ArrowRightLeft className="h-3.5 w-3.5 mr-1.5" />}
+                  Convert to Wallet
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 

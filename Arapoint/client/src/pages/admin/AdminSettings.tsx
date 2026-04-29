@@ -47,6 +47,9 @@ export default function AdminSettings() {
     supportWhatsappGroup: "",
     openaiApiKey: "",
   });
+  const [commissionRate, setCommissionRate] = useState<number>(5);
+  const [commissionRateInput, setCommissionRateInput] = useState<string>('5');
+  const [savingCommission, setSavingCommission] = useState(false);
   const [testEmail, setTestEmail] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
   const [gateways, setGateways] = useState<Record<string, any>>({});
@@ -260,6 +263,49 @@ export default function AdminSettings() {
         description: `Failed to save ${tabName.toLowerCase()} settings. Please try again.`,
         variant: "destructive"
       });
+    }
+  };
+
+  useEffect(() => {
+    const fetchCommissionRate = async () => {
+      try {
+        const token = tokenStorage.getItem('adminToken');
+        const res = await fetch('/api/admin/commission-rate', { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const data = await res.json();
+          const rate = data.data?.rate ?? 5;
+          setCommissionRate(rate);
+          setCommissionRateInput(String(rate));
+        }
+      } catch {}
+    };
+    fetchCommissionRate();
+  }, []);
+
+  const handleSaveCommission = async () => {
+    const numRate = parseFloat(commissionRateInput);
+    if (isNaN(numRate) || numRate < 0 || numRate > 100) {
+      toast({ title: "Invalid Rate", description: "Commission rate must be between 0 and 100.", variant: "destructive" });
+      return;
+    }
+    setSavingCommission(true);
+    try {
+      const token = tokenStorage.getItem('adminToken');
+      const res = await fetch('/api/admin/commission-rate', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ rate: numRate }),
+      });
+      if (res.ok) {
+        setCommissionRate(numRate);
+        toast({ title: "Commission Rate Saved", description: `Commission rate set to ${numRate}% per transaction.`, variant: "success" });
+      } else {
+        throw new Error('Failed');
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to save commission rate.", variant: "destructive" });
+    } finally {
+      setSavingCommission(false);
     }
   };
 
@@ -574,6 +620,43 @@ export default function AdminSettings() {
               </div>
             </CardContent>
           </Card>
+          <Card className="border-amber-200 dark:border-amber-800">
+            <CardHeader className="p-4 sm:p-6">
+              <div className="flex items-center gap-2">
+                <Percent className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
+                <CardTitle className="text-base sm:text-lg">Commission Program</CardTitle>
+              </div>
+              <CardDescription className="text-xs sm:text-sm">
+                Set the percentage of each service transaction awarded to users as commission. Users can convert their commission balance to their main wallet at any time. VTU (airtime/data/cable/electricity) transactions do not earn commission.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-0 space-y-3 sm:space-y-4">
+              <div className="flex items-end gap-3">
+                <div className="space-y-1.5 flex-1 max-w-xs">
+                  <Label className="text-xs sm:text-sm font-medium">Commission Rate (%)</Label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.5"
+                      value={commissionRateInput}
+                      onChange={(e) => setCommissionRateInput(e.target.value)}
+                      className="h-9 sm:h-10 text-sm pr-8"
+                      placeholder="5"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Current active rate: <span className="font-semibold text-amber-600">{commissionRate}%</span></p>
+                </div>
+                <Button onClick={handleSaveCommission} disabled={savingCommission} size="sm" className="h-9 sm:h-10 text-xs sm:text-sm bg-amber-600 hover:bg-amber-700">
+                  {savingCommission ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
+                  Save Rate
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="flex justify-end pt-2">
             <Button onClick={handleSaveGeneral} size="sm" className="h-9 sm:h-10 text-xs sm:text-sm px-4 sm:px-6">
               <Save className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />

@@ -301,6 +301,7 @@ router.put('/pricing/:id', async (req: Request, res: Response) => {
       return res.status(404).json(formatErrorResponse(404, 'Pricing not found'));
     }
 
+    pricingService.clearCache();
     logger.info('Pricing updated', { pricingId: id, adminId: req.userId });
     res.json(formatResponse('success', 200, 'Pricing updated', updated));
   } catch (error: any) {
@@ -1259,6 +1260,36 @@ router.get('/settings', async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error('Get settings error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to get settings'));
+  }
+});
+
+router.get('/commission-rate', async (req: Request, res: Response) => {
+  try {
+    const [row] = await db.select({ settingValue: adminSettings.settingValue })
+      .from(adminSettings)
+      .where(eq(adminSettings.settingKey, 'commission_rate'))
+      .limit(1);
+    const rate = parseFloat(row?.settingValue || '5');
+    res.json(formatResponse('success', 200, 'Commission rate retrieved', { rate: isNaN(rate) ? 5 : rate }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to get commission rate'));
+  }
+});
+
+router.put('/commission-rate', async (req: Request, res: Response) => {
+  try {
+    const { rate } = req.body;
+    const numRate = parseFloat(rate);
+    if (isNaN(numRate) || numRate < 0 || numRate > 100) {
+      return res.status(400).json(formatErrorResponse(400, 'Rate must be a number between 0 and 100'));
+    }
+    await db.insert(adminSettings)
+      .values({ settingKey: 'commission_rate', settingValue: numRate.toString(), updatedAt: new Date() })
+      .onConflictDoUpdate({ target: adminSettings.settingKey, set: { settingValue: numRate.toString(), updatedAt: new Date() } });
+    logger.info('Commission rate updated', { rate: numRate, adminId: req.userId });
+    res.json(formatResponse('success', 200, 'Commission rate updated', { rate: numRate }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to update commission rate'));
   }
 });
 

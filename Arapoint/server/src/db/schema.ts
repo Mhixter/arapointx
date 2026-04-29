@@ -22,6 +22,7 @@ export const users = pgTable('users', {
   phone: varchar('phone', { length: 20 }),
   passwordHash: varchar('password_hash', { length: 255 }),
   walletBalance: decimal('wallet_balance', { precision: 15, scale: 2 }).default('0'),
+  commissionBalance: decimal('commission_balance', { precision: 15, scale: 2 }).default('0').notNull(),
   bvn: varchar('bvn', { length: 11 }),
   nin: varchar('nin', { length: 11 }),
   kycStatus: varchar('kyc_status', { length: 50 }).default('pending'),

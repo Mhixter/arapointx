@@ -3,6 +3,7 @@ import { db } from '../../config/database';
 import { users, transactions, identityVerifications, bvnServices, educationServices, airtimeServices, dataServices, electricityServices, cableServices } from '../../db/schema';
 import { eq, desc, sql, and } from 'drizzle-orm';
 import { authMiddleware } from '../middleware/auth';
+import { walletService } from '../../services/walletService';
 
 const router = Router();
 
@@ -470,6 +471,24 @@ router.get('/notifications', authMiddleware, async (req: Request, res: Response)
       code: 500,
       message: 'Failed to fetch notifications',
     });
+  }
+});
+
+router.get('/commission', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const balance = await walletService.getCommissionBalance(req.userId!);
+    res.json({ status: 'success', code: 200, message: 'Commission balance retrieved', data: { commissionBalance: balance } });
+  } catch (error: any) {
+    res.status(500).json({ status: 'error', code: 500, message: error.message || 'Failed to get commission balance' });
+  }
+});
+
+router.post('/commission/convert', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const result = await walletService.convertCommissionToWallet(req.userId!);
+    res.json({ status: 'success', code: 200, message: `₦${result.converted.toLocaleString()} commission converted to wallet balance`, data: result });
+  } catch (error: any) {
+    res.status(400).json({ status: 'error', code: 400, message: error.message || 'Failed to convert commission' });
   }
 });
 

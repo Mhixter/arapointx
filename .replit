@@ -103,7 +103,7 @@ ADMIN_NAME = "Admin User"
 ADMIN_PASSWORD = "Mhixter664@gmail.com"
 ADMIN_EMAIL = "saidumuhammed664@gmail.com"
 PORT = "5000"
-PRIVATE_OBJECT_DIR = "replit-objstore-004487b2-2291-4a2b-aed5-a2d8c0f50f03"
+PRIVATE_OBJECT_DIR = "replit-objstore-674d50ba-7d14-47ba-89fd-ade8d514094f"
 
 [userenv.production]
 SITE_URL = "https://arapoint.com.ng"
@@ -113,4 +113,4 @@ ENCRYPTION_KEY = "af5a17d7b1418bd6f2c3af5802e867fe"
 WEBHOOK_BASE_URL = "https://arapoint.com.ng"
 
 [objectStorage]
-defaultBucketID = "replit-objstore-004487b2-2291-4a2b-aed5-a2d8c0f50f03"
+defaultBucketID = "replit-objstore-674d50ba-7d14-47ba-89fd-ade8d514094f"

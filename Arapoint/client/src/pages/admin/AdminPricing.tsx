@@ -47,6 +47,8 @@ const SERVICE_DEFINITIONS: Record<string, { category: string; name: string; desc
   nin_slip_premium: { category: 'Identity', name: 'NIN Slip Premium', description: 'Premium NIN slip with all features' },
   bvn_verification: { category: 'Identity', name: 'BVN Verification', description: 'Verify Bank Verification Number' },
   bvn_phone_lookup: { category: 'Identity', name: 'BVN Phone Lookup', description: 'Retrieve BVN using phone number' },
+  bvn_modification_name: { category: 'Identity Agent', name: 'BVN Name Modification', description: 'Modify name on BVN record' },
+  bvn_modification_dob: { category: 'Identity Agent', name: 'BVN Date of Birth Modification', description: 'Modify date of birth on BVN record' },
   birth_attestation: { category: 'Identity', name: 'Birth Attestation', description: 'Birth certificate attestation service' },
   // Manual Identity Services (handled by Identity Agents)
   nin_validation: { category: 'Identity Agent', name: 'NIN Validation', description: 'Update NIN record (name/address/phone - manual processing)' },
