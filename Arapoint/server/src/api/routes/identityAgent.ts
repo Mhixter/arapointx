@@ -173,8 +173,9 @@ router.get('/stats', identityAgentAuthMiddleware, async (req: Request, res: Resp
 router.get('/requests', identityAgentAuthMiddleware, async (req: Request, res: Response) => {
   try {
     const { status } = req.query;
+    const agentId = (req as any).agentId;
 
-    let query = db.select({
+    const baseSelect = db.select({
       id: identityServiceRequests.id,
       trackingId: identityServiceRequests.trackingId,
       serviceType: identityServiceRequests.serviceType,
@@ -193,17 +194,64 @@ router.get('/requests', identityAgentAuthMiddleware, async (req: Request, res: R
       userName: users.name,
     })
       .from(identityServiceRequests)
-      .leftJoin(users, eq(identityServiceRequests.userId, users.id))
-      .orderBy(desc(identityServiceRequests.createdAt));
+      .leftJoin(users, eq(identityServiceRequests.userId, users.id));
+
+    const notBirthAttestation = ne(identityServiceRequests.serviceType, 'birth_attestation');
 
     let requests;
-    if (status && status !== 'all') {
-      requests = await query.where(and(
-        ne(identityServiceRequests.serviceType, 'birth_attestation'),
-        eq(identityServiceRequests.status, status as string)
-      ));
+    if (status === 'pending') {
+      // Pending jobs: available to all agents (unassigned)
+      requests = await baseSelect
+        .where(and(notBirthAttestation, eq(identityServiceRequests.status, 'pending')))
+        .orderBy(desc(identityServiceRequests.createdAt));
+    } else if (status && status !== 'all') {
+      // Any other specific status: only this agent's jobs
+      requests = await baseSelect
+        .where(and(
+          notBirthAttestation,
+          eq(identityServiceRequests.status, status as string),
+          eq(identityServiceRequests.assignedAgentId, agentId)
+        ))
+        .orderBy(desc(identityServiceRequests.createdAt));
     } else {
-      requests = await query.where(ne(identityServiceRequests.serviceType, 'birth_attestation'));
+      // 'all' or no filter: pending (for anyone) + this agent's non-pending jobs
+      const [pendingJobs, myJobs] = await Promise.all([
+        baseSelect
+          .where(and(notBirthAttestation, eq(identityServiceRequests.status, 'pending')))
+          .orderBy(desc(identityServiceRequests.createdAt)),
+        db.select({
+          id: identityServiceRequests.id,
+          trackingId: identityServiceRequests.trackingId,
+          serviceType: identityServiceRequests.serviceType,
+          nin: identityServiceRequests.nin,
+          newTrackingId: identityServiceRequests.newTrackingId,
+          updateFields: identityServiceRequests.updateFields,
+          status: identityServiceRequests.status,
+          isPaid: identityServiceRequests.isPaid,
+          customerNotes: identityServiceRequests.customerNotes,
+          agentNotes: identityServiceRequests.agentNotes,
+          slipUrl: identityServiceRequests.slipUrl,
+          resolvedTrackingId: identityServiceRequests.resolvedTrackingId,
+          validatedFullName: identityServiceRequests.validatedFullName,
+          validatedDateOfBirth: identityServiceRequests.validatedDateOfBirth,
+          createdAt: identityServiceRequests.createdAt,
+          userName: users.name,
+        })
+          .from(identityServiceRequests)
+          .leftJoin(users, eq(identityServiceRequests.userId, users.id))
+          .where(and(
+            notBirthAttestation,
+            ne(identityServiceRequests.status, 'pending'),
+            eq(identityServiceRequests.assignedAgentId, agentId)
+          ))
+          .orderBy(desc(identityServiceRequests.createdAt)),
+      ]);
+      const seen = new Set<string>();
+      requests = [...pendingJobs, ...myJobs].filter(r => {
+        if (seen.has(r.id)) return false;
+        seen.add(r.id);
+        return true;
+      }).sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
     }
 
     res.json(formatResponse('success', 200, 'Requests retrieved', { requests }));

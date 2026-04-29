@@ -1401,6 +1401,8 @@ router.get('/history', async (req: Request, res: Response) => {
       submittedTrackingId: record.newTrackingId,
       resolvedTrackingId: record.resolvedTrackingId,
       agentNotes: record.agentNotes,
+      validatedFullName: record.validatedFullName,
+      validatedDateOfBirth: record.validatedDateOfBirth,
       slipUrl: record.slipUrl && !record.slipUrl.startsWith('file://') ? record.slipUrl : null,
       fee: record.fee,
       updateFields: record.updateFields,

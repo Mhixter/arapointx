@@ -46,6 +46,9 @@ interface IdentityVerificationRecord {
   submittedTrackingId?: string | null;
   resolvedTrackingId?: string | null;
   agentNotes?: string | null;
+  validatedFullName?: string | null;
+  validatedDateOfBirth?: string | null;
+  updateFields?: string | null;
   createdAt: string;
 }
 
@@ -98,8 +101,14 @@ export default function IdentityHistory() {
       'bvn': 'BVN Verification',
       'vnin': 'Virtual NIN',
       'nin_phone': 'NIN-Phone Verification',
+      'nin_validation': 'NIN Validation',
+      'ipe_clearance': 'IPE Clearance',
+      'nin_personalization': 'NIN Personalization',
+      'birth_attestation': 'Birth Attestation',
+      'bvn_modification_name': 'BVN Name Modification',
+      'bvn_modification_dob': 'BVN Date of Birth Modification',
     };
-    return names[type?.toLowerCase()] || type?.toUpperCase() || 'Identity Verification';
+    return names[type?.toLowerCase()] || type?.replace(/_/g, ' ')?.replace(/\b\w/g, c => c.toUpperCase()) || 'Identity Verification';
   };
 
   const formatDate = (dateString: string) => {
@@ -286,6 +295,17 @@ export default function IdentityHistory() {
                         )}
                         {record.agentNotes && (
                           <p className="text-blue-700">Agent Note: <span className="text-xs italic">{record.agentNotes}</span></p>
+                        )}
+                        {(record.validatedFullName || record.validatedDateOfBirth) && (
+                          <div className="mt-2 p-2 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-md space-y-0.5">
+                            <p className="text-xs font-semibold text-green-800 dark:text-green-400 uppercase tracking-wide">Validated Results</p>
+                            {record.validatedFullName && (
+                              <p className="text-sm text-green-900 dark:text-green-300">Full Name: <span className="font-medium">{record.validatedFullName}</span></p>
+                            )}
+                            {record.validatedDateOfBirth && (
+                              <p className="text-sm text-green-900 dark:text-green-300">Date of Birth: <span className="font-medium">{record.validatedDateOfBirth}</span></p>
+                            )}
+                          </div>
                         )}
                         <p>Date: {formatDate(record.createdAt)}</p>
                       </div>
