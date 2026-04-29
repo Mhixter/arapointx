@@ -1173,7 +1173,7 @@ router.post('/validation', async (req: Request, res: Response) => {
       return res.status(400).json(formatErrorResponse(400, 'NIN must be exactly 11 digits'));
     }
 
-    const basePrice = await getServicePrice('validation_nin', 1000);
+    const basePrice = await getServicePrice('nin_validation', 1000);
     const slipPrice = slipType === 'regular' ? 150 : 0;
     const totalPrice = basePrice + slipPrice;
 

@@ -233,6 +233,25 @@ async function pollPendingVtu(): Promise<void> {
     }
   })();
 
+  // Migrate validation_nin → nin_validation for consistent service type key
+  await (async () => {
+    try {
+      const { db: _db } = await import('./src/config/database');
+      const { sql: _sql } = await import('drizzle-orm');
+      await _db.execute(_sql`
+        UPDATE service_pricing
+        SET service_type = 'nin_validation', updated_at = NOW()
+        WHERE service_type = 'validation_nin'
+          AND NOT EXISTS (
+            SELECT 1 FROM service_pricing WHERE service_type = 'nin_validation'
+          )
+      `);
+      console.log('[Migration] nin_validation key migration complete');
+    } catch (err: any) {
+      console.warn('[Migration] nin_validation key migration skipped:', err.message);
+    }
+  })();
+
   await seedPricing().catch(err => console.log('Pricing seed skipped:', err.message));
   await seedAdmin().catch(err => console.log('Admin seed skipped:', err.message));
   await loadGatewayCredentials().catch(err => console.log('Gateway credentials load skipped:', err.message));

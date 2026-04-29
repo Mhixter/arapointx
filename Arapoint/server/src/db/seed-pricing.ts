@@ -13,7 +13,7 @@ const pricingRecords = [
   { serviceType: 'bvn_modification_name', serviceName: 'BVN Name Modification', price: '2500.00', description: 'Modify name on BVN record', isActive: true },
   { serviceType: 'bvn_modification_dob', serviceName: 'BVN Date of Birth Modification', price: '2500.00', description: 'Modify date of birth on BVN record', isActive: true },
   { serviceType: 'ipe_clearance', serviceName: 'IPE Clearance', price: '1000.00', description: 'Clear IPE errors and enrollment issues', isActive: true },
-  { serviceType: 'validation_nin', serviceName: 'NIN Validation', price: '1000.00', description: 'Record validation and corrections', isActive: true },
+  { serviceType: 'nin_validation', serviceName: 'NIN Validation', price: '1000.00', description: 'Record validation and corrections', isActive: true },
   { serviceType: 'jamb_result', serviceName: 'JAMB Result', price: '500.00', description: 'Check JAMB examination results', isActive: true },
   { serviceType: 'waec_result', serviceName: 'WAEC Result', price: '500.00', description: 'Check WAEC examination results', isActive: true },
   { serviceType: 'waec_scratch_card', serviceName: 'WAEC Scratch Card', price: '4000.00', description: 'Buy WAEC result checker scratch card', isActive: true },
