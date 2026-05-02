@@ -21,7 +21,12 @@ Narration scripts live in `videos/scripts/<filename>.txt`.
 
 ## Voice (locked)
 
-All videos use OpenAI TTS, model `tts-1-hd`, voice `shimmer` — clear, professional female voice. This is a brand consistency requirement; do not change the voice between videos.
+All videos use **ElevenLabs** via the Replit ElevenLabs connector.
+- **Voice:** Matilda — "Knowledgable, Professional" (American female, mature, informative/educational).
+- **Voice ID:** `XrExE9yKIg1WjnnlVkGX`
+- **Model:** `eleven_multilingual_v2`
+
+This is a brand consistency requirement — do not change the voice between videos. Matilda was chosen as the closest match to the original "Shimmer — clear, professional, polished" brief and is locked into `scripts/render-with-narration.mjs` as the default; the `--voice-id` override exists only for emergencies.
 
 ## How to render a video (per video task)
 
@@ -56,7 +61,7 @@ node scripts/render-with-narration.mjs \
 
 The script will:
 
-1. Call OpenAI TTS (`shimmer` voice, `tts-1-hd` model) to generate narration audio.
+1. Call ElevenLabs TTS (Matilda voice, `eleven_multilingual_v2` model) via the Replit connector to generate narration audio.
 2. Probe audio + video durations.
 3. If audio is longer than video, hold the last frame and fade to black so the narration finishes cleanly.
 4. Mux audio + video with a 1.2s audio fade-out at the end and ship the final MP4.
@@ -74,5 +79,5 @@ The result lands in `videos/<NN>-<slug>.mp4`, ready to deliver.
 
 ## Environment
 
-- `AI_INTEGRATIONS_OPENAI_API_KEY` — used by the narration pipeline (already configured via the Replit OpenAI integration). The script also accepts `OPENAI_API_KEY` as a fallback.
+- **ElevenLabs** is connected via the Replit ElevenLabs connector — authentication is injected automatically by `@replit/connectors-sdk`. No API key needs to be in `.env`.
 - `ffmpeg` and `ffprobe` are available on the host.

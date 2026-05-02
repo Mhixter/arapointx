@@ -3,7 +3,12 @@
  * render-with-narration.mjs
  *
  * Take a silent MP4 produced by the Arapoint video stack and combine it with
- * a Shimmer-voiced AI narration into a final MP4 with synchronized audio.
+ * a brand-voiced AI narration into a final MP4 with synchronized audio.
+ *
+ * Voice provider: ElevenLabs (via the Replit ElevenLabs connector).
+ * Brand voice  : Matilda — "Knowledgable, Professional" (American female,
+ *                middle-aged, informative/educational use case).
+ *                Voice ID: XrExE9yKIg1WjnnlVkGX
  *
  * Usage:
  *   node scripts/render-with-narration.mjs \
@@ -12,18 +17,18 @@
  *     --out    videos/01-welcome-to-arapoint.mp4
  *
  * Optional flags:
- *   --voice  shimmer  (locked default; brand voice)
- *   --model  tts-1-hd (locked default)
- *   --keep-temp        keep the intermediate audio file for debugging
+ *   --voice-id <id>   Override the brand voice ID (NOT recommended)
+ *   --model    <id>   ElevenLabs model (default: eleven_multilingual_v2)
+ *   --keep-temp       Preserve the intermediate audio file for debugging
  *
  * Behavior:
- *   - If audio length <= video length: audio plays once and fades out 1.5s before video end.
+ *   - If audio length <= video length: audio plays once and fades out near video end.
  *   - If audio length >  video length: video is extended by holding the last frame and
- *     fading to navy black; audio finishes naturally before the freeze fade-out completes.
+ *     fading to navy black; audio finishes naturally before the final fade-out.
  */
 
 import { promises as fs } from 'node:fs';
-import { existsSync, mkdirSync, createWriteStream } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { spawn } from 'node:child_process';
@@ -32,27 +37,42 @@ import { randomUUID } from 'node:crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const PROJECT_ROOT = path.resolve(__dirname, '..');
+
+// Brand voice — locked. Do not change between videos.
+const BRAND_VOICE_ID = 'XrExE9yKIg1WjnnlVkGX'; // Matilda — Knowledgable, Professional
+const DEFAULT_MODEL = 'eleven_multilingual_v2';
 
 // ---------- arg parsing ----------
 function parseArgs(argv) {
-  const out = { voice: 'shimmer', model: 'tts-1-hd', keepTemp: false };
+  const out = { voiceId: BRAND_VOICE_ID, model: DEFAULT_MODEL, keepTemp: false };
+  const valueFlags = new Set(['--script', '--video', '--out', '--voice-id', '--model']);
+  const boolFlags = new Set(['--keep-temp', '-h', '--help']);
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
-    if (a === '--script') out.script = argv[++i];
-    else if (a === '--video') out.video = argv[++i];
-    else if (a === '--out') out.out = argv[++i];
-    else if (a === '--voice') out.voice = argv[++i];
-    else if (a === '--model') out.model = argv[++i];
-    else if (a === '--keep-temp') out.keepTemp = true;
-    else if (a === '-h' || a === '--help') out.help = true;
+    if (valueFlags.has(a)) {
+      const v = argv[i + 1];
+      if (v == null || v.startsWith('--')) {
+        throw new Error(`Flag ${a} requires a value`);
+      }
+      i++;
+      if (a === '--script') out.script = v;
+      else if (a === '--video') out.video = v;
+      else if (a === '--out') out.out = v;
+      else if (a === '--voice-id') out.voiceId = v;
+      else if (a === '--model') out.model = v;
+    } else if (boolFlags.has(a)) {
+      if (a === '--keep-temp') out.keepTemp = true;
+      else if (a === '-h' || a === '--help') out.help = true;
+    } else {
+      throw new Error(`Unknown argument: ${a}`);
+    }
   }
   return out;
 }
 
 function printUsageAndExit(code = 0) {
   console.log(`
-Arapoint narration renderer
+Arapoint narration renderer (ElevenLabs)
 
 Required:
   --script <textfile>   Plain-text narration script (the words to speak)
@@ -60,8 +80,8 @@ Required:
   --out    <mp4>        Output path (e.g. videos/01-welcome-to-arapoint.mp4)
 
 Optional:
-  --voice  <name>       OpenAI TTS voice (default: shimmer  -- brand-locked)
-  --model  <name>       OpenAI TTS model (default: tts-1-hd -- highest quality)
+  --voice-id <id>       Override brand voice (default: ${BRAND_VOICE_ID} -- Matilda)
+  --model    <id>       ElevenLabs model (default: ${DEFAULT_MODEL})
   --keep-temp           Preserve the intermediate audio file for debugging
   -h, --help            Show this help
 `);
@@ -96,24 +116,40 @@ async function probeDurationSeconds(file) {
   return v;
 }
 
-// ---------- TTS ----------
-async function synthesizeNarration({ scriptText, voice, model, outPath }) {
-  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error('Missing OpenAI API key (set AI_INTEGRATIONS_OPENAI_API_KEY or OPENAI_API_KEY).');
+// ---------- TTS via ElevenLabs (Replit connector) ----------
+async function synthesizeNarration({ scriptText, voiceId, model, outPath }) {
+  // Uses the Replit ElevenLabs connector — auth is injected by the SDK.
+  const { ReplitConnectors } = await import('@replit/connectors-sdk');
+  const connectors = new ReplitConnectors();
 
-  const baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || 'https://api.openai.com/v1';
-  const { default: OpenAI } = await import('openai');
-  const openai = new OpenAI({ apiKey, baseURL });
+  console.log(`[tts] provider=elevenlabs voice=${voiceId} model=${model} chars=${scriptText.length}`);
 
-  console.log(`[tts] voice=${voice} model=${model} chars=${scriptText.length}`);
-  const speech = await openai.audio.speech.create({
-    model,
-    voice,
-    input: scriptText,
-    format: 'mp3',
-  });
+  const response = await connectors.proxy(
+    'elevenlabs',
+    `/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        text: scriptText,
+        model_id: model,
+        voice_settings: {
+          stability: 0.45,
+          similarity_boost: 0.75,
+          style: 0.15,
+          use_speaker_boost: true,
+        },
+      }),
+    },
+  );
 
-  const buf = Buffer.from(await speech.arrayBuffer());
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`ElevenLabs TTS failed: ${response.status} ${err.slice(0, 500)}`);
+  }
+
+  const arrayBuf = await response.arrayBuffer();
+  const buf = Buffer.from(arrayBuf);
   await fs.writeFile(outPath, buf);
   console.log(`[tts] wrote ${outPath} (${(buf.length / 1024).toFixed(1)} KB)`);
 }
@@ -145,7 +181,7 @@ async function main() {
   try {
     await synthesizeNarration({
       scriptText,
-      voice: args.voice,
+      voiceId: args.voiceId,
       model: args.model,
       outPath: audioPath,
     });
@@ -158,18 +194,22 @@ async function main() {
     // 3. Mux with ffmpeg.
     //    If audio is longer than video, extend the video by holding the last frame
     //    (tpad) so the narration can finish; audio fades out gracefully near its end.
-    //    If audio is shorter, use video as-is and fade audio out 1.5s before video ends.
+    //    If audio is shorter, use video as-is and fade audio out shortly before its end.
     const padTail = audioDur > videoDur ? Math.ceil((audioDur - videoDur) + 1.5) : 0;
     const finalDuration = Math.max(videoDur, audioDur) + (padTail > 0 ? 0.5 : 0);
 
-    const audioFadeOutStart = Math.max(0, audioDur - 1.2);
     const audioFadeOutDur = Math.min(1.2, audioDur);
+    const audioFadeOutStart = Math.max(0, audioDur - audioFadeOutDur);
 
     const videoFilter = padTail > 0
       ? `tpad=stop_mode=clone:stop_duration=${padTail},fade=t=out:st=${(finalDuration - 1.0).toFixed(2)}:d=1.0`
       : `null`;
     const audioFilter = `afade=t=out:st=${audioFadeOutStart.toFixed(2)}:d=${audioFadeOutDur.toFixed(2)}`;
 
+    // Set explicit output duration so the file always reflects max(video, audio).
+    // Without this and without -shortest, behavior is technically still correct
+    // because tpad extends the video to >= audio duration, but pinning -t makes
+    // the contract explicit and avoids any encoder edge cases.
     const ffArgs = [
       '-y',
       '-i', videoPath,
@@ -186,7 +226,7 @@ async function main() {
       '-b:a', '192k',
       '-ar', '48000',
       '-ac', '2',
-      '-shortest',
+      '-t', finalDuration.toFixed(3),
       '-movflags', '+faststart',
       outPath,
     ];
