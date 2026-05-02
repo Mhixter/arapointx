@@ -4,17 +4,18 @@ import { useEffect, useState } from 'react';
 type Slip = {
   id: string;
   name: string;
-  price: string;
+  tagline: string;
   accent: string;
   premium?: boolean;
 };
 
 const SLIPS: Slip[] = [
-  { id: 'information', name: 'Information', price: '₦200', accent: '#6DB33F' },
-  { id: 'regular',     name: 'Regular',     price: '₦250', accent: '#6DB33F' },
-  { id: 'standard',    name: 'Standard',    price: '₦300', accent: '#6DB33F' },
-  { id: 'premium',     name: 'Premium',     price: '₦300', accent: '#D4A24C', premium: true },
+  { id: 'standard', name: 'Standard', tagline: 'For everyday applications',     accent: '#6DB33F' },
+  { id: 'premium',  name: 'Premium',  tagline: 'Identity-card-grade finish',    accent: '#D4A24C', premium: true },
+  { id: 'long',     name: 'Long',     tagline: 'Full record on a single page',  accent: '#6DB33F' },
 ];
+
+const PREMIUM_INDEX = SLIPS.findIndex(s => s.premium);
 
 export function Scene5() {
   const [phase, setPhase] = useState(0);
@@ -31,16 +32,17 @@ export function Scene5() {
     return () => timers.forEach(t => clearTimeout(t));
   }, []);
 
-  // Index of currently highlighted slip (0..3, cycles 0->3 over ~10s after phase 3)
+  // Index of currently highlighted slip (cycles 0..N-1 over ~10s after phase 3)
   const [highlight, setHighlight] = useState(-1);
   useEffect(() => {
     if (phase < 3) return;
     if (phase >= 4) {
-      setHighlight(3); // lock on Premium
+      setHighlight(PREMIUM_INDEX); // lock on Premium
       return;
     }
+    const max = SLIPS.length - 1;
     const interval = setInterval(() => {
-      setHighlight((h) => (h >= 3 ? 0 : h + 1));
+      setHighlight((h) => (h >= max ? 0 : h + 1));
     }, 1500);
     setHighlight(0);
     return () => clearInterval(interval);
@@ -77,18 +79,18 @@ export function Scene5() {
           animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 }}
           transition={{ duration: 0.7, delay: 0.1 }}
         >
-          Four formats. <span className="text-[#D4A24C]">One identity.</span>
+          Three formats. <span className="text-[#D4A24C]">One identity.</span>
         </motion.h2>
 
         {/* Slip row */}
-        <div className="flex gap-[1.4vw] justify-center items-end" style={{ perspective: 1600 }}>
+        <div className="flex gap-[1.8vw] justify-center items-end" style={{ perspective: 1600 }}>
           {SLIPS.map((slip, i) => {
             const isHighlight = highlight === i;
             const isPremiumLock = phase >= 4 && slip.premium;
             return (
               <motion.div
                 key={slip.id}
-                className="relative w-[18vw] h-[26vw] rounded-[0.8vw] overflow-hidden shadow-[0_25px_60px_-25px_rgba(0,0,0,0.8)]"
+                className="relative w-[20vw] h-[28vw] rounded-[0.8vw] overflow-hidden shadow-[0_25px_60px_-25px_rgba(0,0,0,0.8)]"
                 style={{
                   background:
                     'linear-gradient(160deg, #F5F0E2 0%, #EFE7D2 60%, #E5DBC0 100%)',
@@ -127,7 +129,7 @@ export function Scene5() {
 
                 {/* Guilloché lines on slip */}
                 <svg
-                  className="absolute top-[3vw] left-0 right-0 h-[23vw] w-full opacity-25"
+                  className="absolute top-[3vw] left-0 right-0 h-[25vw] w-full opacity-25"
                   viewBox="0 0 200 230"
                   preserveAspectRatio="none"
                 >
@@ -147,9 +149,9 @@ export function Scene5() {
                 <div className="relative px-[1vw] pt-[1vw] flex flex-col gap-[0.5vw]">
                   {/* Photo strip */}
                   <div className="flex gap-[0.8vw] items-start">
-                    <div className="w-[4.5vw] h-[5.5vw] rounded-[0.3vw] bg-gradient-to-br from-[#0F2346]/15 to-[#0F2346]/5 border border-[#0F2346]/20 flex items-center justify-center">
+                    <div className="w-[5vw] h-[6vw] rounded-[0.3vw] bg-gradient-to-br from-[#0F2346]/15 to-[#0F2346]/5 border border-[#0F2346]/20 flex items-center justify-center">
                       <div
-                        className="text-[1.6vw] font-black text-[#0F2346]/80"
+                        className="text-[1.7vw] font-black text-[#0F2346]/80"
                         style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
                       >
                         AO
@@ -159,7 +161,7 @@ export function Scene5() {
                       <div className="text-[0.7vw] tracking-[0.25em] uppercase text-[#0F2346]/60 font-semibold" style={{ fontFamily: "'Inter', sans-serif" }}>
                         Holder
                       </div>
-                      <div className="text-[0.95vw] font-bold text-[#0F2346] leading-tight mt-[0.1vw]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                      <div className="text-[1vw] font-bold text-[#0F2346] leading-tight mt-[0.1vw]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
                         ADAEZE<br />OKONKWO
                       </div>
                     </div>
@@ -177,7 +179,7 @@ export function Scene5() {
                         <div className="text-[0.55vw] tracking-[0.25em] uppercase text-[#0F2346]/55 font-semibold" style={{ fontFamily: "'Inter', sans-serif" }}>
                           {k}
                         </div>
-                        <div className="text-[0.85vw] font-bold text-[#0F2346]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                        <div className="text-[0.9vw] font-bold text-[#0F2346]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
                           {v}
                         </div>
                       </div>
@@ -189,14 +191,33 @@ export function Scene5() {
                     <div className="text-[0.55vw] tracking-[0.3em] uppercase text-[#0F2346]/55 font-semibold" style={{ fontFamily: "'Inter', sans-serif" }}>
                       NIN
                     </div>
-                    <div className="text-[1.05vw] font-bold text-[#0F2346] tracking-[0.12em]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      {slip.id === 'information' ? '•••• •••• •••' : '1234 5678 901'}
+                    <div className="text-[1.1vw] font-bold text-[#0F2346] tracking-[0.12em]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                      1234 5678 901
                     </div>
                   </div>
 
+                  {/* Long-format extra rows */}
+                  {slip.id === 'long' && (
+                    <div className="mt-[0.3vw] grid grid-cols-2 gap-y-[0.3vw] gap-x-[0.5vw]">
+                      {[
+                        ['NATIONALITY', 'NIGERIAN'],
+                        ['ISSUED', '02/05/19'],
+                      ].map(([k, v]) => (
+                        <div key={k}>
+                          <div className="text-[0.5vw] tracking-[0.22em] uppercase text-[#0F2346]/55 font-semibold" style={{ fontFamily: "'Inter', sans-serif" }}>
+                            {k}
+                          </div>
+                          <div className="text-[0.8vw] font-bold text-[#0F2346]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                            {v}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Holographic motif on premium */}
                   {slip.premium && (
-                    <div className="absolute bottom-[1vw] right-[0.8vw] w-[3.2vw] h-[3.2vw] rounded-full">
+                    <div className="absolute bottom-[1.2vw] right-[0.8vw] w-[3.4vw] h-[3.4vw] rounded-full">
                       <div
                         className="w-full h-full rounded-full"
                         style={{
@@ -208,7 +229,7 @@ export function Scene5() {
                       />
                       <div className="absolute inset-[0.4vw] rounded-full bg-white/40 backdrop-blur-sm border border-white/60 flex items-center justify-center">
                         <div
-                          className="text-[0.7vw] font-black text-[#0F2346]"
+                          className="text-[0.75vw] font-black text-[#0F2346]"
                           style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
                         >
                           AP
@@ -218,19 +239,19 @@ export function Scene5() {
                   )}
                 </div>
 
-                {/* Bottom price banner */}
-                <div className="absolute bottom-0 left-0 right-0 h-[2vw] flex items-center justify-between px-[0.9vw] border-t border-[#0F2346]/15 bg-white/40">
+                {/* Bottom name banner (no pricing — out of scope) */}
+                <div className="absolute bottom-0 left-0 right-0 h-[2.4vw] flex flex-col items-center justify-center px-[0.9vw] border-t border-[#0F2346]/15 bg-white/55">
                   <div
-                    className="text-[0.85vw] font-bold text-[#0F2346]"
-                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-                  >
-                    {slip.name}
-                  </div>
-                  <div
-                    className="text-[1vw] font-black"
+                    className="text-[0.95vw] font-black tracking-[0.05em]"
                     style={{ color: slip.accent, fontFamily: "'Plus Jakarta Sans', sans-serif" }}
                   >
-                    {slip.price}
+                    {slip.name.toUpperCase()}
+                  </div>
+                  <div
+                    className="text-[0.6vw] tracking-[0.18em] uppercase text-[#0F2346]/65 font-semibold mt-[0.05vw]"
+                    style={{ fontFamily: "'Inter', sans-serif" }}
+                  >
+                    {slip.tagline}
                   </div>
                 </div>
 
@@ -260,7 +281,7 @@ export function Scene5() {
           animate={phase >= 5 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
           transition={{ duration: 0.7 }}
         >
-          From quick reference to <span className="text-[#D4A24C] font-bold">identity-card-grade</span> — pick the slip that fits the moment.
+          From everyday verification to <span className="text-[#D4A24C] font-bold">identity-card-grade</span> — pick the slip that fits the moment.
         </motion.div>
       </div>
     </motion.div>
