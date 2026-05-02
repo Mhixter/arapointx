@@ -11,7 +11,7 @@ export function Scene1() {
       setTimeout(() => setPhase(3), 4800),   // second failed input
       setTimeout(() => setPhase(4), 7400),   // big "?" mark / not found
       setTimeout(() => setPhase(5), 10200),  // pivot line in
-      setTimeout(() => setPhase(6), 13200),  // exit prep
+      setTimeout(() => setPhase(6), 11500),  // exit prep
     ];
     return () => timers.forEach(t => clearTimeout(t));
   }, []);

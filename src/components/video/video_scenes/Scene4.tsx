@@ -12,7 +12,7 @@ export function Scene4() {
       setTimeout(() => setPhase(4), 5800),   // correct DOB selects, diff highlight
       setTimeout(() => setPhase(5), 8500),   // submit row
       setTimeout(() => setPhase(6), 12500),  // caption
-      setTimeout(() => setPhase(7), 17500),  // exit prep
+      setTimeout(() => setPhase(7), 14500),  // exit prep
     ];
     return () => timers.forEach(t => clearTimeout(t));
   }, []);

@@ -23,7 +23,7 @@ export function Scene3() {
     timers.push(setTimeout(() => setPhase(4), 5800));   // arrow + diff highlight
     timers.push(setTimeout(() => setPhase(5), 8500));   // submit chip + queue beat
     timers.push(setTimeout(() => setPhase(6), 12500));  // caption
-    timers.push(setTimeout(() => setPhase(7), 17500));  // exit
+    timers.push(setTimeout(() => setPhase(7), 14500));  // exit
     return () => timers.forEach(t => clearTimeout(t));
   }, []);
 

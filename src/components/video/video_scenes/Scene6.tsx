@@ -10,7 +10,7 @@ export function Scene6() {
       setTimeout(() => setPhase(1), 400),    // headline
       setTimeout(() => setPhase(2), 2200),   // subtitle
       setTimeout(() => setPhase(3), 4000),   // brand footer
-      setTimeout(() => setPhase(4), 15500),  // exit prep
+      setTimeout(() => setPhase(4), 12500),  // exit prep
     ];
     return () => timers.forEach(t => clearTimeout(t));
   }, []);

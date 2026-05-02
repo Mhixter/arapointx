@@ -19,7 +19,7 @@ export function Scene2() {
     timers.push(setTimeout(() => setPhase(5), 6800));    // photo/identity fields populate
     timers.push(setTimeout(() => setPhase(6), 11500));   // contact + registered info row
     timers.push(setTimeout(() => setPhase(7), 16500));   // bottom caption
-    timers.push(setTimeout(() => setPhase(8), 21500));   // exit
+    timers.push(setTimeout(() => setPhase(8), 17500));   // exit
     return () => timers.forEach(t => clearTimeout(t));
   }, []);
 
