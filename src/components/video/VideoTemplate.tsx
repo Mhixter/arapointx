@@ -8,12 +8,12 @@ import { Scene5 } from './video_scenes/Scene5';
 import { Scene6 } from './video_scenes/Scene6';
 
 const SCENE_DURATIONS = {
-  hook: 14000,
-  hero: 20000,
-  lookup: 16000,
-  privacy: 18000,
-  slips: 26000,
-  close: 16000,
+  hook: 12000,
+  retrieval: 18000,
+  modName: 15000,
+  modDob: 15000,
+  trust: 22000,
+  close: 13000,
 };
 
 export default function VideoTemplate() {
@@ -27,10 +27,10 @@ export default function VideoTemplate() {
       {/* Scene Content */}
       <AnimatePresence initial={false} mode="popLayout">
         {currentScene === 0 && <Scene1 key="hook" />}
-        {currentScene === 1 && <Scene2 key="hero" />}
-        {currentScene === 2 && <Scene3 key="lookup" />}
-        {currentScene === 3 && <Scene4 key="privacy" />}
-        {currentScene === 4 && <Scene5 key="slips" />}
+        {currentScene === 1 && <Scene2 key="retrieval" />}
+        {currentScene === 2 && <Scene3 key="modName" />}
+        {currentScene === 3 && <Scene4 key="modDob" />}
+        {currentScene === 4 && <Scene5 key="trust" />}
         {currentScene === 5 && <Scene6 key="close" />}
       </AnimatePresence>
     </div>
