@@ -145,11 +145,18 @@ async function probeDurationSeconds(file) {
 
 // ---------- TTS providers ----------
 async function synthesizeOpenAI({ scriptText, voice, model, outPath }) {
-  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  // Prefer the direct OPENAI_API_KEY because the Replit OpenAI integration
+  // proxy does not currently support /audio/speech.
+  const directKey = process.env.OPENAI_API_KEY;
+  const proxyKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  const apiKey = directKey || proxyKey;
   if (!apiKey) {
-    throw new Error('AI_INTEGRATIONS_OPENAI_API_KEY is not set. Use the Replit OpenAI integration.');
+    throw new Error('No OpenAI key found. Set OPENAI_API_KEY (direct) or use the Replit OpenAI integration.');
   }
-  const baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined;
+  // Only honor the integration baseURL when we are actually using the proxy key.
+  const baseURL = !directKey && process.env.AI_INTEGRATIONS_OPENAI_BASE_URL
+    ? process.env.AI_INTEGRATIONS_OPENAI_BASE_URL
+    : undefined;
 
   // Use the openai SDK that's already a project dependency.
   const { default: OpenAI } = await import('openai');
