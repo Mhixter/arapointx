@@ -2,11 +2,22 @@
 
 @layer base {
   :root {
-    --background: #0F2346;
-    --foreground: #f0f4ff;
-    --primary: #1C3A6B;
-    --accent: #6DB33F;
+    /* Arapoint brand kit -- locked palette for all marketing videos */
+    --ap-navy: #0F2346;
+    --ap-deep-blue: #1C3A6B;
+    --ap-green: #6DB33F;
+    --ap-gold: #D4A24C;
+    --ap-light: #F5F7FA;
+    --ap-dark: #0A1628;
+
+    /* Aliases used by existing Tailwind utilities & components */
+    --background: var(--ap-navy);
+    --foreground: var(--ap-light);
+    --primary: var(--ap-deep-blue);
+    --accent: var(--ap-green);
+
     --font-display: 'Plus Jakarta Sans', sans-serif;
+    --font-body: 'Inter', sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
   }
 

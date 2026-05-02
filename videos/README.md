@@ -1,0 +1,78 @@
+# Arapoint Marketing Videos
+
+Final delivered videos live in this directory. Each file is a complete, voiced MP4 ready to download or upload to a hosting platform.
+
+## Files
+
+The 10 videos are produced one per task. Final filenames follow this convention:
+
+- `01-welcome-to-arapoint.mp4`
+- `02-nin-verification-and-slips.mp4`
+- `03-bvn-retrieval-and-modification.mp4`
+- `04-ipe-clearance-and-birth-attestation.mp4`
+- `05-education-verification.mp4`
+- `06-wallet-and-payments.mp4`
+- `07-become-an-agent.mp4`
+- `08-developer-api-overview.mp4`
+- `09-webhooks-and-events.mp4`
+- `10-production-best-practices.mp4`
+
+Narration scripts live in `videos/scripts/<filename>.txt`.
+
+## Voice (locked)
+
+All videos use OpenAI TTS, model `tts-1-hd`, voice `shimmer` — clear, professional female voice. This is a brand consistency requirement; do not change the voice between videos.
+
+## How to render a video (per video task)
+
+The Arapoint video stack at `src/components/video/` holds **one** video composition at a time. Each video task replaces it, exports a silent MP4 from the preview pane, then uses the narration pipeline to produce the final voiced MP4.
+
+### 1. Build the video composition
+
+Replace `src/components/video/VideoTemplate.tsx` and the scene files for the target video. Keep the total of `SCENE_DURATIONS` <= 120,000 ms (the 2-minute cap).
+
+### 2. Validate frame integrity & motion
+
+```bash
+bash scripts/validate-recording.sh    # if present in the video-js skill
+```
+
+### 3. Capture the silent MP4
+
+Start the video workflow (`Arapoint Video Ad`), open the preview, and click the **Export** button injected by the video stack. The silent MP4 is saved into the project's exports directory (`exports/` or wherever the recorder writes it).
+
+### 4. Write the narration script
+
+Save the narration text into `videos/scripts/<NN>-<slug>.txt`. Aim for ~270-300 words for a ~110-120 second video. Plain text only — no SSML, no markdown.
+
+### 5. Render the final voiced MP4
+
+```bash
+node scripts/render-with-narration.mjs \
+  --script videos/scripts/01-welcome.txt \
+  --video  exports/raw/<your-export>.mp4 \
+  --out    videos/01-welcome-to-arapoint.mp4
+```
+
+The script will:
+
+1. Call OpenAI TTS (`shimmer` voice, `tts-1-hd` model) to generate narration audio.
+2. Probe audio + video durations.
+3. If audio is longer than video, hold the last frame and fade to black so the narration finishes cleanly.
+4. Mux audio + video with a 1.2s audio fade-out at the end and ship the final MP4.
+
+The result lands in `videos/<NN>-<slug>.mp4`, ready to deliver.
+
+## Brand kit (locked)
+
+- **Colors:** navy `#0F2346`, deep-blue `#1C3A6B`, green `#6DB33F`, gold `#D4A24C`, light `#F5F7FA`, dark `#0A1628`.
+- **Fonts:** Plus Jakarta Sans (display), Inter (body), JetBrains Mono (developer code).
+- **Logo:** `public/logos/arapoint-logo.png` — official Arapoint solution logo.
+- **Footer URL:** `arapoint.com.ng`
+- **Support email:** `support@arapoint.com.ng`
+- **Reusable footer:** `<BrandFooter />` from `src/components/video/BrandFooter.tsx`.
+
+## Environment
+
+- `AI_INTEGRATIONS_OPENAI_API_KEY` — used by the narration pipeline (already configured via the Replit OpenAI integration). The script also accepts `OPENAI_API_KEY` as a fallback.
+- `ffmpeg` and `ffprobe` are available on the host.
