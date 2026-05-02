@@ -19,6 +19,15 @@ The 10 videos are produced one per task. Final filenames follow this convention:
 
 Narration scripts live in `videos/scripts/<filename>.txt`.
 
+### Narration length vs runtime
+
+Each task brief targets ~270-300 words; the **binding constraint is the
+final voiced MP4 runtime (110-120 s)**. Matilda speaks at roughly
+115-120 wpm, so word counts may land lower than the brief suggests in
+order to stay inside the runtime cap. When a script is materially shorter
+than the brief, that is by design — we re-time the script after the first
+ElevenLabs render rather than padding silence into the audio.
+
 ## Voice (locked)
 
 All videos use **ElevenLabs** via the Replit ElevenLabs connector.

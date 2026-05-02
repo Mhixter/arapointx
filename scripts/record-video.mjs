@@ -3,31 +3,33 @@
  * record-video.mjs
  *
  * Headless screen-record the Arapoint video composition into a silent MP4
- * using deterministic virtual-time capture via Chrome DevTools Protocol.
- *
- * Why virtual time? The video-js stack assumes exactly 30 frames per second
- * with a virtualized clock so every captured frame is exactly 1/30 s of
- * video time -- no dropped or duplicated frames regardless of host load.
- * We pause Chromium's clock between frames (Emulation.setVirtualTimePolicy)
- * which also pauses setTimeout / requestAnimationFrame, so React + Framer
- * Motion advance in lockstep with our capture cadence.
+ * using real-time CDP screencast. Puppeteer launches Chromium headed at a
+ * fixed 1920x1080 viewport, opens the running Vite dev server, and uses
+ * Chrome DevTools Protocol's Page.startScreencast to stream JPEG frames
+ * straight into ffmpeg (mjpeg pipe -> libx264). Each frame is acked in a
+ * `finally` block so a transient processing error never stalls Chromium's
+ * screencast queue. Animations run on the browser's real Date.now() /
+ * performance.now() / requestAnimationFrame; ffmpeg honors each frame's
+ * wall-clock arrival timestamp via -use_wallclock_as_timestamps and the
+ * fps=N filter pads the stream up to the requested output fps when raw
+ * capture lags. Output duration ~= on-page animation playback duration.
  *
  * Usage:
  *   node scripts/record-video.mjs --out exports/raw/01-welcome-silent.mp4
  *
  * Optional:
  *   --url <url>         Dev server URL (default http://localhost:3001/)
- *   --max-seconds <n>   Hard cap on capture duration (default 130)
+ *   --max-seconds <n>   Hard cap on capture wall-clock duration (default 130)
  *   --width <px>        Capture width (default 1920)
  *   --height <px>       Capture height (default 1080)
- *   --fps <n>           Frames per second (default 30)
+ *   --fps <n>           Output fps -- ffmpeg pads up to this (default 30)
  *   --warmup-ms <n>     Wall-clock ms to wait after page load before
- *                       starting virtual-time capture (default 1500)
+ *                       starting capture (default 1500)
  *
  * Exit conditions (whichever comes first):
  *   - The page calls window.stopRecording() (set by useVideoPlayer hook
  *     after the first complete pass through SCENE_DURATIONS).
- *   - --max-seconds elapses in virtual time.
+ *   - --max-seconds wall-clock elapses.
  */
 
 import puppeteer from 'puppeteer';
