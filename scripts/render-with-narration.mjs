@@ -5,21 +5,30 @@
  * Take a silent MP4 produced by the Arapoint video stack and combine it with
  * a brand-voiced AI narration into a final MP4 with synchronized audio.
  *
- * Voice provider: ElevenLabs (via the Replit ElevenLabs connector).
- * Brand voice  : Matilda — "Knowledgable, Professional" (American female,
- *                middle-aged, informative/educational use case).
- *                Voice ID: XrExE9yKIg1WjnnlVkGX
+ * Brand voice (locked, May 2026): OpenAI "shimmer" via gpt-4o-mini-tts.
+ *   - Series consistency: Videos 1-10 all use this voice.
+ *   - Earlier prototypes used ElevenLabs Matilda; that path is still selectable
+ *     via --provider elevenlabs but is no longer the default because the
+ *     series-wide quota was exhausted mid-series.
+ *
+ * Auth:
+ *   - openai     : AI_INTEGRATIONS_OPENAI_API_KEY (Replit OpenAI integration)
+ *                  AI_INTEGRATIONS_OPENAI_BASE_URL is honored if set.
+ *   - elevenlabs : Replit ElevenLabs connector (no manual key needed).
  *
  * Usage:
  *   node scripts/render-with-narration.mjs \
- *     --script videos/scripts/01-welcome.txt \
- *     --video  exports/raw/some-export.mp4 \
- *     --out    videos/01-welcome-to-arapoint.mp4
+ *     --script videos/scripts/04-civic.txt \
+ *     --video  exports/raw/04-civic-silent-trimmed.mp4 \
+ *     --out    videos/04-ipe-clearance-and-birth-attestation.mp4
  *
  * Optional flags:
- *   --voice-id <id>   Override the brand voice ID (NOT recommended)
- *   --model    <id>   ElevenLabs model (default: eleven_multilingual_v2)
- *   --keep-temp       Preserve the intermediate audio file for debugging
+ *   --provider <openai|elevenlabs>  Default: openai
+ *   --voice    <name|id>            Override the brand voice (NOT recommended)
+ *   --model    <id>                 Provider-specific model
+ *                                   (default openai: gpt-4o-mini-tts)
+ *                                   (default elevenlabs: eleven_multilingual_v2)
+ *   --keep-temp                     Preserve the intermediate audio file
  *
  * Behavior:
  *   - If audio length <= video length: audio plays once and fades out near video end.
@@ -38,14 +47,17 @@ import { randomUUID } from 'node:crypto';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Brand voice — locked. Do not change between videos.
-const BRAND_VOICE_ID = 'XrExE9yKIg1WjnnlVkGX'; // Matilda — Knowledgable, Professional
-const DEFAULT_MODEL = 'eleven_multilingual_v2';
+// Brand voice — locked. See file header for context.
+const BRAND_PROVIDER = 'openai';
+const OPENAI_BRAND_VOICE = 'shimmer';
+const OPENAI_DEFAULT_MODEL = 'gpt-4o-mini-tts';
+const ELEVENLABS_BRAND_VOICE = 'XrExE9yKIg1WjnnlVkGX'; // Matilda — legacy fallback
+const ELEVENLABS_DEFAULT_MODEL = 'eleven_multilingual_v2';
 
 // ---------- arg parsing ----------
 function parseArgs(argv) {
-  const out = { voiceId: BRAND_VOICE_ID, model: DEFAULT_MODEL, keepTemp: false };
-  const valueFlags = new Set(['--script', '--video', '--out', '--voice-id', '--model']);
+  const out = { provider: BRAND_PROVIDER, keepTemp: false };
+  const valueFlags = new Set(['--script', '--video', '--out', '--voice', '--voice-id', '--model', '--provider']);
   const boolFlags = new Set(['--keep-temp', '-h', '--help']);
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
@@ -58,8 +70,9 @@ function parseArgs(argv) {
       if (a === '--script') out.script = v;
       else if (a === '--video') out.video = v;
       else if (a === '--out') out.out = v;
-      else if (a === '--voice-id') out.voiceId = v;
+      else if (a === '--voice' || a === '--voice-id') out.voice = v;
       else if (a === '--model') out.model = v;
+      else if (a === '--provider') out.provider = v.toLowerCase();
     } else if (boolFlags.has(a)) {
       if (a === '--keep-temp') out.keepTemp = true;
       else if (a === '-h' || a === '--help') out.help = true;
@@ -67,22 +80,36 @@ function parseArgs(argv) {
       throw new Error(`Unknown argument: ${a}`);
     }
   }
+  // Resolve provider-specific defaults after parse so explicit overrides win.
+  if (out.provider === 'openai') {
+    out.voice = out.voice || OPENAI_BRAND_VOICE;
+    out.model = out.model || OPENAI_DEFAULT_MODEL;
+  } else if (out.provider === 'elevenlabs') {
+    out.voice = out.voice || ELEVENLABS_BRAND_VOICE;
+    out.model = out.model || ELEVENLABS_DEFAULT_MODEL;
+  } else if (!out.help) {
+    throw new Error(`Unknown provider: ${out.provider} (expected openai or elevenlabs)`);
+  }
   return out;
 }
 
 function printUsageAndExit(code = 0) {
   console.log(`
-Arapoint narration renderer (ElevenLabs)
+Arapoint narration renderer
 
 Required:
   --script <textfile>   Plain-text narration script (the words to speak)
   --video  <mp4>        Silent MP4 produced by the video stack
-  --out    <mp4>        Output path (e.g. videos/01-welcome-to-arapoint.mp4)
+  --out    <mp4>        Output path (e.g. videos/04-ipe-clearance-and-birth-attestation.mp4)
 
 Optional:
-  --voice-id <id>       Override brand voice (default: ${BRAND_VOICE_ID} -- Matilda)
-  --model    <id>       ElevenLabs model (default: ${DEFAULT_MODEL})
-  --keep-temp           Preserve the intermediate audio file for debugging
+  --provider <name>     openai (default) | elevenlabs
+  --voice <id>          Override brand voice
+                        (openai default: ${OPENAI_BRAND_VOICE})
+                        (elevenlabs default: ${ELEVENLABS_BRAND_VOICE} -- Matilda)
+  --model <id>          (openai default: ${OPENAI_DEFAULT_MODEL})
+                        (elevenlabs default: ${ELEVENLABS_DEFAULT_MODEL})
+  --keep-temp           Preserve the intermediate audio file
   -h, --help            Show this help
 `);
   process.exit(code);
@@ -116,17 +143,42 @@ async function probeDurationSeconds(file) {
   return v;
 }
 
-// ---------- TTS via ElevenLabs (Replit connector) ----------
-async function synthesizeNarration({ scriptText, voiceId, model, outPath }) {
-  // Uses the Replit ElevenLabs connector — auth is injected by the SDK.
+// ---------- TTS providers ----------
+async function synthesizeOpenAI({ scriptText, voice, model, outPath }) {
+  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error('AI_INTEGRATIONS_OPENAI_API_KEY is not set. Use the Replit OpenAI integration.');
+  }
+  const baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined;
+
+  // Use the openai SDK that's already a project dependency.
+  const { default: OpenAI } = await import('openai');
+  const client = new OpenAI({ apiKey, baseURL });
+
+  console.log(`[tts] provider=openai voice=${voice} model=${model} chars=${scriptText.length}`);
+
+  const speech = await client.audio.speech.create({
+    model,
+    voice,
+    input: scriptText,
+    response_format: 'mp3',
+  });
+
+  const arrayBuf = await speech.arrayBuffer();
+  const buf = Buffer.from(arrayBuf);
+  await fs.writeFile(outPath, buf);
+  console.log(`[tts] wrote ${outPath} (${(buf.length / 1024).toFixed(1)} KB)`);
+}
+
+async function synthesizeElevenLabs({ scriptText, voice, model, outPath }) {
   const { ReplitConnectors } = await import('@replit/connectors-sdk');
   const connectors = new ReplitConnectors();
 
-  console.log(`[tts] provider=elevenlabs voice=${voiceId} model=${model} chars=${scriptText.length}`);
+  console.log(`[tts] provider=elevenlabs voice=${voice} model=${model} chars=${scriptText.length}`);
 
   const response = await connectors.proxy(
     'elevenlabs',
-    `/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
+    `/v1/text-to-speech/${voice}?output_format=mp3_44100_128`,
     {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -179,12 +231,21 @@ async function main() {
   const audioPath = path.join(tmpDir, 'narration.mp3');
 
   try {
-    await synthesizeNarration({
-      scriptText,
-      voiceId: args.voiceId,
-      model: args.model,
-      outPath: audioPath,
-    });
+    if (args.provider === 'openai') {
+      await synthesizeOpenAI({
+        scriptText,
+        voice: args.voice,
+        model: args.model,
+        outPath: audioPath,
+      });
+    } else {
+      await synthesizeElevenLabs({
+        scriptText,
+        voice: args.voice,
+        model: args.model,
+        outPath: audioPath,
+      });
+    }
 
     // 2. Probe durations
     const videoDur = await probeDurationSeconds(videoPath);
@@ -207,9 +268,6 @@ async function main() {
     const audioFilter = `afade=t=out:st=${audioFadeOutStart.toFixed(2)}:d=${audioFadeOutDur.toFixed(2)}`;
 
     // Set explicit output duration so the file always reflects max(video, audio).
-    // Without this and without -shortest, behavior is technically still correct
-    // because tpad extends the video to >= audio duration, but pinning -t makes
-    // the contract explicit and avoids any encoder edge cases.
     const ffArgs = [
       '-y',
       '-i', videoPath,
