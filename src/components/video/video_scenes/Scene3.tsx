@@ -2,113 +2,103 @@ import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
 /**
- * Scene 3 — Job feed in motion.
+ * Scene 3 — JSON response builds line-by-line.
  *
- * Laptop-style job-feed UI on the left. Each card walks through its lifecycle
- * (Available → Claimed → Processing → Complete) on a staggered cadence so the
- * viewer feels the rhythm of the work.
+ * Real envelope shape from Arapoint/server/src/api/routes/developer/
+ * verification.ts: { status, code, message, data: { verification, source,
+ * cached, requestId } }. The names inside `verification` follow the
+ * provider's response shape.
  *
- * Allotted: 18_000 ms. All phase timers stay <= 17_500 ms.
+ * Allotted: 20_000 ms. All phase timers stay <= 19_500 ms.
  */
 export function Scene3() {
   const [phase, setPhase] = useState(0);
 
+  // Each line is revealed one at a time, then individual key callouts highlight.
+  const json: { text: string; tone: 'k' | 'v' | 's' | 'b' | 'p' }[] = [
+    { text: '{',                                                          tone: 'p' },
+    { text: '  "status":   "success",',                                   tone: 'k' },
+    { text: '  "code":     200,',                                         tone: 'k' },
+    { text: '  "message":  "NIN verification completed",',                tone: 'k' },
+    { text: '  "data": {',                                                tone: 'p' },
+    { text: '    "verification": {',                                      tone: 'p' },
+    { text: '      "firstName":   "Adaeze",',                             tone: 'k' },
+    { text: '      "lastName":    "Okafor",',                             tone: 'k' },
+    { text: '      "dateOfBirth": "1995-03-14",',                         tone: 'k' },
+    { text: '      "gender":      "Female",',                             tone: 'k' },
+    { text: '      "photo":       "data:image/jpeg;base64,…"',            tone: 'k' },
+    { text: '    },',                                                     tone: 'p' },
+    { text: '    "source":    "ARAPOINT",',                               tone: 'k' },
+    { text: '    "cached":    false,',                                    tone: 'k' },
+    { text: '    "requestId": "NIN-7F31C2"',                              tone: 'k' },
+    { text: '  }',                                                        tone: 'p' },
+    { text: '}',                                                          tone: 'p' },
+  ];
+
   useEffect(() => {
     const timers = [
-      setTimeout(() => setPhase(1), 400),    // eyebrow + headline + dashboard frame
-      setTimeout(() => setPhase(2), 2200),   // card 1 (NIN) appears
-      setTimeout(() => setPhase(3), 3400),   // card 2 (WAEC) appears
-      setTimeout(() => setPhase(4), 4600),   // card 3 (IPE) appears
-      setTimeout(() => setPhase(5), 6000),   // card 1 → claimed
-      setTimeout(() => setPhase(6), 7600),   // card 2 → claimed
-      setTimeout(() => setPhase(7), 9200),   // card 1 → processing
-      setTimeout(() => setPhase(8), 11000),  // card 2 → processing, card 3 → claimed
-      setTimeout(() => setPhase(9), 12800),  // card 1 → complete (toast)
-      setTimeout(() => setPhase(10), 14400), // closing line
-      setTimeout(() => setPhase(11), 17400), // exit prep
+      setTimeout(() => setPhase(1), 400),    // eyebrow + headline
+      setTimeout(() => setPhase(2), 2000),   // start streaming JSON
+      setTimeout(() => setPhase(3), 12200),  // pull-out callouts
+      setTimeout(() => setPhase(4), 16800),  // closing line
+      setTimeout(() => setPhase(5), 19400),  // exit prep
     ];
     return () => timers.forEach((t) => clearTimeout(t));
   }, []);
 
-  // Compute card status based on phase.
-  type Status = 'available' | 'claimed' | 'processing' | 'complete';
-  const cards: { ref: string; service: string; sla: string; tone: string; statusAt: { phase: number; status: Status }[] }[] = [
-    {
-      ref: 'ARP-83401',
-      service: 'NIN Slip Retrieval',
-      sla: '15 min',
-      tone: '#6DB33F',
-      statusAt: [
-        { phase: 2, status: 'available' },
-        { phase: 5, status: 'claimed' },
-        { phase: 7, status: 'processing' },
-        { phase: 9, status: 'complete' },
-      ],
-    },
-    {
-      ref: 'ARP-83402',
-      service: 'WAEC Result Check',
-      sla: '20 min',
-      tone: '#016B3A',
-      statusAt: [
-        { phase: 3, status: 'available' },
-        { phase: 6, status: 'claimed' },
-        { phase: 8, status: 'processing' },
-      ],
-    },
-    {
-      ref: 'ARP-83403',
-      service: 'IPE Clearance',
-      sla: '4 days',
-      tone: '#D4A24C',
-      statusAt: [
-        { phase: 4, status: 'available' },
-        { phase: 8, status: 'claimed' },
-      ],
-    },
+  // Per-line stream offset
+  const [streamStart, setStreamStart] = useState<number | null>(null);
+  useEffect(() => {
+    if (phase >= 2 && streamStart === null) setStreamStart(performance.now());
+  }, [phase, streamStart]);
+  const [, force] = useState(0);
+  useEffect(() => {
+    if (phase < 2 || phase >= 3) return;
+    let raf = 0;
+    const tick = () => { force((n) => n + 1); raf = requestAnimationFrame(tick); };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [phase]);
+  const linesElapsed = streamStart != null ? performance.now() - streamStart : 0;
+  const linesShown = phase >= 3
+    ? json.length
+    : Math.min(json.length, Math.floor(linesElapsed / 580));
+
+  const colorOf = (tone: 'k' | 'v' | 's' | 'b' | 'p') => {
+    if (tone === 'p') return '#7DD3FC';
+    return '#E5E7EB';
+  };
+
+  // Color the values in keyed lines green if they're string literals.
+  const renderLine = (text: string) => {
+    const m = text.match(/^(\s*)("[^"]+":)(\s*)(.*?)(,?)$/);
+    if (!m) return <span style={{ color: '#7DD3FC' }}>{text}</span>;
+    const [, indent, key, sp, val, comma] = m;
+    let valColor = '#FCD34D';
+    if (val.startsWith('"')) valColor = '#A7E07A';
+    if (val === 'true' || val === 'false' || val === 'null') valColor = '#A78BFA';
+    if (/^\d/.test(val)) valColor = '#FB923C';
+    if (val.endsWith('{')) valColor = '#7DD3FC';
+    return (
+      <>
+        <span>{indent}</span>
+        <span style={{ color: '#22D3EE' }}>{key}</span>
+        <span>{sp}</span>
+        <span style={{ color: valColor }}>{val}</span>
+        <span style={{ color: '#7DD3FC' }}>{comma}</span>
+      </>
+    );
+  };
+
+  const callouts = [
+    { label: 'Stable envelope', sub: 'status · code · message', tone: '#22D3EE', x: 4, y: 8 },
+    { label: 'Verified record', sub: 'real provider data', tone: '#A7E07A', x: 60, y: 38 },
+    { label: 'Traceable', sub: 'every requestId logged', tone: '#FCD34D', x: 4, y: 70 },
   ];
-
-  const statusOf = (entries: { phase: number; status: Status }[]): Status | null => {
-    let current: Status | null = null;
-    for (const e of entries) {
-      if (phase >= e.phase) current = e.status;
-    }
-    return current;
-  };
-
-  const statusBadge = (status: Status) => {
-    const map: Record<Status, { label: string; bg: string; border: string; color: string }> = {
-      available: {
-        label: 'AVAILABLE',
-        bg: 'rgba(109,179,63,0.12)',
-        border: 'rgba(109,179,63,0.55)',
-        color: '#A7E07A',
-      },
-      claimed: {
-        label: 'CLAIMED',
-        bg: 'rgba(212,162,76,0.16)',
-        border: 'rgba(212,162,76,0.6)',
-        color: '#FFE9B0',
-      },
-      processing: {
-        label: 'PROCESSING',
-        bg: 'rgba(14,165,233,0.16)',
-        border: 'rgba(14,165,233,0.6)',
-        color: '#7DD3FC',
-      },
-      complete: {
-        label: 'COMPLETE ✓',
-        bg: 'rgba(109,179,63,0.20)',
-        border: 'rgba(109,179,63,0.75)',
-        color: '#A7E07A',
-      },
-    };
-    return map[status];
-  };
 
   return (
     <motion.div
-      className="absolute inset-0 flex items-center justify-center overflow-hidden bg-[#0A1628]"
+      className="absolute inset-0 flex items-center justify-center overflow-hidden"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -118,226 +108,129 @@ export function Scene3() {
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(ellipse at 30% 35%, rgba(109,179,63,0.10) 0%, transparent 55%), radial-gradient(ellipse at 75% 65%, rgba(28,58,107,0.42) 0%, transparent 55%)',
+            'radial-gradient(ellipse at 30% 30%, rgba(34,211,238,0.10) 0%, transparent 55%), radial-gradient(ellipse at 70% 70%, rgba(167,224,122,0.08) 0%, transparent 55%)',
         }}
       />
 
-      <div className="relative z-10 flex items-center gap-[3vw] w-[88vw]">
-        {/* Job-feed dashboard */}
+      <div className="relative z-10 flex flex-col items-center w-[84vw]">
         <motion.div
-          className="relative w-[42vw] rounded-[1vw] overflow-hidden flex-shrink-0"
-          style={{
-            background: 'linear-gradient(160deg, #1C3A6B 0%, #0F2346 50%, #0A1628 100%)',
-            border: '1px solid rgba(109,179,63,0.45)',
-            boxShadow: '0 30px 80px -20px rgba(0,0,0,0.7)',
-          }}
-          initial={{ opacity: 0, y: 30 }}
-          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+          className="text-[1vw] tracking-[0.42em] uppercase font-bold mb-[0.6vw] self-start"
+          style={{ color: '#22D3EE', fontFamily: "'JetBrains Mono', monospace" }}
+          initial={{ opacity: 0, y: 10 }}
+          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+          transition={{ duration: 0.6 }}
         >
-          {/* Header bar */}
-          <div className="px-[1.4vw] py-[1vw] flex items-center justify-between border-b border-white/10">
-            <div className="flex items-center gap-[0.6vw]">
-              <div
-                className="w-[1.4vw] h-[1.4vw] rounded-[0.3vw] flex items-center justify-center text-[0.8vw] font-black"
-                style={{
-                  background: 'linear-gradient(135deg, #6DB33F, #4F8B23)',
-                  color: 'white',
-                  fontFamily: "'Plus Jakarta Sans', sans-serif",
-                }}
-              >
-                A
-              </div>
-              <div
-                className="text-[1.05vw] font-bold text-white"
-                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-              >
-                Agent Console · Job Feed
-              </div>
-            </div>
-            <div className="flex items-center gap-[0.5vw]">
-              <motion.div
-                className="w-[0.6vw] h-[0.6vw] rounded-full"
-                style={{ background: '#6DB33F', boxShadow: '0 0 10px #6DB33F' }}
-                animate={{ opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 1.4, repeat: Infinity }}
-              />
-              <div
-                className="text-[0.78vw] tracking-[0.3em] uppercase font-bold"
-                style={{ color: '#A7E07A', fontFamily: "'Inter', sans-serif" }}
-              >
-                Live
-              </div>
-            </div>
-          </div>
-
-          {/* Cards */}
-          <div className="px-[1.4vw] py-[1.2vw] flex flex-col gap-[0.8vw] min-h-[26vw]">
-            {cards.map((c) => {
-              const status = statusOf(c.statusAt);
-              if (status === null) return <div key={c.ref} className="h-[5vw]" />;
-              const badge = statusBadge(status);
-              return (
-                <motion.div
-                  key={c.ref}
-                  className="rounded-[0.6vw] px-[1vw] py-[0.9vw] flex items-center gap-[1vw]"
-                  style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.10)',
-                    borderLeft: `0.4vw solid ${c.tone}`,
-                  }}
-                  initial={{ opacity: 0, x: -16 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div
-                      className="text-[1.1vw] font-bold text-white leading-tight"
-                      style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-                    >
-                      {c.service}
-                    </div>
-                    <div className="flex items-center gap-[0.7vw] mt-[0.2vw]">
-                      <div
-                        className="text-[0.7vw] text-white/55"
-                        style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                      >
-                        ref {c.ref}
-                      </div>
-                      <div
-                        className="text-[0.7vw] tracking-[0.22em] uppercase font-semibold"
-                        style={{ color: '#FCA5A5', fontFamily: "'Inter', sans-serif" }}
-                      >
-                        SLA · {c.sla}
-                      </div>
-                    </div>
-                  </div>
-                  <motion.div
-                    key={`${c.ref}-${status}`}
-                    className="px-[0.7vw] py-[0.35vw] rounded-full text-[0.72vw] font-black tracking-[0.2em]"
-                    style={{
-                      background: badge.bg,
-                      border: `1px solid ${badge.border}`,
-                      color: badge.color,
-                      fontFamily: "'Inter', sans-serif",
-                    }}
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                  >
-                    {badge.label}
-                  </motion.div>
-                </motion.div>
-              );
-            })}
-          </div>
-
-          {/* Completion toast */}
-          <motion.div
-            className="absolute bottom-[1vw] right-[1vw] flex items-center gap-[0.6vw] px-[1vw] py-[0.8vw] rounded-[0.6vw]"
-            style={{
-              background: 'rgba(109,179,63,0.20)',
-              border: '1px solid rgba(109,179,63,0.65)',
-              boxShadow: '0 12px 30px -10px rgba(109,179,63,0.45)',
-            }}
-            initial={{ opacity: 0, x: 20 }}
-            animate={phase >= 9 ? { opacity: 1, x: 0 } : { opacity: 0, x: 20 }}
-            transition={{ duration: 0.5 }}
-          >
-            <div
-              className="w-[1.4vw] h-[1.4vw] rounded-full flex items-center justify-center text-[0.8vw] font-black"
-              style={{ background: '#6DB33F', color: 'white' }}
-            >
-              ✓
-            </div>
-            <div>
-              <div
-                className="text-[0.85vw] font-bold text-white"
-                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-              >
-                Job complete
-              </div>
-              <div
-                className="text-[0.65vw]"
-                style={{ color: '#A7E07A', fontFamily: "'Inter', sans-serif" }}
-              >
-                Commission credited to wallet
-              </div>
-            </div>
-          </motion.div>
+          // response — 200 OK
         </motion.div>
 
-        {/* Right column */}
-        <div className="flex-1 flex flex-col">
-          <motion.div
-            className="text-[0.95vw] tracking-[0.42em] uppercase font-bold mb-[0.6vw]"
-            style={{ color: '#6DB33F', fontFamily: "'Inter', sans-serif" }}
-            initial={{ opacity: 0, y: 10 }}
-            animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-            transition={{ duration: 0.6 }}
-          >
-            The job feed · live, always
-          </motion.div>
+        <motion.h2
+          className="text-[3vw] font-black text-white leading-[1.05] tracking-tight self-start"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          initial={{ opacity: 0, y: 16 }}
+          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
+          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+        >
+          The same shape —{' '}
+          <span style={{ color: '#A7E07A' }}>every single time.</span>
+        </motion.h2>
 
-          <motion.h2
-            className="text-[3.2vw] font-black text-white leading-[1.05] tracking-tight"
-            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-            initial={{ opacity: 0, y: 16 }}
-            animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
-            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-          >
-            See it. Claim it.{' '}
-            <span style={{ color: '#6DB33F' }}>Deliver it.</span>
-          </motion.h2>
-
-          <motion.p
-            className="mt-[0.8vw] text-[1.2vw] text-white/70 leading-snug"
-            style={{ fontFamily: "'Inter', sans-serif" }}
-            initial={{ opacity: 0, y: 10 }}
-            animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-          >
-            Real requests stream in from across Nigeria. You see the service, the customer reference, and the SLA before you ever press claim.
-          </motion.p>
-
-          {/* Status legend */}
-          <div className="mt-[1.4vw] flex flex-wrap gap-[0.6vw]">
-            {(['AVAILABLE', 'CLAIMED', 'PROCESSING', 'COMPLETE'] as const).map((s, i) => {
-              const tones = ['#A7E07A', '#FFE9B0', '#7DD3FC', '#A7E07A'];
-              return (
-                <motion.div
-                  key={s}
-                  className="px-[0.9vw] py-[0.4vw] rounded-full text-[0.85vw] font-bold tracking-[0.18em]"
-                  style={{
-                    background: 'rgba(15,35,70,0.55)',
-                    border: `1px solid ${tones[i]}88`,
-                    color: tones[i],
-                    fontFamily: "'Inter', sans-serif",
-                  }}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-                  transition={{ delay: 0.6 + i * 0.1, duration: 0.5 }}
-                >
-                  {s}
-                </motion.div>
-              );
-            })}
+        {/* Response panel */}
+        <motion.div
+          className="relative w-full mt-[1.4vw] rounded-[0.8vw] overflow-hidden"
+          style={{
+            background: 'linear-gradient(160deg, #0F1B2E 0%, #050B16 100%)',
+            border: '1px solid rgba(167,224,122,0.40)',
+            boxShadow: '0 28px 70px -22px rgba(167,224,122,0.30)',
+          }}
+          initial={{ opacity: 0, y: 18 }}
+          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 }}
+          transition={{ duration: 0.7 }}
+        >
+          <div className="flex items-center justify-between px-[1.2vw] py-[0.7vw] border-b border-white/10 bg-black/30">
+            <div className="flex items-center gap-[0.5vw]">
+              <div className="w-[0.7vw] h-[0.7vw] rounded-full bg-[#FF5F56]" />
+              <div className="w-[0.7vw] h-[0.7vw] rounded-full bg-[#FFBD2E]" />
+              <div className="w-[0.7vw] h-[0.7vw] rounded-full bg-[#27C93F]" />
+              <div
+                className="ml-[1vw] text-[0.78vw] text-white/55"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                response.json
+              </div>
+            </div>
+            <div
+              className="px-[0.8vw] py-[0.32vw] rounded-full text-[0.72vw] tracking-[0.18em] font-bold"
+              style={{
+                background: 'rgba(167,224,122,0.20)',
+                border: '1px solid rgba(167,224,122,0.65)',
+                color: '#A7E07A',
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+            >
+              ✓ 200 OK · 412 ms
+            </div>
           </div>
 
-          {/* Closing line */}
-          <motion.div
-            className="mt-[1.8vw] text-[1.4vw] text-white/85 font-medium tracking-wide"
-            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-            initial={{ opacity: 0, y: 12 }}
-            animate={phase >= 10 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
-            transition={{ duration: 0.7 }}
-          >
-            Pick what you can deliver —{' '}
-            <span style={{ color: '#6DB33F' }} className="font-bold">
-              and own it.
-            </span>
-          </motion.div>
-        </div>
+          <div className="relative px-[1.4vw] py-[1.2vw] min-h-[18vw]">
+            {json.slice(0, linesShown).map((ln, i) => (
+              <div
+                key={i}
+                className="text-[0.95vw] leading-[1.55]"
+                style={{ color: colorOf(ln.tone), fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                {renderLine(ln.text)}
+              </div>
+            ))}
+
+            {/* Callouts */}
+            {callouts.map((c, i) => (
+              <motion.div
+                key={c.label}
+                className="absolute pointer-events-none"
+                style={{ right: `${c.x}%`, top: `${c.y}%` }}
+                initial={{ opacity: 0, x: 16 }}
+                animate={phase >= 3 ? { opacity: 1, x: 0 } : { opacity: 0, x: 16 }}
+                transition={{ delay: 0.18 * i, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <div
+                  className="px-[0.8vw] py-[0.5vw] rounded-[0.4vw]"
+                  style={{
+                    background: 'rgba(15,27,46,0.92)',
+                    border: `1px solid ${c.tone}AA`,
+                    boxShadow: `0 10px 24px -10px ${c.tone}66`,
+                  }}
+                >
+                  <div
+                    className="text-[0.78vw] font-black tracking-[0.18em]"
+                    style={{ color: c.tone, fontFamily: "'Inter', sans-serif" }}
+                  >
+                    {c.label.toUpperCase()}
+                  </div>
+                  <div
+                    className="text-[0.7vw] text-white/70 mt-[0.1vw]"
+                    style={{ fontFamily: "'Inter', sans-serif" }}
+                  >
+                    {c.sub}
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* Closing line */}
+        <motion.div
+          className="mt-[1.4vw] text-[1.4vw] text-white/85 text-center font-medium tracking-wide"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          initial={{ opacity: 0, y: 12 }}
+          animate={phase >= 4 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+          transition={{ duration: 0.7 }}
+        >
+          Parse it once,{' '}
+          <span style={{ color: '#A7E07A' }} className="font-bold">
+            ship it everywhere.
+          </span>
+        </motion.div>
       </div>
     </motion.div>
   );

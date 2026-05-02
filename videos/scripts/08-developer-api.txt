@@ -1,0 +1,19 @@
+If you build software in Nigeria, you've felt this pain. Identity checks scattered across providers. Inconsistent JSON. Three integrations for what should be one call.
+
+The Arapoint Developer API was built to fix that.
+
+One base URL — api.arapoint.com.ng. One key in your header. Clean JSON in. Clean JSON out. Verifications that come back the same shape every single time.
+
+Send a curl request to slash verify slash nin. Pass the NIN in the body. The response builds line by line — surname, given names, date of birth, gender, photo — wrapped in a predictable envelope with a status code, a message, and a request ID you can trace.
+
+Need BVN? Slash verify slash bvn. Need education? Slash verify slash education. Same shape, same auth, same speed.
+
+Build against the sandbox first. Toggle one flag in the dashboard and your same key now hits live deterministic mock data — no charges, no rate-limit surprises. When you're ready, flip the toggle, and the same code talks to the real registries. Sandbox to production with no rewrite.
+
+When you need more than one signal at once, call slash verify slash unified. NIN, BVN, and education in a single response — bundled for less than buying them separately. One request, one bill, one envelope.
+
+Security is built in. Generate API keys from the dashboard, tag each one to its environment, and lock it to a list of trusted IP addresses. If a request arrives from anywhere else, it never reaches your wallet.
+
+Every call is logged. Every endpoint is metered. Pull live analytics from slash analytics to see request volume, latency, and spend per service — broken down by API key.
+
+Start in the sandbox today at arapoint dot com dot n g slash developer. For developer support, reach us at support at arapoint dot com dot n g.

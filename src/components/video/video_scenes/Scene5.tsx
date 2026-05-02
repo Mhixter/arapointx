@@ -2,61 +2,56 @@ import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
 /**
- * Scene 5 — Commissions accruing.
+ * Scene 5 — Unified verification + bundle discount.
  *
- * Gold/green ambient. Earnings counter rolls upward as completed-job cards
- * stack in. Numbers are illustrative examples only — task brief explicitly
- * forbids implying guaranteed earnings.
+ * Real prices from Arapoint/server/src/api/routes/developer/shared.ts
+ *   nin: 130, bvn: 80, education: 250, unified: 400
+ * Three-call total: 460. Unified call: 400. Saves ₦60 per request (~13%).
  *
- * Allotted: 14_000 ms. All phase timers stay <= 13_500 ms.
+ * Allotted: 18_000 ms. All phase timers stay <= 17_500 ms.
  */
 export function Scene5() {
   const [phase, setPhase] = useState(0);
-  const [earned, setEarned] = useState(0);
-  const targetEarned = 8400; // ₦8,400 illustrative example only
+  const [counted, setCounted] = useState(0);
 
   useEffect(() => {
     const timers = [
       setTimeout(() => setPhase(1), 400),    // eyebrow + headline
-      setTimeout(() => setPhase(2), 2200),   // counter card + first job
-      setTimeout(() => setPhase(3), 3000),   // counter starts rolling
-      setTimeout(() => setPhase(4), 4400),   // job 2
-      setTimeout(() => setPhase(5), 6000),   // job 3
-      setTimeout(() => setPhase(6), 7400),   // job 4
-      setTimeout(() => setPhase(7), 9600),   // closing line
-      setTimeout(() => setPhase(8), 13400),  // exit prep
+      setTimeout(() => setPhase(2), 2400),   // 3 separate calls fly in
+      setTimeout(() => setPhase(3), 5400),   // sum line drops in
+      setTimeout(() => setPhase(4), 7400),   // unified replacement
+      setTimeout(() => setPhase(5), 9200),   // savings tally rolls
+      setTimeout(() => setPhase(6), 13800),  // closing line
+      setTimeout(() => setPhase(7), 17400),  // exit prep
     ];
     return () => timers.forEach((t) => clearTimeout(t));
   }, []);
 
+  // Animate the savings counter from 0 → 60.
   useEffect(() => {
-    if (phase < 3) return;
+    if (phase < 5) return;
     const start = performance.now();
-    const duration = 4200;
+    const duration = 1800;
     let raf = 0;
     const tick = (now: number) => {
       const t = Math.min(1, (now - start) / duration);
       const eased = 1 - Math.pow(1 - t, 3);
-      setEarned(Math.round(targetEarned * eased));
+      setCounted(Math.round(60 * eased));
       if (t < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [phase]);
 
-  const formatNaira = (v: number) =>
-    `₦${v.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-  const completedJobs = [
-    { service: 'NIN Slip · ARP-83401', back: '+₦200',   revealAt: 2 },
-    { service: 'WAEC Result · ARP-83402', back: '+₦400', revealAt: 4 },
-    { service: 'BVN Retrieval · ARP-83405', back: '+₦300', revealAt: 5 },
-    { service: 'CAC Search · ARP-83408', back: '+₦1,200', revealAt: 6 },
+  const calls = [
+    { endpoint: 'POST /verify/nin',       price: 130, tone: '#22D3EE' },
+    { endpoint: 'POST /verify/bvn',       price:  80, tone: '#A78BFA' },
+    { endpoint: 'POST /verify/education', price: 250, tone: '#FCD34D' },
   ];
 
   return (
     <motion.div
-      className="absolute inset-0 flex items-center justify-center overflow-hidden bg-[#0A1628]"
+      className="absolute inset-0 flex items-center justify-center overflow-hidden"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -66,151 +61,202 @@ export function Scene5() {
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(ellipse at 50% 30%, rgba(212,162,76,0.16) 0%, transparent 55%), radial-gradient(ellipse at 50% 90%, rgba(10,22,40,0.95) 0%, transparent 60%)',
+            'radial-gradient(ellipse at 50% 30%, rgba(167,224,122,0.12) 0%, transparent 55%), radial-gradient(ellipse at 50% 90%, rgba(5,11,22,0.95) 0%, transparent 60%)',
         }}
       />
 
       <div className="relative z-10 flex flex-col items-center w-[80vw]">
         <motion.div
-          className="text-[1vw] tracking-[0.42em] uppercase font-bold mb-[0.8vw]"
-          style={{ color: '#D4A24C', fontFamily: "'Inter', sans-serif" }}
+          className="text-[1vw] tracking-[0.42em] uppercase font-bold mb-[0.6vw]"
+          style={{ color: '#A7E07A', fontFamily: "'JetBrains Mono', monospace" }}
           initial={{ opacity: 0, y: 10 }}
           animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
           transition={{ duration: 0.6 }}
         >
-          Commissions · accrue with every closed job
+          // POST /api/v1/developer/verify/unified
         </motion.div>
 
         <motion.h2
-          className="text-[3.6vw] font-black text-white text-center leading-[1.05] tracking-tight"
+          className="text-[3.2vw] font-black text-white text-center leading-[1.05] tracking-tight"
           style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           initial={{ opacity: 0, y: 16 }}
           animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
           transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
         >
-          The harder you work,{' '}
-          <span style={{ color: '#D4A24C' }}>the more you earn.</span>
+          Three checks.{' '}
+          <span style={{ color: '#A7E07A' }}>One call.</span>
         </motion.h2>
 
-        {/* Big counter card */}
-        <motion.div
-          className="mt-[2.2vw] w-[60vw] rounded-[1vw] px-[2.4vw] py-[1.6vw] flex items-center justify-between"
-          style={{
-            background:
-              'linear-gradient(135deg, rgba(212,162,76,0.16) 0%, rgba(15,35,70,0.55) 60%)',
-            border: '1px solid rgba(212,162,76,0.55)',
-            boxShadow: '0 30px 80px -20px rgba(212,162,76,0.35)',
-          }}
-          initial={{ opacity: 0, y: 16 }}
-          animate={phase >= 2 ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <div>
+        <div className="mt-[2vw] grid grid-cols-2 gap-[2vw] w-full items-start">
+          {/* Left: 3 separate calls + sum */}
+          <div className="flex flex-col gap-[0.8vw]">
             <div
-              className="text-[0.85vw] tracking-[0.34em] uppercase font-bold"
-              style={{ color: '#F5C977', fontFamily: "'Inter', sans-serif" }}
+              className="text-[0.85vw] tracking-[0.32em] uppercase font-bold"
+              style={{ color: '#FCA5A5', fontFamily: "'JetBrains Mono', monospace" }}
             >
-              Today · credited to wallet
+              Without unified
             </div>
-            <div
-              className="mt-[0.2vw] text-[4.4vw] font-black tracking-tight"
-              style={{
-                color: '#FFE9B0',
-                fontFamily: "'JetBrains Mono', monospace",
-                textShadow: '0 2px 30px rgba(212,162,76,0.45)',
-              }}
-            >
-              {formatNaira(earned)}
-            </div>
-            <div
-              className="text-[0.85vw] text-white/55 mt-[0.2vw]"
-              style={{ fontFamily: "'Inter', sans-serif" }}
-            >
-              Illustrative example · per-service rates shown live in your dashboard
-            </div>
-          </div>
-
-          {/* Withdraw chip */}
-          <div className="flex flex-col items-end gap-[0.6vw]">
-            <div
-              className="px-[1vw] py-[0.5vw] rounded-full text-[0.85vw] font-bold tracking-[0.18em]"
-              style={{
-                background: 'rgba(109,179,63,0.18)',
-                border: '1px solid rgba(109,179,63,0.6)',
-                color: '#A7E07A',
-                fontFamily: "'Inter', sans-serif",
-              }}
-            >
-              SAME-DAY PAYOUT
-            </div>
-            <div
-              className="text-[0.78vw] text-white/55"
-              style={{ fontFamily: "'Inter', sans-serif" }}
-            >
-              Withdraw to any Nigerian bank
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Completed-jobs strip */}
-        <div className="mt-[1.4vw] grid grid-cols-4 gap-[0.9vw] w-[60vw]">
-          {completedJobs.map((c) => {
-            const visible = phase >= c.revealAt;
-            return (
+            {calls.map((c, i) => (
               <motion.div
-                key={c.service}
-                className="rounded-[0.6vw] px-[0.9vw] py-[0.8vw] flex items-center gap-[0.7vw]"
+                key={c.endpoint}
+                className="rounded-[0.5vw] px-[1vw] py-[0.7vw] flex items-center justify-between"
                 style={{
-                  background: 'rgba(15,35,70,0.55)',
-                  border: '1px solid rgba(212,162,76,0.4)',
-                  boxShadow: visible ? '0 10px 26px -10px rgba(212,162,76,0.35)' : 'none',
+                  background: 'rgba(15,27,46,0.55)',
+                  border: `1px solid ${c.tone}55`,
+                  opacity: phase >= 4 ? 0.45 : 1,
+                  transition: 'opacity 0.6s ease',
                 }}
-                initial={{ opacity: 0, y: 14 }}
-                animate={visible ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 }}
-                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                initial={{ opacity: 0, x: -16 }}
+                animate={phase >= 2 ? { opacity: phase >= 4 ? 0.45 : 1, x: 0 } : { opacity: 0, x: -16 }}
+                transition={{ delay: 0.18 * i, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
               >
                 <div
-                  className="w-[1.6vw] h-[1.6vw] rounded-full flex items-center justify-center text-[0.8vw] font-black flex-shrink-0"
-                  style={{ background: '#6DB33F', color: 'white' }}
+                  className="text-[1vw]"
+                  style={{ color: c.tone, fontFamily: "'JetBrains Mono', monospace" }}
                 >
-                  ✓
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div
-                    className="text-[0.78vw] font-bold text-white truncate"
-                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-                  >
-                    {c.service}
-                  </div>
-                  <div
-                    className="text-[0.62vw] text-white/55"
-                    style={{ fontFamily: "'Inter', sans-serif" }}
-                  >
-                    Closed · paid
-                  </div>
+                  {c.endpoint}
                 </div>
                 <div
-                  className="text-[0.95vw] font-black"
-                  style={{ color: '#FFE9B0', fontFamily: "'JetBrains Mono', monospace" }}
+                  className="text-[1.1vw] font-black"
+                  style={{ color: '#FCA5A5', fontFamily: "'JetBrains Mono', monospace" }}
                 >
-                  {c.back}
+                  ₦{c.price}
                 </div>
               </motion.div>
-            );
-          })}
+            ))}
+            <motion.div
+              className="rounded-[0.5vw] px-[1vw] py-[0.8vw] flex items-center justify-between mt-[0.4vw]"
+              style={{
+                background: 'rgba(252,165,165,0.12)',
+                border: '1.5px solid rgba(252,165,165,0.55)',
+                opacity: phase >= 4 ? 0.5 : 1,
+                transition: 'opacity 0.6s ease',
+              }}
+              initial={{ opacity: 0, y: 14 }}
+              animate={phase >= 3 ? { opacity: phase >= 4 ? 0.5 : 1, y: 0 } : { opacity: 0, y: 14 }}
+              transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <div
+                className="text-[1vw] tracking-[0.18em] font-bold"
+                style={{ color: '#FCA5A5', fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                3 calls · 3 envelopes
+              </div>
+              <div
+                className="text-[1.4vw] font-black"
+                style={{ color: '#FCA5A5', fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                ₦460
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Right: unified call */}
+          <div className="flex flex-col gap-[0.8vw]">
+            <div
+              className="text-[0.85vw] tracking-[0.32em] uppercase font-bold"
+              style={{ color: '#A7E07A', fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              With unified
+            </div>
+            <motion.div
+              className="rounded-[0.6vw] p-[1.4vw]"
+              style={{
+                background:
+                  'linear-gradient(135deg, rgba(167,224,122,0.16) 0%, rgba(15,27,46,0.55) 60%)',
+                border: '1.5px solid rgba(167,224,122,0.65)',
+                boxShadow: '0 18px 40px -16px rgba(167,224,122,0.50)',
+              }}
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={phase >= 4 ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.92 }}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <div className="flex items-center justify-between">
+                <div
+                  className="text-[1.1vw]"
+                  style={{ color: '#A7E07A', fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  POST /verify/unified
+                </div>
+                <div
+                  className="text-[2.4vw] font-black leading-none"
+                  style={{ color: '#A7E07A', fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  ₦400
+                </div>
+              </div>
+              <div
+                className="mt-[0.6vw] text-[0.85vw]"
+                style={{ color: '#22D3EE', fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                {`{ "nin": "...", "bvn": "...", "education": { ... } }`}
+              </div>
+              <div className="mt-[0.8vw] flex flex-wrap gap-[0.5vw]">
+                {['NIN', 'BVN', 'Education'].map((s) => (
+                  <div
+                    key={s}
+                    className="px-[0.7vw] py-[0.3vw] rounded-full text-[0.75vw] font-bold tracking-[0.18em]"
+                    style={{
+                      background: 'rgba(167,224,122,0.20)',
+                      border: '1px solid rgba(167,224,122,0.55)',
+                      color: '#A7E07A',
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}
+                  >
+                    ✓ {s}
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* Savings tally */}
+            <motion.div
+              className="rounded-[0.6vw] p-[1.2vw] flex items-center justify-between"
+              style={{
+                background:
+                  'linear-gradient(135deg, rgba(212,162,76,0.16) 0%, rgba(15,27,46,0.55) 60%)',
+                border: '1.5px solid rgba(212,162,76,0.65)',
+                boxShadow: '0 14px 30px -14px rgba(212,162,76,0.45)',
+              }}
+              initial={{ opacity: 0, y: 14 }}
+              animate={phase >= 5 ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 }}
+              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <div>
+                <div
+                  className="text-[0.78vw] tracking-[0.32em] uppercase font-bold"
+                  style={{ color: '#F5C977', fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  saved per request
+                </div>
+                <div
+                  className="text-[2.6vw] font-black leading-none mt-[0.2vw]"
+                  style={{ color: '#FFE9B0', fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  ₦{counted}
+                </div>
+              </div>
+              <div
+                className="text-[1vw] text-white/65"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                ~13% bundle
+              </div>
+            </motion.div>
+          </div>
         </div>
 
         {/* Closing line */}
         <motion.div
-          className="mt-[1.6vw] text-[1.4vw] text-white/85 text-center font-medium tracking-wide"
+          className="mt-[1.4vw] text-[1.4vw] text-white/85 text-center font-medium tracking-wide"
           style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           initial={{ opacity: 0, y: 12 }}
-          animate={phase >= 7 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+          animate={phase >= 6 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
           transition={{ duration: 0.7 }}
         >
-          Same-day payout —{' '}
-          <span style={{ color: '#D4A24C' }} className="font-bold">
-            straight to your bank.
+          One request, one bill —{' '}
+          <span style={{ color: '#A7E07A' }} className="font-bold">
+            every signal you need.
           </span>
         </motion.div>
       </div>

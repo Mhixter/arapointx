@@ -2,54 +2,62 @@ import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
 /**
- * Scene 2 — Map + agents across Nigeria.
+ * Scene 2 — Animated curl request.
  *
- * Abstract organic blob shape (NOT a real Nigeria geography — task brief
- * explicitly forbids precise reproduction). Animated agent pins drop across
- * the shape over time. Right column shows the network stats.
+ * A real Arapoint developer endpoint shape is typed out line-by-line in
+ * a terminal frame. After the request lands a "Sending…" pill flips to
+ * "200 OK" to bridge into the next scene.
  *
- * Allotted: 16_000 ms. All phase timers stay <= 15_500 ms.
+ * Real route source: Arapoint/server/src/api/routes/developer/verification.ts
+ *   POST /api/v1/developer/verify/nin (apiKeyAuth)
+ *
+ * Allotted: 18_000 ms. All phase timers stay <= 17_500 ms.
  */
 export function Scene2() {
   const [phase, setPhase] = useState(0);
 
+  // Each line types in sequence so the developer can read the request shape.
+  const lines: { text: string; tone: string; delay: number }[] = [
+    { text: 'curl -X POST \\',                                                    tone: '#A7E07A', delay: 1500 },
+    { text: '  https://api.arapoint.com.ng/api/v1/developer/verify/nin \\',       tone: '#22D3EE', delay: 2400 },
+    { text: '  -H "Content-Type: application/json" \\',                           tone: '#A7E07A', delay: 3500 },
+    { text: '  -H "x-api-key: ara_live_••••••••••••" \\',                         tone: '#FCD34D', delay: 4400 },
+    { text: '  -d \'{ "nin": "12345678901" }\'',                                  tone: '#A7E07A', delay: 5400 },
+  ];
+
   useEffect(() => {
     const timers = [
-      setTimeout(() => setPhase(1), 400),    // eyebrow + map outline
-      setTimeout(() => setPhase(2), 2200),   // first wave of pins
-      setTimeout(() => setPhase(3), 4400),   // second wave
-      setTimeout(() => setPhase(4), 6400),   // third wave
-      setTimeout(() => setPhase(5), 8000),   // stats reveal
-      setTimeout(() => setPhase(6), 12000),  // closing line
-      setTimeout(() => setPhase(7), 15400),  // exit prep
+      setTimeout(() => setPhase(1), 400),    // eyebrow + headline + terminal shell
+      setTimeout(() => setPhase(2), 2200),   // line 1 prompt
+      setTimeout(() => setPhase(3), 7400),   // sending pill
+      setTimeout(() => setPhase(4), 9600),   // 200 OK pill
+      setTimeout(() => setPhase(5), 11400),  // benefit row
+      setTimeout(() => setPhase(6), 14400),  // closing line
+      setTimeout(() => setPhase(7), 17400),  // exit prep
     ];
     return () => timers.forEach((t) => clearTimeout(t));
   }, []);
 
-  // Pins distributed across the abstract shape (percentage-based).
-  // These are NOT geographic positions — they're aesthetic clusters.
-  const pins = [
-    { x: 28, y: 22, wave: 2 },
-    { x: 60, y: 18, wave: 2 },
-    { x: 42, y: 30, wave: 2 },
-    { x: 72, y: 36, wave: 3 },
-    { x: 22, y: 42, wave: 3 },
-    { x: 50, y: 50, wave: 3 },
-    { x: 36, y: 60, wave: 4 },
-    { x: 64, y: 58, wave: 4 },
-    { x: 48, y: 72, wave: 4 },
-    { x: 30, y: 78, wave: 4 },
-  ];
+  // Drive per-line typing using small offsets from phase>=2 onset.
+  const [tickStart, setTickStart] = useState<number | null>(null);
+  useEffect(() => {
+    if (phase >= 2 && tickStart === null) setTickStart(performance.now());
+  }, [phase, tickStart]);
+  const elapsed = tickStart != null ? performance.now() - tickStart : 0;
 
-  const stats = [
-    { value: '36', sub: 'states served' },
-    { value: '4', sub: 'specializations' },
-    { value: '24/7', sub: 'job feed' },
-  ];
+  // Force re-render at 60fps once typing begins.
+  const [, force] = useState(0);
+  useEffect(() => {
+    if (phase < 2 || phase >= 3) return;
+    let raf = 0;
+    const tick = () => { force((n) => n + 1); raf = requestAnimationFrame(tick); };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [phase]);
 
   return (
     <motion.div
-      className="absolute inset-0 flex items-center justify-center overflow-hidden bg-[#0A1628]"
+      className="absolute inset-0 flex items-center justify-center overflow-hidden"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -59,188 +67,175 @@ export function Scene2() {
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(ellipse at 30% 40%, rgba(109,179,63,0.10) 0%, transparent 55%), radial-gradient(ellipse at 75% 65%, rgba(28,58,107,0.40) 0%, transparent 55%)',
+            'radial-gradient(ellipse at 30% 30%, rgba(34,211,238,0.10) 0%, transparent 55%), radial-gradient(ellipse at 70% 70%, rgba(167,224,122,0.08) 0%, transparent 55%)',
         }}
       />
 
-      <div className="relative z-10 flex items-center gap-[3vw] w-[88vw]">
-        {/* Abstract map column */}
+      <div className="relative z-10 flex flex-col items-center w-[84vw]">
         <motion.div
-          className="relative w-[42vw] h-[34vw] flex-shrink-0"
-          initial={{ opacity: 0 }}
-          animate={phase >= 1 ? { opacity: 1 } : { opacity: 0 }}
-          transition={{ duration: 0.8 }}
+          className="text-[1vw] tracking-[0.42em] uppercase font-bold mb-[0.6vw] self-start"
+          style={{ color: '#22D3EE', fontFamily: "'JetBrains Mono', monospace" }}
+          initial={{ opacity: 0, y: 10 }}
+          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+          transition={{ duration: 0.6 }}
         >
-          {/* Faint grid backdrop */}
-          <div
-            className="absolute inset-0 rounded-[1.4vw] opacity-30"
-            style={{
-              background:
-                'repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 4vw), repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 4vw)',
-            }}
-          />
-
-          {/* Abstract organic blob — NOT a real Nigeria map */}
-          <svg
-            viewBox="0 0 100 100"
-            className="absolute inset-0 w-full h-full"
-            preserveAspectRatio="none"
-          >
-            <defs>
-              <linearGradient id="blobFill" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#6DB33F" stopOpacity="0.18" />
-                <stop offset="100%" stopColor="#1C3A6B" stopOpacity="0.45" />
-              </linearGradient>
-              <linearGradient id="blobStroke" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#6DB33F" stopOpacity="0.95" />
-                <stop offset="100%" stopColor="#A7E07A" stopOpacity="0.75" />
-              </linearGradient>
-            </defs>
-            {/*
-              Soft, purposely-imprecise blob. Reads as "a country shape" without
-              reproducing Nigeria's actual borders. Stays compliant with brief.
-            */}
-            <motion.path
-              d="M 18 28 Q 14 18, 28 14 Q 42 8, 56 14 Q 72 12, 78 22 Q 88 30, 82 44 Q 86 58, 76 70 Q 64 82, 50 84 Q 36 88, 26 78 Q 14 68, 16 54 Q 12 40, 18 28 Z"
-              fill="url(#blobFill)"
-              stroke="url(#blobStroke)"
-              strokeWidth="0.6"
-              initial={{ pathLength: 0 }}
-              animate={phase >= 1 ? { pathLength: 1 } : { pathLength: 0 }}
-              transition={{ duration: 1.6, ease: [0.16, 1, 0.3, 1] }}
-            />
-          </svg>
-
-          {/* Map label */}
-          <div
-            className="absolute top-[1.2vw] left-[1.2vw] text-[0.8vw] tracking-[0.34em] uppercase font-bold"
-            style={{ color: '#A7E07A', fontFamily: "'Inter', sans-serif" }}
-          >
-            Agents · across Nigeria
-          </div>
-
-          {/* Pins */}
-          {pins.map((p, i) => {
-            const visible = phase >= p.wave;
-            return (
-              <motion.div
-                key={i}
-                className="absolute"
-                style={{
-                  left: `${p.x}%`,
-                  top: `${p.y}%`,
-                  transform: 'translate(-50%, -100%)',
-                }}
-                initial={{ opacity: 0, y: -16, scale: 0.6 }}
-                animate={
-                  visible
-                    ? { opacity: 1, y: 0, scale: 1 }
-                    : { opacity: 0, y: -16, scale: 0.6 }
-                }
-                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.05 * i }}
-              >
-                {/* Pulse ring */}
-                <motion.div
-                  className="absolute left-1/2 top-full -translate-x-1/2 w-[2vw] h-[2vw] rounded-full"
-                  style={{
-                    background:
-                      'radial-gradient(circle, rgba(109,179,63,0.55), rgba(109,179,63,0) 65%)',
-                  }}
-                  animate={visible ? { scale: [0.6, 1.6, 0.6], opacity: [0.55, 0, 0.55] } : {}}
-                  transition={{ duration: 2.4, repeat: Infinity, ease: 'easeOut' }}
-                />
-                {/* Pin */}
-                <div
-                  className="relative w-[1vw] h-[1vw] rounded-full"
-                  style={{
-                    background: 'linear-gradient(135deg, #A7E07A, #4F8B23)',
-                    boxShadow: '0 0 16px rgba(109,179,63,0.7), 0 4px 6px rgba(0,0,0,0.4)',
-                    border: '1.5px solid white',
-                  }}
-                />
-              </motion.div>
-            );
-          })}
+          // request — POST /api/v1/developer/verify/nin
         </motion.div>
 
-        {/* Right column */}
-        <div className="flex-1 flex flex-col">
-          <motion.div
-            className="text-[0.95vw] tracking-[0.42em] uppercase font-bold mb-[0.6vw]"
-            style={{ color: '#6DB33F', fontFamily: "'Inter', sans-serif" }}
-            initial={{ opacity: 0, y: 10 }}
-            animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-            transition={{ duration: 0.6 }}
-          >
-            A national network
-          </motion.div>
+        <motion.h2
+          className="text-[3vw] font-black text-white leading-[1.05] tracking-tight self-start"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          initial={{ opacity: 0, y: 16 }}
+          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
+          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+        >
+          One key. One header.{' '}
+          <span style={{ color: '#A7E07A' }}>One endpoint.</span>
+        </motion.h2>
 
-          <motion.h2
-            className="text-[3.2vw] font-black text-white leading-[1.05] tracking-tight"
-            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-            initial={{ opacity: 0, y: 16 }}
-            animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
-            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-          >
-            Agents across Nigeria —{' '}
-            <span style={{ color: '#6DB33F' }}>and there's room for more.</span>
-          </motion.h2>
-
-          <motion.p
-            className="mt-[0.8vw] text-[1.2vw] text-white/70 leading-snug"
-            style={{ fontFamily: "'Inter', sans-serif" }}
-            initial={{ opacity: 0, y: 10 }}
-            animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-          >
-            Real customers, real demand — every state, every day. The Arapoint network is built on people who show up.
-          </motion.p>
-
-          {/* Stats row */}
-          <div className="mt-[1.6vw] grid grid-cols-3 gap-[0.9vw]">
-            {stats.map((s, i) => (
-              <motion.div
-                key={s.sub}
-                className="rounded-[0.6vw] px-[1vw] py-[1vw] flex flex-col"
-                style={{
-                  background: 'rgba(15,35,70,0.55)',
-                  border: '1px solid rgba(109,179,63,0.4)',
-                  boxShadow: '0 8px 22px -10px rgba(109,179,63,0.35)',
-                }}
-                initial={{ opacity: 0, y: 12 }}
-                animate={phase >= 5 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
-                transition={{ delay: 0.15 * i, duration: 0.55 }}
+        {/* Terminal */}
+        <motion.div
+          className="relative w-full mt-[1.4vw] rounded-[0.8vw] overflow-hidden"
+          style={{
+            background: 'linear-gradient(160deg, #0F1B2E 0%, #050B16 100%)',
+            border: '1px solid rgba(34,211,238,0.40)',
+            boxShadow: '0 28px 70px -22px rgba(34,211,238,0.30)',
+          }}
+          initial={{ opacity: 0, y: 18 }}
+          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 }}
+          transition={{ duration: 0.7 }}
+        >
+          {/* Header bar */}
+          <div className="flex items-center justify-between px-[1.2vw] py-[0.7vw] border-b border-white/10 bg-black/30">
+            <div className="flex items-center gap-[0.5vw]">
+              <div className="w-[0.7vw] h-[0.7vw] rounded-full bg-[#FF5F56]" />
+              <div className="w-[0.7vw] h-[0.7vw] rounded-full bg-[#FFBD2E]" />
+              <div className="w-[0.7vw] h-[0.7vw] rounded-full bg-[#27C93F]" />
+              <div
+                className="ml-[1vw] text-[0.78vw] text-white/55"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
-                <div
-                  className="text-[2.4vw] font-black text-white leading-none"
-                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                arapoint:request.sh
+              </div>
+            </div>
+
+            {/* Status pill */}
+            <div className="relative h-[1.6vw] w-[6.5vw]">
+              {phase >= 3 && phase < 4 && (
+                <motion.div
+                  key="sending"
+                  className="absolute inset-0 flex items-center justify-center px-[0.8vw] rounded-full text-[0.78vw] tracking-[0.18em] font-bold"
+                  style={{
+                    background: 'rgba(252,211,77,0.16)',
+                    border: '1px solid rgba(252,211,77,0.55)',
+                    color: '#FCD34D',
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
                 >
-                  {s.value}
-                </div>
-                <div
-                  className="text-[0.78vw] tracking-[0.24em] uppercase font-semibold mt-[0.4vw]"
-                  style={{ color: '#A7E07A', fontFamily: "'Inter', sans-serif" }}
+                  <motion.span
+                    className="inline-block mr-[0.4vw] w-[0.5vw] h-[0.5vw] rounded-full"
+                    style={{ background: '#FCD34D' }}
+                    animate={{ opacity: [0.3, 1, 0.3] }}
+                    transition={{ duration: 0.9, repeat: Infinity }}
+                  />
+                  SENDING
+                </motion.div>
+              )}
+              {phase >= 4 && (
+                <motion.div
+                  key="ok"
+                  className="absolute inset-0 flex items-center justify-center px-[0.8vw] rounded-full text-[0.78vw] tracking-[0.18em] font-bold"
+                  style={{
+                    background: 'rgba(167,224,122,0.20)',
+                    border: '1px solid rgba(167,224,122,0.65)',
+                    color: '#A7E07A',
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}
+                  initial={{ opacity: 0, scale: 0.85 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
                 >
-                  {s.sub}
-                </div>
-              </motion.div>
-            ))}
+                  ✓ 200 OK
+                </motion.div>
+              )}
+            </div>
           </div>
 
-          {/* Closing line */}
-          <motion.div
-            className="mt-[1.6vw] text-[1.4vw] text-white/85 font-medium tracking-wide"
-            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-            initial={{ opacity: 0, y: 12 }}
-            animate={phase >= 6 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
-            transition={{ duration: 0.7 }}
-          >
-            Wherever you are —{' '}
-            <span style={{ color: '#6DB33F' }} className="font-bold">
-              there's work to claim.
-            </span>
-          </motion.div>
-        </div>
+          {/* Body */}
+          <div className="px-[1.4vw] py-[1.4vw] min-h-[14vw]">
+            {lines.map((ln, i) => {
+              if (phase < 2) return null;
+              const lineElapsed = elapsed - ln.delay;
+              if (lineElapsed < 0) return null;
+              // Typing speed ~55 chars/sec.
+              const charsTyped = phase >= 3 ? ln.text.length : Math.min(ln.text.length, Math.floor(lineElapsed / 18));
+              return (
+                <div
+                  key={i}
+                  className="text-[1.05vw] leading-[1.7]"
+                  style={{ color: ln.tone, fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  {ln.text.slice(0, charsTyped)}
+                  {phase < 3 && i === lines.length - 1 && charsTyped < ln.text.length && (
+                    <motion.span
+                      className="inline-block w-[0.5vw] h-[1.1vw] align-middle ml-[0.1vw]"
+                      style={{ background: ln.tone, verticalAlign: '-0.1vw' }}
+                      animate={{ opacity: [1, 0, 1] }}
+                      transition={{ duration: 0.9, repeat: Infinity }}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+
+        {/* Benefit row */}
+        <motion.div
+          className="mt-[1.4vw] flex gap-[0.8vw] justify-center"
+          initial={{ opacity: 0 }}
+          animate={phase >= 5 ? { opacity: 1 } : { opacity: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          {[
+            { tone: '#A7E07A', icon: '✓', label: 'TLS by default' },
+            { tone: '#22D3EE', icon: '✓', label: 'JSON in · JSON out' },
+            { tone: '#FCD34D', icon: '✓', label: 'Predictable envelope' },
+          ].map((b, i) => (
+            <motion.div
+              key={b.label}
+              className="px-[1vw] py-[0.5vw] rounded-full text-[0.95vw] font-semibold"
+              style={{
+                background: 'rgba(15,27,46,0.65)',
+                border: `1px solid ${b.tone}88`,
+                color: b.tone,
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+              initial={{ opacity: 0, y: 8 }}
+              animate={phase >= 5 ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+              transition={{ delay: 0.12 * i, duration: 0.5 }}
+            >
+              {b.icon} {b.label}
+            </motion.div>
+          ))}
+        </motion.div>
+
+        {/* Closing line */}
+        <motion.div
+          className="mt-[1.6vw] text-[1.4vw] text-white/85 text-center font-medium tracking-wide"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          initial={{ opacity: 0, y: 12 }}
+          animate={phase >= 6 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+          transition={{ duration: 0.7 }}
+        >
+          Auth, content, payload —{' '}
+          <span style={{ color: '#22D3EE' }} className="font-bold">
+            shipped.
+          </span>
+        </motion.div>
       </div>
     </motion.div>
   );
