@@ -35,7 +35,7 @@ export function BrandFooter({ variant = 'full', delay = 0 }: BrandFooterProps) {
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
       <motion.img
-        src={`${import.meta.env.BASE_URL}logos/arapoint-logo.png`}
+        src={`${import.meta.env.BASE_URL}logos/arapoint-logo-clear.png`}
         alt="Arapoint"
         initial={{ opacity: 0, scale: 0.92, y: 18 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
