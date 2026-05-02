@@ -9,11 +9,11 @@ import { Scene6 } from './video_scenes/Scene6';
 
 const SCENE_DURATIONS = {
   hook: 14000,
-  fund: 16000,
-  spend: 16000,
-  earn: 16000,
-  withdraw: 18000,
-  close: 15000,
+  map: 16000,
+  feed: 18000,
+  sla: 14000,
+  earn: 14000,
+  close: 19000,
 };
 
 export default function VideoTemplate() {
@@ -27,10 +27,10 @@ export default function VideoTemplate() {
       {/* Scene Content */}
       <AnimatePresence initial={false} mode="popLayout">
         {currentScene === 0 && <Scene1 key="hook" />}
-        {currentScene === 1 && <Scene2 key="fund" />}
-        {currentScene === 2 && <Scene3 key="spend" />}
-        {currentScene === 3 && <Scene4 key="earn" />}
-        {currentScene === 4 && <Scene5 key="withdraw" />}
+        {currentScene === 1 && <Scene2 key="map" />}
+        {currentScene === 2 && <Scene3 key="feed" />}
+        {currentScene === 3 && <Scene4 key="sla" />}
+        {currentScene === 4 && <Scene5 key="earn" />}
         {currentScene === 5 && <Scene6 key="close" />}
       </AnimatePresence>
     </div>

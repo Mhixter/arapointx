@@ -2,57 +2,73 @@ import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
 /**
- * Scene 4 — Earn while you transact (commission earnings).
+ * Scene 4 — SLA timer & accountability.
  *
- * Warm gold ambient. Big eased counter rolls up "Commissions Earned"; small
- * earn-back cards stack as transactions complete. Numbers are illustrative
- * examples only — task brief explicitly forbids implying guaranteed earnings.
+ * Big animated countdown ring on the left, accountability points on the right.
+ * Soft amber/red ambient lights up to communicate "the clock is honest".
  *
- * Allotted: 16_000 ms. All phase timers stay <= 15_500 ms.
+ * Allotted: 14_000 ms. All phase timers stay <= 13_500 ms.
  */
 export function Scene4() {
   const [phase, setPhase] = useState(0);
-  const [earned, setEarned] = useState(0);
-  const targetEarned = 1240; // ₦1,240.00 illustrative example only
+  // Animated ring progress (0 → 1) and remaining seconds.
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     const timers = [
-      setTimeout(() => setPhase(1), 400),    // eyebrow + headline
-      setTimeout(() => setPhase(2), 2400),   // earn-back card 1
-      setTimeout(() => setPhase(3), 4200),   // counter starts rolling
-      setTimeout(() => setPhase(4), 5400),   // earn-back card 2
-      setTimeout(() => setPhase(5), 7400),   // earn-back card 3
-      setTimeout(() => setPhase(6), 9400),   // earn-back card 4
-      setTimeout(() => setPhase(7), 11800),  // closing line
-      setTimeout(() => setPhase(8), 15400),  // exit prep
+      setTimeout(() => setPhase(1), 400),    // eyebrow + headline + ring shell
+      setTimeout(() => setPhase(2), 2400),   // ring starts running
+      setTimeout(() => setPhase(3), 4400),   // accountability item 1
+      setTimeout(() => setPhase(4), 5800),   // item 2
+      setTimeout(() => setPhase(5), 7200),   // item 3
+      setTimeout(() => setPhase(6), 9400),   // closing line
+      setTimeout(() => setPhase(7), 13400),  // exit prep
     ];
     return () => timers.forEach((t) => clearTimeout(t));
   }, []);
 
   useEffect(() => {
-    if (phase < 3) return;
+    if (phase < 2) return;
     const start = performance.now();
-    const duration = 4800;
+    const duration = 7000; // ring fills over ~7s
     let raf = 0;
     const tick = (now: number) => {
       const t = Math.min(1, (now - start) / duration);
       const eased = 1 - Math.pow(1 - t, 3);
-      setEarned(Math.round(targetEarned * eased * 100) / 100);
+      setProgress(eased);
       if (t < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [phase]);
 
-  const earnCards = [
-    { service: 'NIN Verification', back: '+₦8.00',  revealAt: 2 },
-    { service: 'BVN Retrieval',    back: '+₦12.00', revealAt: 4 },
-    { service: 'WAEC Checker PIN', back: '+₦140.00', revealAt: 5 },
-    { service: 'IPE Clearance',    back: '+₦600.00', revealAt: 6 },
-  ];
+  // Radius for the SVG ring; circumference = 2πr
+  const R = 44;
+  const C = 2 * Math.PI * R;
 
-  const formatNaira = (v: number) =>
-    `₦${v.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  // Show "remaining" timer counting down from 15:00 → ~04:30
+  const totalSec = 15 * 60;
+  const remainingSec = Math.max(0, Math.round(totalSec * (1 - progress * 0.7)));
+  const mm = String(Math.floor(remainingSec / 60)).padStart(2, '0');
+  const ss = String(remainingSec % 60).padStart(2, '0');
+
+  const accountability = [
+    {
+      title: 'Customers get the speed they were promised',
+      sub: 'Every job has a published SLA window — visible to both sides.',
+      revealAt: 3,
+    },
+    {
+      title: 'Agents get a fair, transparent track record',
+      sub: 'Your on-time rate is measured the same way for everyone.',
+      revealAt: 4,
+    },
+    {
+      title: 'Reliable agents see more jobs, sooner',
+      sub: 'The feed surfaces work to agents who deliver.',
+      revealAt: 5,
+    },
+  ];
 
   return (
     <motion.div
@@ -66,149 +82,148 @@ export function Scene4() {
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(ellipse at 50% 30%, rgba(212,162,76,0.16) 0%, transparent 55%), radial-gradient(ellipse at 50% 90%, rgba(10,22,40,0.95) 0%, transparent 60%)',
+            'radial-gradient(ellipse at 30% 35%, rgba(252,165,165,0.10) 0%, transparent 55%), radial-gradient(ellipse at 75% 65%, rgba(28,58,107,0.42) 0%, transparent 55%)',
         }}
       />
 
-      <div className="relative z-10 flex flex-col items-center w-[80vw]">
+      <div className="relative z-10 flex items-center gap-[4vw] w-[84vw]">
+        {/* SLA ring */}
         <motion.div
-          className="text-[1vw] tracking-[0.42em] uppercase font-bold mb-[0.8vw]"
-          style={{ color: '#D4A24C', fontFamily: "'Inter', sans-serif" }}
-          initial={{ opacity: 0, y: 10 }}
-          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-          transition={{ duration: 0.6 }}
-        >
-          Commissions · the part most people love
-        </motion.div>
-
-        <motion.h2
-          className="text-[3.6vw] font-black text-white text-center leading-[1.05] tracking-tight"
-          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-          initial={{ opacity: 0, y: 16 }}
-          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
+          className="relative flex-shrink-0 w-[26vw] h-[26vw] flex items-center justify-center"
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={phase >= 1 ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.85 }}
           transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
         >
-          Arapoint pays you back —{' '}
-          <span style={{ color: '#D4A24C' }}>straight into your wallet.</span>
-        </motion.h2>
-
-        {/* Big counter card */}
-        <motion.div
-          className="mt-[2.4vw] w-[60vw] rounded-[1vw] px-[2.4vw] py-[1.6vw] flex items-center justify-between"
-          style={{
-            background:
-              'linear-gradient(135deg, rgba(212,162,76,0.16) 0%, rgba(15,35,70,0.55) 60%)',
-            border: '1px solid rgba(212,162,76,0.55)',
-            boxShadow: '0 30px 80px -20px rgba(212,162,76,0.35)',
-          }}
-          initial={{ opacity: 0, y: 16 }}
-          animate={phase >= 2 ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
-          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <div>
+          <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full -rotate-90">
+            <defs>
+              <linearGradient id="slaGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#FCA5A5" />
+                <stop offset="60%" stopColor="#D4A24C" />
+                <stop offset="100%" stopColor="#6DB33F" />
+              </linearGradient>
+            </defs>
+            {/* Track */}
+            <circle
+              cx="50"
+              cy="50"
+              r={R}
+              fill="none"
+              stroke="rgba(255,255,255,0.08)"
+              strokeWidth="6"
+            />
+            {/* Progress */}
+            <circle
+              cx="50"
+              cy="50"
+              r={R}
+              fill="none"
+              stroke="url(#slaGrad)"
+              strokeWidth="6"
+              strokeLinecap="round"
+              strokeDasharray={C}
+              strokeDashoffset={C * (1 - progress)}
+              style={{ filter: 'drop-shadow(0 0 12px rgba(212,162,76,0.6))' }}
+            />
+          </svg>
+          <div className="relative z-10 flex flex-col items-center">
             <div
-              className="text-[0.85vw] tracking-[0.34em] uppercase font-bold"
-              style={{ color: '#F5C977', fontFamily: "'Inter', sans-serif" }}
+              className="text-[0.85vw] tracking-[0.4em] uppercase font-bold"
+              style={{ color: '#FCA5A5', fontFamily: "'Inter', sans-serif" }}
             >
-              Commissions earned · this month
+              SLA · remaining
             </div>
             <div
-              className="mt-[0.2vw] text-[4.4vw] font-black tracking-tight"
-              style={{
-                color: '#FFE9B0',
-                fontFamily: "'JetBrains Mono', monospace",
-                textShadow: '0 2px 30px rgba(212,162,76,0.45)',
-              }}
+              className="text-[5.4vw] font-black text-white leading-none mt-[0.4vw]"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
             >
-              {formatNaira(earned)}
+              {mm}:{ss}
             </div>
             <div
-              className="text-[0.85vw] text-white/55 mt-[0.2vw]"
+              className="text-[0.85vw] text-white/65 mt-[0.4vw]"
               style={{ fontFamily: "'Inter', sans-serif" }}
             >
-              Illustrative example · live rates shown in your dashboard
+              ARP-83401 · NIN
             </div>
           </div>
-
-          {/* Sparkline-ish bars */}
-          <div className="flex items-end gap-[0.5vw] h-[6vw]">
-            {[1.4, 2.2, 1.8, 3.0, 2.4, 3.4, 4.2].map((h, i) => (
-              <motion.div
-                key={i}
-                className="w-[0.8vw] rounded-t-[0.2vw]"
-                style={{
-                  background: 'linear-gradient(180deg, #F5C977 0%, #A8782F 100%)',
-                  height: `${h}vw`,
-                }}
-                initial={{ scaleY: 0, originY: 1 }}
-                animate={phase >= 3 ? { scaleY: 1 } : { scaleY: 0 }}
-                transition={{ delay: 0.1 * i, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-              />
-            ))}
-          </div>
         </motion.div>
 
-        {/* Earn-back cards strip */}
-        <div className="mt-[1.6vw] grid grid-cols-4 gap-[0.9vw] w-[60vw]">
-          {earnCards.map((c) => {
-            const visible = phase >= c.revealAt;
-            return (
+        {/* Right column */}
+        <div className="flex-1 flex flex-col">
+          <motion.div
+            className="text-[0.95vw] tracking-[0.42em] uppercase font-bold mb-[0.6vw]"
+            style={{ color: '#FCA5A5', fontFamily: "'Inter', sans-serif" }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+            transition={{ duration: 0.6 }}
+          >
+            SLA · accountability
+          </motion.div>
+
+          <motion.h2
+            className="text-[3vw] font-black text-white leading-[1.05] tracking-tight"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            initial={{ opacity: 0, y: 16 }}
+            animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
+            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+          >
+            The clock keeps{' '}
+            <span style={{ color: '#FCA5A5' }}>everyone honest.</span>
+          </motion.h2>
+
+          <div className="mt-[1.4vw] flex flex-col gap-[0.7vw]">
+            {accountability.map((a) => (
               <motion.div
-                key={c.service}
-                className="rounded-[0.6vw] px-[0.9vw] py-[0.8vw] flex items-center gap-[0.7vw]"
+                key={a.title}
+                className="flex items-start gap-[0.9vw] rounded-[0.6vw] px-[1vw] py-[0.9vw]"
                 style={{
                   background: 'rgba(15,35,70,0.55)',
-                  border: '1px solid rgba(212,162,76,0.4)',
-                  boxShadow: visible ? '0 10px 26px -10px rgba(212,162,76,0.35)' : 'none',
+                  border: '1px solid rgba(252,165,165,0.32)',
                 }}
-                initial={{ opacity: 0, y: 14 }}
-                animate={visible ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 }}
-                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                initial={{ opacity: 0, x: 18 }}
+                animate={phase >= a.revealAt ? { opacity: 1, x: 0 } : { opacity: 0, x: 18 }}
+                transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
               >
                 <div
-                  className="w-[1.6vw] h-[1.6vw] rounded-full flex items-center justify-center text-[0.85vw] font-black flex-shrink-0"
-                  style={{ background: '#D4A24C', color: '#0F2346' }}
+                  className="w-[1.6vw] h-[1.6vw] rounded-[0.4vw] flex items-center justify-center text-[0.85vw] font-black flex-shrink-0"
+                  style={{
+                    background: 'rgba(252,165,165,0.18)',
+                    border: '1px solid rgba(252,165,165,0.55)',
+                    color: '#FCA5A5',
+                  }}
                 >
-                  ↑
+                  ⏱
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1">
                   <div
-                    className="text-[0.78vw] font-bold text-white truncate"
+                    className="text-[1.2vw] font-bold text-white leading-tight"
                     style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
                   >
-                    {c.service}
+                    {a.title}
                   </div>
                   <div
-                    className="text-[0.62vw] text-white/55"
+                    className="text-[0.85vw] text-white/65 mt-[0.15vw]"
                     style={{ fontFamily: "'Inter', sans-serif" }}
                   >
-                    Earn-back credited
+                    {a.sub}
                   </div>
                 </div>
-                <div
-                  className="text-[0.95vw] font-black"
-                  style={{ color: '#A7E07A', fontFamily: "'JetBrains Mono', monospace" }}
-                >
-                  {c.back}
-                </div>
               </motion.div>
-            );
-          })}
-        </div>
+            ))}
+          </div>
 
-        {/* Closing line */}
-        <motion.div
-          className="mt-[1.8vw] text-[1.4vw] text-white/85 text-center font-medium tracking-wide"
-          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-          initial={{ opacity: 0, y: 12 }}
-          animate={phase >= 7 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
-          transition={{ duration: 0.7 }}
-        >
-          The more you transact,{' '}
-          <span style={{ color: '#D4A24C' }} className="font-bold">
-            the more you earn back.
-          </span>
-        </motion.div>
+          <motion.div
+            className="mt-[1.4vw] text-[1.3vw] text-white/85 font-medium tracking-wide"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={phase >= 6 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+            transition={{ duration: 0.7 }}
+          >
+            Show up on time —{' '}
+            <span style={{ color: '#A7E07A' }} className="font-bold">
+              the platform notices.
+            </span>
+          </motion.div>
+        </div>
       </div>
     </motion.div>
   );
