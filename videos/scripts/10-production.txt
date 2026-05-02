@@ -1,0 +1,11 @@
+Your integration works in development. Now imagine it's Friday at three in the afternoon. Traffic is spiking. A retailer is onboarding two thousand new agents this hour. What happens next is what separates a real production system from a prototype.
+
+When the Arapoint API hits its limit, we don't just refuse the call. We answer with HTTP four twenty-nine, a JSON body that tells you exactly when to retry, and three headers — X-RateLimit-Limit, X-RateLimit-Remaining, and X-RateLimit-Reset — so your client can pace itself without guessing. Retry with exponential backoff — one second, two seconds, four seconds — and most spikes recover in seconds, not minutes.
+
+If you're processing payments or onboarding flows where retries are dangerous, send an X-Idempotency-Key header on the request. Arapoint stores the response for twenty-four hours, scoped to your account. If the same key arrives twice, you get back the original result with X-Idempotent-Replay set to true. The user is never charged twice. The verification is never run twice.
+
+In production you should never be flying blind. The Developer Dashboard pulls from slash api slash v one slash developer slash analytics — total calls, success rate, average latency, total spend, breakdown by endpoint, and a daily timeline. Pair that with slash developer slash logs, where every single request is captured with its status code, latency, cost, and full request and response body, paginated and filterable by environment.
+
+Keys rotate without downtime. Generate a new key with POST slash developer slash api-keys, deploy it to your servers, then revoke the old one with DELETE slash developer slash api-keys slash the key id. Old key dies. New key takes over. No request is dropped.
+
+You're not building a prototype anymore. You're shipping a product Nigeria can rely on. Start at arapoint dot com dot n g slash developer. For developer support, reach us at support at arapoint dot com dot n g.

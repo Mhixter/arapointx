@@ -2,51 +2,60 @@ import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
 /**
- * Scene 1 — Polling pain hook.
+ * Scene 1 — "Friday at 3pm" hook.
  *
- * Developer is repeatedly polling GET /verify/.../result every 5 seconds,
- * still getting "pending". Three pain chips fade in, then the headline
- * lands: "Your server, our events. Real-time."
+ * A live request-rate sparkline climbs from a calm baseline into a steep
+ * spike while a clock face shows the time crossing 14:55 → 15:00. Three
+ * scenario chips fade in (traffic spike / mass onboarding / payment flow),
+ * then the headline lands: "Friday at 3pm. Are you ready?"
  *
- * Allotted: 15_000 ms. All phase timers stay <= 14_500 ms.
+ * Allotted: 14_000 ms. All phase timers stay <= 13_500 ms.
  */
 export function Scene1() {
   const [phase, setPhase] = useState(0);
-  const [polls, setPolls] = useState<Array<{ status: string; latency: string; tone: string }>>([]);
+  const [points, setPoints] = useState<number[]>([]);
 
   useEffect(() => {
     const timers = [
-      setTimeout(() => setPhase(1), 400),    // terminal frame
-      setTimeout(() => setPhase(2), 1100),   // start poll loop
-      setTimeout(() => setPhase(3), 7500),   // pain chips
-      setTimeout(() => setPhase(4), 9700),   // headline
-      setTimeout(() => setPhase(5), 12600),  // closing line
+      setTimeout(() => setPhase(1), 350),
+      setTimeout(() => setPhase(2), 1100),
+      setTimeout(() => setPhase(3), 7600),
+      setTimeout(() => setPhase(4), 9700),
+      setTimeout(() => setPhase(5), 12300),
     ];
     return () => timers.forEach((t) => clearTimeout(t));
   }, []);
 
-  // Fire 6 polls — first 5 still pending, last one finally resolves.
+  // Animated rps sparkline: calm baseline then steep spike.
   useEffect(() => {
     if (phase < 2) return;
     const sequence = [
-      { status: 'pending',   latency: '128ms', tone: '#FCD34D' },
-      { status: 'pending',   latency: '142ms', tone: '#FCD34D' },
-      { status: 'pending',   latency: '136ms', tone: '#FCD34D' },
-      { status: 'pending',   latency: '151ms', tone: '#FCD34D' },
-      { status: 'pending',   latency: '129ms', tone: '#FCD34D' },
-      { status: 'completed', latency: '146ms', tone: '#A7E07A' },
+      8, 9, 7, 10, 8, 11, 9, 12, 10, 14, 17, 22, 31, 44, 58, 74, 89, 102, 118, 132,
     ];
     const ids: ReturnType<typeof setTimeout>[] = [];
-    sequence.forEach((row, i) => {
-      ids.push(setTimeout(() => setPolls((prev) => [...prev, row]), 700 + i * 950));
+    sequence.forEach((v, i) => {
+      ids.push(setTimeout(() => setPoints((prev) => [...prev, v]), 220 + i * 290));
     });
     return () => ids.forEach((t) => clearTimeout(t));
   }, [phase]);
 
-  const pains = [
-    { label: '5s loops, no signal', tone: '#FCA5A5' },
-    { label: 'Wasted requests', tone: '#FCD34D' },
-    { label: 'Stale UX',           tone: '#A78BFA' },
+  const W = 56; // viewBox width (vw-ish)
+  const H = 18; // viewBox height
+  const max = 140;
+  const path = points.length === 0
+    ? ''
+    : points
+        .map((v, i) => {
+          const x = (i / 19) * W;
+          const y = H - (v / max) * H;
+          return `${i === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
+        })
+        .join(' ');
+
+  const scenarios = [
+    { label: 'Traffic spike',     tone: '#22D3EE' },
+    { label: 'Mass onboarding',   tone: '#A78BFA' },
+    { label: 'Friday payouts',    tone: '#FCD34D' },
   ];
 
   return (
@@ -74,10 +83,10 @@ export function Scene1() {
           animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
           transition={{ duration: 0.6 }}
         >
-          // for builders · part 2
+          // for builders · part 3
         </motion.div>
 
-        {/* Terminal */}
+        {/* Live monitor card */}
         <motion.div
           className="relative w-[60vw] rounded-[0.8vw] overflow-hidden"
           style={{
@@ -89,78 +98,72 @@ export function Scene1() {
           animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
           transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
         >
-          {/* Header bar */}
           <div className="flex items-center gap-[0.5vw] px-[1vw] py-[0.7vw] border-b border-white/10 bg-black/30">
             <div className="w-[0.7vw] h-[0.7vw] rounded-full bg-[#FF5F56]" />
             <div className="w-[0.7vw] h-[0.7vw] rounded-full bg-[#FFBD2E]" />
             <div className="w-[0.7vw] h-[0.7vw] rounded-full bg-[#27C93F]" />
-            <div
-              className="ml-[1vw] text-[0.78vw] text-white/55"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              ~/your-app — polling-loop.sh
+            <div className="ml-[1vw] text-[0.78vw] text-white/55" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              api.arapoint.com.ng — live monitor
             </div>
-            <div className="ml-auto text-[0.78vw] text-white/45" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-              every 5s
+            <div className="ml-auto flex items-center gap-[0.5vw] text-[0.78vw]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              <motion.span
+                className="w-[0.5vw] h-[0.5vw] rounded-full bg-[#FCA5A5]"
+                animate={phase >= 2 ? { opacity: [1, 0.3, 1] } : { opacity: 1 }}
+                transition={{ duration: 1.2, repeat: Infinity }}
+              />
+              <span className="text-white/65">14:5{Math.min(9, points.length)} WAT</span>
             </div>
           </div>
 
-          {/* Loop body */}
-          <div className="px-[1.4vw] py-[1.2vw] min-h-[19vw]">
-            <div
-              className="text-[1.1vw] mb-[0.7vw]"
-              style={{ color: '#A7E07A', fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              $ while true; do curl -s GET /verify/unified/result/$ID; sleep 5; done
+          <div className="px-[1.4vw] py-[1.2vw] min-h-[20vw]">
+            <div className="flex items-end justify-between mb-[1vw]">
+              <div>
+                <div className="text-[0.85vw] text-white/55 tracking-[0.18em] uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  requests / sec
+                </div>
+                <div className="text-[3.2vw] font-black text-white leading-none mt-[0.2vw]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                  {points.length > 0 ? points[points.length - 1] : 0}
+                  <span className="text-[1.2vw] text-white/55 font-medium ml-[0.4vw]">rps</span>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-[0.85vw] text-white/55 tracking-[0.18em] uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  burst limit
+                </div>
+                <div className="text-[1.5vw] font-bold text-[#FCA5A5] leading-none mt-[0.3vw]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  60 / min
+                </div>
+              </div>
             </div>
 
-            <div className="flex flex-col gap-[0.45vw]">
-              {polls.map((p, i) => (
-                <motion.div
-                  key={i}
-                  className="flex items-center gap-[1vw] text-[1vw]"
-                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.35 }}
-                >
-                  <span className="text-white/40">[{String(i + 1).padStart(2, '0')}:0{i * 5}]</span>
-                  <span className="text-white/75">→ HTTP 200</span>
-                  <span className="text-white/55">·</span>
-                  <span className="text-white/75">{p.latency}</span>
-                  <span className="text-white/55">·</span>
-                  <span
-                    className="px-[0.7vw] py-[0.18vw] rounded-full text-[0.85vw] font-bold tracking-[0.18em]"
-                    style={{
-                      background: `${p.tone}22`,
-                      color: p.tone,
-                      border: `1px solid ${p.tone}66`,
-                    }}
-                  >
-                    {p.status}
-                  </span>
-                </motion.div>
-              ))}
-              {phase >= 2 && polls.length < 6 && (
-                <motion.span
-                  className="inline-block w-[0.6vw] h-[1.2vw] mt-[0.3vw]"
-                  style={{ background: '#A7E07A' }}
-                  animate={{ opacity: [1, 0, 1] }}
-                  transition={{ duration: 0.9, repeat: Infinity }}
-                />
+            {/* Sparkline */}
+            <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-[10vw]" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="sparkFill" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stopColor="#22D3EE" stopOpacity="0.45" />
+                  <stop offset="100%" stopColor="#22D3EE" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              {/* Burst-limit threshold (60/120 ≈ 43% from top) */}
+              <line x1="0" y1={H - (60 / max) * H} x2={W} y2={H - (60 / max) * H} stroke="#FCA5A5" strokeWidth="0.08" strokeDasharray="0.4 0.4" opacity="0.7" />
+              {path && (
+                <>
+                  <path d={`${path} L ${W} ${H} L 0 ${H} Z`} fill="url(#sparkFill)" />
+                  <path d={path} fill="none" stroke="#22D3EE" strokeWidth="0.18" strokeLinecap="round" strokeLinejoin="round" />
+                </>
               )}
-            </div>
+            </svg>
           </div>
         </motion.div>
 
-        {/* Pain chips */}
+        {/* Scenario chips */}
         <motion.div
           className="mt-[1.4vw] flex flex-wrap gap-[0.8vw] justify-center"
           initial={{ opacity: 0 }}
           animate={phase >= 3 ? { opacity: 1 } : { opacity: 0 }}
           transition={{ duration: 0.6 }}
         >
-          {pains.map((p, i) => (
+          {scenarios.map((p, i) => (
             <motion.div
               key={p.label}
               className="px-[1.1vw] py-[0.5vw] rounded-full text-[1vw] font-semibold"
@@ -174,7 +177,7 @@ export function Scene1() {
               animate={phase >= 3 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
               transition={{ delay: 0.18 * i, duration: 0.5 }}
             >
-              ✗ {p.label}
+              ▲ {p.label}
             </motion.div>
           ))}
         </motion.div>
@@ -187,12 +190,10 @@ export function Scene1() {
           animate={phase >= 4 ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 }}
           transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
         >
-          Your server.{' '}
-          <span style={{ color: '#22D3EE' }}>Our events.</span>{' '}
-          Real-time.
+          Friday at 3pm.{' '}
+          <span style={{ color: '#22D3EE' }}>Are you ready?</span>
         </motion.h1>
 
-        {/* Closing line */}
         <motion.div
           className="mt-[1vw] text-[1.3vw] text-white/85 text-center font-medium tracking-wide"
           style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
@@ -200,10 +201,8 @@ export function Scene1() {
           animate={phase >= 5 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
           transition={{ duration: 0.7 }}
         >
-          Arapoint{' '}
-          <span style={{ color: '#A7E07A' }} className="font-bold">
-            Webhooks.
-          </span>
+          Arapoint API in{' '}
+          <span style={{ color: '#A7E07A' }} className="font-bold">production.</span>
         </motion.div>
       </div>
     </motion.div>

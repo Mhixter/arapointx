@@ -653,3 +653,9 @@ id = "JTzQawffDPNmiDuo_KvNd"
 uri = "file://exports/logos/arapoint-banner-dark.png"
 type = "image"
 title = "Arapoint — Secure Identity Infrastructure (Dark with Logo)"
+
+[[outputs]]
+id = "rir4ljfuyRauWjhiDa_K5"
+uri = "file://videos/10-production-best-practices.mp4"
+type = "video"
+title = "Video 10 — Arapoint API in Production"
