@@ -10,7 +10,7 @@ Need BVN? slash verify slash bvn. Need education? slash verify slash education. 
 
 Build against the sandbox first. Your key returns deterministic mock data — no wallet charges, no rate-limit surprises while you wire things up. When you're ready, flip one toggle in the dashboard, and the same code now talks to the real registries with full per-call billing. Sandbox to production with no rewrite.
 
-When you need more than one signal at once, call slash verify slash unified. NIN, BVN, and education in a single response — bundled for less than buying them separately. One request, one bill, one envelope.
+When you need more than one signal at once, call slash verify slash unified. Send identity and checks together — NIN, BVN, and an array of education results in a single request. Bundle anything over three hundred naira and you get an automatic fifteen percent discount on the whole call. One request, one bill, one envelope.
 
 Security is built in. Generate API keys from the dashboard, tag each one to its environment, and lock it to a list of trusted IP addresses. If a request arrives from anywhere else, it never reaches your wallet.
 

@@ -4,9 +4,18 @@ import { useEffect, useState } from 'react';
 /**
  * Scene 5 — Unified verification + bundle discount.
  *
- * Real prices from Arapoint/server/src/api/routes/developer/shared.ts
- *   nin: 130, bvn: 80, education: 250, unified: 400
- * Three-call total: 460. Unified call: 400. Saves ₦60 per request (~13%).
+ * Real prices from Arapoint/server/src/api/routes/developer/shared.ts:
+ *   nin: 130, bvn: 80, education: 250.
+ * Real /verify/unified handler in verification.ts computes:
+ *   rawCost = sum of API_PRICES per check requested
+ *   bundleDiscount = 0.15 when rawCost > 300, else 0
+ *   totalCost = round(rawCost * (1 - bundleDiscount))
+ * For NIN + BVN + 1 education: raw 460 → discounted 391, saves ₦69 (~15%).
+ *
+ * Real request body shape (verification.ts line ~568):
+ *   { identity: { nin, bvn, fullName, dateOfBirth },
+ *     checks:   { education: [{type, examNumber, examYear}], employment, fraudCheck },
+ *     options }
  *
  * Allotted: 18_000 ms. All phase timers stay <= 17_500 ms.
  */
@@ -27,7 +36,7 @@ export function Scene5() {
     return () => timers.forEach((t) => clearTimeout(t));
   }, []);
 
-  // Animate the savings counter from 0 → 60.
+  // Animate the savings counter from 0 → 69.
   useEffect(() => {
     if (phase < 5) return;
     const start = performance.now();
@@ -36,7 +45,7 @@ export function Scene5() {
     const tick = (now: number) => {
       const t = Math.min(1, (now - start) / duration);
       const eased = 1 - Math.pow(1 - t, 3);
-      setCounted(Math.round(60 * eased));
+      setCounted(Math.round(69 * eased));
       if (t < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -182,14 +191,17 @@ export function Scene5() {
                   className="text-[2.4vw] font-black leading-none"
                   style={{ color: '#A7E07A', fontFamily: "'JetBrains Mono', monospace" }}
                 >
-                  ₦400
+                  ₦391
                 </div>
               </div>
               <div
-                className="mt-[0.6vw] text-[0.85vw]"
+                className="mt-[0.6vw] text-[0.78vw] leading-[1.5]"
                 style={{ color: '#22D3EE', fontFamily: "'JetBrains Mono', monospace" }}
               >
-                {`{ "nin": "...", "bvn": "...", "education": { ... } }`}
+                <div>{`{ "identity": { "nin": "...", "bvn": "..." },`}</div>
+                <div>{`  "checks": { "education": [`}</div>
+                <div>{`    { "type": "waec", "examNumber": "...",`}</div>
+                <div>{`      "examYear": 2018 } ] } }`}</div>
               </div>
               <div className="mt-[0.8vw] flex flex-wrap gap-[0.5vw]">
                 {['NIN', 'BVN', 'Education'].map((s) => (
@@ -240,7 +252,7 @@ export function Scene5() {
                 className="text-[1vw] text-white/65"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
-                ~13% bundle
+                15% bundle
               </div>
             </motion.div>
           </div>
