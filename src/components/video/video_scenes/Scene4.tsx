@@ -213,7 +213,7 @@ export function Scene4() {
           >
             <div className="flex items-baseline justify-between mb-[0.7vw]">
               <div className="text-[0.85vw] tracking-[0.22em] uppercase text-white/65 font-bold" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                /developer/logs
+                GET /api/v1/developer/logs
               </div>
               <div className="text-[0.72vw] text-white/45" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 page 1

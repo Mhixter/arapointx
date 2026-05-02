@@ -82,13 +82,13 @@ export function Scene3() {
               <span className="text-white/65">request #1 — fresh call</span>
             </div>
             <pre className="px-[1vw] py-[0.8vw] text-[0.85vw] leading-[1.6] text-white/85 m-0 min-h-[10vw]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-{`X-Idempotency-Key: pay_8f3a92e1
+{`POST /api/v1/airtime/buy
+X-Idempotency-Key: pay_8f3a92e1
 X-API-Key:         ara_live_••••3a91
-Content-Type:      application/json
 
-{
-  "nin": "12345678901"
-}`}
+{ "network": "MTN",
+  "phone":   "08012345678",
+  "amount":  500 }`}
             </pre>
             <motion.div
               className="mx-[1vw] mb-[1vw] mt-[0.4vw] px-[0.9vw] py-[0.7vw] rounded-[0.4vw]"
@@ -99,7 +99,7 @@ Content-Type:      application/json
             >
               <div className="flex items-center gap-[0.7vw] text-[0.92vw]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                 <span className="px-[0.5vw] py-[0.1vw] rounded font-bold text-[#A7E07A] bg-[#A7E07A]/10 border border-[#A7E07A]/55">HTTP 200</span>
-                <span className="text-white/65">verified · charged ₦130</span>
+                <span className="text-white/65">airtime sent · charged ₦500</span>
                 <span className="ml-auto text-white/45">stored 24h</span>
               </div>
             </motion.div>
@@ -118,13 +118,13 @@ Content-Type:      application/json
               <span className="text-white/65">request #2 — same key, retried</span>
             </div>
             <pre className="px-[1vw] py-[0.8vw] text-[0.85vw] leading-[1.6] text-white/85 m-0 min-h-[10vw]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-{`X-Idempotency-Key: pay_8f3a92e1   ← same
+{`POST /api/v1/airtime/buy
+X-Idempotency-Key: pay_8f3a92e1   ← same
 X-API-Key:         ara_live_••••3a91
-Content-Type:      application/json
 
-{
-  "nin": "12345678901"
-}`}
+{ "network": "MTN",
+  "phone":   "08012345678",
+  "amount":  500 }`}
             </pre>
             <motion.div
               className="mx-[1vw] mb-[1vw] mt-[0.4vw] px-[0.9vw] py-[0.7vw] rounded-[0.4vw]"

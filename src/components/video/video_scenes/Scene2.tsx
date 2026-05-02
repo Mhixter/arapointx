@@ -173,7 +173,9 @@ X-RateLimit-Reset:     1746230447`}
 {`{
   "status":      "error",
   "code":        429,
-  "message":     "Burst limit exceeded.",
+  "message":     "Burst limit exceeded. Maximum 60
+                  requests per minute on live, 10
+                  on sandbox.",
   "retry_after": 47
 }`}
               </pre>
