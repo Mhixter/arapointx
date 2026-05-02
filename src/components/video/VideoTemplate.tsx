@@ -9,10 +9,10 @@ import { Scene6 } from './video_scenes/Scene6';
 
 const SCENE_DURATIONS = {
   hook: 15000,
-  curl: 18000,
-  json: 20000,
-  envs: 16000,
-  unified: 18000,
+  register: 18000,
+  fire: 20000,
+  retry: 18000,
+  signature: 16000,
   close: 28000,
 };
 
@@ -33,10 +33,10 @@ export default function VideoTemplate() {
 
       <AnimatePresence initial={false} mode="popLayout">
         {currentScene === 0 && <Scene1 key="hook" />}
-        {currentScene === 1 && <Scene2 key="curl" />}
-        {currentScene === 2 && <Scene3 key="json" />}
-        {currentScene === 3 && <Scene4 key="envs" />}
-        {currentScene === 4 && <Scene5 key="unified" />}
+        {currentScene === 1 && <Scene2 key="register" />}
+        {currentScene === 2 && <Scene3 key="fire" />}
+        {currentScene === 3 && <Scene4 key="retry" />}
+        {currentScene === 4 && <Scene5 key="signature" />}
         {currentScene === 5 && <Scene6 key="close" />}
       </AnimatePresence>
     </div>

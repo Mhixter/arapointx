@@ -2,45 +2,51 @@ import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
 /**
- * Scene 1 — Developer hook.
+ * Scene 1 — Polling pain hook.
  *
- * Dark terminal aesthetic. Blinking cursor types out a developer's question,
- * three pain-point chips fade in, then the headline lands.
+ * Developer is repeatedly polling GET /verify/.../result every 5 seconds,
+ * still getting "pending". Three pain chips fade in, then the headline
+ * lands: "Your server, our events. Real-time."
  *
  * Allotted: 15_000 ms. All phase timers stay <= 14_500 ms.
  */
 export function Scene1() {
   const [phase, setPhase] = useState(0);
-  const [typed, setTyped] = useState('');
-  const target = '$ verify --nin --bvn --education --once';
+  const [polls, setPolls] = useState<Array<{ status: string; latency: string; tone: string }>>([]);
 
   useEffect(() => {
     const timers = [
       setTimeout(() => setPhase(1), 400),    // terminal frame
-      setTimeout(() => setPhase(2), 1200),   // typing starts
-      setTimeout(() => setPhase(3), 5400),   // pain chips
-      setTimeout(() => setPhase(4), 8200),   // headline
-      setTimeout(() => setPhase(5), 11600),  // closing line
-      setTimeout(() => setPhase(6), 14400),  // exit prep
+      setTimeout(() => setPhase(2), 1100),   // start poll loop
+      setTimeout(() => setPhase(3), 7500),   // pain chips
+      setTimeout(() => setPhase(4), 9700),   // headline
+      setTimeout(() => setPhase(5), 12600),  // closing line
     ];
     return () => timers.forEach((t) => clearTimeout(t));
   }, []);
 
+  // Fire 6 polls — first 5 still pending, last one finally resolves.
   useEffect(() => {
     if (phase < 2) return;
-    let i = 0;
-    const id = setInterval(() => {
-      i++;
-      setTyped(target.slice(0, i));
-      if (i >= target.length) clearInterval(id);
-    }, 80);
-    return () => clearInterval(id);
+    const sequence = [
+      { status: 'pending',   latency: '128ms', tone: '#FCD34D' },
+      { status: 'pending',   latency: '142ms', tone: '#FCD34D' },
+      { status: 'pending',   latency: '136ms', tone: '#FCD34D' },
+      { status: 'pending',   latency: '151ms', tone: '#FCD34D' },
+      { status: 'pending',   latency: '129ms', tone: '#FCD34D' },
+      { status: 'completed', latency: '146ms', tone: '#A7E07A' },
+    ];
+    const ids: any[] = [];
+    sequence.forEach((row, i) => {
+      ids.push(setTimeout(() => setPolls((prev) => [...prev, row]), 700 + i * 950));
+    });
+    return () => ids.forEach((t) => clearTimeout(t));
   }, [phase]);
 
   const pains = [
-    { label: 'Scattered providers', tone: '#FCA5A5' },
-    { label: 'Inconsistent JSON', tone: '#FCD34D' },
-    { label: 'Three keys, three bills', tone: '#A78BFA' },
+    { label: '5s loops, no signal', tone: '#FCA5A5' },
+    { label: 'Wasted requests', tone: '#FCD34D' },
+    { label: 'Stale UX',           tone: '#A78BFA' },
   ];
 
   return (
@@ -68,12 +74,12 @@ export function Scene1() {
           animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
           transition={{ duration: 0.6 }}
         >
-          // for builders
+          // for builders · part 2
         </motion.div>
 
         {/* Terminal */}
         <motion.div
-          className="relative w-[58vw] rounded-[0.8vw] overflow-hidden"
+          className="relative w-[60vw] rounded-[0.8vw] overflow-hidden"
           style={{
             background: 'linear-gradient(160deg, #0F1B2E 0%, #050B16 100%)',
             border: '1px solid rgba(34,211,238,0.40)',
@@ -92,29 +98,64 @@ export function Scene1() {
               className="ml-[1vw] text-[0.78vw] text-white/55"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}
             >
-              ~/arapoint — zsh
+              ~/your-app — polling-loop.sh
+            </div>
+            <div className="ml-auto text-[0.78vw] text-white/45" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              every 5s
             </div>
           </div>
-          {/* Prompt */}
-          <div className="px-[1.4vw] py-[1.6vw] min-h-[5vw]">
+
+          {/* Loop body */}
+          <div className="px-[1.4vw] py-[1.2vw] min-h-[19vw]">
             <div
-              className="text-[1.45vw] leading-relaxed"
+              className="text-[1.1vw] mb-[0.7vw]"
               style={{ color: '#A7E07A', fontFamily: "'JetBrains Mono', monospace" }}
             >
-              {typed}
-              <motion.span
-                className="inline-block w-[0.6vw] h-[1.4vw] align-middle ml-[0.15vw]"
-                style={{ background: '#A7E07A', verticalAlign: '-0.15vw' }}
-                animate={{ opacity: [1, 0, 1] }}
-                transition={{ duration: 0.9, repeat: Infinity }}
-              />
+              $ while true; do curl -s GET /verify/unified/result/$ID; sleep 5; done
+            </div>
+
+            <div className="flex flex-col gap-[0.45vw]">
+              {polls.map((p, i) => (
+                <motion.div
+                  key={i}
+                  className="flex items-center gap-[1vw] text-[1vw]"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.35 }}
+                >
+                  <span className="text-white/40">[{String(i + 1).padStart(2, '0')}:0{i * 5}]</span>
+                  <span className="text-white/75">→ HTTP 200</span>
+                  <span className="text-white/55">·</span>
+                  <span className="text-white/75">{p.latency}</span>
+                  <span className="text-white/55">·</span>
+                  <span
+                    className="px-[0.7vw] py-[0.18vw] rounded-full text-[0.85vw] font-bold tracking-[0.18em]"
+                    style={{
+                      background: `${p.tone}22`,
+                      color: p.tone,
+                      border: `1px solid ${p.tone}66`,
+                    }}
+                  >
+                    {p.status}
+                  </span>
+                </motion.div>
+              ))}
+              {phase >= 2 && polls.length < 6 && (
+                <motion.span
+                  className="inline-block w-[0.6vw] h-[1.2vw] mt-[0.3vw]"
+                  style={{ background: '#A7E07A' }}
+                  animate={{ opacity: [1, 0, 1] }}
+                  transition={{ duration: 0.9, repeat: Infinity }}
+                />
+              )}
             </div>
           </div>
         </motion.div>
 
         {/* Pain chips */}
         <motion.div
-          className="mt-[1.6vw] flex flex-wrap gap-[0.8vw] justify-center"
+          className="mt-[1.4vw] flex flex-wrap gap-[0.8vw] justify-center"
           initial={{ opacity: 0 }}
           animate={phase >= 3 ? { opacity: 1 } : { opacity: 0 }}
           transition={{ duration: 0.6 }}
@@ -140,28 +181,28 @@ export function Scene1() {
 
         {/* Headline */}
         <motion.h1
-          className="mt-[2.2vw] text-[3.6vw] font-black text-white text-center leading-[1.05] tracking-tight"
+          className="mt-[1.6vw] text-[3.4vw] font-black text-white text-center leading-[1.05] tracking-tight"
           style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           initial={{ opacity: 0, y: 18 }}
           animate={phase >= 4 ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 }}
           transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
         >
-          One API.{' '}
-          <span style={{ color: '#22D3EE' }}>One JSON shape.</span>{' '}
-          Every check.
+          Your server.{' '}
+          <span style={{ color: '#22D3EE' }}>Our events.</span>{' '}
+          Real-time.
         </motion.h1>
 
         {/* Closing line */}
         <motion.div
-          className="mt-[1.4vw] text-[1.4vw] text-white/85 text-center font-medium tracking-wide"
+          className="mt-[1vw] text-[1.3vw] text-white/85 text-center font-medium tracking-wide"
           style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           initial={{ opacity: 0, y: 12 }}
           animate={phase >= 5 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
           transition={{ duration: 0.7 }}
         >
-          The Arapoint{' '}
+          Arapoint{' '}
           <span style={{ color: '#A7E07A' }} className="font-bold">
-            Developer API.
+            Webhooks.
           </span>
         </motion.div>
       </div>

@@ -25,13 +25,11 @@ export function useVideoPlayer({ durations }: UseVideoPlayerOptions) {
       timeouts.push(t);
     });
 
-    const stopAt = setTimeout(() => {
-      if (!hasStoppedRef.current) {
-        hasStoppedRef.current = true;
-        (window as any).stopRecording?.();
-      }
-    }, totalDuration);
-    timeouts.push(stopAt);
+    // Note: do NOT auto-fire stopRecording here. The external recorder
+    // controls capture length via --max-seconds; firing stopRecording from
+    // the page has been observed to interact poorly with React 18 strict
+    // mode + HMR and end the recording dozens of seconds early.
+    void hasStoppedRef;
 
     const loopAt = setTimeout(() => {
       setCurrentScene(0);

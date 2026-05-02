@@ -2,57 +2,78 @@ import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
 /**
- * Scene 2 — Animated curl request.
+ * Scene 2 — Register a webhook.
  *
- * A real Arapoint developer endpoint shape is typed out line-by-line in
- * a terminal frame. After the request lands a "Sending…" pill flips to
- * "200 OK" to bridge into the next scene.
- *
- * Real route source: Arapoint/server/src/api/routes/developer/verification.ts
- *   POST /api/v1/developer/verify/nin (apiKeyAuth)
+ * Real route from Arapoint/server/src/api/routes/developer/webhooks.ts:
+ *   POST /api/v1/developer/webhook
+ *   body:    { webhookUrl, enabled }
+ *   guard:   webhookUrl must start with "https://"
+ *   returns: { webhookUrl, webhookSecret: 'ara_wh_<64 hex>', webhookEnabled }
+ *   message: "Webhook configured. Save your new secret — it will not be shown again."
  *
  * Allotted: 18_000 ms. All phase timers stay <= 17_500 ms.
  */
 export function Scene2() {
   const [phase, setPhase] = useState(0);
-
-  // Each line types in sequence so the developer can read the request shape.
-  const lines: { text: string; tone: string; delay: number }[] = [
-    { text: 'curl -X POST \\',                                                    tone: '#A7E07A', delay: 1500 },
-    { text: '  https://api.arapoint.com.ng/api/v1/developer/verify/nin \\',       tone: '#22D3EE', delay: 2400 },
-    { text: '  -H "Content-Type: application/json" \\',                           tone: '#A7E07A', delay: 3500 },
-    { text: '  -H "x-api-key: ara_live_••••••••••••" \\',                         tone: '#FCD34D', delay: 4400 },
-    { text: '  -d \'{ "nin": "12345678901" }\'',                                  tone: '#A7E07A', delay: 5400 },
-  ];
+  const [reqLines, setReqLines] = useState<string[]>([]);
+  const [resLines, setResLines] = useState<string[]>([]);
 
   useEffect(() => {
     const timers = [
-      setTimeout(() => setPhase(1), 400),    // eyebrow + headline + terminal shell
-      setTimeout(() => setPhase(2), 2200),   // line 1 prompt
-      setTimeout(() => setPhase(3), 7400),   // sending pill
-      setTimeout(() => setPhase(4), 9600),   // 200 OK pill
-      setTimeout(() => setPhase(5), 11400),  // benefit row
-      setTimeout(() => setPhase(6), 14400),  // closing line
-      setTimeout(() => setPhase(7), 17400),  // exit prep
+      setTimeout(() => setPhase(1), 400),    // header
+      setTimeout(() => setPhase(2), 1100),   // request panel
+      setTimeout(() => setPhase(3), 7800),   // 200 OK + response panel
+      setTimeout(() => setPhase(4), 13400),  // secret callout
+      setTimeout(() => setPhase(5), 17000),  // exit prep
     ];
     return () => timers.forEach((t) => clearTimeout(t));
   }, []);
 
-  // Drive per-line typing using small offsets from phase>=2 onset.
-  const [tickStart, setTickStart] = useState<number | null>(null);
+  // Stream the request body line-by-line
   useEffect(() => {
-    if (phase >= 2 && tickStart === null) setTickStart(performance.now());
-  }, [phase, tickStart]);
-  const elapsed = tickStart != null ? performance.now() - tickStart : 0;
+    if (phase < 2) return;
+    const lines = [
+      'curl -X POST https://api.arapoint.com.ng/api/v1/developer/webhook \\',
+      "  -H 'Authorization: Bearer <dashboard JWT>' \\",
+      "  -H 'Content-Type: application/json' \\",
+      "  -d '{",
+      '    "webhookUrl": "https://api.yourapp.ng/hooks/arapoint",',
+      '    "enabled":    true',
+      "  }'",
+    ];
+    let i = 0;
+    const id = setInterval(() => {
+      i++;
+      setReqLines(lines.slice(0, i));
+      if (i >= lines.length) clearInterval(id);
+    }, 720);
+    return () => clearInterval(id);
+  }, [phase]);
 
-  // Force re-render at 60fps once typing begins.
-  const [, force] = useState(0);
+  // Stream the response body line-by-line
   useEffect(() => {
-    if (phase < 2 || phase >= 3) return;
-    let raf = 0;
-    const tick = () => { force((n) => n + 1); raf = requestAnimationFrame(tick); };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    if (phase < 3) return;
+    const lines = [
+      '{',
+      '  "status":  "success",',
+      '  "code":    200,',
+      '  "message": "Webhook configured.',
+      '              Save your new secret —',
+      '              it will not be shown again.",',
+      '  "data": {',
+      '    "webhookUrl":     "https://api.yourapp.ng/hooks/arapoint",',
+      '    "webhookSecret":  "ara_wh_a1f3...8c2f",',
+      '    "webhookEnabled": true',
+      '  }',
+      '}',
+    ];
+    let i = 0;
+    const id = setInterval(() => {
+      i++;
+      setResLines(lines.slice(0, i));
+      if (i >= lines.length) clearInterval(id);
+    }, 380);
+    return () => clearInterval(id);
   }, [phase]);
 
   return (
@@ -61,180 +82,163 @@ export function Scene2() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.8 }}
+      transition={{ duration: 0.7 }}
     >
       <div
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(ellipse at 30% 30%, rgba(34,211,238,0.10) 0%, transparent 55%), radial-gradient(ellipse at 70% 70%, rgba(167,224,122,0.08) 0%, transparent 55%)',
+            'radial-gradient(ellipse at 50% 30%, rgba(167,224,122,0.10) 0%, transparent 55%), radial-gradient(ellipse at 50% 100%, rgba(5,11,22,0.95) 0%, transparent 60%)',
         }}
       />
 
-      <div className="relative z-10 flex flex-col items-center w-[84vw]">
+      <div className="relative z-10 w-[88vw]">
+        {/* Eyebrow + headline */}
         <motion.div
-          className="text-[1vw] tracking-[0.42em] uppercase font-bold mb-[0.6vw] self-start"
-          style={{ color: '#22D3EE', fontFamily: "'JetBrains Mono', monospace" }}
+          className="text-center mb-[1.2vw]"
           initial={{ opacity: 0, y: 10 }}
           animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
           transition={{ duration: 0.6 }}
         >
-          // request — POST /api/v1/developer/verify/nin
+          <div
+            className="text-[0.95vw] tracking-[0.42em] uppercase font-bold mb-[0.6vw]"
+            style={{ color: '#A7E07A', fontFamily: "'JetBrains Mono', monospace" }}
+          >
+            // step 1 — register
+          </div>
+          <h2
+            className="text-[2.6vw] font-black text-white tracking-tight leading-[1.05]"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
+            Tell us where to send events.{' '}
+            <span style={{ color: '#22D3EE' }}>HTTPS only.</span>
+          </h2>
         </motion.div>
 
-        <motion.h2
-          className="text-[3vw] font-black text-white leading-[1.05] tracking-tight self-start"
-          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-          initial={{ opacity: 0, y: 16 }}
-          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
-          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-        >
-          One key. One header.{' '}
-          <span style={{ color: '#A7E07A' }}>One endpoint.</span>
-        </motion.h2>
-
-        {/* Terminal */}
-        <motion.div
-          className="relative w-full mt-[1.4vw] rounded-[0.8vw] overflow-hidden"
-          style={{
-            background: 'linear-gradient(160deg, #0F1B2E 0%, #050B16 100%)',
-            border: '1px solid rgba(34,211,238,0.40)',
-            boxShadow: '0 28px 70px -22px rgba(34,211,238,0.30)',
-          }}
-          initial={{ opacity: 0, y: 18 }}
-          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 }}
-          transition={{ duration: 0.7 }}
-        >
-          {/* Header bar */}
-          <div className="flex items-center justify-between px-[1.2vw] py-[0.7vw] border-b border-white/10 bg-black/30">
-            <div className="flex items-center gap-[0.5vw]">
-              <div className="w-[0.7vw] h-[0.7vw] rounded-full bg-[#FF5F56]" />
-              <div className="w-[0.7vw] h-[0.7vw] rounded-full bg-[#FFBD2E]" />
-              <div className="w-[0.7vw] h-[0.7vw] rounded-full bg-[#27C93F]" />
+        <div className="grid grid-cols-2 gap-[1.4vw]">
+          {/* Request panel */}
+          <motion.div
+            className="rounded-[0.7vw] overflow-hidden"
+            style={{
+              background: 'linear-gradient(160deg, #0F1B2E 0%, #050B16 100%)',
+              border: '1.5px solid rgba(34,211,238,0.45)',
+              boxShadow: '0 22px 50px -20px rgba(34,211,238,0.40)',
+            }}
+            initial={{ opacity: 0, x: -20 }}
+            animate={phase >= 2 ? { opacity: 1, x: 0 } : { opacity: 0, x: -20 }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <div className="flex items-center justify-between px-[1vw] py-[0.6vw] border-b border-white/10 bg-black/30">
               <div
-                className="ml-[1vw] text-[0.78vw] text-white/55"
+                className="text-[0.85vw] tracking-[0.32em] uppercase font-bold"
+                style={{ color: '#22D3EE', fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                request
+              </div>
+              <div
+                className="text-[0.78vw] text-white/55"
                 style={{ fontFamily: "'JetBrains Mono', monospace" }}
               >
-                arapoint:request.sh
+                POST /api/v1/developer/webhook
               </div>
             </div>
-
-            {/* Status pill */}
-            <div className="relative h-[1.6vw] w-[6.5vw]">
-              {phase >= 3 && phase < 4 && (
-                <motion.div
-                  key="sending"
-                  className="absolute inset-0 flex items-center justify-center px-[0.8vw] rounded-full text-[0.78vw] tracking-[0.18em] font-bold"
-                  style={{
-                    background: 'rgba(252,211,77,0.16)',
-                    border: '1px solid rgba(252,211,77,0.55)',
-                    color: '#FCD34D',
-                    fontFamily: "'JetBrains Mono', monospace",
-                  }}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                >
-                  <motion.span
-                    className="inline-block mr-[0.4vw] w-[0.5vw] h-[0.5vw] rounded-full"
-                    style={{ background: '#FCD34D' }}
-                    animate={{ opacity: [0.3, 1, 0.3] }}
-                    transition={{ duration: 0.9, repeat: Infinity }}
-                  />
-                  SENDING
-                </motion.div>
-              )}
-              {phase >= 4 && (
-                <motion.div
-                  key="ok"
-                  className="absolute inset-0 flex items-center justify-center px-[0.8vw] rounded-full text-[0.78vw] tracking-[0.18em] font-bold"
-                  style={{
-                    background: 'rgba(167,224,122,0.20)',
-                    border: '1px solid rgba(167,224,122,0.65)',
-                    color: '#A7E07A',
-                    fontFamily: "'JetBrains Mono', monospace",
-                  }}
-                  initial={{ opacity: 0, scale: 0.85 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                >
-                  ✓ 200 OK
-                </motion.div>
-              )}
+            <div
+              className="px-[1vw] py-[1vw] min-h-[20vw] text-[0.92vw] leading-[1.7]"
+              style={{ color: '#E2F4FA', fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              {reqLines.map((l, i) => (
+                <div key={i} className="whitespace-pre">{l}</div>
+              ))}
             </div>
-          </div>
+          </motion.div>
 
-          {/* Body */}
-          <div className="px-[1.4vw] py-[1.4vw] min-h-[14vw]">
-            {lines.map((ln, i) => {
-              if (phase < 2) return null;
-              const lineElapsed = elapsed - ln.delay;
-              if (lineElapsed < 0) return null;
-              // Typing speed ~55 chars/sec.
-              const charsTyped = phase >= 3 ? ln.text.length : Math.min(ln.text.length, Math.floor(lineElapsed / 18));
-              return (
+          {/* Response panel */}
+          <motion.div
+            className="rounded-[0.7vw] overflow-hidden"
+            style={{
+              background: 'linear-gradient(160deg, #0F1B2E 0%, #050B16 100%)',
+              border: '1.5px solid rgba(167,224,122,0.45)',
+              boxShadow: '0 22px 50px -20px rgba(167,224,122,0.40)',
+            }}
+            initial={{ opacity: 0, x: 20 }}
+            animate={phase >= 3 ? { opacity: 1, x: 0 } : { opacity: 0, x: 20 }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <div className="flex items-center justify-between px-[1vw] py-[0.6vw] border-b border-white/10 bg-black/30">
+              <div
+                className="text-[0.85vw] tracking-[0.32em] uppercase font-bold"
+                style={{ color: '#A7E07A', fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                response · 200 ok
+              </div>
+              <div
+                className="px-[0.6vw] py-[0.18vw] rounded-full text-[0.75vw] font-bold tracking-[0.18em]"
+                style={{
+                  background: 'rgba(167,224,122,0.18)',
+                  color: '#A7E07A',
+                  border: '1px solid rgba(167,224,122,0.55)',
+                }}
+              >
+                ✓ saved
+              </div>
+            </div>
+            <div
+              className="px-[1vw] py-[1vw] min-h-[20vw] text-[0.92vw] leading-[1.7]"
+              style={{ color: '#E2F4FA', fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              {resLines.map((l, i) => (
                 <div
                   key={i}
-                  className="text-[1.05vw] leading-[1.7]"
-                  style={{ color: ln.tone, fontFamily: "'JetBrains Mono', monospace" }}
+                  className="whitespace-pre"
+                  style={{
+                    color: l.includes('webhookSecret')
+                      ? '#FCD34D'
+                      : l.includes('webhookEnabled') || l.includes('webhookUrl')
+                      ? '#A7E07A'
+                      : '#E2F4FA',
+                  }}
                 >
-                  {ln.text.slice(0, charsTyped)}
-                  {phase < 3 && i === lines.length - 1 && charsTyped < ln.text.length && (
-                    <motion.span
-                      className="inline-block w-[0.5vw] h-[1.1vw] align-middle ml-[0.1vw]"
-                      style={{ background: ln.tone, verticalAlign: '-0.1vw' }}
-                      animate={{ opacity: [1, 0, 1] }}
-                      transition={{ duration: 0.9, repeat: Infinity }}
-                    />
-                  )}
+                  {l}
                 </div>
-              );
-            })}
+              ))}
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Secret callout */}
+        <motion.div
+          className="mt-[1.2vw] mx-auto w-[64vw] rounded-[0.6vw] px-[1.4vw] py-[1vw] flex items-center gap-[1.4vw]"
+          style={{
+            background:
+              'linear-gradient(135deg, rgba(252,211,77,0.16) 0%, rgba(15,27,46,0.55) 60%)',
+            border: '1.5px solid rgba(252,211,77,0.55)',
+            boxShadow: '0 14px 30px -14px rgba(252,211,77,0.40)',
+          }}
+          initial={{ opacity: 0, y: 14 }}
+          animate={phase >= 4 ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <div
+            className="text-[1.6vw]"
+            style={{ color: '#FCD34D' }}
+          >
+            ⚠
           </div>
-        </motion.div>
-
-        {/* Benefit row */}
-        <motion.div
-          className="mt-[1.4vw] flex gap-[0.8vw] justify-center"
-          initial={{ opacity: 0 }}
-          animate={phase >= 5 ? { opacity: 1 } : { opacity: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          {[
-            { tone: '#A7E07A', icon: '✓', label: 'TLS by default' },
-            { tone: '#22D3EE', icon: '✓', label: 'JSON in · JSON out' },
-            { tone: '#FCD34D', icon: '✓', label: 'Predictable envelope' },
-          ].map((b, i) => (
-            <motion.div
-              key={b.label}
-              className="px-[1vw] py-[0.5vw] rounded-full text-[0.95vw] font-semibold"
-              style={{
-                background: 'rgba(15,27,46,0.65)',
-                border: `1px solid ${b.tone}88`,
-                color: b.tone,
-                fontFamily: "'JetBrains Mono', monospace",
-              }}
-              initial={{ opacity: 0, y: 8 }}
-              animate={phase >= 5 ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-              transition={{ delay: 0.12 * i, duration: 0.5 }}
+          <div className="flex-1">
+            <div
+              className="text-[0.85vw] tracking-[0.32em] uppercase font-bold mb-[0.2vw]"
+              style={{ color: '#FCD34D', fontFamily: "'JetBrains Mono', monospace" }}
             >
-              {b.icon} {b.label}
-            </motion.div>
-          ))}
-        </motion.div>
-
-        {/* Closing line */}
-        <motion.div
-          className="mt-[1.6vw] text-[1.4vw] text-white/85 text-center font-medium tracking-wide"
-          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-          initial={{ opacity: 0, y: 12 }}
-          animate={phase >= 6 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
-          transition={{ duration: 0.7 }}
-        >
-          Auth, content, payload —{' '}
-          <span style={{ color: '#22D3EE' }} className="font-bold">
-            shipped.
-          </span>
+              shown once
+            </div>
+            <div
+              className="text-[1.1vw] text-white/90"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            >
+              Save the <span className="font-bold" style={{ color: '#FCD34D' }}>ara_wh_</span> secret —
+              it never appears in the dashboard again. You'll use it to verify every event.
+            </div>
+          </div>
         </motion.div>
       </div>
     </motion.div>

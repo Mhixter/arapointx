@@ -2,46 +2,41 @@ import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
 /**
- * Scene 4 — Sandbox vs Production.
+ * Scene 4 — Retry semantics.
  *
- * Real env mode source: Arapoint/server/src/api/routes/developer/profile.ts
- *   PATCH /api/v1/developer/mode  (toggles environmentMode = 'sandbox' | 'live')
- * The same API key works in both modes — the toggle decides which backend
- * is hit and whether the wallet is charged.
+ * Real schedule from Arapoint/server/src/services/webhookService.ts:37
+ *   RETRY_DELAYS = [1m, 5m, 15m, 1h]   (max 4 retries; total 5 attempts)
+ * Retries are persisted in webhook_retry_queue and reprocessed every 30s by
+ * the background processor. After all retries the row is marked 'failed'.
  *
- * Allotted: 16_000 ms. All phase timers stay <= 15_500 ms.
+ * Allotted: 18_000 ms. All phase timers stay <= 17_500 ms.
  */
 export function Scene4() {
   const [phase, setPhase] = useState(0);
 
   useEffect(() => {
     const timers = [
-      setTimeout(() => setPhase(1), 400),    // eyebrow + headline
-      setTimeout(() => setPhase(2), 2400),   // SANDBOX panel highlighted
-      setTimeout(() => setPhase(3), 6800),   // toggle flips
-      setTimeout(() => setPhase(4), 7800),   // PRODUCTION panel highlighted
-      setTimeout(() => setPhase(5), 11800),  // closing line
-      setTimeout(() => setPhase(6), 15400),  // exit prep
+      setTimeout(() => setPhase(1), 400),    // header
+      setTimeout(() => setPhase(2), 1300),   // attempt 1: 500
+      setTimeout(() => setPhase(3), 3300),   // attempt 2 queued (1m)
+      setTimeout(() => setPhase(4), 5300),   // attempt 3 queued (5m)
+      setTimeout(() => setPhase(5), 7300),   // attempt 4 queued (15m)
+      setTimeout(() => setPhase(6), 9300),   // attempt 5 queued (1h)
+      setTimeout(() => setPhase(7), 11600),  // attempt 5 success
+      setTimeout(() => setPhase(8), 14000),  // bottom callout
     ];
     return () => timers.forEach((t) => clearTimeout(t));
   }, []);
 
-  // Real values from Arapoint/server/src/api/routes/developer/shared.ts
-  //   RATE_LIMITS: sandbox=100/day, live=10_000/day
-  //   BURST_LIMITS: sandbox=10/min, live=60/min
-  const sandboxFeatures = [
-    'Deterministic mock data',
-    'No wallet charges',
-    '100 calls/day · 10/min burst',
+  // Each row's "active" phase is the phase at which it appears.
+  // The success-or-fail outcome flips at phase 7 for the last row only.
+  const rows = [
+    { attempt: 1, when: 't+0',    label: 'first delivery',          status: '500',     ok: false, appearAt: 2 },
+    { attempt: 2, when: 't+1m',   label: 'retry · 1 minute',        status: '500',     ok: false, appearAt: 3 },
+    { attempt: 3, when: 't+5m',   label: 'retry · 5 minutes',       status: '500',     ok: false, appearAt: 4 },
+    { attempt: 4, when: 't+15m',  label: 'retry · 15 minutes',      status: '500',     ok: false, appearAt: 5 },
+    { attempt: 5, when: 't+1h',   label: 'retry · 1 hour',          status: '200',     ok: true,  appearAt: 6 },
   ];
-  const productionFeatures = [
-    'Real registry lookups',
-    'Per-call billing from wallet',
-    '10,000 calls/day · 60/min burst',
-  ];
-
-  // Whether the toggle is "live" (true) or "sandbox" (false)
-  const onLive = phase >= 3;
 
   return (
     <motion.div
@@ -49,214 +44,162 @@ export function Scene4() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.8 }}
+      transition={{ duration: 0.7 }}
     >
       <div
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(ellipse at 25% 30%, rgba(252,211,77,0.10) 0%, transparent 55%), radial-gradient(ellipse at 75% 70%, rgba(167,224,122,0.10) 0%, transparent 55%)',
+            'radial-gradient(ellipse at 50% 30%, rgba(252,165,165,0.10) 0%, transparent 55%), radial-gradient(ellipse at 50% 100%, rgba(5,11,22,0.95) 0%, transparent 60%)',
         }}
       />
 
-      <div className="relative z-10 flex flex-col items-center w-[84vw]">
+      <div className="relative z-10 w-[80vw]">
+        {/* Eyebrow + headline */}
         <motion.div
-          className="text-[1vw] tracking-[0.42em] uppercase font-bold mb-[0.6vw]"
-          style={{ color: '#22D3EE', fontFamily: "'JetBrains Mono', monospace" }}
+          className="text-center mb-[1.2vw]"
           initial={{ opacity: 0, y: 10 }}
           animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
           transition={{ duration: 0.6 }}
         >
-          // PATCH /api/v1/developer/mode
+          <div
+            className="text-[0.95vw] tracking-[0.42em] uppercase font-bold mb-[0.6vw]"
+            style={{ color: '#FCA5A5', fontFamily: "'JetBrains Mono', monospace" }}
+          >
+            // step 3 — your server is down
+          </div>
+          <h2
+            className="text-[2.6vw] font-black text-white tracking-tight leading-[1.05]"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          >
+            We retry.{' '}
+            <span style={{ color: '#A7E07A' }}>Four times.</span>{' '}
+            With backoff.
+          </h2>
         </motion.div>
 
-        <motion.h2
-          className="text-[3.2vw] font-black text-white text-center leading-[1.05] tracking-tight"
-          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-          initial={{ opacity: 0, y: 16 }}
-          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
-          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-        >
-          Sandbox to production —{' '}
-          <span style={{ color: '#A7E07A' }}>no rewrite.</span>
-        </motion.h2>
-
-        {/* Toggle */}
-        <motion.div
-          className="mt-[2vw] relative w-[24vw] h-[3.4vw] rounded-full p-[0.3vw]"
+        {/* Retry timeline */}
+        <div
+          className="rounded-[0.7vw] overflow-hidden"
           style={{
-            background: 'rgba(15,27,46,0.85)',
-            border: '1px solid rgba(255,255,255,0.18)',
-            boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.4)',
+            background: 'linear-gradient(160deg, #0F1B2E 0%, #050B16 100%)',
+            border: '1.5px solid rgba(255,255,255,0.10)',
+            boxShadow: '0 22px 50px -20px rgba(0,0,0,0.45)',
           }}
-          initial={{ opacity: 0, y: 16 }}
-          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
-          transition={{ duration: 0.7, delay: 0.2 }}
         >
-          {/* Knob */}
-          <motion.div
-            className="absolute top-[0.3vw] h-[2.8vw] w-[11.7vw] rounded-full flex items-center justify-center"
-            style={{
-              background: onLive
-                ? 'linear-gradient(135deg, #6DB33F, #4F8B23)'
-                : 'linear-gradient(135deg, #FCD34D, #B45309)',
-              boxShadow: onLive
-                ? '0 6px 18px -4px rgba(109,179,63,0.6)'
-                : '0 6px 18px -4px rgba(252,211,77,0.55)',
-              left: onLive ? 'calc(100% - 11.7vw - 0.3vw)' : '0.3vw',
-            }}
-            animate={{ left: onLive ? 'calc(100% - 11.7vw - 0.3vw)' : '0.3vw' }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <span
-              className="text-[1.1vw] font-black tracking-[0.24em] text-white"
+          <div className="flex items-center justify-between px-[1.2vw] py-[0.6vw] border-b border-white/10 bg-black/30">
+            <div
+              className="text-[0.85vw] tracking-[0.32em] uppercase font-bold"
+              style={{ color: '#94A3B8', fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              webhook_retry_queue
+            </div>
+            <div
+              className="text-[0.78vw] text-white/55"
               style={{ fontFamily: "'JetBrains Mono', monospace" }}
             >
-              {onLive ? 'LIVE' : 'SANDBOX'}
-            </span>
-          </motion.div>
-          {/* Off-state labels */}
-          <div className="absolute inset-0 flex items-center justify-between px-[2vw] pointer-events-none">
-            <span
-              className="text-[0.95vw] font-black tracking-[0.24em]"
-              style={{
-                color: onLive ? '#FCD34D' : 'transparent',
-                fontFamily: "'JetBrains Mono', monospace",
-              }}
-            >
-              SANDBOX
-            </span>
-            <span
-              className="text-[0.95vw] font-black tracking-[0.24em]"
-              style={{
-                color: onLive ? 'transparent' : '#A7E07A',
-                fontFamily: "'JetBrains Mono', monospace",
-              }}
-            >
-              LIVE
-            </span>
+              processor sweeps every 30s
+            </div>
           </div>
-        </motion.div>
 
-        {/* Two panels */}
-        <div className="mt-[2vw] grid grid-cols-2 gap-[1.4vw] w-full">
-          {/* Sandbox panel */}
-          <motion.div
-            className="rounded-[0.8vw] p-[1.4vw]"
-            style={{
-              background: 'rgba(15,27,46,0.55)',
-              border: `1px solid ${!onLive && phase >= 2 ? 'rgba(252,211,77,0.85)' : 'rgba(252,211,77,0.30)'}`,
-              boxShadow: !onLive && phase >= 2 ? '0 14px 34px -14px rgba(252,211,77,0.55)' : 'none',
-              transition: 'all 0.4s ease',
-              opacity: !onLive && phase >= 2 ? 1 : 0.55,
-            }}
-            initial={{ opacity: 0, y: 20 }}
-            animate={phase >= 2 ? { opacity: !onLive ? 1 : 0.55, y: 0 } : { opacity: 0, y: 20 }}
-            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div className="flex items-center gap-[0.6vw] mb-[0.8vw]">
-              <div
-                className="w-[1.6vw] h-[1.6vw] rounded-[0.4vw] flex items-center justify-center text-[0.85vw] font-black"
-                style={{
-                  background: 'linear-gradient(135deg, #FCD34D, #B45309)',
-                  color: '#0A1628',
-                  fontFamily: "'JetBrains Mono', monospace",
-                }}
-              >
-                SBX
-              </div>
-              <div
-                className="text-[1.4vw] font-black text-white"
-                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-              >
-                Sandbox
-              </div>
-              <div
-                className="ml-auto text-[0.78vw] tracking-[0.22em] uppercase font-bold"
-                style={{ color: '#FCD34D', fontFamily: "'JetBrains Mono', monospace" }}
-              >
-                ARAPOINT-SANDBOX
-              </div>
-            </div>
-            <ul className="flex flex-col gap-[0.4vw]">
-              {sandboxFeatures.map((f) => (
-                <li
-                  key={f}
-                  className="flex items-center gap-[0.5vw] text-[1vw] text-white/85"
-                  style={{ fontFamily: "'Inter', sans-serif" }}
+          <div className="px-[1.2vw] py-[1vw] flex flex-col gap-[0.55vw]">
+            {rows.map((r) => {
+              const visible = phase >= r.appearAt;
+              const isLast = r.attempt === 5;
+              const showSuccess = isLast && phase >= 7;
+              const tone = showSuccess ? '#A7E07A' : visible ? '#FCA5A5' : '#475569';
+              const status = showSuccess ? '200 OK' : visible ? `${r.status} ✗` : '· · ·';
+              return (
+                <motion.div
+                  key={r.attempt}
+                  className="grid grid-cols-[7vw_5vw_1fr_8vw_5vw] items-center gap-[1vw] px-[0.9vw] py-[0.55vw] rounded-[0.45vw]"
+                  style={{
+                    background: visible ? 'rgba(0,0,0,0.30)' : 'rgba(0,0,0,0.10)',
+                    border: `1px solid ${tone}66`,
+                  }}
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={visible ? { opacity: 1, x: 0 } : { opacity: 0.3, x: 0 }}
+                  transition={{ duration: 0.45 }}
                 >
-                  <span style={{ color: '#FCD34D' }}>›</span>
-                  {f}
-                </li>
-              ))}
-            </ul>
-          </motion.div>
-
-          {/* Production panel */}
-          <motion.div
-            className="rounded-[0.8vw] p-[1.4vw]"
-            style={{
-              background: 'rgba(15,27,46,0.55)',
-              border: `1px solid ${onLive && phase >= 4 ? 'rgba(167,224,122,0.85)' : 'rgba(167,224,122,0.30)'}`,
-              boxShadow: onLive && phase >= 4 ? '0 14px 34px -14px rgba(167,224,122,0.55)' : 'none',
-              transition: 'all 0.4s ease',
-              opacity: onLive && phase >= 4 ? 1 : 0.55,
-            }}
-            initial={{ opacity: 0, y: 20 }}
-            animate={phase >= 2 ? { opacity: onLive ? 1 : 0.55, y: 0 } : { opacity: 0, y: 20 }}
-            transition={{ duration: 0.7, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div className="flex items-center gap-[0.6vw] mb-[0.8vw]">
-              <div
-                className="w-[1.6vw] h-[1.6vw] rounded-[0.4vw] flex items-center justify-center text-[0.85vw] font-black"
-                style={{
-                  background: 'linear-gradient(135deg, #6DB33F, #4F8B23)',
-                  color: 'white',
-                  fontFamily: "'JetBrains Mono', monospace",
-                }}
-              >
-                LIVE
-              </div>
-              <div
-                className="text-[1.4vw] font-black text-white"
-                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-              >
-                Production
-              </div>
-              <div
-                className="ml-auto text-[0.78vw] tracking-[0.22em] uppercase font-bold"
-                style={{ color: '#A7E07A', fontFamily: "'JetBrains Mono', monospace" }}
-              >
-                ARAPOINT
-              </div>
-            </div>
-            <ul className="flex flex-col gap-[0.4vw]">
-              {productionFeatures.map((f) => (
-                <li
-                  key={f}
-                  className="flex items-center gap-[0.5vw] text-[1vw] text-white/85"
-                  style={{ fontFamily: "'Inter', sans-serif" }}
-                >
-                  <span style={{ color: '#A7E07A' }}>›</span>
-                  {f}
-                </li>
-              ))}
-            </ul>
-          </motion.div>
+                  <div
+                    className="text-[0.95vw] font-bold tracking-[0.18em]"
+                    style={{ color: tone, fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    {r.when}
+                  </div>
+                  <div
+                    className="text-[0.95vw] font-bold"
+                    style={{ color: '#94A3B8', fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    #{r.attempt}
+                  </div>
+                  <div
+                    className="text-[1vw] text-white/85"
+                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                  >
+                    {r.label}
+                  </div>
+                  <div
+                    className="text-[0.95vw] font-bold tracking-[0.16em] text-right"
+                    style={{ color: tone, fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    {status}
+                  </div>
+                  <div className="flex justify-end">
+                    {visible && (
+                      <span
+                        className="px-[0.55vw] py-[0.16vw] rounded-full text-[0.7vw] font-bold tracking-[0.18em]"
+                        style={{
+                          background: `${tone}1A`,
+                          color: tone,
+                          border: `1px solid ${tone}66`,
+                          fontFamily: "'JetBrains Mono', monospace",
+                        }}
+                      >
+                        {showSuccess ? 'delivered' : 'queued'}
+                      </span>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Closing line */}
+        {/* Bottom callout */}
         <motion.div
-          className="mt-[1.6vw] text-[1.4vw] text-white/85 text-center font-medium tracking-wide"
-          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-          initial={{ opacity: 0, y: 12 }}
-          animate={phase >= 5 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
-          transition={{ duration: 0.7 }}
+          className="mt-[1.2vw] grid grid-cols-3 gap-[1vw]"
+          initial={{ opacity: 0, y: 14 }}
+          animate={phase >= 8 ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 }}
+          transition={{ duration: 0.6 }}
         >
-          Same key. Same code.{' '}
-          <span style={{ color: '#A7E07A' }} className="font-bold">
-            Real money only when you say so.
-          </span>
+          {[
+            { tone: '#A7E07A', title: '5 attempts', body: '1 first try + 4 retries' },
+            { tone: '#22D3EE', title: 'every attempt logged', body: 'GET /webhook/logs' },
+            { tone: '#FCD34D', title: 'no event silently lost', body: 'queued, swept, retried' },
+          ].map((c) => (
+            <div
+              key={c.title}
+              className="rounded-[0.5vw] p-[0.9vw]"
+              style={{
+                background: 'rgba(15,27,46,0.85)',
+                border: `1px solid ${c.tone}66`,
+              }}
+            >
+              <div
+                className="text-[0.78vw] tracking-[0.32em] uppercase font-bold mb-[0.2vw]"
+                style={{ color: c.tone, fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                {c.title}
+              </div>
+              <div
+                className="text-[0.95vw] text-white/85"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                {c.body}
+              </div>
+            </div>
+          ))}
         </motion.div>
       </div>
     </motion.div>

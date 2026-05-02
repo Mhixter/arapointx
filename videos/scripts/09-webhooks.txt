@@ -1,0 +1,21 @@
+If you've ever written code that polls our API every five seconds waiting for a verification to finish, this video is for you.
+
+Polling is wasteful. It's slow. It floods your logs with empty responses. And the moment you scale, it falls apart.
+
+Build reactive products with Arapoint Webhooks.
+
+Step one — register a delivery URL. Send a POST to slash api slash v one slash developer slash webhook with two fields: your https endpoint, and enabled true. Plain HTTP is rejected. We respond with a webhook secret, prefixed ara underscore w h, and we show it to you exactly once. Save it — you'll use it to verify every event we send.
+
+Step two — wait for events.
+
+When a verification job completes on our side, we fire one signed POST to your endpoint. The payload is a clean envelope: an event name, a timestamp, and a data object containing the job ID, status, the result, and an error field. Two custom headers come with it — X dash Arapoint dash Event tells you which event fired, and X dash Arapoint dash Signature carries the HMAC. Reply with any 2xx, and we mark the event delivered.
+
+Today you'll receive three events: verification dot completed when a job succeeds, verification dot failed when it permanently fails, and verification dot test which you can fire yourself from the dashboard.
+
+Step three — your server has a bad day. Maybe you returned a five hundred. Maybe you timed out. We don't drop the event. We persist it to a retry queue and retry four more times, with backoff: one minute, five minutes, fifteen minutes, then one hour. Five attempts in total. Every single attempt is logged and visible at slash webhook slash logs.
+
+Step four — trust the source. Every payload is signed with H M A C dash S H A two five six over the raw body using your secret. In your handler, recompute the signature and compare it with the X dash Arapoint dash Signature header using a timing safe equal. If they don't match, return four oh one and never touch the body. Mismatched signatures are not Arapoint events.
+
+That's it. Register a URL. Receive signed events. Acknowledge with a two oh oh. We handle the retries, you handle the business logic.
+
+Start at arapoint dot com dot n g slash developer. For developer support, reach us at support at arapoint dot com dot n g.
