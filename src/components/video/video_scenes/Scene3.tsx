@@ -2,329 +2,239 @@ import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
 /**
- * Scene 3 — Result slip reveal.
+ * Scene 3 — Spend across every Arapoint service.
  *
- * Stylized WAEC-style result slip (NOT a 1:1 official document). Header band,
- * candidate fields, subjects/grades populating sequentially, VERIFIED seal.
+ * Phone shows a transaction list populating in sequence; right column shows
+ * the catalogue of services a single Arapoint Wallet pays for.
  *
- * Allotted: 18_000 ms. All phase timers stay <= 17_500 ms.
+ * Allotted: 16_000 ms. All phase timers stay <= 15_500 ms.
  */
 export function Scene3() {
   const [phase, setPhase] = useState(0);
 
   useEffect(() => {
     const timers = [
-      setTimeout(() => setPhase(1), 400),    // eyebrow + slip frame
-      setTimeout(() => setPhase(2), 2000),   // header band
-      setTimeout(() => setPhase(3), 4200),   // candidate name + meta
-      setTimeout(() => setPhase(4), 6200),   // exam metadata row
-      setTimeout(() => setPhase(5), 8000),   // subjects begin populating
-      setTimeout(() => setPhase(6), 12200),  // VERIFIED seal
-      setTimeout(() => setPhase(7), 14000),  // caption
-      setTimeout(() => setPhase(8), 17400),  // exit prep
+      setTimeout(() => setPhase(1), 400),    // eyebrow + phone
+      setTimeout(() => setPhase(2), 2200),   // service grid reveal
+      setTimeout(() => setPhase(3), 3800),   // tx 1 (NIN)
+      setTimeout(() => setPhase(4), 5400),   // tx 2 (BVN)
+      setTimeout(() => setPhase(5), 7000),   // tx 3 (WAEC)
+      setTimeout(() => setPhase(6), 8600),   // tx 4 (IPE)
+      setTimeout(() => setPhase(7), 11000),  // closing line
+      setTimeout(() => setPhase(8), 15400),  // exit prep
     ];
     return () => timers.forEach((t) => clearTimeout(t));
   }, []);
 
-  const subjects = [
-    { name: 'English Language', grade: 'A1' },
-    { name: 'Mathematics', grade: 'B2' },
-    { name: 'Physics', grade: 'A1' },
-    { name: 'Chemistry', grade: 'B3' },
-    { name: 'Biology', grade: 'A1' },
-    { name: 'Economics', grade: 'B2' },
-    { name: 'Further Maths', grade: 'C4' },
-    { name: 'Civic Education', grade: 'A1' },
+  const services = [
+    { name: 'NIN', sub: 'Slip · verify', tone: '#6DB33F' },
+    { name: 'BVN', sub: 'Retrieve · modify', tone: '#0EA5E9' },
+    { name: 'IPE', sub: 'Police clearance', tone: '#D4A24C' },
+    { name: 'Birth', sub: 'Attestation', tone: '#D4A24C' },
+    { name: 'WAEC', sub: 'Result · PIN', tone: '#016B3A' },
+    { name: 'NECO', sub: 'Result · PIN', tone: '#1E40AF' },
+    { name: 'JAMB', sub: 'Admission · PIN', tone: '#B91C1C' },
+    { name: 'NABTEB', sub: 'Result · PIN', tone: '#C2410C' },
+  ];
+
+  const txs = [
+    { service: 'NIN Verification', tag: 'NIN', amount: '-₦200.00', tone: '#6DB33F', revealAt: 3 },
+    { service: 'BVN Retrieval',    tag: 'BVN', amount: '-₦300.00', tone: '#0EA5E9', revealAt: 4 },
+    { service: 'WAEC Checker PIN', tag: 'EDU', amount: '-₦3,500.00', tone: '#016B3A', revealAt: 5 },
+    { service: 'IPE Clearance',    tag: 'IPE', amount: '-₦15,000.00', tone: '#D4A24C', revealAt: 6 },
   ];
 
   return (
     <motion.div
-      className="absolute inset-0 flex items-center justify-center overflow-hidden"
-      initial={{ opacity: 0, scale: 1.02 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.98 }}
-      transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+      className="absolute inset-0 flex items-center justify-center overflow-hidden bg-[#0A1628]"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.8 }}
     >
-      {/* Green ambient — WAEC-leaning palette */}
       <div
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(ellipse at 50% 35%, rgba(1,107,58,0.18) 0%, transparent 55%), radial-gradient(ellipse at 50% 90%, rgba(10,22,40,0.95) 0%, transparent 60%)',
+            'radial-gradient(ellipse at 30% 35%, rgba(109,179,63,0.10) 0%, transparent 55%), radial-gradient(ellipse at 75% 65%, rgba(28,58,107,0.42) 0%, transparent 55%)',
         }}
       />
 
-      <div className="relative z-10 flex flex-col items-center w-[80vw]">
+      <div className="relative z-10 flex items-center gap-[3.5vw] w-[88vw]">
+        {/* Phone frame */}
         <motion.div
-          className="text-[0.95vw] tracking-[0.42em] uppercase font-bold mb-[1vw]"
-          style={{ color: '#6DB33F', fontFamily: "'Inter', sans-serif" }}
-          initial={{ opacity: 0, y: 10 }}
-          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-          transition={{ duration: 0.6 }}
-        >
-          Document · Verified Result Slip
-        </motion.div>
-
-        {/* Slip frame */}
-        <motion.div
-          className="relative w-[58vw] h-[34vw] rounded-[0.5vw] overflow-hidden"
+          className="relative w-[20vw] h-[40vw] rounded-[2.4vw] flex-shrink-0"
           style={{
-            background: 'linear-gradient(160deg, #FFFFFF 0%, #F8FAFC 100%)',
-            boxShadow:
-              '0 30px 80px -20px rgba(0,0,0,0.7), inset 0 0 0 0.6vw #016B3A, inset 0 0 0 0.78vw #FFFFFF, inset 0 0 0 1vw #016B3A',
-            color: '#0F2346',
+            background: 'linear-gradient(160deg, #1C3A6B 0%, #0F2346 60%, #0A1628 100%)',
+            border: '1px solid rgba(109,179,63,0.45)',
+            boxShadow: '0 30px 80px -20px rgba(0,0,0,0.7), inset 0 0 60px rgba(109,179,63,0.05)',
           }}
-          initial={{ opacity: 0, y: 30, rotateX: 14 }}
-          animate={
-            phase >= 1
-              ? { opacity: 1, y: 0, rotateX: 0 }
-              : { opacity: 0, y: 30, rotateX: 14 }
-          }
+          initial={{ opacity: 0, y: 30, rotate: -3 }}
+          animate={phase >= 1 ? { opacity: 1, y: 0, rotate: -3 } : { opacity: 0, y: 30, rotate: -3 }}
           transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
         >
-          {/* Diagonal ARAPOINT watermark */}
           <div
-            className="absolute inset-0 flex items-center justify-center pointer-events-none select-none"
-            style={{ transform: 'rotate(-22deg)' }}
+            className="absolute top-[1vw] left-1/2 -translate-x-1/2 w-[5vw] h-[0.6vw] rounded-full"
+            style={{ background: '#0A1628' }}
+          />
+          <div
+            className="absolute inset-[1vw] top-[2vw] rounded-[1.6vw] overflow-hidden"
+            style={{ background: 'linear-gradient(180deg, #0A1628 0%, #0F2346 100%)' }}
           >
             <div
-              className="text-[8vw] font-black tracking-[0.1em]"
-              style={{
-                color: 'rgba(1,107,58,0.07)',
-                fontFamily: "'Plus Jakarta Sans', sans-serif",
-              }}
-            >
-              ARAPOINT
-            </div>
-          </div>
-
-          {/* Header band */}
-          <motion.div
-            className="absolute top-[1vw] left-[1vw] right-[1vw] flex items-center justify-between px-[1.4vw] py-[0.9vw] rounded-[0.3vw]"
-            style={{
-              background: 'linear-gradient(90deg, #0F2346 0%, #1C3A6B 50%, #0F2346 100%)',
-              borderTop: '1.5px solid #6DB33F',
-              borderBottom: '1.5px solid #6DB33F',
-            }}
-            initial={{ opacity: 0, y: -8 }}
-            animate={phase >= 2 ? { opacity: 1, y: 0 } : { opacity: 0, y: -8 }}
-            transition={{ duration: 0.6 }}
-          >
-            <div
-              className="text-[0.95vw] tracking-[0.32em] uppercase font-bold text-white"
-              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-            >
-              Issued via Arapoint
-            </div>
-            <div
-              className="text-[0.85vw] tracking-[0.3em] uppercase font-semibold"
+              className="px-[1.2vw] pt-[1.4vw] text-[0.78vw] tracking-[0.32em] uppercase font-bold"
               style={{ color: '#6DB33F', fontFamily: "'Inter', sans-serif" }}
             >
-              WAEC · MAY/JUNE
+              Arapoint · Wallet
             </div>
-          </motion.div>
-
-          {/* Title block */}
-          <motion.div
-            className="absolute top-[5vw] left-0 right-0 text-center"
-            initial={{ opacity: 0, y: 8 }}
-            animate={phase >= 3 ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-            transition={{ duration: 0.7 }}
-          >
             <div
-              className="text-[0.78vw] tracking-[0.42em] uppercase font-bold"
-              style={{ color: '#016B3A', fontFamily: "'Inter', sans-serif" }}
+              className="px-[1.2vw] mt-[0.4vw] text-[1.15vw] font-bold text-white leading-tight"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
             >
-              West African Senior School Certificate
+              Recent transactions
             </div>
-            <div
-              className="text-[2vw] font-black tracking-[0.04em] mt-[0.2vw]"
-              style={{
-                color: '#0F2346',
-                fontFamily: "'Plus Jakarta Sans', sans-serif",
-              }}
+
+            {/* Balance pill */}
+            <div className="mx-[1vw] mt-[0.8vw] flex items-center justify-between rounded-[0.5vw] px-[0.7vw] py-[0.5vw]"
+              style={{ background: 'rgba(109,179,63,0.10)', border: '1px solid rgba(109,179,63,0.35)' }}
             >
-              VERIFIED RESULT SLIP
+              <div
+                className="text-[0.55vw] tracking-[0.32em] uppercase font-bold text-white/55"
+                style={{ fontFamily: "'Inter', sans-serif" }}
+              >
+                Available
+              </div>
+              <div
+                className="text-[0.85vw] font-black text-white"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+              >
+                ₦--,---.--
+              </div>
             </div>
-            <div
-              className="mt-[0.3vw] mx-auto h-[0.1vw] w-[10vw]"
-              style={{ background: '#016B3A' }}
-            />
-          </motion.div>
 
-          {/* Candidate */}
-          <motion.div
-            className="absolute top-[10vw] left-[2.4vw] right-[2.4vw] flex items-center justify-between"
-            initial={{ opacity: 0, y: 8 }}
-            animate={phase >= 3 ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
-            transition={{ duration: 0.7, delay: 0.15 }}
-          >
-            <div>
-              <div
-                className="text-[0.72vw] tracking-[0.32em] uppercase font-bold"
-                style={{ color: '#475569', fontFamily: "'Inter', sans-serif" }}
-              >
-                Candidate
-              </div>
-              <div
-                className="text-[1.6vw] font-black mt-[0.05vw]"
-                style={{ color: '#0F2346', fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-              >
-                ADAEZE OKONKWO
-              </div>
+            {/* Transactions list */}
+            <div className="mx-[1vw] mt-[0.8vw] flex flex-col gap-[0.45vw]">
+              {txs.map((tx) => {
+                const visible = phase >= tx.revealAt;
+                return (
+                  <motion.div
+                    key={tx.service}
+                    className="flex items-center gap-[0.6vw] rounded-[0.5vw] px-[0.6vw] py-[0.55vw]"
+                    style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                    }}
+                    initial={{ opacity: 0, x: -14 }}
+                    animate={visible ? { opacity: 1, x: 0 } : { opacity: 0, x: -14 }}
+                    transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <div
+                      className="w-[1.6vw] h-[1.6vw] rounded-[0.3vw] flex items-center justify-center text-[0.6vw] font-black flex-shrink-0"
+                      style={{
+                        background: `${tx.tone}33`,
+                        border: `1px solid ${tx.tone}AA`,
+                        color: tx.tone,
+                        fontFamily: "'Plus Jakarta Sans', sans-serif",
+                      }}
+                    >
+                      {tx.tag}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div
+                        className="text-[0.72vw] font-bold text-white leading-tight truncate"
+                        style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                      >
+                        {tx.service}
+                      </div>
+                      <div
+                        className="text-[0.55vw] text-white/55"
+                        style={{ fontFamily: "'Inter', sans-serif" }}
+                      >
+                        Wallet · today
+                      </div>
+                    </div>
+                    <div
+                      className="text-[0.78vw] font-black"
+                      style={{ color: '#FCA5A5', fontFamily: "'JetBrains Mono', monospace" }}
+                    >
+                      {tx.amount}
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
-            <div className="text-right">
-              <div
-                className="text-[0.72vw] tracking-[0.32em] uppercase font-bold"
-                style={{ color: '#475569', fontFamily: "'Inter', sans-serif" }}
-              >
-                Exam No.
-              </div>
-              <div
-                className="text-[1vw] font-bold mt-[0.05vw]"
-                style={{ color: '#0F2346', fontFamily: "'JetBrains Mono', monospace" }}
-              >
-                4250101019
-              </div>
-            </div>
-          </motion.div>
+          </div>
+        </motion.div>
 
-          {/* Meta row */}
+        {/* Right column */}
+        <div className="flex-1 flex flex-col">
           <motion.div
-            className="absolute top-[14vw] left-[2.4vw] right-[2.4vw] grid grid-cols-3 gap-[1vw]"
-            initial={{ opacity: 0, y: 8 }}
-            animate={phase >= 4 ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+            className="text-[0.95vw] tracking-[0.42em] uppercase font-bold mb-[0.6vw]"
+            style={{ color: '#6DB33F', fontFamily: "'Inter', sans-serif" }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
             transition={{ duration: 0.6 }}
           >
-            {[
-              { label: 'Year', value: '2026' },
-              { label: 'Centre', value: 'Lagos · 0193' },
-              { label: 'Subjects', value: '8 / 9' },
-            ].map((m) => (
-              <div
-                key={m.label}
-                className="rounded-[0.3vw] px-[0.7vw] py-[0.5vw]"
-                style={{ background: 'rgba(1,107,58,0.07)', border: '1px solid rgba(1,107,58,0.25)' }}
-              >
-                <div
-                  className="text-[0.62vw] tracking-[0.3em] uppercase font-bold"
-                  style={{ color: '#016B3A', fontFamily: "'Inter', sans-serif" }}
-                >
-                  {m.label}
-                </div>
-                <div
-                  className="text-[1.05vw] font-bold mt-[0.05vw]"
-                  style={{ color: '#0F2346', fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-                >
-                  {m.value}
-                </div>
-              </div>
-            ))}
+            Spend · everything in one place
           </motion.div>
 
-          {/* Subjects table */}
-          <div className="absolute bottom-[4vw] left-[2.4vw] right-[2.4vw] grid grid-cols-2 gap-x-[2vw] gap-y-[0.45vw]">
-            {subjects.map((s, i) => (
+          <motion.h2
+            className="text-[3.2vw] font-black text-white leading-[1.05] tracking-tight"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            initial={{ opacity: 0, y: 16 }}
+            animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
+            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+          >
+            One balance pays for{' '}
+            <span style={{ color: '#6DB33F' }}>every service.</span>
+          </motion.h2>
+
+          {/* Service grid */}
+          <div className="mt-[1.4vw] grid grid-cols-4 gap-[0.8vw]">
+            {services.map((s, i) => (
               <motion.div
                 key={s.name}
-                className="flex items-baseline justify-between px-[0.4vw]"
-                style={{ borderBottom: '1px dashed rgba(1,107,58,0.4)' }}
-                initial={{ opacity: 0, x: -10 }}
-                animate={phase >= 5 ? { opacity: 1, x: 0 } : { opacity: 0, x: -10 }}
-                transition={{ delay: 0.18 * i, duration: 0.45 }}
+                className="rounded-[0.6vw] px-[0.8vw] py-[0.9vw]"
+                style={{
+                  background: 'rgba(15,35,70,0.55)',
+                  border: `1px solid ${s.tone}66`,
+                  borderTop: `0.3vw solid ${s.tone}`,
+                  boxShadow: `0 8px 22px -10px ${s.tone}66`,
+                }}
+                initial={{ opacity: 0, y: 14 }}
+                animate={phase >= 2 ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 }}
+                transition={{ delay: 0.07 * i, duration: 0.5 }}
               >
                 <div
-                  className="text-[1vw] font-semibold"
-                  style={{ color: '#0F2346', fontFamily: "'Inter', sans-serif" }}
+                  className="text-[1.2vw] font-black text-white"
+                  style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
                 >
                   {s.name}
                 </div>
                 <div
-                  className="text-[1.15vw] font-black"
-                  style={{
-                    color: s.grade.startsWith('A') ? '#016B3A' : '#0F2346',
-                    fontFamily: "'JetBrains Mono', monospace",
-                  }}
+                  className="text-[0.7vw] text-white/65 mt-[0.1vw]"
+                  style={{ fontFamily: "'Inter', sans-serif" }}
                 >
-                  {s.grade}
+                  {s.sub}
                 </div>
               </motion.div>
             ))}
           </div>
 
-          {/* VERIFIED seal */}
+          {/* Closing line */}
           <motion.div
-            className="absolute bottom-[1vw] right-[2.4vw] flex flex-col items-center"
-            initial={{ opacity: 0, scale: 0.6, rotate: -12 }}
-            animate={
-              phase >= 6
-                ? { opacity: 1, scale: 1, rotate: -8 }
-                : { opacity: 0, scale: 0.6, rotate: -12 }
-            }
-            transition={{ type: 'spring', stiffness: 180, damping: 16 }}
+            className="mt-[1.8vw] text-[1.4vw] text-white/85 font-medium tracking-wide"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={phase >= 7 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+            transition={{ duration: 0.7 }}
           >
-            <div
-              className="w-[4.5vw] h-[4.5vw] rounded-full flex items-center justify-center text-center"
-              style={{
-                border: '0.25vw solid #016B3A',
-                background: 'rgba(109,179,63,0.18)',
-              }}
-            >
-              <div>
-                <div
-                  className="text-[0.85vw] font-black"
-                  style={{
-                    color: '#016B3A',
-                    fontFamily: "'Plus Jakarta Sans', sans-serif",
-                  }}
-                >
-                  VERIFIED
-                </div>
-                <div
-                  className="text-[0.5vw] tracking-[0.25em] uppercase font-bold"
-                  style={{ color: '#016B3A', fontFamily: "'Inter', sans-serif" }}
-                >
-                  ARAPOINT
-                </div>
-              </div>
-            </div>
+            One wallet —{' '}
+            <span style={{ color: '#6DB33F' }} className="font-bold">
+              covers it all.
+            </span>
           </motion.div>
-
-          {/* Issued via stamp on bottom-left */}
-          <motion.div
-            className="absolute bottom-[1.2vw] left-[2.4vw]"
-            initial={{ opacity: 0 }}
-            animate={phase >= 6 ? { opacity: 1 } : { opacity: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            <div
-              className="text-[0.7vw] tracking-[0.3em] uppercase font-bold"
-              style={{ color: '#475569', fontFamily: "'Inter', sans-serif" }}
-            >
-              Verified directly from WAEC
-            </div>
-            <div
-              className="text-[0.85vw] font-bold mt-[0.1vw]"
-              style={{ color: '#0F2346', fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              REF · WAEC / 2026 / 048217
-            </div>
-          </motion.div>
-        </motion.div>
-
-        {/* Caption */}
-        <motion.div
-          className="mt-[2vw] text-[1.5vw] text-white/90 text-center font-medium tracking-wide"
-          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-          initial={{ opacity: 0, y: 12 }}
-          animate={phase >= 7 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
-          transition={{ duration: 0.7 }}
-        >
-          Authentic results,{' '}
-          <span style={{ color: '#6DB33F' }} className="font-bold">
-            ready to share — instantly.
-          </span>
-        </motion.div>
+        </div>
       </div>
     </motion.div>
   );

@@ -2,60 +2,57 @@ import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
 /**
- * Scene 4 — JAMB extras.
+ * Scene 4 — Earn while you transact (commission earnings).
  *
- * Phone frame on the left showing JAMB admission status; right column lists
- * the broader JAMB service stack (course change, regularization, profile).
- * Brief red-accented JAMB callout, then settles back to the navy/green system.
+ * Warm gold ambient. Big eased counter rolls up "Commissions Earned"; small
+ * earn-back cards stack as transactions complete. Numbers are illustrative
+ * examples only — task brief explicitly forbids implying guaranteed earnings.
  *
  * Allotted: 16_000 ms. All phase timers stay <= 15_500 ms.
  */
 export function Scene4() {
   const [phase, setPhase] = useState(0);
+  const [earned, setEarned] = useState(0);
+  const targetEarned = 1240; // ₦1,240.00 illustrative example only
 
   useEffect(() => {
     const timers = [
-      setTimeout(() => setPhase(1), 400),    // eyebrow + headline + phone
-      setTimeout(() => setPhase(2), 2400),   // admission status card
-      setTimeout(() => setPhase(3), 4400),   // course change card
-      setTimeout(() => setPhase(4), 6800),   // regularization card
-      setTimeout(() => setPhase(5), 9000),   // profile / email card
-      setTimeout(() => setPhase(6), 11400),  // closing line
-      setTimeout(() => setPhase(7), 15400),  // exit prep
+      setTimeout(() => setPhase(1), 400),    // eyebrow + headline
+      setTimeout(() => setPhase(2), 2400),   // earn-back card 1
+      setTimeout(() => setPhase(3), 4200),   // counter starts rolling
+      setTimeout(() => setPhase(4), 5400),   // earn-back card 2
+      setTimeout(() => setPhase(5), 7400),   // earn-back card 3
+      setTimeout(() => setPhase(6), 9400),   // earn-back card 4
+      setTimeout(() => setPhase(7), 11800),  // closing line
+      setTimeout(() => setPhase(8), 15400),  // exit prep
     ];
     return () => timers.forEach((t) => clearTimeout(t));
   }, []);
 
-  const services = [
-    {
-      key: 'admission',
-      title: 'Admission Status',
-      sub: 'Live check against JAMB CAPS',
-      icon: '✓',
-      revealAt: 2,
-    },
-    {
-      key: 'change',
-      title: 'Course / Institution Change',
-      sub: 'Submit and track your change request',
-      icon: '↻',
-      revealAt: 3,
-    },
-    {
-      key: 'reg',
-      title: 'JAMB Regularization',
-      sub: 'For graduates with no JAMB record on file',
-      icon: '★',
-      revealAt: 4,
-    },
-    {
-      key: 'profile',
-      title: 'Profile & Email Recovery',
-      sub: 'Reset access, fix details, recover login',
-      icon: '@',
-      revealAt: 5,
-    },
+  useEffect(() => {
+    if (phase < 3) return;
+    const start = performance.now();
+    const duration = 4800;
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setEarned(Math.round(targetEarned * eased * 100) / 100);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [phase]);
+
+  const earnCards = [
+    { service: 'NIN Verification', back: '+₦8.00',  revealAt: 2 },
+    { service: 'BVN Retrieval',    back: '+₦12.00', revealAt: 4 },
+    { service: 'WAEC Checker PIN', back: '+₦140.00', revealAt: 5 },
+    { service: 'IPE Clearance',    back: '+₦600.00', revealAt: 6 },
   ];
+
+  const formatNaira = (v: number) =>
+    `₦${v.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
     <motion.div
@@ -69,237 +66,149 @@ export function Scene4() {
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(ellipse at 25% 35%, rgba(185,28,28,0.10) 0%, transparent 55%), radial-gradient(ellipse at 75% 65%, rgba(28,58,107,0.40) 0%, transparent 55%)',
+            'radial-gradient(ellipse at 50% 30%, rgba(212,162,76,0.16) 0%, transparent 55%), radial-gradient(ellipse at 50% 90%, rgba(10,22,40,0.95) 0%, transparent 60%)',
         }}
       />
 
-      <div className="relative z-10 flex items-center gap-[3.5vw] w-[88vw]">
-        {/* Phone frame on the left */}
+      <div className="relative z-10 flex flex-col items-center w-[80vw]">
         <motion.div
-          className="relative w-[20vw] h-[40vw] rounded-[2.4vw] flex-shrink-0"
-          style={{
-            background: 'linear-gradient(160deg, #1C3A6B 0%, #0F2346 60%, #0A1628 100%)',
-            border: '1px solid rgba(185,28,28,0.45)',
-            boxShadow: '0 30px 80px -20px rgba(0,0,0,0.7), inset 0 0 60px rgba(185,28,28,0.05)',
-          }}
-          initial={{ opacity: 0, y: 30, rotate: -3 }}
-          animate={phase >= 1 ? { opacity: 1, y: 0, rotate: -3 } : { opacity: 0, y: 30, rotate: -3 }}
+          className="text-[1vw] tracking-[0.42em] uppercase font-bold mb-[0.8vw]"
+          style={{ color: '#D4A24C', fontFamily: "'Inter', sans-serif" }}
+          initial={{ opacity: 0, y: 10 }}
+          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+          transition={{ duration: 0.6 }}
+        >
+          Commissions · the part most people love
+        </motion.div>
+
+        <motion.h2
+          className="text-[3.6vw] font-black text-white text-center leading-[1.05] tracking-tight"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          initial={{ opacity: 0, y: 16 }}
+          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
           transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
         >
-          <div
-            className="absolute top-[1vw] left-1/2 -translate-x-1/2 w-[5vw] h-[0.6vw] rounded-full"
-            style={{ background: '#0A1628' }}
-          />
-          <div
-            className="absolute inset-[1vw] top-[2vw] rounded-[1.6vw] overflow-hidden"
-            style={{ background: 'linear-gradient(180deg, #0A1628 0%, #0F2346 100%)' }}
-          >
+          Arapoint pays you back —{' '}
+          <span style={{ color: '#D4A24C' }}>straight into your wallet.</span>
+        </motion.h2>
+
+        {/* Big counter card */}
+        <motion.div
+          className="mt-[2.4vw] w-[60vw] rounded-[1vw] px-[2.4vw] py-[1.6vw] flex items-center justify-between"
+          style={{
+            background:
+              'linear-gradient(135deg, rgba(212,162,76,0.16) 0%, rgba(15,35,70,0.55) 60%)',
+            border: '1px solid rgba(212,162,76,0.55)',
+            boxShadow: '0 30px 80px -20px rgba(212,162,76,0.35)',
+          }}
+          initial={{ opacity: 0, y: 16 }}
+          animate={phase >= 2 ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <div>
             <div
-              className="px-[1.2vw] pt-[1.4vw] text-[0.78vw] tracking-[0.32em] uppercase font-bold"
-              style={{ color: '#B91C1C', fontFamily: "'Inter', sans-serif" }}
+              className="text-[0.85vw] tracking-[0.34em] uppercase font-bold"
+              style={{ color: '#F5C977', fontFamily: "'Inter', sans-serif" }}
             >
-              JAMB · Admission
+              Commissions earned · this month
             </div>
             <div
-              className="px-[1.2vw] mt-[0.4vw] text-[1.2vw] font-bold text-white leading-tight"
-              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+              className="mt-[0.2vw] text-[4.4vw] font-black tracking-tight"
+              style={{
+                color: '#FFE9B0',
+                fontFamily: "'JetBrains Mono', monospace",
+                textShadow: '0 2px 30px rgba(212,162,76,0.45)',
+              }}
             >
-              Admission status
+              {formatNaira(earned)}
             </div>
             <div
-              className="px-[1.2vw] mt-[0.3vw] text-[0.75vw] text-white/55"
+              className="text-[0.85vw] text-white/55 mt-[0.2vw]"
               style={{ fontFamily: "'Inter', sans-serif" }}
             >
-              Checking JAMB CAPS in real time…
+              Illustrative example · live rates shown in your dashboard
             </div>
+          </div>
 
-            {/* Status block */}
-            <motion.div
-              className="mx-[1vw] mt-[1.4vw] rounded-[0.6vw] p-[0.9vw]"
-              style={{
-                background: 'rgba(109,179,63,0.10)',
-                border: '1px solid rgba(109,179,63,0.45)',
-              }}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={phase >= 2 ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-            >
-              <div
-                className="text-[0.6vw] tracking-[0.3em] uppercase font-bold"
-                style={{ color: '#6DB33F', fontFamily: "'Inter', sans-serif" }}
-              >
-                Status
-              </div>
-              <div
-                className="text-[1.1vw] font-black text-white mt-[0.1vw]"
-                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-              >
-                ADMITTED
-              </div>
-              <div
-                className="text-[0.6vw] text-white/65 mt-[0.2vw]"
-                style={{ fontFamily: "'Inter', sans-serif" }}
-              >
-                University of Lagos · B.Sc. Computer Science
-              </div>
-            </motion.div>
-
-            {/* Sub fields */}
-            <div className="mx-[1vw] mt-[0.8vw] flex flex-col gap-[0.5vw]">
-              {[
-                { l: 'Reg No.', v: '20251119DA' },
-                { l: 'Session', v: '2025 / 2026' },
-                { l: 'Mode', v: 'UTME' },
-              ].map((row, i) => (
-                <motion.div
-                  key={row.l}
-                  className="flex items-center justify-between px-[0.6vw] py-[0.4vw] rounded-[0.4vw]"
-                  style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                  }}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={phase >= 2 ? { opacity: 1, x: 0 } : { opacity: 0, x: -8 }}
-                  transition={{ delay: 0.4 + 0.12 * i, duration: 0.4 }}
-                >
-                  <div
-                    className="text-[0.55vw] tracking-[0.25em] uppercase font-bold text-white/55"
-                    style={{ fontFamily: "'Inter', sans-serif" }}
-                  >
-                    {row.l}
-                  </div>
-                  <div
-                    className="text-[0.78vw] font-bold text-white"
-                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                  >
-                    {row.v}
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-
-            {/* Live tag */}
-            <motion.div
-              className="absolute bottom-[1vw] left-[1.2vw] right-[1.2vw] flex items-center justify-center gap-[0.4vw]"
-              initial={{ opacity: 0 }}
-              animate={phase >= 2 ? { opacity: 1 } : { opacity: 0 }}
-              transition={{ delay: 0.7 }}
-            >
+          {/* Sparkline-ish bars */}
+          <div className="flex items-end gap-[0.5vw] h-[6vw]">
+            {[1.4, 2.2, 1.8, 3.0, 2.4, 3.4, 4.2].map((h, i) => (
               <motion.div
-                className="w-[0.4vw] h-[0.4vw] rounded-full"
-                style={{ background: '#6DB33F' }}
-                animate={{ opacity: [0.3, 1, 0.3] }}
-                transition={{ duration: 1.4, repeat: Infinity }}
+                key={i}
+                className="w-[0.8vw] rounded-t-[0.2vw]"
+                style={{
+                  background: 'linear-gradient(180deg, #F5C977 0%, #A8782F 100%)',
+                  height: `${h}vw`,
+                }}
+                initial={{ scaleY: 0, originY: 1 }}
+                animate={phase >= 3 ? { scaleY: 1 } : { scaleY: 0 }}
+                transition={{ delay: 0.1 * i, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
               />
-              <div
-                className="text-[0.55vw] tracking-[0.32em] uppercase font-bold text-white/65"
-                style={{ fontFamily: "'Inter', sans-serif" }}
-              >
-                Live · JAMB official
-              </div>
-            </motion.div>
+            ))}
           </div>
         </motion.div>
 
-        {/* Right column */}
-        <div className="flex-1 flex flex-col">
-          <motion.div
-            className="text-[0.95vw] tracking-[0.42em] uppercase font-bold mb-[0.6vw]"
-            style={{ color: '#B91C1C', fontFamily: "'Inter', sans-serif" }}
-            initial={{ opacity: 0, y: 10 }}
-            animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-            transition={{ duration: 0.6 }}
-          >
-            JAMB · Beyond results
-          </motion.div>
-
-          <motion.h2
-            className="text-[3.2vw] font-black text-white leading-[1.05] tracking-tight"
-            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-            initial={{ opacity: 0, y: 16 }}
-            animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
-            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-          >
-            Admission status, course change,{' '}
-            <span style={{ color: '#FCA5A5' }}>regularization.</span>
-          </motion.h2>
-
-          {/* Service cards */}
-          <div className="mt-[2vw] flex flex-col gap-[0.9vw]">
-            {services.map((s) => {
-              const visible = phase >= s.revealAt;
-              return (
-                <motion.div
-                  key={s.key}
-                  className="flex items-center gap-[1.2vw] rounded-[0.7vw] px-[1.2vw] py-[1vw]"
-                  style={{
-                    background: 'rgba(15,35,70,0.55)',
-                    border: visible
-                      ? '1px solid rgba(109,179,63,0.55)'
-                      : '1px solid rgba(255,255,255,0.08)',
-                    boxShadow: visible
-                      ? '0 12px 30px -12px rgba(109,179,63,0.35)'
-                      : 'none',
-                  }}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={visible ? { opacity: 1, x: 0 } : { opacity: 0, x: 20 }}
-                  transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+        {/* Earn-back cards strip */}
+        <div className="mt-[1.6vw] grid grid-cols-4 gap-[0.9vw] w-[60vw]">
+          {earnCards.map((c) => {
+            const visible = phase >= c.revealAt;
+            return (
+              <motion.div
+                key={c.service}
+                className="rounded-[0.6vw] px-[0.9vw] py-[0.8vw] flex items-center gap-[0.7vw]"
+                style={{
+                  background: 'rgba(15,35,70,0.55)',
+                  border: '1px solid rgba(212,162,76,0.4)',
+                  boxShadow: visible ? '0 10px 26px -10px rgba(212,162,76,0.35)' : 'none',
+                }}
+                initial={{ opacity: 0, y: 14 }}
+                animate={visible ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 }}
+                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <div
+                  className="w-[1.6vw] h-[1.6vw] rounded-full flex items-center justify-center text-[0.85vw] font-black flex-shrink-0"
+                  style={{ background: '#D4A24C', color: '#0F2346' }}
                 >
+                  ↑
+                </div>
+                <div className="flex-1 min-w-0">
                   <div
-                    className="w-[2.6vw] h-[2.6vw] rounded-[0.5vw] flex items-center justify-center text-[1.4vw] font-black flex-shrink-0"
-                    style={{
-                      background: 'rgba(185,28,28,0.18)',
-                      border: '1px solid rgba(185,28,28,0.55)',
-                      color: '#FCA5A5',
-                      fontFamily: "'Plus Jakarta Sans', sans-serif",
-                    }}
+                    className="text-[0.78vw] font-bold text-white truncate"
+                    style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
                   >
-                    {s.icon}
+                    {c.service}
                   </div>
-                  <div className="flex-1">
-                    <div
-                      className="text-[1.4vw] font-bold text-white leading-tight"
-                      style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-                    >
-                      {s.title}
-                    </div>
-                    <div
-                      className="text-[0.95vw] text-white/65 mt-[0.1vw]"
-                      style={{ fontFamily: "'Inter', sans-serif" }}
-                    >
-                      {s.sub}
-                    </div>
+                  <div
+                    className="text-[0.62vw] text-white/55"
+                    style={{ fontFamily: "'Inter', sans-serif" }}
+                  >
+                    Earn-back credited
                   </div>
-                  {visible && (
-                    <motion.div
-                      className="text-[0.68vw] tracking-[0.3em] uppercase font-bold"
-                      style={{ color: '#6DB33F', fontFamily: "'Inter', sans-serif" }}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.3 }}
-                    >
-                      Available
-                    </motion.div>
-                  )}
-                </motion.div>
-              );
-            })}
-          </div>
-
-          {/* Closing line */}
-          <motion.div
-            className="mt-[1.6vw] text-[1.35vw] text-white/85 font-medium tracking-wide"
-            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-            initial={{ opacity: 0, y: 12 }}
-            animate={phase >= 6 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
-            transition={{ duration: 0.7 }}
-          >
-            Every JAMB service.{' '}
-            <span style={{ color: '#FCA5A5' }} className="font-bold">
-              One trusted dashboard.
-            </span>
-          </motion.div>
+                </div>
+                <div
+                  className="text-[0.95vw] font-black"
+                  style={{ color: '#A7E07A', fontFamily: "'JetBrains Mono', monospace" }}
+                >
+                  {c.back}
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
+
+        {/* Closing line */}
+        <motion.div
+          className="mt-[1.8vw] text-[1.4vw] text-white/85 text-center font-medium tracking-wide"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          initial={{ opacity: 0, y: 12 }}
+          animate={phase >= 7 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+          transition={{ duration: 0.7 }}
+        >
+          The more you transact,{' '}
+          <span style={{ color: '#D4A24C' }} className="font-bold">
+            the more you earn back.
+          </span>
+        </motion.div>
       </div>
     </motion.div>
   );

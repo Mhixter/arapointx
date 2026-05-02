@@ -3,10 +3,10 @@ import { useEffect, useState } from 'react';
 import BrandFooter from '../BrandFooter';
 
 /**
- * Scene 6 — Brand close (Education).
+ * Scene 6 — Brand close (Wallet).
  *
- * Headline + subhead + BrandFooter lockup. Green accent ties back to the
- * verified-result motif; calm navy base sustains the brand tone.
+ * Headline + subhead + BrandFooter lockup. Green primary (money in motion)
+ * sustains the wallet motif; calm navy base holds the brand.
  *
  * Allotted: 15_000 ms. All phase timers stay <= 14_500 ms.
  */
@@ -61,8 +61,8 @@ export function Scene6() {
           animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
           transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
         >
-          Education verification,{' '}
-          <span style={{ color: '#6DB33F' }}>simplified.</span>
+          One wallet.{' '}
+          <span style={{ color: '#6DB33F' }}>Complete control.</span>
         </motion.h2>
 
         <motion.div
@@ -72,9 +72,9 @@ export function Scene6() {
           animate={phase >= 2 ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 }}
           transition={{ duration: 0.7 }}
         >
-          From results to admissions —{' '}
+          Fund. Spend. Earn. Withdraw —{' '}
           <span style={{ color: '#A7E07A' }} className="font-semibold">
-            done from your phone.
+            all in one place.
           </span>
         </motion.div>
 
