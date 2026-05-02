@@ -30,7 +30,7 @@ export function Scene6() {
 
   const apiKeys = [
     { name: 'web-app · live',  env: 'LIVE',  tone: '#A7E07A', mask: 'ara_live_••••3a91' },
-    { name: 'mobile · sandbox', env: 'SBX',  tone: '#FCD34D', mask: 'ara_sbx_•••••8c2f' },
+    { name: 'mobile · sandbox', env: 'SBX',  tone: '#FCD34D', mask: 'ara_sand_•••••8c2f' },
   ];
   const ipRows = [
     { ip: '203.0.113.42',   note: 'web prod · NG-LAG-01' },

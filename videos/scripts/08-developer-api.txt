@@ -14,6 +14,6 @@ When you need more than one signal at once, call slash verify slash unified. Sen
 
 Security is built in. Generate API keys from the dashboard, tag each one to its environment, and lock it to a list of trusted IP addresses. If a request arrives from anywhere else, it never reaches your wallet.
 
-Every call is logged. Every endpoint is metered. Pull live analytics from slash api slash v one slash developer slash analytics to see request volume, latency, and spend per service — broken down by API key.
+Every call is logged. Every endpoint is metered. Pull live analytics from slash api slash v one slash developer slash analytics to see request volume, latency, and spend — broken down by endpoint.
 
 Start in the sandbox today at arapoint dot com dot n g slash developer. For developer support, reach us at support at arapoint dot com dot n g.
