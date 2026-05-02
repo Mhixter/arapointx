@@ -76,7 +76,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "rm -f exports/raw/05-education-silent.mp4 && node scripts/record-video.mjs --out exports/raw/05-education-silent.mp4 --max-seconds 110 --warmup-ms 1500 && echo '====RECORDING_COMPLETE===='"
+args = "rm -f exports/raw/05-education-silent.mp4 && node scripts/record-video.mjs --out exports/raw/05-education-silent.mp4 --max-seconds 130 --warmup-ms 1500 && echo '====RECORDING_COMPLETE===='"
 
 [[ports]]
 localPort = 3001

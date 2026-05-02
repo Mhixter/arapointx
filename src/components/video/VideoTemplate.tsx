@@ -8,12 +8,12 @@ import { Scene5 } from './video_scenes/Scene5';
 import { Scene6 } from './video_scenes/Scene6';
 
 const SCENE_DURATIONS = {
-  hook: 14000,
-  map: 16000,
-  feed: 18000,
-  sla: 14000,
-  earn: 14000,
-  close: 19000,
+  hook: 16000,
+  map: 20000,
+  feed: 22000,
+  sla: 18000,
+  earn: 18000,
+  close: 21000,
 };
 
 export default function VideoTemplate() {
