@@ -3,10 +3,10 @@ import { useEffect, useState } from 'react';
 import BrandFooter from '../BrandFooter';
 
 /**
- * Scene 6 — Brand close.
+ * Scene 6 — Brand close (Education).
  *
- * Headline + subhead + BrandFooter lockup. Warm gold accent ties back to the
- * civic certificate beats; calm navy base sustains the brand tone.
+ * Headline + subhead + BrandFooter lockup. Green accent ties back to the
+ * verified-result motif; calm navy base sustains the brand tone.
  *
  * Allotted: 15_000 ms. All phase timers stay <= 14_500 ms.
  */
@@ -31,7 +31,6 @@ export function Scene6() {
       exit={{ opacity: 0 }}
       transition={{ duration: 1 }}
     >
-      {/* Ambient gold + navy wash */}
       <div
         className="absolute inset-0 opacity-10 bg-center bg-no-repeat"
         style={{
@@ -43,7 +42,7 @@ export function Scene6() {
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(ellipse at 30% 35%, rgba(212,162,76,0.12) 0%, transparent 50%), radial-gradient(ellipse at 70% 65%, rgba(28,58,107,0.40) 0%, transparent 55%)',
+            'radial-gradient(ellipse at 30% 35%, rgba(109,179,63,0.12) 0%, transparent 50%), radial-gradient(ellipse at 70% 65%, rgba(28,58,107,0.40) 0%, transparent 55%)',
         }}
       />
       <div
@@ -55,7 +54,6 @@ export function Scene6() {
       />
 
       <div className="relative z-10 flex flex-col items-center w-[82vw]">
-        {/* Headline */}
         <motion.h2
           className="text-[4.4vw] font-black text-white text-center leading-[1.02] tracking-tight"
           style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
@@ -63,11 +61,10 @@ export function Scene6() {
           animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
           transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
         >
-          Civic paperwork,{' '}
-          <span style={{ color: '#D4A24C' }}>finally without the paperwork.</span>
+          Education verification,{' '}
+          <span style={{ color: '#6DB33F' }}>simplified.</span>
         </motion.h2>
 
-        {/* Subtitle */}
         <motion.div
           className="mt-[1.4vw] text-[1.55vw] text-white/75 text-center font-medium tracking-wide"
           style={{ fontFamily: "'Inter', sans-serif" }}
@@ -75,13 +72,12 @@ export function Scene6() {
           animate={phase >= 2 ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 }}
           transition={{ duration: 0.7 }}
         >
-          IPE clearance and birth attestation,{' '}
-          <span style={{ color: '#F5C977' }} className="font-semibold">
+          From results to admissions —{' '}
+          <span style={{ color: '#A7E07A' }} className="font-semibold">
             done from your phone.
           </span>
         </motion.div>
 
-        {/* Spacer so BrandFooter (absolute, full-screen centered) sits below */}
         <div className="h-[18vw]" />
       </div>
 

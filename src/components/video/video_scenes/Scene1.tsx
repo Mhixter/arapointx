@@ -2,10 +2,10 @@ import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
 /**
- * Scene 1 — Hook: bureaucracy pain.
+ * Scene 1 — Student hook (Education).
  *
- * Cool slate wash, silhouette queue, paper stack and ticking clock.
- * Pivot copy: "Civic paperwork, the old way." → "Took weeks. Sometimes longer."
+ * Cool slate wash with stylized academic motifs (open book + grad cap + clock).
+ * Sets up the audience triad: students, parents, recruiters.
  *
  * Allotted: 14_000 ms. All phase timers stay <= 13_500 ms.
  */
@@ -15,8 +15,8 @@ export function Scene1() {
   useEffect(() => {
     const timers = [
       setTimeout(() => setPhase(1), 400),    // headline in
-      setTimeout(() => setPhase(2), 2400),   // queue + paper + clock in
-      setTimeout(() => setPhase(3), 5800),   // pain bullet pills
+      setTimeout(() => setPhase(2), 2400),   // visual triad in
+      setTimeout(() => setPhase(3), 5800),   // audience pills
       setTimeout(() => setPhase(4), 9200),   // closing line
       setTimeout(() => setPhase(5), 13200),  // exit prep
     ];
@@ -31,7 +31,7 @@ export function Scene1() {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.8 }}
     >
-      {/* Cool slate ambient — feels institutional, dated */}
+      {/* Cool slate ambient — institutional, scholarly */}
       <div
         className="absolute inset-0"
         style={{
@@ -50,7 +50,7 @@ export function Scene1() {
       />
 
       <div className="relative z-10 flex flex-col items-center w-[80vw]">
-        {/* Headline */}
+        {/* Eyebrow */}
         <motion.div
           className="text-[1vw] tracking-[0.42em] uppercase font-semibold mb-[1vw] text-white/55"
           style={{ fontFamily: "'Inter', sans-serif" }}
@@ -58,94 +58,82 @@ export function Scene1() {
           animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
           transition={{ duration: 0.6 }}
         >
-          Nigerian civic services
+          Education in Nigeria
         </motion.div>
 
         <motion.h1
-          className="text-[4.6vw] font-black text-white text-center leading-[1.02] tracking-tight"
+          className="text-[4.4vw] font-black text-white text-center leading-[1.02] tracking-tight"
           style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           initial={{ opacity: 0, y: 24 }}
           animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
           transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
         >
-          Civic paperwork,{' '}
-          <span style={{ color: '#94A3B8' }}>the old way.</span>
+          Results, slips and admissions —{' '}
+          <span style={{ color: '#94A3B8' }}>without the runaround.</span>
         </motion.h1>
 
-        {/* Visual triad: queue silhouette + paper stack + clock */}
+        {/* Visual triad: open book + graduation cap + clock */}
         <motion.div
-          className="mt-[3.4vw] flex items-end gap-[3vw]"
+          className="mt-[3.2vw] flex items-end gap-[3.5vw]"
           initial={{ opacity: 0, y: 18 }}
           animate={phase >= 2 ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 }}
           transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
         >
-          {/* Queue silhouette */}
-          <div className="flex items-end gap-[0.55vw]">
-            {[0, 1, 2, 3, 4, 5].map((i) => (
-              <motion.svg
-                key={i}
-                viewBox="0 0 40 90"
-                className="w-[2.8vw] h-[6.2vw]"
-                initial={{ opacity: 0, y: 10 }}
-                animate={phase >= 2 ? { opacity: 0.55, y: 0 } : { opacity: 0, y: 10 }}
-                transition={{ delay: 0.08 * i, duration: 0.5 }}
-              >
-                <circle cx="20" cy="14" r="9" fill="#94A3B8" />
-                <path
-                  d="M6 90 C 6 50, 34 50, 34 90 Z"
-                  fill="#94A3B8"
-                />
-              </motion.svg>
+          {/* Open book */}
+          <motion.svg
+            viewBox="0 0 110 80"
+            className="w-[10vw] h-[7.2vw]"
+            initial={{ opacity: 0, y: 10 }}
+            animate={phase >= 2 ? { opacity: 0.85, y: 0 } : { opacity: 0, y: 10 }}
+            transition={{ delay: 0.1, duration: 0.6 }}
+          >
+            <defs>
+              <linearGradient id="bookPage" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#E2E8F0" />
+                <stop offset="100%" stopColor="#94A3B8" />
+              </linearGradient>
+            </defs>
+            <path
+              d="M55 18 C 35 8, 8 10, 4 22 L 4 70 C 8 60, 35 58, 55 68 Z"
+              fill="url(#bookPage)"
+              opacity="0.95"
+            />
+            <path
+              d="M55 18 C 75 8, 102 10, 106 22 L 106 70 C 102 60, 75 58, 55 68 Z"
+              fill="url(#bookPage)"
+              opacity="0.95"
+            />
+            <line x1="55" y1="18" x2="55" y2="68" stroke="#0F2346" strokeWidth="1.5" opacity="0.6" />
+            {[24, 32, 40, 48].map((y) => (
+              <g key={y}>
+                <line x1="12" y1={y} x2="48" y2={y - 2} stroke="#0F2346" strokeWidth="0.7" opacity="0.45" />
+                <line x1="62" y1={y - 2} x2="98" y2={y} stroke="#0F2346" strokeWidth="0.7" opacity="0.45" />
+              </g>
             ))}
-            {/* Trailing fade pair */}
-            <motion.svg
-              viewBox="0 0 40 90"
-              className="w-[2.8vw] h-[6.2vw]"
-              initial={{ opacity: 0 }}
-              animate={phase >= 2 ? { opacity: 0.25 } : { opacity: 0 }}
-              transition={{ delay: 0.55, duration: 0.5 }}
-            >
-              <circle cx="20" cy="14" r="9" fill="#94A3B8" />
-              <path d="M6 90 C 6 50, 34 50, 34 90 Z" fill="#94A3B8" />
-            </motion.svg>
-          </div>
+          </motion.svg>
 
-          {/* Paper stack */}
-          <div className="relative w-[8vw] h-[6.2vw]">
-            {[0, 1, 2, 3, 4].map((i) => (
-              <motion.div
-                key={i}
-                className="absolute left-1/2 -translate-x-1/2 rounded-[0.18vw]"
-                style={{
-                  bottom: `${i * 0.45}vw`,
-                  width: `${7 - i * 0.15}vw`,
-                  height: '0.6vw',
-                  background: i % 2 === 0 ? '#E2E8F0' : '#CBD5E1',
-                  boxShadow: '0 0.05vw 0.2vw rgba(0,0,0,0.35)',
-                  transform: `translateX(-50%) rotate(${(i - 2) * 0.6}deg)`,
-                }}
-                initial={{ opacity: 0, y: 6 }}
-                animate={phase >= 2 ? { opacity: 0.85, y: 0 } : { opacity: 0, y: 6 }}
-                transition={{ delay: 0.7 + 0.08 * i, duration: 0.4 }}
-              />
-            ))}
-            <motion.div
-              className="absolute left-1/2 -translate-x-1/2 bottom-[2.7vw] text-center"
-              style={{ fontFamily: "'Inter', sans-serif" }}
-              initial={{ opacity: 0 }}
-              animate={phase >= 2 ? { opacity: 0.9 } : { opacity: 0 }}
-              transition={{ delay: 1.1 }}
-            >
-              <div
-                className="text-[0.7vw] tracking-[0.3em] uppercase font-bold"
-                style={{ color: '#94A3B8' }}
-              >
-                Forms
-              </div>
-            </motion.div>
-          </div>
+          {/* Graduation cap */}
+          <motion.svg
+            viewBox="0 0 100 80"
+            className="w-[8vw] h-[6.4vw]"
+            initial={{ opacity: 0, y: 10 }}
+            animate={phase >= 2 ? { opacity: 0.9, y: 0 } : { opacity: 0, y: 10 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+          >
+            <path d="M50 12 L 96 30 L 50 48 L 4 30 Z" fill="#CBD5E1" />
+            <path
+              d="M22 38 L 22 56 C 22 62, 78 62, 78 56 L 78 38"
+              fill="none"
+              stroke="#CBD5E1"
+              strokeWidth="3.5"
+            />
+            <path d="M88 32 L 88 56" stroke="#CBD5E1" strokeWidth="2" />
+            <circle cx="88" cy="60" r="3" fill="#D4A24C" />
+            <path d="M88 60 L 84 70" stroke="#D4A24C" strokeWidth="1.5" />
+            <path d="M88 60 L 92 70" stroke="#D4A24C" strokeWidth="1.5" />
+          </motion.svg>
 
-          {/* Clock */}
+          {/* Clock — same as Video 4 hook for series continuity */}
           <div className="relative w-[6vw] h-[6vw]">
             <div
               className="absolute inset-0 rounded-full border-[0.25vw]"
@@ -154,7 +142,6 @@ export function Scene1() {
                 background: 'rgba(255,255,255,0.04)',
               }}
             />
-            {/* Tick marks */}
             {[0, 1, 2, 3].map((i) => (
               <div
                 key={i}
@@ -167,7 +154,6 @@ export function Scene1() {
                 }}
               />
             ))}
-            {/* Hour hand */}
             <motion.div
               className="absolute left-1/2 top-1/2"
               style={{
@@ -181,7 +167,6 @@ export function Scene1() {
               animate={phase >= 2 ? { rotate: [40, 360 + 40] } : { rotate: 40 }}
               transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
             />
-            {/* Minute hand */}
             <motion.div
               className="absolute left-1/2 top-1/2"
               style={{
@@ -202,14 +187,14 @@ export function Scene1() {
           </div>
         </motion.div>
 
-        {/* Pain pills */}
+        {/* Audience pills */}
         <motion.div
-          className="mt-[3vw] flex flex-wrap gap-[0.8vw] justify-center"
+          className="mt-[2.8vw] flex flex-wrap gap-[0.8vw] justify-center"
           initial={{ opacity: 0 }}
           animate={phase >= 3 ? { opacity: 1 } : { opacity: 0 }}
           transition={{ duration: 0.6 }}
         >
-          {['Long queues', 'Paper forms', 'Stamps', 'Weeks of waiting'].map((label, i) => (
+          {['Students', 'Parents', 'Schools', 'HR & recruiters'].map((label, i) => (
             <motion.div
               key={label}
               className="px-[1.2vw] py-[0.5vw] rounded-full text-[1.05vw] font-semibold"
@@ -230,15 +215,15 @@ export function Scene1() {
 
         {/* Closing line */}
         <motion.div
-          className="mt-[2.8vw] text-[1.55vw] text-white/85 text-center font-medium tracking-wide"
+          className="mt-[2.6vw] text-[1.55vw] text-white/85 text-center font-medium tracking-wide"
           style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           initial={{ opacity: 0, y: 12 }}
           animate={phase >= 4 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
           transition={{ duration: 0.7 }}
         >
-          Took weeks.{' '}
+          Students wait. Parents worry.{' '}
           <span style={{ color: '#94A3B8' }} className="font-bold">
-            Sometimes longer.
+            Recruiters can't verify.
           </span>
         </motion.div>
       </div>

@@ -9,10 +9,10 @@ import { Scene6 } from './video_scenes/Scene6';
 
 const SCENE_DURATIONS = {
   hook: 14000,
-  request: 16000,
-  agent: 14000,
-  ipe: 18000,
-  birth: 18000,
+  logos: 16000,
+  result: 18000,
+  jamb: 16000,
+  pin: 16000,
   close: 15000,
 };
 
@@ -27,10 +27,10 @@ export default function VideoTemplate() {
       {/* Scene Content */}
       <AnimatePresence initial={false} mode="popLayout">
         {currentScene === 0 && <Scene1 key="hook" />}
-        {currentScene === 1 && <Scene2 key="request" />}
-        {currentScene === 2 && <Scene3 key="agent" />}
-        {currentScene === 3 && <Scene4 key="ipe" />}
-        {currentScene === 4 && <Scene5 key="birth" />}
+        {currentScene === 1 && <Scene2 key="logos" />}
+        {currentScene === 2 && <Scene3 key="result" />}
+        {currentScene === 3 && <Scene4 key="jamb" />}
+        {currentScene === 4 && <Scene5 key="pin" />}
         {currentScene === 5 && <Scene6 key="close" />}
       </AnimatePresence>
     </div>
