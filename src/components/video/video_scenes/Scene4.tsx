@@ -26,15 +26,18 @@ export function Scene4() {
     return () => timers.forEach((t) => clearTimeout(t));
   }, []);
 
+  // Real values from Arapoint/server/src/api/routes/developer/shared.ts
+  //   RATE_LIMITS: sandbox=100/day, live=10_000/day
+  //   BURST_LIMITS: sandbox=10/min, live=60/min
   const sandboxFeatures = [
     'Deterministic mock data',
     'No wallet charges',
-    'Higher burst limits',
+    '100 calls/day · 10/min burst',
   ];
   const productionFeatures = [
     'Real registry lookups',
     'Per-call billing from wallet',
-    'Audit-grade logging',
+    '10,000 calls/day · 60/min burst',
   ];
 
   // Whether the toggle is "live" (true) or "sandbox" (false)
