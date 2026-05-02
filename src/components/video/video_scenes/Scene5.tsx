@@ -1,276 +1,360 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
+/**
+ * Scene 5 — Birth attestation reveal.
+ *
+ * Same gold-on-cream design language as the IPE certificate, but with
+ * a distinct emblem (laurel + star) and birth-record content.
+ *
+ * Allotted: 18_000 ms. All phase timers stay <= 17_500 ms.
+ */
 export function Scene5() {
   const [phase, setPhase] = useState(0);
 
   useEffect(() => {
     const timers = [
-      setTimeout(() => setPhase(1), 400),    // eyebrow + warning slab in
-      setTimeout(() => setPhase(2), 2200),   // bank-vs-agent split rows
-      setTimeout(() => setPhase(3), 5800),   // bank "X" / agent "✓"
-      setTimeout(() => setPhase(4), 9500),   // trust strip: 3-5 days, affidavit, transparent pricing
-      setTimeout(() => setPhase(5), 16500),  // CTA caption
-      setTimeout(() => setPhase(6), 21500),  // exit prep
+      setTimeout(() => setPhase(1), 400),    // eyebrow + cert frame
+      setTimeout(() => setPhase(2), 2000),   // header band + emblem
+      setTimeout(() => setPhase(3), 4200),   // title text
+      setTimeout(() => setPhase(4), 6200),   // child name + DOB
+      setTimeout(() => setPhase(5), 8800),   // detail rows
+      setTimeout(() => setPhase(6), 11600),  // signature + verified seal
+      setTimeout(() => setPhase(7), 14000),  // caption
+      setTimeout(() => setPhase(8), 17400),  // exit prep
     ];
-    return () => timers.forEach(t => clearTimeout(t));
+    return () => timers.forEach((t) => clearTimeout(t));
   }, []);
 
-  const trustItems = [
-    {
-      label: '3–5 business days',
-      sub: 'After a verified submission',
-      icon: (
-        <svg viewBox="0 0 24 24" className="w-[1.8vw] h-[1.8vw]" fill="none" stroke="#06B6D4" strokeWidth="2">
-          <circle cx="12" cy="12" r="9" />
-          <polyline points="12,7 12,12 16,14" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      ),
-    },
-    {
-      label: 'Affidavit fees included',
-      sub: 'No extra running around',
-      icon: (
-        <svg viewBox="0 0 24 24" className="w-[1.8vw] h-[1.8vw]" fill="none" stroke="#A78BFA" strokeWidth="2">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-          <polyline points="14,2 14,8 20,8" />
-          <line x1="9" y1="14" x2="15" y2="14" />
-          <line x1="9" y1="18" x2="13" y2="18" />
-        </svg>
-      ),
-    },
-    {
-      label: 'Transparent in-app pricing',
-      sub: 'See the cost before you pay',
-      icon: (
-        <svg viewBox="0 0 24 24" className="w-[1.8vw] h-[1.8vw]" fill="none" stroke="#06B6D4" strokeWidth="2">
-          <circle cx="12" cy="12" r="9" />
-          <line x1="12" y1="7" x2="12" y2="13" strokeLinecap="round" />
-          <circle cx="12" cy="16.5" r="0.6" fill="#06B6D4" stroke="none" />
-        </svg>
-      ),
-    },
+  const detailRows = [
+    { label: 'Place of Birth', value: 'Lagos, Nigeria' },
+    { label: 'Date of Birth', value: '08 Sep 2024' },
+    { label: 'Father', value: 'Tunde Bello' },
+    { label: 'Mother', value: 'Amaka Bello' },
+    { label: 'Registration No.', value: 'BA / 2026 / 117935' },
+    { label: 'Date Issued', value: '02 May 2026' },
   ];
 
   return (
     <motion.div
       className="absolute inset-0 flex items-center justify-center overflow-hidden"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+      initial={{ opacity: 0, scale: 1.02 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.98 }}
+      transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
     >
-      {/* Amber + cyan + violet wash */}
       <div
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(ellipse at 50% 25%, rgba(245,158,11,0.10) 0%, transparent 55%), radial-gradient(ellipse at 20% 80%, rgba(6,182,212,0.08) 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(139,92,246,0.08) 0%, transparent 50%)',
+            'radial-gradient(ellipse at 50% 35%, rgba(212,162,76,0.18) 0%, transparent 55%), radial-gradient(ellipse at 50% 90%, rgba(10,22,40,0.95) 0%, transparent 60%)',
         }}
       />
 
-      <div className="relative z-10 flex flex-col items-center w-[84vw]">
-        {/* Eyebrow */}
+      <div className="relative z-10 flex flex-col items-center w-[80vw]">
         <motion.div
-          className="text-[1.05vw] tracking-[0.4em] uppercase font-semibold mb-[1vw]"
-          style={{ fontFamily: "'Inter', sans-serif", color: '#F59E0B' }}
+          className="text-[0.95vw] tracking-[0.42em] uppercase font-bold mb-[1vw]"
+          style={{ color: '#D4A24C', fontFamily: "'Inter', sans-serif" }}
           initial={{ opacity: 0, y: 10 }}
           animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
           transition={{ duration: 0.6 }}
         >
-          Read this first
+          Document #2 · Birth Attestation
         </motion.div>
 
-        {/* Warning slab */}
+        {/* Certificate frame */}
         <motion.div
-          className="w-[72vw] rounded-[1vw] p-[1.6vw] flex items-start gap-[1.4vw]"
+          className="relative w-[60vw] h-[34vw] rounded-[0.6vw] overflow-hidden"
           style={{
-            background: 'linear-gradient(135deg, rgba(245,158,11,0.18) 0%, rgba(245,158,11,0.08) 100%)',
-            borderWidth: 2,
-            borderStyle: 'solid',
-            borderColor: 'rgba(245,158,11,0.55)',
-            boxShadow: '0 25px 60px -25px rgba(0,0,0,0.7), 0 0 50px -10px rgba(245,158,11,0.3)',
+            background:
+              'linear-gradient(160deg, #FBF5E6 0%, #F3E7C9 50%, #E8D7A8 100%)',
+            boxShadow:
+              '0 30px 80px -20px rgba(0,0,0,0.7), inset 0 0 0 0.7vw #D4A24C, inset 0 0 0 0.85vw #FBF5E6, inset 0 0 0 1.1vw #D4A24C',
+            color: '#3A2E14',
           }}
-          initial={{ opacity: 0, y: 20, scale: 0.97 }}
-          animate={phase >= 1 ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: 20, scale: 0.97 }}
-          transition={{ duration: 0.8, delay: 0.1 }}
+          initial={{ opacity: 0, y: 30, rotateX: 14 }}
+          animate={
+            phase >= 1
+              ? { opacity: 1, y: 0, rotateX: 0 }
+              : { opacity: 0, y: 30, rotateX: 14 }
+          }
+          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
         >
+          {/* ARAPOINT watermark */}
           <div
-            className="w-[4vw] h-[4vw] rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ background: 'rgba(245,158,11,0.25)', border: '2px solid rgba(245,158,11,0.7)' }}
+            className="absolute inset-0 flex items-center justify-center pointer-events-none select-none"
+            style={{ transform: 'rotate(-22deg)' }}
           >
-            <svg viewBox="0 0 24 24" className="w-[2.2vw] h-[2.2vw]" fill="none" stroke="#F59E0B" strokeWidth="2.5">
-              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" strokeLinecap="round" strokeLinejoin="round" />
-              <line x1="12" y1="9" x2="12" y2="13" strokeLinecap="round" />
-              <circle cx="12" cy="17" r="0.7" fill="#F59E0B" stroke="none" />
-            </svg>
-          </div>
-          <div className="flex-1">
             <div
-              className="text-[2vw] font-black text-white leading-[1.05]"
-              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+              className="text-[8vw] font-black tracking-[0.1em]"
+              style={{
+                color: 'rgba(212,162,76,0.10)',
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+              }}
             >
-              Modification works only for{' '}
-              <span style={{ color: '#F59E0B' }}>agent-enrolled BVNs.</span>
-            </div>
-            <div
-              className="mt-[0.7vw] text-[1.25vw] text-white/85 leading-snug"
-              style={{ fontFamily: "'Inter', sans-serif" }}
-            >
-              If your BVN was enrolled at a <span className="font-bold text-white">bank branch</span>, please visit your bank — Arapoint cannot change those records.
+              ARAPOINT
             </div>
           </div>
-        </motion.div>
 
-        {/* Bank vs Agent split */}
-        <div className="mt-[1.4vw] w-[72vw] grid grid-cols-2 gap-[1.2vw]">
-          {/* Bank-enrolled — NOT supported */}
+          {/* Guilloche */}
+          <svg
+            className="absolute inset-0 w-full h-full opacity-30 pointer-events-none"
+            viewBox="0 0 600 340"
+            preserveAspectRatio="none"
+          >
+            {Array.from({ length: 28 }).map((_, i) => (
+              <path
+                key={i}
+                d={`M0,${20 + i * 11} Q150,${30 - i * 0.4 + i * 10} 300,${20 + i * 11} T600,${20 + i * 11}`}
+                stroke="#D4A24C"
+                strokeWidth="0.4"
+                fill="none"
+              />
+            ))}
+          </svg>
+
+          {/* Header band */}
           <motion.div
-            className="rounded-[0.7vw] p-[1.1vw] flex items-center gap-[1vw]"
+            className="absolute top-[1.3vw] left-[1.3vw] right-[1.3vw] flex items-center justify-between px-[1.4vw] py-[0.9vw] rounded-[0.3vw]"
             style={{
-              background: 'rgba(239,68,68,0.10)',
-              borderWidth: 1,
-              borderStyle: 'solid',
-              borderColor: 'rgba(239,68,68,0.45)',
+              background: 'linear-gradient(90deg, #0F2346 0%, #1C3A6B 50%, #0F2346 100%)',
+              borderTop: '1.5px solid #D4A24C',
+              borderBottom: '1.5px solid #D4A24C',
             }}
-            initial={{ opacity: 0, x: -20 }}
-            animate={phase >= 2 ? { opacity: 1, x: 0 } : { opacity: 0, x: -20 }}
+            initial={{ opacity: 0, y: -8 }}
+            animate={phase >= 2 ? { opacity: 1, y: 0 } : { opacity: 0, y: -8 }}
             transition={{ duration: 0.6 }}
           >
             <div
-              className="w-[2.6vw] h-[2.6vw] rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: 'rgba(239,68,68,0.2)', border: '1.5px solid rgba(239,68,68,0.6)' }}
+              className="text-[0.95vw] tracking-[0.32em] uppercase font-bold text-white"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
             >
-              <svg viewBox="0 0 24 24" className="w-[1.6vw] h-[1.6vw]" fill="none" stroke="#FCA5A5" strokeWidth="2">
-                <line x1="3" y1="22" x2="21" y2="22" />
-                <line x1="6" y1="18" x2="6" y2="11" />
-                <line x1="10" y1="18" x2="10" y2="11" />
-                <line x1="14" y1="18" x2="14" y2="11" />
-                <line x1="18" y1="18" x2="18" y2="11" />
-                <polygon points="2,11 12,4 22,11" />
-              </svg>
+              Issued via Arapoint
             </div>
-            <div className="flex-1">
-              <div
-                className="text-[1.05vw] font-bold text-white"
-                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-              >
-                Bank-enrolled BVN
-              </div>
-              <div
-                className="text-[0.85vw] text-white/60"
-                style={{ fontFamily: "'Inter', sans-serif" }}
-              >
-                Visit your bank branch
-              </div>
-            </div>
-            <motion.div
-              className="w-[2.4vw] h-[2.4vw] rounded-full flex items-center justify-center"
-              style={{ background: 'rgba(239,68,68,0.25)', border: '1.5px solid rgba(239,68,68,0.65)' }}
-              initial={{ scale: 0 }}
-              animate={phase >= 3 ? { scale: 1 } : { scale: 0 }}
-              transition={{ type: 'spring', stiffness: 240, damping: 16 }}
+            <div
+              className="text-[0.85vw] tracking-[0.3em] uppercase font-semibold"
+              style={{ color: '#D4A24C', fontFamily: "'Inter', sans-serif" }}
             >
-              <svg viewBox="0 0 24 24" className="w-[1.3vw] h-[1.3vw]" fill="none" stroke="#FCA5A5" strokeWidth="3">
-                <line x1="6" y1="6" x2="18" y2="18" strokeLinecap="round" />
-                <line x1="18" y1="6" x2="6" y2="18" strokeLinecap="round" />
-              </svg>
-            </motion.div>
+              REG · BA / 2026
+            </div>
           </motion.div>
 
-          {/* Agent-enrolled — supported */}
+          {/* Stylized laurel + star emblem (distinct from IPE shield) */}
           <motion.div
-            className="rounded-[0.7vw] p-[1.1vw] flex items-center gap-[1vw]"
-            style={{
-              background: 'rgba(139,92,246,0.10)',
-              borderWidth: 1,
-              borderStyle: 'solid',
-              borderColor: 'rgba(139,92,246,0.5)',
-            }}
-            initial={{ opacity: 0, x: 20 }}
-            animate={phase >= 2 ? { opacity: 1, x: 0 } : { opacity: 0, x: 20 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
+            className="absolute top-[5.4vw] left-1/2 -translate-x-1/2"
+            initial={{ opacity: 0, scale: 0.6, rotate: 12 }}
+            animate={
+              phase >= 2
+                ? { opacity: 1, scale: 1, rotate: 0 }
+                : { opacity: 0, scale: 0.6, rotate: 12 }
+            }
+            transition={{ type: 'spring', stiffness: 180, damping: 16, delay: 0.2 }}
+          >
+            <svg viewBox="0 0 90 90" className="w-[5.4vw] h-[5.4vw]">
+              <defs>
+                <linearGradient id="birthEmblemGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#F5C977" />
+                  <stop offset="100%" stopColor="#A8782F" />
+                </linearGradient>
+              </defs>
+              {/* Outer circle */}
+              <circle cx="45" cy="45" r="36" fill="none" stroke="url(#birthEmblemGrad)" strokeWidth="3" />
+              {/* Laurel left */}
+              <path
+                d="M18 60 Q10 45 18 30 M21 56 Q15 45 22 33 M24 52 Q18 45 26 36"
+                stroke="url(#birthEmblemGrad)"
+                strokeWidth="2"
+                fill="none"
+                strokeLinecap="round"
+              />
+              {/* Laurel right */}
+              <path
+                d="M72 60 Q80 45 72 30 M69 56 Q75 45 68 33 M66 52 Q72 45 64 36"
+                stroke="url(#birthEmblemGrad)"
+                strokeWidth="2"
+                fill="none"
+                strokeLinecap="round"
+              />
+              {/* Star center */}
+              <path
+                d="M45 26 L49 38 L62 38 L52 46 L56 58 L45 51 L34 58 L38 46 L28 38 L41 38 Z"
+                fill="url(#birthEmblemGrad)"
+                stroke="#0F2346"
+                strokeWidth="1"
+              />
+              <text
+                x="45"
+                y="78"
+                textAnchor="middle"
+                fontFamily="Inter, sans-serif"
+                fontWeight="700"
+                fontSize="6"
+                fill="#0F2346"
+                letterSpacing="1.5"
+              >
+                CIVIL REGISTRY
+              </text>
+            </svg>
+          </motion.div>
+
+          {/* Title */}
+          <motion.div
+            className="absolute top-[11.4vw] left-0 right-0 text-center"
+            initial={{ opacity: 0, y: 10 }}
+            animate={phase >= 3 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+            transition={{ duration: 0.7 }}
           >
             <div
-              className="w-[2.6vw] h-[2.6vw] rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: 'rgba(139,92,246,0.2)', border: '1.5px solid rgba(139,92,246,0.6)' }}
+              className="text-[0.85vw] tracking-[0.42em] uppercase font-bold"
+              style={{ color: '#7A5A1F', fontFamily: "'Inter', sans-serif" }}
             >
-              <svg viewBox="0 0 24 24" className="w-[1.6vw] h-[1.6vw]" fill="none" stroke="#A78BFA" strokeWidth="2">
-                <circle cx="12" cy="8" r="4" />
-                <path d="M4 21c0-4 4-7 8-7s8 3 8 7" strokeLinecap="round" />
-              </svg>
+              Attestation of
             </div>
-            <div className="flex-1">
-              <div
-                className="text-[1.05vw] font-bold text-white"
-                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-              >
-                Agent-enrolled BVN
-              </div>
-              <div
-                className="text-[0.85vw] text-white/60"
-                style={{ fontFamily: "'Inter', sans-serif" }}
-              >
-                Modify with Arapoint
-              </div>
-            </div>
-            <motion.div
-              className="w-[2.4vw] h-[2.4vw] rounded-full flex items-center justify-center"
-              style={{ background: 'rgba(139,92,246,0.25)', border: '1.5px solid rgba(139,92,246,0.65)' }}
-              initial={{ scale: 0 }}
-              animate={phase >= 3 ? { scale: 1 } : { scale: 0 }}
-              transition={{ type: 'spring', stiffness: 240, damping: 16, delay: 0.1 }}
+            <div
+              className="text-[2.6vw] font-black tracking-[0.04em] mt-[0.1vw]"
+              style={{
+                color: '#0F2346',
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+              }}
             >
-              <svg viewBox="0 0 24 24" className="w-[1.3vw] h-[1.3vw]" fill="none" stroke="#A78BFA" strokeWidth="3">
-                <polyline points="5,12 10,17 19,7" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </motion.div>
+              BIRTH RECORD
+            </div>
+            <div
+              className="mt-[0.4vw] mx-auto h-[0.12vw] w-[14vw]"
+              style={{ background: '#D4A24C' }}
+            />
           </motion.div>
-        </div>
 
-        {/* Trust strip */}
-        <motion.div
-          className="mt-[1.6vw] w-[72vw] grid grid-cols-3 gap-[1vw]"
-          initial={{ opacity: 0, y: 16 }}
-          animate={phase >= 4 ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
-          transition={{ duration: 0.7 }}
-        >
-          {trustItems.map((item, i) => (
-            <motion.div
-              key={i}
-              className="rounded-[0.7vw] p-[1.1vw] flex items-center gap-[1vw] bg-white/5 border border-white/15"
-              initial={{ opacity: 0, y: 14 }}
-              animate={phase >= 4 ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 }}
-              transition={{ duration: 0.55, delay: 0.12 * i }}
+          {/* Child name + intro */}
+          <motion.div
+            className="absolute top-[18vw] left-[3vw] right-[3vw] text-center"
+            initial={{ opacity: 0, y: 10 }}
+            animate={phase >= 4 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+            transition={{ duration: 0.7 }}
+          >
+            <div
+              className="text-[0.85vw] tracking-[0.32em] uppercase font-semibold"
+              style={{ color: '#7A5A1F', fontFamily: "'Inter', sans-serif" }}
             >
-              <div className="flex-shrink-0">{item.icon}</div>
+              This attests to the birth record of
+            </div>
+            <div
+              className="text-[2.4vw] font-black mt-[0.1vw]"
+              style={{
+                color: '#0F2346',
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+              }}
+            >
+              CHIDERA EZINNE BELLO
+            </div>
+          </motion.div>
+
+          {/* Detail rows — 3 columns of 2 to fit a richer record */}
+          <div className="absolute bottom-[4.6vw] left-[3vw] right-[3vw] grid grid-cols-2 gap-x-[2vw] gap-y-[0.55vw]">
+            {detailRows.map((r, i) => (
+              <motion.div
+                key={r.label}
+                className="flex items-baseline justify-between"
+                style={{ borderBottom: '1px dashed rgba(122,90,31,0.45)' }}
+                initial={{ opacity: 0, y: 8 }}
+                animate={phase >= 5 ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+                transition={{ delay: 0.08 * i, duration: 0.5 }}
+              >
+                <div
+                  className="text-[0.78vw] tracking-[0.3em] uppercase font-bold"
+                  style={{ color: '#7A5A1F', fontFamily: "'Inter', sans-serif" }}
+                >
+                  {r.label}
+                </div>
+                <div
+                  className="text-[1.05vw] font-bold"
+                  style={{
+                    color: '#0F2346',
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}
+                >
+                  {r.value}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Signature + verified seal */}
+          <motion.div
+            className="absolute bottom-[1.3vw] left-[3vw]"
+            initial={{ opacity: 0, y: 8 }}
+            animate={phase >= 6 ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+            transition={{ duration: 0.6 }}
+          >
+            <div
+              className="text-[1.4vw] italic font-bold"
+              style={{
+                color: '#0F2346',
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                transform: 'rotate(-3deg)',
+              }}
+            >
+              I. Bamidele
+            </div>
+            <div className="h-[0.1vw] w-[10vw]" style={{ background: '#0F2346' }} />
+            <div
+              className="text-[0.72vw] tracking-[0.3em] uppercase font-bold mt-[0.2vw]"
+              style={{ color: '#7A5A1F', fontFamily: "'Inter', sans-serif" }}
+            >
+              Registrar
+            </div>
+          </motion.div>
+
+          <motion.div
+            className="absolute bottom-[1.4vw] right-[3vw] flex flex-col items-center"
+            initial={{ opacity: 0, scale: 0.6, rotate: 12 }}
+            animate={
+              phase >= 6
+                ? { opacity: 1, scale: 1, rotate: 6 }
+                : { opacity: 0, scale: 0.6, rotate: 12 }
+            }
+            transition={{ type: 'spring', stiffness: 180, damping: 16 }}
+          >
+            <div
+              className="w-[5vw] h-[5vw] rounded-full flex items-center justify-center text-center"
+              style={{
+                border: '0.25vw solid #0F2346',
+                background: 'rgba(212,162,76,0.20)',
+              }}
+            >
               <div>
                 <div
-                  className="text-[1.05vw] font-bold text-white leading-tight"
-                  style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                  className="text-[0.9vw] font-black"
+                  style={{
+                    color: '#0F2346',
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                  }}
                 >
-                  {item.label}
+                  VERIFIED
                 </div>
                 <div
-                  className="text-[0.8vw] text-white/55 mt-[0.15vw]"
-                  style={{ fontFamily: "'Inter', sans-serif" }}
+                  className="text-[0.55vw] tracking-[0.25em] uppercase font-bold"
+                  style={{ color: '#0F2346', fontFamily: "'Inter', sans-serif" }}
                 >
-                  {item.sub}
+                  ARAPOINT
                 </div>
               </div>
-            </motion.div>
-          ))}
+            </div>
+          </motion.div>
         </motion.div>
 
-        {/* Bottom caption */}
+        {/* Caption */}
         <motion.div
-          className="mt-[1.6vw] text-[1.35vw] text-white/85 text-center max-w-[60vw] leading-snug font-medium"
+          className="mt-[2vw] text-[1.55vw] text-white/90 text-center font-medium tracking-wide"
           style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
           initial={{ opacity: 0, y: 12 }}
-          animate={phase >= 5 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+          animate={phase >= 7 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
           transition={{ duration: 0.7 }}
         >
-          Banking-grade reliability. <span style={{ color: '#06B6D4' }} className="font-bold">Agent-grade speed.</span>
+          Birth attestation — paper-ready,{' '}
+          <span style={{ color: '#D4A24C' }} className="font-bold">
+            no queues.
+          </span>
         </motion.div>
       </div>
     </motion.div>

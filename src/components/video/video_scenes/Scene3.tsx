@@ -1,259 +1,378 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
-const OLD_NAME = 'ADEZE OKONKWO';
-const NEW_NAME = 'ADAEZE OKONKWO';
-
+/**
+ * Scene 3 — Agent assignment beat.
+ *
+ * Verified-agent network on the left (dot map of Nigeria),
+ * agent profile card slides in on the right, and a 3-stage tracking
+ * pipeline (Submitted → In progress → Ready) advances under it.
+ *
+ * Allotted: 14_000 ms. All phase timers stay <= 13_500 ms.
+ */
 export function Scene3() {
   const [phase, setPhase] = useState(0);
-  const [oldTyped, setOldTyped] = useState('');
-  const [newTyped, setNewTyped] = useState('');
 
   useEffect(() => {
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    timers.push(setTimeout(() => setPhase(1), 400));    // service eyebrow + form
-    timers.push(setTimeout(() => setPhase(2), 1500));   // begin typing OLD
-    OLD_NAME.split('').forEach((_, i) => {
-      timers.push(setTimeout(() => setOldTyped(OLD_NAME.slice(0, i + 1)), 1500 + (i + 1) * 70));
-    });
-    timers.push(setTimeout(() => setPhase(3), 3500));   // begin typing NEW
-    NEW_NAME.split('').forEach((_, i) => {
-      timers.push(setTimeout(() => setNewTyped(NEW_NAME.slice(0, i + 1)), 3500 + (i + 1) * 70));
-    });
-    timers.push(setTimeout(() => setPhase(4), 5800));   // arrow + diff highlight
-    timers.push(setTimeout(() => setPhase(5), 8500));   // submit chip + queue beat
-    timers.push(setTimeout(() => setPhase(6), 12500));  // caption
-    timers.push(setTimeout(() => setPhase(7), 14500));  // exit
-    return () => timers.forEach(t => clearTimeout(t));
+    const timers = [
+      setTimeout(() => setPhase(1), 400),    // eyebrow + map appears
+      setTimeout(() => setPhase(2), 2000),   // agent dots pulse on
+      setTimeout(() => setPhase(3), 4200),   // agent profile card slides in
+      setTimeout(() => setPhase(4), 6800),   // tracker stage 1 lit
+      setTimeout(() => setPhase(5), 9000),   // tracker stage 2 lit
+      setTimeout(() => setPhase(6), 11200),  // tracker stage 3 lit
+      setTimeout(() => setPhase(7), 12800),  // caption
+      setTimeout(() => setPhase(8), 13500),  // exit prep
+    ];
+    return () => timers.forEach((t) => clearTimeout(t));
   }, []);
 
-  // Compute character-level diff highlighting for the new name
-  const diffNew = (text: string) =>
-    text.split('').map((ch, i) => {
-      const sameAsOld = OLD_NAME[i] === ch;
-      return (
-        <span key={i} style={{ color: sameAsOld ? 'white' : '#8B5CF6' }}>
-          {ch}
-        </span>
-      );
-    });
+  // Agent dot positions across a stylized Nigeria-shaped grid
+  const dots = [
+    { x: 22, y: 35, big: false },
+    { x: 38, y: 28, big: true },  // Abuja-ish
+    { x: 30, y: 55, big: false },
+    { x: 18, y: 70, big: true },  // Lagos-ish
+    { x: 50, y: 45, big: false },
+    { x: 62, y: 32, big: false },
+    { x: 70, y: 55, big: true },  // Port Harcourt-ish
+    { x: 45, y: 65, big: false },
+    { x: 80, y: 40, big: false },
+    { x: 28, y: 22, big: false },
+    { x: 56, y: 70, big: false },
+  ];
+
+  const stages = [
+    { label: 'Submitted', threshold: 4 },
+    { label: 'In progress', threshold: 5 },
+    { label: 'Ready', threshold: 6 },
+  ];
 
   return (
     <motion.div
       className="absolute inset-0 flex items-center justify-center overflow-hidden"
-      initial={{ opacity: 0, x: 30 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -30 }}
-      transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+      initial={{ opacity: 0, scale: 1.02 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.98 }}
+      transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
     >
-      {/* Violet ambient */}
       <div
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(ellipse at 50% 40%, rgba(139,92,246,0.14) 0%, transparent 55%)',
+            'radial-gradient(ellipse at 30% 50%, rgba(212,162,76,0.10) 0%, transparent 55%), radial-gradient(ellipse at 75% 50%, rgba(6,182,212,0.08) 0%, transparent 55%)',
         }}
       />
-      <div
-        className="absolute inset-0 opacity-10 bg-center bg-cover mix-blend-overlay"
-        style={{ backgroundImage: `url(${import.meta.env.BASE_URL}images/bg-data-flow.png)` }}
-      />
 
-      <div className="relative z-10 flex flex-col items-center w-[82vw]">
-        {/* Service eyebrow */}
-        <motion.div
-          className="flex items-center gap-[0.8vw] mb-[1vw]"
-          initial={{ opacity: 0, y: 10 }}
-          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-          transition={{ duration: 0.6 }}
-        >
-          <div
-            className="px-[0.9vw] py-[0.35vw] rounded-full text-[0.85vw] tracking-[0.32em] uppercase font-bold"
-            style={{
-              background: 'rgba(139,92,246,0.18)',
-              color: '#A78BFA',
-              border: '1px solid rgba(139,92,246,0.5)',
-              fontFamily: "'Inter', sans-serif",
-            }}
-          >
-            BVN Modification · Name
-          </div>
-        </motion.div>
-
-        <motion.h2
-          className="text-[2.6vw] font-black text-white text-center leading-[1.1] mb-[2vw]"
-          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-          initial={{ opacity: 0, y: 14 }}
-          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 }}
-          transition={{ duration: 0.7, delay: 0.1 }}
-        >
-          Fix a misspelt name. <span style={{ color: '#A78BFA' }}>Submit in minutes.</span>
-        </motion.h2>
-
-        {/* Form card */}
-        <motion.div
-          className="w-[64vw] rounded-[1vw] p-[1.6vw]"
-          style={{
-            background: 'linear-gradient(160deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))',
-            backdropFilter: 'blur(10px)',
-            borderWidth: 1,
-            borderStyle: 'solid',
-            borderColor: 'rgba(139,92,246,0.35)',
-            boxShadow: '0 25px 60px -25px rgba(0,0,0,0.7)',
-          }}
-          initial={{ opacity: 0, y: 24 }}
-          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
-          transition={{ duration: 0.8, delay: 0.15 }}
-        >
-          {/* BVN row */}
-          <div className="flex gap-[1.2vw] mb-[1.4vw]">
-            <div className="flex-1">
-              <div
-                className="text-[0.8vw] tracking-[0.3em] uppercase font-semibold mb-[0.4vw]"
-                style={{ color: '#A78BFA', fontFamily: "'Inter', sans-serif" }}
-              >
-                BVN
-              </div>
-              <div
-                className="px-[1vw] py-[0.85vw] rounded-[0.5vw] bg-white/5 border border-white/15 text-[1.3vw] font-bold text-white tracking-[0.18em]"
-                style={{ fontFamily: "'JetBrains Mono', monospace" }}
-              >
-                2210 234 5671
-              </div>
-            </div>
-            <div className="w-[16vw]">
-              <div
-                className="text-[0.8vw] tracking-[0.3em] uppercase font-semibold mb-[0.4vw]"
-                style={{ color: '#A78BFA', fontFamily: "'Inter', sans-serif" }}
-              >
-                Category
-              </div>
-              <div
-                className="px-[1vw] py-[0.85vw] rounded-[0.5vw] flex items-center justify-between text-[1vw] font-bold text-white"
-                style={{
-                  background: 'rgba(139,92,246,0.18)',
-                  border: '1px solid rgba(139,92,246,0.5)',
-                  fontFamily: "'Inter', sans-serif",
-                }}
-              >
-                Change of Name
-                <svg viewBox="0 0 24 24" className="w-[1vw] h-[1vw]" fill="none" stroke="#A78BFA" strokeWidth="2.5">
-                  <polyline points="6,9 12,15 18,9" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          {/* Old / New name row */}
-          <div className="grid grid-cols-[1fr_auto_1fr] gap-[1vw] items-end">
-            {/* Old */}
-            <div>
-              <div
-                className="text-[0.8vw] tracking-[0.3em] uppercase font-semibold mb-[0.4vw] text-white/60"
-                style={{ fontFamily: "'Inter', sans-serif" }}
-              >
-                Current Name
-              </div>
-              <div
-                className="px-[1vw] py-[1.1vw] rounded-[0.5vw] bg-white/5 border border-white/15 text-[1.5vw] font-bold text-white/90 tracking-wider"
-                style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-              >
-                {oldTyped || '\u00A0'}
-                {phase >= 2 && phase < 3 && (
-                  <motion.span
-                    className="inline-block w-[0.15vw] h-[1.4vw] align-middle ml-[0.2vw] bg-white/60"
-                    animate={{ opacity: [1, 0, 1] }}
-                    transition={{ duration: 0.7, repeat: Infinity }}
-                  />
-                )}
-              </div>
-            </div>
-
-            {/* Arrow */}
-            <div className="pb-[1.1vw] flex items-center justify-center">
-              <motion.div
-                className="w-[3vw] h-[3vw] rounded-full flex items-center justify-center"
-                style={{
-                  background: 'rgba(139,92,246,0.2)',
-                  border: '1px solid rgba(139,92,246,0.55)',
-                }}
-                initial={{ scale: 0.7, opacity: 0 }}
-                animate={phase >= 4 ? { scale: 1, opacity: 1 } : { scale: 0.7, opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 220, damping: 18 }}
-              >
-                <svg viewBox="0 0 24 24" className="w-[1.4vw] h-[1.4vw]" fill="none" stroke="#A78BFA" strokeWidth="2.5">
-                  <line x1="5" y1="12" x2="19" y2="12" strokeLinecap="round" />
-                  <polyline points="13,6 19,12 13,18" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </motion.div>
-            </div>
-
-            {/* New */}
-            <div>
-              <div
-                className="text-[0.8vw] tracking-[0.3em] uppercase font-semibold mb-[0.4vw]"
-                style={{ color: '#A78BFA', fontFamily: "'Inter', sans-serif" }}
-              >
-                New Name
-              </div>
-              <div
-                className="px-[1vw] py-[1.1vw] rounded-[0.5vw] text-[1.5vw] font-bold tracking-wider"
-                style={{
-                  background: 'rgba(139,92,246,0.12)',
-                  border: '1px solid rgba(139,92,246,0.55)',
-                  fontFamily: "'Plus Jakarta Sans', sans-serif",
-                  boxShadow: phase >= 4 ? '0 0 30px -8px rgba(139,92,246,0.55)' : 'none',
-                  transition: 'box-shadow 0.5s ease',
-                }}
-              >
-                {newTyped ? diffNew(newTyped) : '\u00A0'}
-                {phase >= 3 && phase < 4 && (
-                  <motion.span
-                    className="inline-block w-[0.15vw] h-[1.4vw] align-middle ml-[0.2vw]"
-                    style={{ background: '#A78BFA' }}
-                    animate={{ opacity: [1, 0, 1] }}
-                    transition={{ duration: 0.7, repeat: Infinity }}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Submit chip */}
+      <div className="relative z-10 flex items-center gap-[3.5vw] w-[88vw]">
+        {/* Left — agent network "map" */}
+        <div className="flex-1 flex flex-col">
           <motion.div
-            className="mt-[1.6vw] flex items-center justify-end gap-[1vw]"
-            initial={{ opacity: 0, y: 12 }}
-            animate={phase >= 5 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+            className="flex items-center gap-[0.8vw] mb-[1vw]"
+            initial={{ opacity: 0, y: 10 }}
+            animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
             transition={{ duration: 0.6 }}
           >
             <div
-              className="text-[0.95vw] tracking-[0.18em] uppercase text-white/55 font-semibold"
-              style={{ fontFamily: "'Inter', sans-serif" }}
+              className="px-[0.9vw] py-[0.35vw] rounded-full text-[0.85vw] tracking-[0.32em] uppercase font-bold"
+              style={{
+                background: 'rgba(212,162,76,0.15)',
+                color: '#D4A24C',
+                border: '1px solid rgba(212,162,76,0.45)',
+                fontFamily: "'Inter', sans-serif",
+              }}
             >
-              Cost shown in-app · 3–5 business days
-            </div>
-            <div
-              className="px-[1.6vw] py-[0.8vw] rounded-[0.5vw] text-white text-[1.05vw] font-bold tracking-wide flex items-center gap-[0.6vw]"
-              style={{ background: '#8B5CF6', fontFamily: "'Inter', sans-serif" }}
-            >
-              SUBMIT REQUEST
-              <svg viewBox="0 0 24 24" className="w-[1vw] h-[1vw]" fill="none" stroke="white" strokeWidth="3">
-                <polyline points="5,12 10,17 19,7" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              Verified agent network
             </div>
           </motion.div>
-        </motion.div>
 
-        {/* Caption */}
-        <motion.div
-          className="mt-[1.5vw] text-[1.4vw] text-white/85 tracking-wide font-medium text-center max-w-[60vw]"
-          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-          initial={{ opacity: 0, y: 12 }}
-          animate={phase >= 6 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
-          transition={{ duration: 0.7 }}
-        >
-          Old name in. New name out. <span style={{ color: '#A78BFA' }} className="font-bold">Arapoint handles the rest.</span>
-        </motion.div>
+          <motion.h2
+            className="text-[2.6vw] font-black text-white leading-[1.05] tracking-tight"
+            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+            transition={{ duration: 0.7, delay: 0.15 }}
+          >
+            An agent picks up.{' '}
+            <span style={{ color: '#D4A24C' }}>Right away.</span>
+          </motion.h2>
+
+          {/* Map area */}
+          <motion.div
+            className="relative mt-[1.6vw] w-[34vw] h-[26vw] rounded-[1vw] overflow-hidden"
+            style={{
+              background:
+                'linear-gradient(135deg, rgba(28,58,107,0.55) 0%, rgba(15,35,70,0.55) 100%)',
+              border: '1px solid rgba(212,162,76,0.30)',
+            }}
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={phase >= 1 ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.96 }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {/* Faint grid */}
+            <div
+              className="absolute inset-0 opacity-30"
+              style={{
+                backgroundImage:
+                  'linear-gradient(rgba(212,162,76,0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(212,162,76,0.10) 1px, transparent 1px)',
+                backgroundSize: '2vw 2vw',
+              }}
+            />
+
+            {/* Connection lines from a central hub */}
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+              {dots.map((d, i) => (
+                <motion.line
+                  key={i}
+                  x1={48}
+                  y1={50}
+                  x2={d.x}
+                  y2={d.y}
+                  stroke="#D4A24C"
+                  strokeWidth="0.18"
+                  strokeOpacity="0.55"
+                  initial={{ pathLength: 0 }}
+                  animate={phase >= 2 ? { pathLength: 1 } : { pathLength: 0 }}
+                  transition={{ duration: 0.7, delay: 0.05 * i }}
+                />
+              ))}
+            </svg>
+
+            {/* Dots */}
+            {dots.map((d, i) => (
+              <motion.div
+                key={i}
+                className="absolute rounded-full"
+                style={{
+                  left: `${d.x}%`,
+                  top: `${d.y}%`,
+                  width: d.big ? '0.95vw' : '0.55vw',
+                  height: d.big ? '0.95vw' : '0.55vw',
+                  background: '#D4A24C',
+                  boxShadow: d.big ? '0 0 18px rgba(212,162,76,0.85)' : '0 0 8px rgba(212,162,76,0.5)',
+                  transform: 'translate(-50%, -50%)',
+                }}
+                initial={{ opacity: 0, scale: 0 }}
+                animate={
+                  phase >= 2 ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0 }
+                }
+                transition={{
+                  type: 'spring',
+                  stiffness: 240,
+                  damping: 18,
+                  delay: 0.07 * i,
+                }}
+              />
+            ))}
+
+            {/* Central pulse */}
+            <motion.div
+              className="absolute rounded-full border-[0.18vw]"
+              style={{
+                left: '48%',
+                top: '50%',
+                width: '4vw',
+                height: '4vw',
+                borderColor: '#D4A24C',
+                transform: 'translate(-50%,-50%)',
+              }}
+              animate={
+                phase >= 2
+                  ? { scale: [1, 1.6, 1], opacity: [0.85, 0, 0.85] }
+                  : { scale: 1, opacity: 0 }
+              }
+              transition={{ duration: 2.4, repeat: Infinity, ease: 'easeOut' }}
+            />
+            <div
+              className="absolute rounded-full"
+              style={{
+                left: '48%',
+                top: '50%',
+                width: '1.6vw',
+                height: '1.6vw',
+                background: '#D4A24C',
+                transform: 'translate(-50%,-50%)',
+                boxShadow: '0 0 30px rgba(212,162,76,0.85)',
+              }}
+            />
+          </motion.div>
+        </div>
+
+        {/* Right — agent card + tracker */}
+        <div className="flex-1 flex flex-col gap-[1.4vw]">
+          {/* Agent profile card */}
+          <motion.div
+            className="rounded-[1vw] p-[1.4vw]"
+            style={{
+              background:
+                'linear-gradient(135deg, rgba(212,162,76,0.16) 0%, rgba(15,35,70,0.55) 100%)',
+              border: '1.5px solid rgba(212,162,76,0.65)',
+              boxShadow: '0 30px 70px -25px rgba(0,0,0,0.7)',
+            }}
+            initial={{ opacity: 0, y: 24 }}
+            animate={phase >= 3 ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <div className="flex items-center gap-[1.2vw]">
+              <div
+                className="w-[4.5vw] h-[4.5vw] rounded-full flex items-center justify-center text-[1.7vw] font-black text-[#0A1628]"
+                style={{
+                  background: 'linear-gradient(135deg, #F5C977 0%, #D4A24C 100%)',
+                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                }}
+              >
+                CA
+              </div>
+              <div className="flex-1">
+                <div
+                  className="text-[0.78vw] tracking-[0.3em] uppercase font-bold"
+                  style={{ color: '#D4A24C', fontFamily: "'Inter', sans-serif" }}
+                >
+                  Agent assigned
+                </div>
+                <div
+                  className="text-[1.7vw] font-bold text-white mt-[0.1vw]"
+                  style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                >
+                  Chinedu A.
+                </div>
+                <div
+                  className="text-[0.95vw] text-white/65 flex items-center gap-[0.7vw] mt-[0.15vw]"
+                  style={{ fontFamily: "'Inter', sans-serif" }}
+                >
+                  <span>Lagos · Identity & Civic</span>
+                </div>
+              </div>
+              <div className="flex flex-col items-end">
+                <div className="flex items-center gap-[0.25vw]">
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <svg
+                      key={i}
+                      viewBox="0 0 24 24"
+                      className="w-[0.95vw] h-[0.95vw]"
+                      fill="#D4A24C"
+                    >
+                      <path d="M12 3 L14 9 L20 9 L15 13 L17 19 L12 15 L7 19 L9 13 L4 9 L10 9 Z" />
+                    </svg>
+                  ))}
+                </div>
+                <div
+                  className="text-[0.85vw] text-white/70 mt-[0.15vw] font-semibold"
+                  style={{ fontFamily: "'Inter', sans-serif" }}
+                >
+                  4.9 · 412 jobs
+                </div>
+              </div>
+            </div>
+
+            {/* Verified strip */}
+            <div className="mt-[1.2vw] flex items-center gap-[0.7vw]">
+              <div
+                className="w-[1.4vw] h-[1.4vw] rounded-full flex items-center justify-center"
+                style={{ background: 'rgba(34,197,94,0.20)', border: '1px solid rgba(34,197,94,0.6)' }}
+              >
+                <svg viewBox="0 0 24 24" className="w-[0.85vw] h-[0.85vw]" fill="none" stroke="#22C55E" strokeWidth="3.5">
+                  <polyline points="5,12 10,17 19,7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <div
+                className="text-[0.95vw] text-white/85 font-medium"
+                style={{ fontFamily: "'Inter', sans-serif" }}
+              >
+                ID verified · Background-checked · Bonded
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Tracker pipeline */}
+          <motion.div
+            className="rounded-[1vw] p-[1.4vw]"
+            style={{
+              background: 'rgba(15,35,70,0.55)',
+              border: '1px solid rgba(255,255,255,0.10)',
+            }}
+            initial={{ opacity: 0, y: 18 }}
+            animate={phase >= 3 ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 }}
+            transition={{ duration: 0.6, delay: 0.25 }}
+          >
+            <div
+              className="text-[0.85vw] tracking-[0.32em] uppercase font-bold mb-[1vw]"
+              style={{ color: '#D4A24C', fontFamily: "'Inter', sans-serif" }}
+            >
+              Live tracking
+            </div>
+            <div className="flex items-center gap-[0.8vw]">
+              {stages.map((s, i) => {
+                const lit = phase >= s.threshold;
+                return (
+                  <div key={s.label} className="flex-1 flex items-center gap-[0.8vw]">
+                    <motion.div
+                      className="flex flex-col items-center gap-[0.45vw]"
+                      animate={lit ? { scale: 1 } : { scale: 0.96 }}
+                    >
+                      <div
+                        className="w-[2.2vw] h-[2.2vw] rounded-full flex items-center justify-center"
+                        style={{
+                          background: lit ? '#D4A24C' : 'rgba(255,255,255,0.10)',
+                          border: lit
+                            ? '2px solid #D4A24C'
+                            : '2px solid rgba(255,255,255,0.20)',
+                          boxShadow: lit ? '0 0 22px rgba(212,162,76,0.6)' : 'none',
+                        }}
+                      >
+                        {lit ? (
+                          <svg viewBox="0 0 24 24" className="w-[1.1vw] h-[1.1vw]" fill="none" stroke="#0A1628" strokeWidth="3.5">
+                            <polyline points="5,12 10,17 19,7" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        ) : (
+                          <div
+                            className="text-[1vw] font-bold text-white/50"
+                            style={{ fontFamily: "'Inter', sans-serif" }}
+                          >
+                            {i + 1}
+                          </div>
+                        )}
+                      </div>
+                      <div
+                        className="text-[0.85vw] font-bold whitespace-nowrap"
+                        style={{
+                          color: lit ? '#FFFFFF' : 'rgba(255,255,255,0.5)',
+                          fontFamily: "'Inter', sans-serif",
+                        }}
+                      >
+                        {s.label}
+                      </div>
+                    </motion.div>
+                    {i < stages.length - 1 && (
+                      <div className="flex-1 h-[0.18vw] rounded-full overflow-hidden bg-white/10">
+                        <motion.div
+                          className="h-full"
+                          style={{ background: '#D4A24C' }}
+                          initial={{ width: '0%' }}
+                          animate={
+                            phase > s.threshold ? { width: '100%' } : { width: '0%' }
+                          }
+                          transition={{ duration: 0.6 }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+
+          {/* Caption */}
+          <motion.div
+            className="text-[1.2vw] text-white/80 font-medium"
+            style={{ fontFamily: "'Inter', sans-serif" }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={phase >= 7 ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+            transition={{ duration: 0.5 }}
+          >
+            Real-time status. Every step. <span style={{ color: '#D4A24C' }} className="font-bold">No guessing.</span>
+          </motion.div>
+        </div>
       </div>
     </motion.div>
   );

@@ -2,17 +2,25 @@ import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import BrandFooter from '../BrandFooter';
 
+/**
+ * Scene 6 — Brand close.
+ *
+ * Headline + subhead + BrandFooter lockup. Warm gold accent ties back to the
+ * civic certificate beats; calm navy base sustains the brand tone.
+ *
+ * Allotted: 15_000 ms. All phase timers stay <= 14_500 ms.
+ */
 export function Scene6() {
   const [phase, setPhase] = useState(0);
 
   useEffect(() => {
     const timers = [
       setTimeout(() => setPhase(1), 400),    // headline
-      setTimeout(() => setPhase(2), 2200),   // subtitle
-      setTimeout(() => setPhase(3), 4000),   // brand footer
-      setTimeout(() => setPhase(4), 12500),  // exit prep
+      setTimeout(() => setPhase(2), 2400),   // subtitle
+      setTimeout(() => setPhase(3), 4200),   // brand footer
+      setTimeout(() => setPhase(4), 14500),  // exit prep
     ];
-    return () => timers.forEach(t => clearTimeout(t));
+    return () => timers.forEach((t) => clearTimeout(t));
   }, []);
 
   return (
@@ -23,11 +31,11 @@ export function Scene6() {
       exit={{ opacity: 0 }}
       transition={{ duration: 1 }}
     >
-      {/* Ambient shield + cyan/violet wash */}
+      {/* Ambient gold + navy wash */}
       <div
         className="absolute inset-0 opacity-10 bg-center bg-no-repeat"
         style={{
-          backgroundImage: `url(${import.meta.env.BASE_URL}images/shield-badge.png)`,
+          backgroundImage: `url(${import.meta.env.BASE_URL}logos/arapoint-logo-clear.png)`,
           backgroundSize: '50vh auto',
         }}
       />
@@ -35,7 +43,7 @@ export function Scene6() {
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(ellipse at 30% 35%, rgba(6,182,212,0.10) 0%, transparent 50%), radial-gradient(ellipse at 70% 65%, rgba(139,92,246,0.10) 0%, transparent 55%)',
+            'radial-gradient(ellipse at 30% 35%, rgba(212,162,76,0.12) 0%, transparent 50%), radial-gradient(ellipse at 70% 65%, rgba(28,58,107,0.40) 0%, transparent 55%)',
         }}
       />
       <div
@@ -46,7 +54,7 @@ export function Scene6() {
         }}
       />
 
-      <div className="relative z-10 flex flex-col items-center w-[80vw]">
+      <div className="relative z-10 flex flex-col items-center w-[82vw]">
         {/* Headline */}
         <motion.h2
           className="text-[4.4vw] font-black text-white text-center leading-[1.02] tracking-tight"
@@ -55,8 +63,8 @@ export function Scene6() {
           animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
           transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
         >
-          Recover. Correct.{' '}
-          <span style={{ color: '#06B6D4' }}>Carry on.</span>
+          Civic paperwork,{' '}
+          <span style={{ color: '#D4A24C' }}>finally without the paperwork.</span>
         </motion.h2>
 
         {/* Subtitle */}
@@ -67,7 +75,10 @@ export function Scene6() {
           animate={phase >= 2 ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 }}
           transition={{ duration: 0.7 }}
         >
-          BVN retrieval and modification, <span style={{ color: '#A78BFA' }} className="font-semibold">handled with care.</span>
+          IPE clearance and birth attestation,{' '}
+          <span style={{ color: '#F5C977' }} className="font-semibold">
+            done from your phone.
+          </span>
         </motion.div>
 
         {/* Spacer so BrandFooter (absolute, full-screen centered) sits below */}

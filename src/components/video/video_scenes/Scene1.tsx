@@ -1,176 +1,246 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 
+/**
+ * Scene 1 — Hook: bureaucracy pain.
+ *
+ * Cool slate wash, silhouette queue, paper stack and ticking clock.
+ * Pivot copy: "Civic paperwork, the old way." → "Took weeks. Sometimes longer."
+ *
+ * Allotted: 14_000 ms. All phase timers stay <= 13_500 ms.
+ */
 export function Scene1() {
   const [phase, setPhase] = useState(0);
 
   useEffect(() => {
     const timers = [
-      setTimeout(() => setPhase(1), 400),    // eyebrow + crumpled slip
-      setTimeout(() => setPhase(2), 2400),   // first failed input
-      setTimeout(() => setPhase(3), 4800),   // second failed input
-      setTimeout(() => setPhase(4), 7400),   // big "?" mark / not found
-      setTimeout(() => setPhase(5), 10200),  // pivot line in
-      setTimeout(() => setPhase(6), 11500),  // exit prep
+      setTimeout(() => setPhase(1), 400),    // headline in
+      setTimeout(() => setPhase(2), 2400),   // queue + paper + clock in
+      setTimeout(() => setPhase(3), 5800),   // pain bullet pills
+      setTimeout(() => setPhase(4), 9200),   // closing line
+      setTimeout(() => setPhase(5), 13200),  // exit prep
     ];
-    return () => timers.forEach(t => clearTimeout(t));
+    return () => timers.forEach((t) => clearTimeout(t));
   }, []);
 
   return (
     <motion.div
-      className="absolute inset-0 flex items-center justify-center overflow-hidden"
+      className="absolute inset-0 flex items-center justify-center overflow-hidden bg-[#0A1628]"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0, scale: 0.96 }}
-      transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.8 }}
     >
-      {/* Subtle grid */}
-      <div
-        className="absolute inset-0 opacity-15"
-        style={{
-          backgroundImage:
-            'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)',
-          backgroundSize: '4vw 4vw',
-        }}
-      />
-
-      {/* Cyan/violet tinted radial wash to set up the BVN palette */}
+      {/* Cool slate ambient — feels institutional, dated */}
       <div
         className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(ellipse at 30% 35%, rgba(6,182,212,0.10) 0%, transparent 50%), radial-gradient(ellipse at 70% 65%, rgba(139,92,246,0.10) 0%, transparent 55%)',
+            'radial-gradient(ellipse at 50% 30%, rgba(125,140,160,0.18) 0%, transparent 55%), radial-gradient(ellipse at 50% 90%, rgba(10,22,40,0.95) 0%, transparent 60%)',
+        }}
+      />
+
+      {/* Faint paper grain */}
+      <div
+        className="absolute inset-0 opacity-[0.04]"
+        style={{
+          backgroundImage:
+            'repeating-linear-gradient(0deg, rgba(255,255,255,0.6) 0 1px, transparent 1px 3px)',
         }}
       />
 
       <div className="relative z-10 flex flex-col items-center w-[80vw]">
-        {/* Eyebrow */}
+        {/* Headline */}
         <motion.div
-          className="text-[1.2vw] tracking-[0.4em] uppercase font-semibold mb-[2.2vw]"
-          style={{ fontFamily: "'Inter', sans-serif", color: '#06B6D4' }}
-          initial={{ opacity: 0, y: 10 }}
-          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-          transition={{ duration: 0.7, ease: 'easeOut' }}
+          className="text-[1vw] tracking-[0.42em] uppercase font-semibold mb-[1vw] text-white/55"
+          style={{ fontFamily: "'Inter', sans-serif" }}
+          initial={{ opacity: 0, y: 12 }}
+          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+          transition={{ duration: 0.6 }}
         >
-          Lost your BVN?
+          Nigerian civic services
         </motion.div>
 
-        {/* Mock failed BVN search */}
-        <motion.div
-          className="w-[55vw] mb-[2.5vw] relative"
-          initial={{ opacity: 0, y: 20 }}
-          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-          transition={{ duration: 0.8, ease: 'easeOut', delay: 0.15 }}
+        <motion.h1
+          className="text-[4.6vw] font-black text-white text-center leading-[1.02] tracking-tight"
+          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+          initial={{ opacity: 0, y: 24 }}
+          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
+          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
         >
-          <div
-            className="text-[0.95vw] tracking-[0.32em] text-white/50 uppercase font-semibold mb-[0.8vw]"
-            style={{ fontFamily: "'Inter', sans-serif" }}
-          >
-            Enter BVN
-          </div>
-          <div className="flex items-center gap-[1vw] bg-white/6 backdrop-blur-md border border-white/15 rounded-[0.8vw] px-[1.5vw] py-[1.3vw]">
-            <div className="w-[1.4vw] h-[1.4vw] rounded-full border-2 border-white/40 flex items-center justify-center">
-              <div className="w-[0.5vw] h-[0.5vw] rounded-full bg-white/40" />
-            </div>
-            <div
-              className="text-[1.7vw] font-medium text-white/85 flex-1 tracking-[0.18em]"
-              style={{ fontFamily: "'JetBrains Mono', monospace" }}
-            >
-              {phase < 2 && '\u00A0'}
-              {phase >= 2 && phase < 3 && '2210•••'}
-              {phase >= 3 && phase < 4 && '22102•3•••'}
-              {phase >= 4 && 'BVN not found'}
-            </div>
-            {phase >= 4 && (
-              <motion.div
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 250, damping: 18 }}
-                className="w-[2vw] h-[2vw] rounded-full bg-red-500/20 border border-red-400/60 flex items-center justify-center text-red-300 text-[1.4vw] font-bold"
+          Civic paperwork,{' '}
+          <span style={{ color: '#94A3B8' }}>the old way.</span>
+        </motion.h1>
+
+        {/* Visual triad: queue silhouette + paper stack + clock */}
+        <motion.div
+          className="mt-[3.4vw] flex items-end gap-[3vw]"
+          initial={{ opacity: 0, y: 18 }}
+          animate={phase >= 2 ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 }}
+          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+        >
+          {/* Queue silhouette */}
+          <div className="flex items-end gap-[0.55vw]">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <motion.svg
+                key={i}
+                viewBox="0 0 40 90"
+                className="w-[2.8vw] h-[6.2vw]"
+                initial={{ opacity: 0, y: 10 }}
+                animate={phase >= 2 ? { opacity: 0.55, y: 0 } : { opacity: 0, y: 10 }}
+                transition={{ delay: 0.08 * i, duration: 0.5 }}
               >
-                ×
-              </motion.div>
-            )}
+                <circle cx="20" cy="14" r="9" fill="#94A3B8" />
+                <path
+                  d="M6 90 C 6 50, 34 50, 34 90 Z"
+                  fill="#94A3B8"
+                />
+              </motion.svg>
+            ))}
+            {/* Trailing fade pair */}
+            <motion.svg
+              viewBox="0 0 40 90"
+              className="w-[2.8vw] h-[6.2vw]"
+              initial={{ opacity: 0 }}
+              animate={phase >= 2 ? { opacity: 0.25 } : { opacity: 0 }}
+              transition={{ delay: 0.55, duration: 0.5 }}
+            >
+              <circle cx="20" cy="14" r="9" fill="#94A3B8" />
+              <path d="M6 90 C 6 50, 34 50, 34 90 Z" fill="#94A3B8" />
+            </motion.svg>
           </div>
-          {/* Caret blink */}
-          {phase >= 2 && phase < 4 && (
+
+          {/* Paper stack */}
+          <div className="relative w-[8vw] h-[6.2vw]">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <motion.div
+                key={i}
+                className="absolute left-1/2 -translate-x-1/2 rounded-[0.18vw]"
+                style={{
+                  bottom: `${i * 0.45}vw`,
+                  width: `${7 - i * 0.15}vw`,
+                  height: '0.6vw',
+                  background: i % 2 === 0 ? '#E2E8F0' : '#CBD5E1',
+                  boxShadow: '0 0.05vw 0.2vw rgba(0,0,0,0.35)',
+                  transform: `translateX(-50%) rotate(${(i - 2) * 0.6}deg)`,
+                }}
+                initial={{ opacity: 0, y: 6 }}
+                animate={phase >= 2 ? { opacity: 0.85, y: 0 } : { opacity: 0, y: 6 }}
+                transition={{ delay: 0.7 + 0.08 * i, duration: 0.4 }}
+              />
+            ))}
             <motion.div
-              className="absolute right-[2.2vw] bottom-[1.6vw] w-[0.15vw] h-[1.7vw]"
-              style={{ background: '#06B6D4' }}
-              animate={{ opacity: [1, 0, 1] }}
-              transition={{ duration: 0.9, repeat: Infinity }}
+              className="absolute left-1/2 -translate-x-1/2 bottom-[2.7vw] text-center"
+              style={{ fontFamily: "'Inter', sans-serif" }}
+              initial={{ opacity: 0 }}
+              animate={phase >= 2 ? { opacity: 0.9 } : { opacity: 0 }}
+              transition={{ delay: 1.1 }}
+            >
+              <div
+                className="text-[0.7vw] tracking-[0.3em] uppercase font-bold"
+                style={{ color: '#94A3B8' }}
+              >
+                Forms
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Clock */}
+          <div className="relative w-[6vw] h-[6vw]">
+            <div
+              className="absolute inset-0 rounded-full border-[0.25vw]"
+              style={{
+                borderColor: '#94A3B8',
+                background: 'rgba(255,255,255,0.04)',
+              }}
             />
-          )}
+            {/* Tick marks */}
+            {[0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="absolute left-1/2 top-1/2"
+                style={{
+                  width: '0.15vw',
+                  height: '0.55vw',
+                  background: '#94A3B8',
+                  transform: `translate(-50%, -50%) rotate(${i * 90}deg) translateY(-2.55vw)`,
+                }}
+              />
+            ))}
+            {/* Hour hand */}
+            <motion.div
+              className="absolute left-1/2 top-1/2"
+              style={{
+                width: '0.22vw',
+                height: '1.6vw',
+                background: '#CBD5E1',
+                transformOrigin: 'top center',
+                transform: 'translate(-50%, 0) rotate(40deg)',
+              }}
+              initial={{ rotate: 40 }}
+              animate={phase >= 2 ? { rotate: [40, 360 + 40] } : { rotate: 40 }}
+              transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
+            />
+            {/* Minute hand */}
+            <motion.div
+              className="absolute left-1/2 top-1/2"
+              style={{
+                width: '0.18vw',
+                height: '2.3vw',
+                background: '#E2E8F0',
+                transformOrigin: 'top center',
+                transform: 'translate(-50%, 0) rotate(0deg)',
+              }}
+              initial={{ rotate: 0 }}
+              animate={phase >= 2 ? { rotate: [0, 360 * 6] } : { rotate: 0 }}
+              transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
+            />
+            <div
+              className="absolute left-1/2 top-1/2 w-[0.4vw] h-[0.4vw] rounded-full"
+              style={{ background: '#E2E8F0', transform: 'translate(-50%,-50%)' }}
+            />
+          </div>
         </motion.div>
 
-        {/* Crumpled-slip + scattered question motif */}
+        {/* Pain pills */}
         <motion.div
-          className="flex items-center justify-center gap-[2.2vw] mb-[2.2vw]"
+          className="mt-[3vw] flex flex-wrap gap-[0.8vw] justify-center"
           initial={{ opacity: 0 }}
-          animate={phase >= 4 ? { opacity: 1 } : { opacity: 0 }}
-          transition={{ duration: 0.8 }}
+          animate={phase >= 3 ? { opacity: 1 } : { opacity: 0 }}
+          transition={{ duration: 0.6 }}
         >
-          {/* Lost paper slip */}
-          <div className="relative w-[12vw] h-[7vw] rotate-[-6deg]">
-            <div
-              className="absolute inset-0 rounded-[0.4vw] shadow-[0_8px_25px_-8px_rgba(0,0,0,0.6)]"
-              style={{
-                background:
-                  'linear-gradient(135deg, #F5F0E2 0%, #E5DBC0 60%, #C9BC95 100%)',
-              }}
-            />
-            <div className="absolute inset-x-[1vw] top-[1vw] h-[0.25vw] bg-[#0F2346]/30 rounded-full" />
-            <div className="absolute inset-x-[1vw] top-[2vw] h-[0.18vw] bg-[#0F2346]/20 rounded-full" />
-            <div className="absolute inset-x-[1vw] top-[2.7vw] h-[0.18vw] bg-[#0F2346]/20 rounded-full w-[6vw]" />
-            <div className="absolute inset-x-[1vw] top-[3.4vw] h-[0.18vw] bg-[#0F2346]/20 rounded-full w-[7vw]" />
-            {/* Tear */}
-            <svg
-              className="absolute -right-[0.1vw] top-0 h-full w-[1.8vw]"
-              viewBox="0 0 18 70"
-              preserveAspectRatio="none"
-            >
-              <path
-                d="M0,0 L12,8 L4,18 L14,28 L2,38 L13,48 L5,58 L18,70 L0,70 Z"
-                fill="#E5DBC0"
-              />
-            </svg>
-          </div>
-
-          {/* Question marks fanning */}
-          {[
-            { x: 0, y: -2, size: 2.4, c: '#06B6D4' },
-            { x: 3, y: 1, size: 1.6, c: '#8B5CF6' },
-            { x: -2, y: 2, size: 1.4, c: '#06B6D4' },
-          ].map((q, i) => (
+          {['Long queues', 'Paper forms', 'Stamps', 'Weeks of waiting'].map((label, i) => (
             <motion.div
-              key={i}
-              className="absolute font-black"
+              key={label}
+              className="px-[1.2vw] py-[0.5vw] rounded-full text-[1.05vw] font-semibold"
               style={{
-                fontFamily: "'Plus Jakarta Sans', sans-serif",
-                color: q.c,
-                fontSize: `${q.size}vw`,
-                marginLeft: `${q.x}vw`,
-                marginTop: `${q.y}vw`,
+                background: 'rgba(148,163,184,0.10)',
+                border: '1px solid rgba(148,163,184,0.35)',
+                color: '#CBD5E1',
+                fontFamily: "'Inter', sans-serif",
               }}
-              initial={{ opacity: 0, y: 10, rotate: -8 }}
-              animate={phase >= 4 ? { opacity: 0.9, y: 0, rotate: 0 } : { opacity: 0, y: 10 }}
-              transition={{ duration: 0.5, delay: 0.15 + i * 0.12 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={phase >= 3 ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+              transition={{ delay: 0.12 * i, duration: 0.5 }}
             >
-              ?
+              {label}
             </motion.div>
           ))}
         </motion.div>
 
-        {/* Pivot line */}
-        <motion.h2
-          className="text-[3.4vw] font-black text-white text-center leading-[1.1] tracking-tight"
+        {/* Closing line */}
+        <motion.div
+          className="mt-[2.8vw] text-[1.55vw] text-white/85 text-center font-medium tracking-wide"
           style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-          initial={{ opacity: 0, y: 20 }}
-          animate={phase >= 5 ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+          initial={{ opacity: 0, y: 12 }}
+          animate={phase >= 4 ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+          transition={{ duration: 0.7 }}
         >
-          Get it back <span style={{ color: '#06B6D4' }}>in seconds.</span>
-        </motion.h2>
+          Took weeks.{' '}
+          <span style={{ color: '#94A3B8' }} className="font-bold">
+            Sometimes longer.
+          </span>
+        </motion.div>
       </div>
     </motion.div>
   );

@@ -27,6 +27,10 @@ args = "RPA Worker"
 task = "workflow.run"
 args = "Arapoint Video Ad"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Video Recorder"
+
 [[workflows.workflow]]
 name = "Server Backend"
 author = "agent"
@@ -62,6 +66,17 @@ waitForPort = 3001
 [workflows.workflow.metadata]
 outputType = "console"
 isCanvasWorkflow = true
+
+[[workflows.workflow]]
+name = "Video Recorder"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "rm -f exports/raw/04-civic-silent.mp4 && node scripts/record-video.mjs --out exports/raw/04-civic-silent.mp4 --max-seconds 130 --warmup-ms 1500 && echo '====RECORDING_COMPLETE===='"
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [[ports]]
 localPort = 3001
