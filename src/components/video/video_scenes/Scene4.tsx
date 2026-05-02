@@ -3,110 +3,60 @@ import { useEffect, useState } from 'react';
 
 export function Scene4() {
   const [phase, setPhase] = useState(0);
-  const [score, setScore] = useState(0);
 
   useEffect(() => {
     const timers = [
-      setTimeout(() => setPhase(1), 300),  // Circle shows up
-      setTimeout(() => {
-        setPhase(2);
-        // Animate score from 0 to 98 over 1.5s
-        let current = 0;
-        const interval = setInterval(() => {
-          current += 2;
-          if (current >= 98) {
-            current = 98;
-            clearInterval(interval);
-          }
-          setScore(current);
-        }, 30);
-      }, 800),
-      setTimeout(() => setPhase(3), 2500), // Breakdown bars
-      setTimeout(() => setPhase(4), 4500), // Exit
+      setTimeout(() => setPhase(1), 500),
+      setTimeout(() => setPhase(2), 2500),
+      setTimeout(() => setPhase(3), 14000),
     ];
     return () => timers.forEach(t => clearTimeout(t));
   }, []);
 
   return (
     <motion.div 
-      className="absolute inset-0 flex items-center justify-center bg-[#0F2346]"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ scale: 1.5, opacity: 0 }}
-      transition={{ duration: 0.8 }}
+      className="absolute inset-0 flex items-center justify-center overflow-hidden"
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ x: '100%', opacity: 0 }}
+      transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
     >
-      <div className="flex w-[80vw] gap-[5vw] items-center justify-between">
-        {/* Left side: Text */}
-        <div className="w-1/2">
+      <div className="absolute inset-0 opacity-10 bg-center bg-cover mix-blend-overlay" style={{ backgroundImage: `url(${import.meta.env.BASE_URL}images/bg-nigeria-map.png)` }} />
+
+      <div className="flex w-[80vw] justify-between items-center z-10" style={{ perspective: 1200 }}>
+        <motion.div 
+          className="w-[45%] bg-[#0A1628] rounded-[1vw] border border-white/10 p-[2vw] font-mono text-[1.2vw] shadow-2xl relative overflow-hidden"
+          initial={{ rotateY: -30, opacity: 0, x: -50 }}
+          animate={phase >= 1 ? { rotateY: 5, opacity: 1, x: 0 } : { rotateY: -30, opacity: 0, x: -50 }}
+          transition={{ type: 'spring', stiffness: 100, damping: 20 }}
+        >
+          <div className="absolute top-0 left-0 right-0 h-[2vw] bg-white/5 flex items-center px-[1vw] gap-[0.5vw]">
+             <div className="w-[0.8vw] h-[0.8vw] rounded-full bg-white/20" />
+             <div className="w-[0.8vw] h-[0.8vw] rounded-full bg-white/20" />
+          </div>
+          <div className="mt-[2vw] text-white/80 whitespace-pre">
+            <span className="text-[#D4A24C]">import</span> {'{'} Arapoint {'}'} <span className="text-[#D4A24C]">from</span> 'arapoint-node';<br/><br/>
+            <span className="text-[#6DB33F]">const</span> api = <span className="text-[#D4A24C]">new</span> Arapoint(process.env.KEY);<br/><br/>
+            <span className="text-[#6DB33F]">const</span> cac = <span className="text-[#D4A24C]">await</span> api.business.verify({'{\n'}
+            {'  '}rcNumber: <span className="text-green-300">'RC-123456'</span>{'\n}'});
+          </div>
+        </motion.div>
+
+        <div className="w-[45%] text-right">
           <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            animate={phase >= 1 ? { opacity: 1, x: 0 } : { opacity: 0, x: -30 }}
-            transition={{ duration: 0.6 }}
+            initial={{ opacity: 0, x: 30 }}
+            animate={phase >= 2 ? { opacity: 1, x: 0 } : { opacity: 0, x: 30 }}
+            transition={{ duration: 0.8 }}
           >
-            <h2 className="text-[3.5vw] font-black text-white leading-tight mb-[1vw]">
-              EMPLOYMENT<br/>
-              <span className="text-[#6DB33F]">TRUST SCORE</span>
+            <h2 className="text-[4.5vw] font-black text-white leading-tight mb-[1vw]">
+              BUSINESS & <span className="text-[#D4A24C]">API</span>
             </h2>
-            <p className="text-[1.5vw] text-white/70">
-              Cross-reference NIN, BVN & SSCE instantly.
+            <div className="w-[4vw] h-[0.5vw] bg-[#D4A24C] mb-[2vw] ml-auto" />
+            <p className="text-[1.8vw] text-white/70 font-medium leading-relaxed">
+              Retrieve Corporate Affairs Commission details instantly. Integrate securely into your apps.
             </p>
           </motion.div>
         </div>
-
-        {/* Right side: Dashboard UI element */}
-        <motion.div 
-          className="w-1/2 bg-[#1C3A6B]/50 border border-[#1C3A6B] rounded-[2vw] p-[3vw] flex flex-col items-center backdrop-blur-md"
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={phase >= 1 ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.9 }}
-          transition={{ type: 'spring', stiffness: 200, damping: 20, delay: 0.2 }}
-        >
-          {/* Circular Score Meter */}
-          <div className="relative w-[15vw] h-[15vw] mb-[3vw]">
-            {/* Background track */}
-            <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full -rotate-90">
-              <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="10" strokeLinecap="round" />
-              {/* Animated Progress */}
-              <motion.circle 
-                cx="50" cy="50" r="45" fill="none" stroke="#6DB33F" strokeWidth="10" strokeLinecap="round"
-                initial={{ strokeDasharray: "283", strokeDashoffset: 283 }}
-                animate={phase >= 2 ? { strokeDashoffset: 283 - (283 * score) / 100 } : { strokeDashoffset: 283 }}
-                transition={{ duration: 1.5, ease: "easeOut" }}
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-[4vw] font-bold text-white leading-none font-mono">{score}</span>
-              <span className="text-[1vw] text-[#6DB33F] font-bold tracking-widest uppercase mt-[0.5vw]">Pass</span>
-            </div>
-          </div>
-
-          {/* Breakdown bars */}
-          <div className="w-full space-y-[1vw]">
-            {[
-              { label: "IDENTITY MATCH", val: 100, delay: 0 },
-              { label: "ACADEMIC VALID", val: 100, delay: 0.1 },
-              { label: "FRAUD RISK", val: 95, delay: 0.2 }
-            ].map((item, i) => (
-              <div key={i} className="w-full">
-                <div className="flex justify-between text-[0.8vw] font-mono text-white/60 mb-[0.3vw]">
-                  <span>{item.label}</span>
-                  <motion.span
-                    initial={{ opacity: 0 }}
-                    animate={phase >= 3 ? { opacity: 1 } : { opacity: 0 }}
-                    transition={{ delay: item.delay + 0.3 }}
-                  >{item.val}%</motion.span>
-                </div>
-                <div className="w-full h-[0.5vw] bg-white/10 rounded-full overflow-hidden">
-                  <motion.div 
-                    className="h-full bg-[#6DB33F]"
-                    initial={{ width: 0 }}
-                    animate={phase >= 3 ? { width: `${item.val}%` } : { width: 0 }}
-                    transition={{ duration: 0.8, delay: item.delay, ease: "easeOut" }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
       </div>
     </motion.div>
   );

@@ -1,0 +1,10 @@
+Welcome to Arapoint. Built for Nigeria. Powered by trust.
+In today's digital economy, knowing exactly who you're dealing with is everything. Manual checks and scattered systems slow Nigeria down. So we built Arapoint, a single source of truth for identity, education, and digital services.
+Start with Identity. Verify National Identity Numbers and Bank Verification Numbers in seconds, straight from official databases. No delays, no guesswork.
+For Education, academic forgery ends here. Confirm WAEC, NECO, and JAMB results directly with the source.
+For Business, retrieve Corporate Affairs Commission profiles instantly, and plug our scalable API into your own product to onboard customers seamlessly.
+The Arapoint Wallet keeps payments simple. One secure balance for every platform transaction.
+Need utilities? Process electricity, cable, data, and airtime through VTU services with guaranteed uptime and instant delivery.
+And our growing Agent network puts digital trust in every neighborhood, so anyone can build a business serving their community.
+Identity, Education, Business, Wallet, VTU, and Agents. Everything Nigeria needs, on one platform.
+Experience the future of digital trust today. Visit arapoint.com.ng.

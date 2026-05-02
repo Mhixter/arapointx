@@ -276,6 +276,30 @@ uri = "file://attached_assets/generated_images/banners/dev_25_get_api_key.png"
 type = "image"
 title = "dev_25_get_api_key"
 
+[[generated]]
+id = "54Gt2iTP2J-ttaq9ZtghC"
+uri = "file://public/images/bg-nigeria-map.png"
+type = "image"
+title = "Abstract Nigeria map wireframe"
+
+[[generated]]
+id = "G0s0wNyOnfG349N6yYuII"
+uri = "file://public/images/bg-data-flow.png"
+type = "image"
+title = "Abstract tech data flow"
+
+[[generated]]
+id = "XOXlNB-mOT4tvAtmufKSs"
+uri = "file://public/images/bg-fingerprint.png"
+type = "image"
+title = "Abstract biometric fingerprint"
+
+[[generated]]
+id = "_49bRT8QCiHF0_r5yP-ie"
+uri = "file://public/images/bg-wallet.png"
+type = "image"
+title = "Abstract wallet finance nodes"
+
 [[outputs]]
 id = "z6o-oO6GVSPv_J9EZkzSF"
 uri = "file://attached_assets/generated_images/arapoint_launch_banner.png"

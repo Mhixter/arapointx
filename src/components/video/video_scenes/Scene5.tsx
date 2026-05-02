@@ -6,107 +6,49 @@ export function Scene5() {
 
   useEffect(() => {
     const timers = [
-      setTimeout(() => setPhase(1), 200),  // Code window
-      setTimeout(() => setPhase(2), 600),  // Typing starts
-      setTimeout(() => setPhase(3), 2000), // Result JSON appears
-      setTimeout(() => setPhase(4), 4200), // Exit
+      setTimeout(() => setPhase(1), 500),
+      setTimeout(() => setPhase(2), 2000),
+      setTimeout(() => setPhase(3), 14000),
     ];
     return () => timers.forEach(t => clearTimeout(t));
   }, []);
 
-  const codeSnippet = `const response = await arapoint.verify({
-  type: "unified",
-  nin: "12345678901",
-  bvn: "22345678901"
-});`;
-
-  const jsonResult = `{
-  "status": "success",
-  "verified": true,
-  "confidence": 98.5,
-  "data": { ... }
-}`;
-
   return (
     <motion.div 
-      className="absolute inset-0 flex items-center justify-center"
-      initial={{ opacity: 0, rotateX: 20, y: '20vh' }}
-      animate={{ opacity: 1, rotateX: 0, y: 0 }}
-      exit={{ opacity: 0, scale: 0.8 }}
-      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-      style={{ perspective: 1500 }}
+      className="absolute inset-0 flex items-center justify-center overflow-hidden"
+      initial={{ x: '-100%', opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ y: '-100%', opacity: 0 }}
+      transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
     >
-      <div className="absolute inset-0 z-0 opacity-30">
-        <video 
-          src={`${import.meta.env.BASE_URL}videos/data-grid.mp4`}
-          className="w-full h-full object-cover"
-          autoPlay muted loop playsInline
-        />
-      </div>
+      <div className="absolute inset-0 opacity-20 bg-center bg-cover mix-blend-overlay" style={{ backgroundImage: `url(${import.meta.env.BASE_URL}images/bg-wallet.png)` }} />
 
-      <div className="relative z-10 flex flex-col items-center w-full max-w-[70vw]">
-        <motion.h2 
-          className="text-[4vw] font-black text-white text-center leading-tight mb-[3vw]"
-          initial={{ opacity: 0, y: -20 }}
-          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: -20 }}
-          transition={{ duration: 0.6 }}
+      <div className="flex flex-col items-center z-10 w-full">
+        <motion.div
+          initial={{ opacity: 0, y: -30 }}
+          animate={phase >= 1 ? { opacity: 1, y: 0 } : { opacity: 0, y: -30 }}
+          transition={{ duration: 0.8 }}
+          className="text-center mb-[4vw]"
         >
-          ONE API.<br/>
-          <span className="text-[#6DB33F]">EVERY VERIFICATION.</span>
-        </motion.h2>
+          <h2 className="text-[4.5vw] font-black text-white leading-tight">
+            ARAPOINT <span className="text-[#D4A24C]">WALLET</span>
+          </h2>
+          <p className="text-[1.5vw] text-white/70 font-medium">One unified, secure balance.</p>
+        </motion.div>
 
-        <div className="flex w-full gap-[2vw]">
-          {/* Code Editor */}
-          <motion.div 
-            className="w-1/2 bg-[#0A162D] rounded-[1vw] border border-white/10 overflow-hidden shadow-2xl font-mono text-[1.2vw]"
-            initial={{ x: -50, opacity: 0 }}
-            animate={phase >= 1 ? { x: 0, opacity: 1 } : { x: -50, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-          >
-            <div className="h-[2.5vw] bg-white/5 flex items-center px-[1vw] gap-[0.5vw]">
-              <div className="w-[0.8vw] h-[0.8vw] rounded-full bg-red-500/80" />
-              <div className="w-[0.8vw] h-[0.8vw] rounded-full bg-yellow-500/80" />
-              <div className="w-[0.8vw] h-[0.8vw] rounded-full bg-green-500/80" />
-            </div>
-            <div className="p-[2vw] text-white/80 whitespace-pre">
-              {phase >= 2 && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                >
-                  <span className="text-[#6DB33F]">const</span> response = <span className="text-[#6DB33F]">await</span> arapoint.verify({'{'}<br/>
-                  {'  '}type: <span className="text-yellow-300">"unified"</span>,<br/>
-                  {'  '}nin: <span className="text-yellow-300">"12345678901"</span>,<br/>
-                  {'  '}bvn: <span className="text-yellow-300">"22345678901"</span><br/>
-                  {'}'});
-                </motion.div>
-              )}
-            </div>
-          </motion.div>
-
-          {/* Response JSON */}
-          <motion.div 
-            className="w-1/2 bg-[#1C3A6B]/30 backdrop-blur-md rounded-[1vw] border border-[#6DB33F]/30 overflow-hidden shadow-2xl font-mono text-[1.2vw]"
-            initial={{ x: 50, opacity: 0 }}
-            animate={phase >= 3 ? { x: 0, opacity: 1 } : { x: 50, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-          >
-            <div className="h-[2.5vw] bg-[#6DB33F]/10 flex items-center px-[1.5vw]">
-              <span className="text-[#6DB33F] text-[0.8vw] tracking-wider font-bold">200 OK</span>
-            </div>
-            <div className="p-[2vw] text-green-300 whitespace-pre">
-              {jsonResult}
-            </div>
-          </motion.div>
-        </div>
-        
         <motion.div 
-          className="mt-[3vw] text-[1.2vw] text-white/50 font-mono tracking-widest"
-          initial={{ opacity: 0 }}
-          animate={phase >= 1 ? { opacity: 1 } : { opacity: 0 }}
-          transition={{ delay: 0.8 }}
+          className="w-[40vw] bg-gradient-to-br from-[#1C3A6B] to-[#0A1628] rounded-[2vw] p-[3vw] shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10"
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={phase >= 2 ? { scale: 1, opacity: 1 } : { scale: 0.8, opacity: 0 }}
+          transition={{ type: 'spring', stiffness: 120, damping: 20 }}
         >
-          developer.arapoint.com.ng
+          <div className="text-[1.2vw] text-white/50 mb-[0.5vw]">Total Balance</div>
+          <div className="text-[4vw] font-black text-white font-mono mb-[2vw]">₦ 2,540,000.00</div>
+          
+          <div className="flex gap-[1vw]">
+            <div className="flex-1 bg-white/5 rounded-[1vw] py-[1.5vw] text-center text-white text-[1.2vw] border border-white/10">Fund</div>
+            <div className="flex-1 bg-[#6DB33F] rounded-[1vw] py-[1.5vw] text-center text-white font-bold text-[1.2vw]">Transfer</div>
+          </div>
         </motion.div>
       </div>
     </motion.div>
