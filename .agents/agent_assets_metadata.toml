@@ -658,4 +658,58 @@ title = "Arapoint — Secure Identity Infrastructure (Dark with Logo)"
 id = "rir4ljfuyRauWjhiDa_K5"
 uri = "file://videos/10-production-best-practices.mp4"
 type = "video"
-title = "Video 10 — Arapoint API in Production"
+title = "Video 10 — API in Production"
+
+[[outputs]]
+id = "57IYyLNBnu7keDvsq6rEO"
+uri = "file://videos/01-welcome-to-arapoint.mp4"
+type = "video"
+title = "Video 1 — Welcome to Arapoint"
+
+[[outputs]]
+id = "WlcCXcZpFemAt9bWJc69w"
+uri = "file://videos/02-nin-verification-and-slips.mp4"
+type = "video"
+title = "Video 2 — NIN Verification & Slips"
+
+[[outputs]]
+id = "wQXKZJJs4YLciGUbI7ICD"
+uri = "file://videos/03-bvn-retrieval-and-modification.mp4"
+type = "video"
+title = "Video 3 — BVN Retrieval & Modification"
+
+[[outputs]]
+id = "KI-xDJaN4IbzIxDM9cwP3"
+uri = "file://videos/04-civic-documents.mp4"
+type = "video"
+title = "Video 4 — Civic Documents"
+
+[[outputs]]
+id = "l5swdPuQp_2jYun0BqS6U"
+uri = "file://videos/05-education-verification.mp4"
+type = "video"
+title = "Video 5 — Education Verification"
+
+[[outputs]]
+id = "s_XrTshFDXjImmYB-Q4Vs"
+uri = "file://videos/06-wallet-and-payments.mp4"
+type = "video"
+title = "Video 6 — Wallet & Payments"
+
+[[outputs]]
+id = "CIOmgE8YbFuK-enhD1BBr"
+uri = "file://videos/07-become-an-agent.mp4"
+type = "video"
+title = "Video 7 — Become an Agent"
+
+[[outputs]]
+id = "0axvtL9BGU-bJhfkw2ATA"
+uri = "file://videos/08-developer-api-overview.mp4"
+type = "video"
+title = "Video 8 — Developer API Overview"
+
+[[outputs]]
+id = "4d9qOG_tcso7bdP6M8DNc"
+uri = "file://videos/09-webhooks-and-events.mp4"
+type = "video"
+title = "Video 9 — Webhooks & Events"
