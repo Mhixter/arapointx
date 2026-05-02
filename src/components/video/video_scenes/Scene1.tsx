@@ -36,7 +36,7 @@ export function Scene1() {
       { status: 'pending',   latency: '129ms', tone: '#FCD34D' },
       { status: 'completed', latency: '146ms', tone: '#A7E07A' },
     ];
-    const ids: any[] = [];
+    const ids: ReturnType<typeof setTimeout>[] = [];
     sequence.forEach((row, i) => {
       ids.push(setTimeout(() => setPolls((prev) => [...prev, row]), 700 + i * 950));
     });

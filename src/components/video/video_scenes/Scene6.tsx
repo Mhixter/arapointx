@@ -26,7 +26,7 @@ export function Scene6() {
   const events = [
     { name: 'verification.completed', tone: '#A7E07A', desc: 'fires when an RPA job finishes' },
     { name: 'verification.failed',    tone: '#FCA5A5', desc: 'fires on permanent job failure' },
-    { name: 'verification.test',      tone: '#FCD34D', desc: 'fires from POST /webhook/test' },
+    { name: 'verification.test',      tone: '#FCD34D', desc: 'fires from POST /developer/webhook/test' },
   ];
 
   return (

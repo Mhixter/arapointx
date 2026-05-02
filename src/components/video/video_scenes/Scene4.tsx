@@ -175,7 +175,7 @@ export function Scene4() {
         >
           {[
             { tone: '#A7E07A', title: '5 attempts', body: '1 first try + 4 retries' },
-            { tone: '#22D3EE', title: 'every attempt logged', body: 'GET /webhook/logs' },
+            { tone: '#22D3EE', title: 'every attempt logged', body: 'GET /developer/webhook/logs' },
             { tone: '#FCD34D', title: 'no event silently lost', body: 'queued, swept, retried' },
           ].map((c) => (
             <div
