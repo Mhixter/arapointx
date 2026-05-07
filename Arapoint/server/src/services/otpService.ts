@@ -53,9 +53,8 @@ export const otpService = {
       
       return sent;
     } catch (error: any) {
-      logger.error('Failed to send OTP email', { email, error: error.message });
-      logger.info(`OTP for ${email}: ${otp} (email failed, logging for fallback)`);
-      return true;
+      logger.error('Failed to send OTP email', { email, purpose, error: error.message });
+      return false;
     }
   },
 
@@ -85,10 +84,13 @@ export const otpService = {
   async sendOTP(email: string, purpose: string = 'registration'): Promise<boolean> {
     try {
       const otp = await this.createOTP(email, purpose);
-      await this.sendOTPEmail(email, otp, purpose);
-      return true;
+      const sent = await this.sendOTPEmail(email, otp, purpose);
+      if (!sent) {
+        logger.error('OTP email delivery failed', { email, purpose });
+      }
+      return sent;
     } catch (error: any) {
-      logger.error('Failed to send OTP', { email, error: error.message });
+      logger.error('Failed to send OTP', { email, purpose, error: error.message });
       throw error;
     }
   },

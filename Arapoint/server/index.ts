@@ -105,6 +105,30 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
+const SENSITIVE_LOG_KEYS = new Set([
+  "accessToken", "refreshToken", "token", "otp",
+  "nin", "bvn", "photo", "slip", "slipHtml", "slipContent",
+  "virtualAccountNumber", "accountNumber", "bankAccount",
+  "firstName", "lastName", "middleName", "fullName", "dateOfBirth", "dob",
+  "phone", "phoneNumber", "email", "address", "residentialAddress",
+  "enrollmentBank", "enrollmentBranch", "watchlisted",
+  "password", "pin", "secret", "apiKey", "webhookSecret",
+]);
+
+function redactSensitive(obj: any, depth = 0): any {
+  if (depth > 5 || obj === null || typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) return obj.map((item) => redactSensitive(item, depth + 1));
+  const result: Record<string, any> = {};
+  for (const key of Object.keys(obj)) {
+    if (SENSITIVE_LOG_KEYS.has(key)) {
+      result[key] = "[REDACTED]";
+    } else {
+      result[key] = redactSensitive(obj[key], depth + 1);
+    }
+  }
+  return result;
+}
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -121,7 +145,7 @@ app.use((req, res, next) => {
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        logLine += ` :: ${JSON.stringify(redactSensitive(capturedJsonResponse))}`;
       }
 
       log(logLine);
