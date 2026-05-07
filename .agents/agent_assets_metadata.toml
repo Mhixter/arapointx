@@ -713,3 +713,9 @@ id = "4d9qOG_tcso7bdP6M8DNc"
 uri = "file://videos/09-webhooks-and-events.mp4"
 type = "video"
 title = "Video 9 — Webhooks & Events"
+
+[[outputs]]
+id = "sHVbkZw0HcPHhBzYXyP0X"
+uri = "file://exports/db-backup/arapoint-backup-2026-05-07.json"
+type = "unspecified"
+title = "Arapoint Production DB Backup (2026-05-07)"
