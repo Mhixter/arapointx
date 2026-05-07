@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { authMiddleware } from '../middleware/auth';
 import { db } from '../../config/database';
 import {
@@ -27,6 +27,8 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
+import jwt from 'jsonwebtoken';
+import { config } from '../../config/env';
 
 const SUPPORT_UPLOADS_DIR = path.join(process.cwd(), 'uploads', 'support');
 if (!fs.existsSync(SUPPORT_UPLOADS_DIR)) fs.mkdirSync(SUPPORT_UPLOADS_DIR, { recursive: true });
@@ -51,7 +53,84 @@ const supportUpload = multer({
 
 const router = Router();
 
-router.use(authMiddleware);
+/**
+ * Combined auth middleware that accepts both regular user JWTs and admin JWTs.
+ * Sets req.userId for regular users, and also sets req.isAdmin / req.adminRole for admins.
+ * This allows user-facing support routes and staff-only routes to share the same router
+ * while the requireSupportStaff guard enforces role separation on privileged endpoints.
+ */
+const supportRouterAuth = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json(formatErrorResponse(401, 'No token provided'));
+    }
+
+    const token = authHeader.slice(7);
+    if (!token || token.trim() === '') {
+      return res.status(401).json(formatErrorResponse(401, 'No token provided'));
+    }
+
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, config.JWT_SECRET) as any;
+    } catch (jwtErr: any) {
+      const isExpired = jwtErr.name === 'TokenExpiredError';
+      return res.status(401).json(formatErrorResponse(401, isExpired ? 'Token has expired' : 'Invalid token'));
+    }
+
+    if (decoded.isAdmin) {
+      // Admin / support agent token
+      const [admin] = await db.select({ id: adminUsers.id, isActive: adminUsers.isActive })
+        .from(adminUsers)
+        .where(eq(adminUsers.id, decoded.adminId))
+        .limit(1);
+
+      if (!admin || !admin.isActive) {
+        return res.status(403).json(formatErrorResponse(403, 'Admin account is inactive or not found'));
+      }
+
+      req.adminId = decoded.adminId;
+      req.userId = decoded.adminId;
+      req.isAdmin = true;
+      req.adminRole = decoded.role || 'admin';
+      return next();
+    }
+
+    // Regular user token
+    req.userId = decoded.userId;
+    const [user] = await db.select({ isSuspended: users.isSuspended, suspendReason: users.suspendReason })
+      .from(users)
+      .where(eq(users.id, decoded.userId))
+      .limit(1);
+
+    if (!user) {
+      return res.status(401).json(formatErrorResponse(401, 'Account not found'));
+    }
+
+    if (user.isSuspended) {
+      return res.status(403).json(formatErrorResponse(403, 'Your account has been suspended. Please contact support.'));
+    }
+
+    next();
+  } catch (error) {
+    logger.error('Support router auth error:', error);
+    res.status(401).json(formatErrorResponse(401, 'Invalid token'));
+  }
+};
+
+/**
+ * Middleware that restricts access to support staff (admins and support agents) only.
+ * Must be used AFTER supportRouterAuth. Regular user tokens will be rejected with 403.
+ */
+const requireSupportStaff = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.isAdmin) {
+    return res.status(403).json(formatErrorResponse(403, 'Support staff access required'));
+  }
+  next();
+};
+
+router.use(supportRouterAuth);
 
 async function findAvailableAgent(): Promise<{ id: string; name: string } | null> {
   try {
@@ -778,7 +857,7 @@ router.post('/presence/heartbeat', async (req: Request, res: Response) => {
 // CROSS-DEPARTMENT LOOKUP (Support Agent Tool)
 // =====================================================
 
-router.get('/lookup', async (req: Request, res: Response) => {
+router.get('/lookup', requireSupportStaff, async (req: Request, res: Response) => {
   try {
     const { q } = req.query as { q?: string };
     if (!q || q.trim().length < 3) {
@@ -978,7 +1057,7 @@ router.get('/lookup', async (req: Request, res: Response) => {
 // DEPARTMENT TAGGING
 // =====================================================
 
-router.put('/tickets/:id/department', async (req: Request, res: Response) => {
+router.put('/tickets/:id/department', requireSupportStaff, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { departmentTag, linkedOrderId, linkedOrderType } = req.body;
@@ -1009,7 +1088,7 @@ router.put('/tickets/:id/department', async (req: Request, res: Response) => {
 // INTERNAL MESSAGES (cross-dept notes)
 // =====================================================
 
-router.get('/tickets/:id/internal-messages', async (req: Request, res: Response) => {
+router.get('/tickets/:id/internal-messages', requireSupportStaff, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -1029,7 +1108,7 @@ router.get('/tickets/:id/internal-messages', async (req: Request, res: Response)
   }
 });
 
-router.post('/tickets/:id/internal-messages', async (req: Request, res: Response) => {
+router.post('/tickets/:id/internal-messages', requireSupportStaff, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { message, toDepartment, linkedOrderId } = req.body;
@@ -1070,7 +1149,7 @@ router.post('/tickets/:id/internal-messages', async (req: Request, res: Response
 // FRAUD ALERTS
 // =====================================================
 
-router.get('/fraud-alerts', async (req: Request, res: Response) => {
+router.get('/fraud-alerts', requireSupportStaff, async (req: Request, res: Response) => {
   try {
     const { page = '1', limit = '20', status } = req.query as any;
     const result = await fraudService.getAlerts(parseInt(page), parseInt(limit), status);
@@ -1081,7 +1160,7 @@ router.get('/fraud-alerts', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/fraud-alerts/:id/resolve', async (req: Request, res: Response) => {
+router.post('/fraud-alerts/:id/resolve', requireSupportStaff, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { note } = req.body;
@@ -1094,7 +1173,7 @@ router.post('/fraud-alerts/:id/resolve', async (req: Request, res: Response) => 
   }
 });
 
-router.post('/fraud-alerts/:id/dismiss', async (req: Request, res: Response) => {
+router.post('/fraud-alerts/:id/dismiss', requireSupportStaff, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const agentId = req.userId!;

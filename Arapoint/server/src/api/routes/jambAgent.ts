@@ -176,9 +176,16 @@ router.get('/stats', jambAgentAuthMiddleware, async (req: Request, res: Response
 
 router.get('/requests', jambAgentAuthMiddleware, async (req: Request, res: Response) => {
   try {
+    const agentId = (req as any).agentId;
     const { status } = req.query;
 
-    let query = db.select({
+    const ownershipCondition = eq(jambServiceRequests.assignedAgentId, agentId);
+    const statusCondition = (status && status !== 'all')
+      ? eq(jambServiceRequests.status, status as string)
+      : undefined;
+    const whereClause = statusCondition ? and(ownershipCondition, statusCondition) : ownershipCondition;
+
+    const requests = await db.select({
       id: jambServiceRequests.id,
       trackingId: jambServiceRequests.trackingId,
       serviceType: jambServiceRequests.serviceType,
@@ -197,14 +204,8 @@ router.get('/requests', jambAgentAuthMiddleware, async (req: Request, res: Respo
     })
       .from(jambServiceRequests)
       .leftJoin(users, eq(jambServiceRequests.userId, users.id))
+      .where(whereClause)
       .orderBy(desc(jambServiceRequests.createdAt));
-
-    let requests;
-    if (status && status !== 'all') {
-      requests = await query.where(eq(jambServiceRequests.status, status as string));
-    } else {
-      requests = await query;
-    }
 
     res.json(formatResponse('success', 200, 'Requests retrieved', { requests }));
   } catch (error: any) {
@@ -215,6 +216,7 @@ router.get('/requests', jambAgentAuthMiddleware, async (req: Request, res: Respo
 
 router.get('/requests/:id', jambAgentAuthMiddleware, async (req: Request, res: Response, next) => {
   try {
+    const agentId = (req as any).agentId;
     const { id } = req.params;
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return next();
 
@@ -234,6 +236,7 @@ router.get('/requests/:id', jambAgentAuthMiddleware, async (req: Request, res: R
       resultUrl: jambServiceRequests.resultUrl,
       resultData: jambServiceRequests.resultData,
       createdAt: jambServiceRequests.createdAt,
+      assignedAgentId: jambServiceRequests.assignedAgentId,
       userName: users.name,
     })
       .from(jambServiceRequests)
@@ -245,12 +248,18 @@ router.get('/requests/:id', jambAgentAuthMiddleware, async (req: Request, res: R
       return res.status(404).json(formatErrorResponse(404, 'Request not found'));
     }
 
+    // Only allow access if the agent owns the job or the job is still unassigned (available for pickup)
+    if (request.assignedAgentId !== null && request.assignedAgentId !== agentId) {
+      return res.status(403).json(formatErrorResponse(403, 'You do not have access to this request'));
+    }
+
     const documents = await db.select()
       .from(jambRequestDocuments)
       .where(eq(jambRequestDocuments.requestId, id))
       .orderBy(desc(jambRequestDocuments.createdAt));
 
-    res.json(formatResponse('success', 200, 'Request details', { request, documents }));
+    const { assignedAgentId: _omit, ...requestData } = request;
+    res.json(formatResponse('success', 200, 'Request details', { request: requestData, documents }));
   } catch (error: any) {
     logger.error('Get JAMB request details error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to get request details'));
@@ -383,6 +392,11 @@ router.post('/requests/:id/upload', jambAgentAuthMiddleware, agentUpload.single(
       return res.status(404).json(formatErrorResponse(404, 'Request not found'));
     }
 
+    // Ownership guard: only the assigned agent may upload result documents
+    if (!request.assignedAgentId || request.assignedAgentId !== agentId) {
+      return res.status(403).json(formatErrorResponse(403, 'You do not own this job. Pick it from the Job Inventory first.'));
+    }
+
     if (!req.file) {
       return res.status(400).json(formatErrorResponse(400, 'No file uploaded'));
     }
@@ -451,6 +465,7 @@ router.post('/requests/:id/upload', jambAgentAuthMiddleware, agentUpload.single(
 
 router.get('/documents/:docId/download', jambAgentAuthMiddleware, async (req: Request, res: Response) => {
   try {
+    const agentId = (req as any).agentId;
     const { docId } = req.params;
 
     const [doc] = await db.select()
@@ -460,6 +475,16 @@ router.get('/documents/:docId/download', jambAgentAuthMiddleware, async (req: Re
 
     if (!doc) {
       return res.status(404).json(formatErrorResponse(404, 'Document not found'));
+    }
+
+    // Ownership guard: verify the document belongs to one of this agent's jobs
+    const [parentRequest] = await db.select({ assignedAgentId: jambServiceRequests.assignedAgentId })
+      .from(jambServiceRequests)
+      .where(eq(jambServiceRequests.id, doc.requestId))
+      .limit(1);
+
+    if (!parentRequest || (parentRequest.assignedAgentId !== null && parentRequest.assignedAgentId !== agentId)) {
+      return res.status(403).json(formatErrorResponse(403, 'You do not have access to this document'));
     }
 
     res.setHeader('Content-Disposition', `attachment; filename="${doc.fileName || 'document'}"`);

@@ -169,9 +169,16 @@ router.get('/stats', educationAgentAuthMiddleware, async (req: Request, res: Res
 
 router.get('/requests', educationAgentAuthMiddleware, async (req: Request, res: Response) => {
   try {
+    const agentId = (req as any).agentId;
     const { status } = req.query;
 
-    let query = db.select({
+    const ownershipCondition = eq(educationServiceRequests.assignedAgentId, agentId);
+    const statusCondition = (status && status !== 'all')
+      ? eq(educationServiceRequests.status, status as string)
+      : undefined;
+    const whereClause = statusCondition ? and(ownershipCondition, statusCondition) : ownershipCondition;
+
+    const requests = await db.select({
       id: educationServiceRequests.id,
       trackingId: educationServiceRequests.trackingId,
       serviceType: educationServiceRequests.serviceType,
@@ -189,14 +196,8 @@ router.get('/requests', educationAgentAuthMiddleware, async (req: Request, res: 
     })
       .from(educationServiceRequests)
       .leftJoin(users, eq(educationServiceRequests.userId, users.id))
+      .where(whereClause)
       .orderBy(desc(educationServiceRequests.createdAt));
-
-    let requests;
-    if (status && status !== 'all') {
-      requests = await query.where(eq(educationServiceRequests.status, status as string));
-    } else {
-      requests = await query;
-    }
 
     res.json(formatResponse('success', 200, 'Requests retrieved', { requests }));
   } catch (error: any) {
@@ -311,6 +312,11 @@ router.post('/requests/:id/upload', educationAgentAuthMiddleware, async (req: Re
       return res.status(404).json(formatErrorResponse(404, 'Request not found'));
     }
 
+    // Ownership guard: only the assigned agent may upload result documents
+    if (!request.assignedAgentId || request.assignedAgentId !== agentId) {
+      return res.status(403).json(formatErrorResponse(403, 'You do not own this job. Pick it from the Job Inventory first.'));
+    }
+
     const { uploadURL, objectPath } = await objectStorage.getObjectEntityUploadURL('edu-docs');
 
     const [doc] = await db.insert(educationRequestDocuments).values({
@@ -348,6 +354,7 @@ router.post('/requests/:id/upload', educationAgentAuthMiddleware, async (req: Re
 // Download document
 router.get('/documents/:docId/download', educationAgentAuthMiddleware, async (req: Request, res: Response) => {
   try {
+    const agentId = (req as any).agentId;
     const { docId } = req.params;
 
     const [doc] = await db.select()
@@ -357,6 +364,16 @@ router.get('/documents/:docId/download', educationAgentAuthMiddleware, async (re
 
     if (!doc) {
       return res.status(404).json(formatErrorResponse(404, 'Document not found'));
+    }
+
+    // Ownership guard: verify the document belongs to one of this agent's jobs
+    const [parentRequest] = await db.select({ assignedAgentId: educationServiceRequests.assignedAgentId })
+      .from(educationServiceRequests)
+      .where(eq(educationServiceRequests.id, doc.requestId))
+      .limit(1);
+
+    if (!parentRequest || (parentRequest.assignedAgentId !== null && parentRequest.assignedAgentId !== agentId)) {
+      return res.status(403).json(formatErrorResponse(403, 'You do not have access to this document'));
     }
 
     const file = await objectStorage.getObjectEntityFile(doc.fileKey);
