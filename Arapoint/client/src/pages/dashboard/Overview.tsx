@@ -58,7 +58,6 @@ export default function Overview() {
   const [generatingAccount, setGeneratingAccount] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const [appInstalled, setAppInstalled] = useState(false);
-  const [showIosGuide, setShowIosGuide] = useState(false);
   const [installBannerDismissed, setInstallBannerDismissed] = useState(
     () => localStorage.getItem('arapoint_install_dismissed') === 'true'
   );
@@ -200,8 +199,6 @@ export default function Overview() {
         setAppInstalled(true);
         setInstallPrompt(null);
       }
-    } else if (isIos) {
-      setShowIosGuide(true);
     }
   };
 
@@ -498,8 +495,8 @@ export default function Overview() {
         </div>
       </div>
 
-      {/* Get Our App banner */}
-      {!isInStandaloneMode && !appInstalled && !installBannerDismissed && (
+      {/* Android install banner */}
+      {!isIos && !isInStandaloneMode && !appInstalled && !installBannerDismissed && installPrompt && (
         <Card className="border-green-200 dark:border-green-800 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/40 dark:to-emerald-950/40 shadow-sm">
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-center gap-4">
@@ -508,11 +505,7 @@ export default function Overview() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-slate-800 dark:text-white text-sm sm:text-base">Get the Arapoint App</p>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-                  {isIos
-                    ? "Install on your iPhone — no App Store needed"
-                    : "Install on your Android phone — no Play Store needed"}
-                </p>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Install on your Android phone — no Play Store needed</p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <Button
@@ -532,28 +525,6 @@ export default function Overview() {
                 </button>
               </div>
             </div>
-
-            {/* iOS step-by-step guide */}
-            {showIosGuide && (
-              <div className="mt-4 p-3 rounded-lg bg-white dark:bg-slate-900 border border-green-100 dark:border-green-900">
-                <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 mb-2">How to install on iPhone / iPad:</p>
-                <ol className="space-y-1.5 text-xs text-muted-foreground">
-                  <li className="flex items-start gap-2">
-                    <span className="font-bold text-green-700 dark:text-green-400">1.</span>
-                    <span>Tap the <Share className="inline h-3.5 w-3.5 text-green-700" /> <strong>Share</strong> button at the bottom of your Safari browser</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="font-bold text-green-700 dark:text-green-400">2.</span>
-                    <span>Scroll down and tap <strong>"Add to Home Screen"</strong></span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="font-bold text-green-700 dark:text-green-400">3.</span>
-                    <span>Tap <strong>"Add"</strong> — the Arapoint icon will appear on your home screen</span>
-                  </li>
-                </ol>
-                <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">⚠️ Only works in Safari — not Chrome or Firefox on iOS.</p>
-              </div>
-            )}
           </CardContent>
         </Card>
       )}
@@ -562,6 +533,43 @@ export default function Overview() {
         <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 rounded-lg px-4 py-3">
           <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
           <span>Arapoint is installed on your device! Open it from your home screen anytime.</span>
+        </div>
+      )}
+
+      {/* iOS sticky bottom banner */}
+      {isIos && !isInStandaloneMode && !installBannerDismissed && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-2">
+          {/* Arrow pointing down toward Safari toolbar */}
+          <div className="flex justify-center mb-[-1px]">
+            <div
+              style={{
+                width: 0,
+                height: 0,
+                borderLeft: '10px solid transparent',
+                borderRight: '10px solid transparent',
+                borderTop: '10px solid #fff',
+                filter: 'drop-shadow(0 2px 2px rgba(0,0,0,0.08))',
+              }}
+            />
+          </div>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-4">
+            <div className="flex items-center gap-3">
+              <img src="/arapoint-logo.png" alt="Arapoint" className="h-12 w-12 rounded-xl object-contain flex-shrink-0 border border-slate-100" />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-slate-800 dark:text-white text-sm">Add Arapoint to Home Screen</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  Tap <Share className="inline h-3.5 w-3.5 text-blue-500 mx-0.5" /> <strong>Share</strong> below, then <strong>"Add to Home Screen"</strong>
+                </p>
+              </div>
+              <button
+                onClick={dismissBanner}
+                className="flex-shrink-0 text-muted-foreground hover:text-slate-700 dark:hover:text-slate-300 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                aria-label="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
