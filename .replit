@@ -80,11 +80,15 @@ args = "rm -f exports/raw/05-education-silent.mp4 && node scripts/record-video.m
 
 [[ports]]
 localPort = 3001
-externalPort = 3001
+externalPort = 80
+
+[[ports]]
+localPort = 3002
+externalPort = 3002
 
 [[ports]]
 localPort = 5000
-externalPort = 80
+externalPort = 5000
 
 [deployment]
 deploymentTarget = "vm"
