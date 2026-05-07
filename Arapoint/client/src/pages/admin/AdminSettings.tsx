@@ -16,6 +16,13 @@ import { Bell, Shield, Database, Globe, Save, Mail, Loader2, Send, CreditCard, C
 import { useToast } from "@/hooks/use-toast";
 import { useSettings } from "@/contexts/SettingsContext";
 
+const IDENTITY_PROVIDERS = [
+  { value: 'prembly',   label: 'Prembly',    sub: 'IdentityPass API',        color: 'blue' },
+  { value: 'youverify', label: 'YouVerify',   sub: 'YouVerify KYC API',       color: 'purple' },
+  { value: 'techhub',   label: 'TechHub',     sub: 'TechHub Identity API',    color: 'orange' },
+  { value: 'payvessel', label: 'PayVessel',   sub: 'KYC API (NIN + BVN)',     color: 'green' },
+] as const;
+
 export default function AdminSettings() {
   const { toast } = useToast();
   const { refetchSettings } = useSettings();
@@ -75,6 +82,9 @@ export default function AdminSettings() {
   const [cloudinaryStatus, setCloudinaryStatus] = useState<{ greenUrl?: string; blueUrl?: string; cloudName?: string }>({});
   const [uploadingLogos, setUploadingLogos] = useState(false);
   const [showCloudinarySecret, setShowCloudinarySecret] = useState(false);
+  const [activeIdentityProvider, setActiveIdentityProvider] = useState<string>('prembly');
+  const [savingIdentityProvider, setSavingIdentityProvider] = useState(false);
+  const [identityProviderLoaded, setIdentityProviderLoaded] = useState(false);
 
   const settingsMap: Record<string, string> = {
     waecUrl: 'rpa_provider_url_waec',
@@ -198,6 +208,38 @@ export default function AdminSettings() {
       console.error('Failed to fetch gateways', err);
     } finally {
       setGatewayLoading(false);
+    }
+  };
+
+  const fetchIdentityProvider = async () => {
+    if (identityProviderLoaded) return;
+    try {
+      const token = tokenStorage.getItem('adminToken');
+      const res = await fetch('/api/admin/aggregator-settings', { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.data?.settings?.active_identity_provider) {
+        setActiveIdentityProvider(data.data.settings.active_identity_provider);
+      }
+      setIdentityProviderLoaded(true);
+    } catch { /* silent */ }
+  };
+
+  const saveIdentityProvider = async (provider: string) => {
+    setSavingIdentityProvider(true);
+    try {
+      const token = tokenStorage.getItem('adminToken');
+      const res = await fetch('/api/admin/aggregator-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ settings: { active_identity_provider: provider } }),
+      });
+      if (!res.ok) throw new Error();
+      setActiveIdentityProvider(provider);
+      toast({ title: 'Identity provider updated', description: `Now using ${IDENTITY_PROVIDERS.find(p => p.value === provider)?.label || provider}.`, variant: 'success' });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to update identity provider.', variant: 'destructive' });
+    } finally {
+      setSavingIdentityProvider(false);
     }
   };
 
@@ -521,7 +563,7 @@ export default function AdminSettings() {
             <Headset className="h-3 w-3 sm:h-4 sm:w-4" />
             <span className="hidden xs:inline sm:inline">Support</span>
           </TabsTrigger>
-          <TabsTrigger value="gateways" className="gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm" onClick={() => { if (Object.keys(gateways).length === 0) fetchGateways(); }}>
+          <TabsTrigger value="gateways" className="gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm" onClick={() => { if (Object.keys(gateways).length === 0) fetchGateways(); fetchIdentityProvider(); }}>
             <CreditCard className="h-3 w-3 sm:h-4 sm:w-4" />
             <span className="hidden xs:inline sm:inline">Gateways</span>
           </TabsTrigger>
@@ -739,6 +781,63 @@ export default function AdminSettings() {
         </TabsContent>
 
         <TabsContent value="gateways" className="space-y-4 sm:space-y-6">
+          {/* ── Identity Provider Selector ─────────────────────────────────── */}
+          <Card>
+            <CardHeader className="p-4 sm:p-6 pb-3">
+              <div className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-blue-600" />
+                <div>
+                  <CardTitle className="text-base sm:text-lg">Active Identity Provider</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm mt-0.5">
+                    Choose which API the platform uses for NIN and BVN lookups. The others remain as fallbacks.
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-0">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {IDENTITY_PROVIDERS.map(p => {
+                  const isActive = activeIdentityProvider === p.value;
+                  return (
+                    <button
+                      key={p.value}
+                      onClick={() => !savingIdentityProvider && saveIdentityProvider(p.value)}
+                      disabled={savingIdentityProvider}
+                      className={`relative flex flex-col items-start gap-1 rounded-xl border-2 px-4 py-3 text-left transition-all disabled:opacity-60 ${
+                        isActive
+                          ? 'border-green-500 bg-green-50 dark:bg-green-950/30'
+                          : 'border-border bg-card hover:border-green-300 hover:bg-muted/50'
+                      }`}
+                    >
+                      {isActive && (
+                        <span className="absolute top-2 right-2">
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        </span>
+                      )}
+                      {savingIdentityProvider && activeIdentityProvider !== p.value && (
+                        <span className="absolute top-2 right-2">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                        </span>
+                      )}
+                      <span className={`text-sm font-semibold ${isActive ? 'text-green-700 dark:text-green-400' : 'text-foreground'}`}>
+                        {p.label}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground leading-tight">{p.sub}</span>
+                      {isActive && (
+                        <Badge className="mt-1 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 text-[10px] h-4 px-1.5">
+                          Active
+                        </Badge>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                Click a provider to switch immediately. The active provider is tried first; others act as fallback if unconfigured.
+              </p>
+            </CardContent>
+          </Card>
+
           {gatewayLoading ? (
             <div className="flex justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
