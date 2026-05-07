@@ -167,7 +167,33 @@ export default function JAMBServices() {
         stopSlipPolling();
         setSlipStatus('failed');
         setSlipSiteClosed(!!job.siteClosed);
-        setSlipError(job.errorMessage || 'The JAMB portal could not retrieve your slip. Please check your registration number and try again.');
+        const rawError = job.errorMessage || '';
+        let friendlyError: string;
+        if (
+          rawError.includes('socket hang up') ||
+          rawError.includes('ECONNREFUSED') ||
+          rawError.includes('Failed to initialize') ||
+          rawError.includes('net::') ||
+          rawError.includes('ERR_') ||
+          rawError.includes('Protocol error') ||
+          rawError.includes('Target closed') ||
+          rawError.includes('Session closed')
+        ) {
+          friendlyError = 'The service is temporarily unavailable. Your payment has been refunded — please try again in a few minutes.';
+        } else if (
+          rawError.includes('not found') ||
+          rawError.includes('invalid registration') ||
+          rawError.includes('Registration number not found')
+        ) {
+          friendlyError = 'Registration number not found. Please double-check your JAMB registration number and try again.';
+        } else if (rawError.includes('site_closed') || job.siteClosed) {
+          friendlyError = 'The JAMB slip printing portal is currently closed. Your payment has been refunded. Please try again when the portal reopens.';
+        } else if (rawError) {
+          friendlyError = rawError;
+        } else {
+          friendlyError = 'Could not retrieve your exam slip. Your payment has been refunded — please try again.';
+        }
+        setSlipError(friendlyError);
         setSlipProgress(0);
       }
     } catch {}

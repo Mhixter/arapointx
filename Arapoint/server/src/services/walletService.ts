@@ -166,6 +166,25 @@ export const walletService = {
     return parseFloat(user.commissionBalance || '0');
   },
 
+  async revokeCommission(userId: string, originalAmount: number, serviceType: string): Promise<void> {
+    if (VTU_SERVICE_TYPES.has(serviceType)) return;
+    try {
+      const rate = await getCommissionRate();
+      if (rate <= 0) return;
+      const commissionAmount = parseFloat((originalAmount * rate / 100).toFixed(2));
+      if (commissionAmount <= 0) return;
+      await db.update(users)
+        .set({
+          commissionBalance: sql`GREATEST(0, ${users.commissionBalance} - ${commissionAmount.toFixed(2)})`,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, userId));
+      logger.info('Commission clawback on failed job', { userId, commissionAmount, serviceType });
+    } catch (err: any) {
+      logger.warn('Commission clawback failed (non-critical)', { userId, serviceType, error: err.message });
+    }
+  },
+
   async convertCommissionToWallet(userId: string) {
     const commissionBal = await this.getCommissionBalance(userId);
     if (commissionBal <= 0) throw new Error('No commission balance to convert');

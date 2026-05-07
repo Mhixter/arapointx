@@ -438,6 +438,7 @@ class RPABot {
       const refundAmount = await this.getServicePrice(serviceType);
       if (refundAmount > 0) {
         await walletService.refundBalance(userId, refundAmount, `failed_${serviceType}_${jobId}`);
+        await walletService.revokeCommission(userId, refundAmount, serviceType);
         logger.info('Auto-refund processed for failed job', { userId, amount: refundAmount, jobId, serviceType });
       }
     } catch (error: any) {
