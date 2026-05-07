@@ -184,6 +184,7 @@ export async function registerRoutes(
         'siteName', 'siteEmail', 'sitePhone', 'siteAddress',
         'maintenanceMode', 'currency', 'timezone',
         'supportWhatsappChannel', 'supportWhatsappGroup',
+        'androidAppUrl', 'iosAppUrl',
       ];
       
       const settings = await db.select().from(adminSettings)

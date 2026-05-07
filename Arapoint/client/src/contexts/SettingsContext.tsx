@@ -8,6 +8,8 @@ export interface SiteSettings {
   maintenanceMode: boolean;
   currency: string;
   timezone: string;
+  androidAppUrl: string;
+  iosAppUrl: string;
 }
 
 const defaultSettings: SiteSettings = {
@@ -18,6 +20,8 @@ const defaultSettings: SiteSettings = {
   maintenanceMode: false,
   currency: "NGN",
   timezone: "Africa/Lagos",
+  androidAppUrl: "",
+  iosAppUrl: "",
 };
 
 interface SettingsContextType {
@@ -60,6 +64,8 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
             maintenanceMode: data.maintenanceMode ?? prev.maintenanceMode,
             currency: data.currency || prev.currency,
             timezone: data.timezone || prev.timezone,
+            androidAppUrl: data.androidAppUrl || prev.androidAppUrl,
+            iosAppUrl: data.iosAppUrl || prev.iosAppUrl,
           }));
         }
       }

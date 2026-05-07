@@ -1,7 +1,7 @@
 import { tokenStorage } from '@/lib/tokenStorage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, CreditCard, ArrowUpRight, ArrowDownRight, ShieldCheck, GraduationCap, Loader2, Copy, Building2, AlertTriangle, Smartphone, Zap, Tv, Banknote, FileText, ChevronRight, Wifi, History, RotateCw, Gift, ArrowRightLeft } from "lucide-react";
+import { CheckCircle2, CreditCard, ArrowUpRight, ArrowDownRight, ShieldCheck, GraduationCap, Loader2, Copy, Building2, AlertTriangle, Smartphone, Zap, Tv, Banknote, FileText, ChevronRight, Wifi, History, RotateCw, Gift, ArrowRightLeft, Download, Share, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { useEffect, useState, useCallback } from "react";
@@ -56,6 +56,16 @@ export default function Overview() {
   const [virtualAccount, setVirtualAccount] = useState<VirtualAccount | null>(null);
   const [accountLoading, setAccountLoading] = useState(true);
   const [generatingAccount, setGeneratingAccount] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [appInstalled, setAppInstalled] = useState(false);
+  const [showIosGuide, setShowIosGuide] = useState(false);
+  const [installBannerDismissed, setInstallBannerDismissed] = useState(
+    () => localStorage.getItem('arapoint_install_dismissed') === 'true'
+  );
+
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isInStandaloneMode = window.matchMedia('(display-mode: standalone)').matches
+    || (navigator as any).standalone === true;
 
   const getAuthToken = () => tokenStorage.getItem('accessToken');
 
@@ -169,6 +179,36 @@ export default function Overview() {
 
     fetchVirtualAccount();
   }, []);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    window.addEventListener('appinstalled', () => setAppInstalled(true));
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+    };
+  }, []);
+
+  const handleInstall = async () => {
+    if (installPrompt) {
+      installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setAppInstalled(true);
+        setInstallPrompt(null);
+      }
+    } else if (isIos) {
+      setShowIosGuide(true);
+    }
+  };
+
+  const dismissBanner = () => {
+    setInstallBannerDismissed(true);
+    localStorage.setItem('arapoint_install_dismissed', 'true');
+  };
 
   const handleOpenNinDialog = async () => {
     setGeneratingAccount(true);
@@ -457,6 +497,73 @@ export default function Overview() {
           })}
         </div>
       </div>
+
+      {/* Get Our App banner */}
+      {!isInStandaloneMode && !appInstalled && !installBannerDismissed && (
+        <Card className="border-green-200 dark:border-green-800 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/40 dark:to-emerald-950/40 shadow-sm">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 flex-shrink-0 rounded-xl bg-gradient-to-br from-green-600 to-emerald-700 flex items-center justify-center shadow">
+                <Smartphone className="h-6 w-6 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-slate-800 dark:text-white text-sm sm:text-base">Get the Arapoint App</p>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                  {isIos
+                    ? "Install on your iPhone — no App Store needed"
+                    : "Install on your Android phone — no Play Store needed"}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Button
+                  size="sm"
+                  className="bg-green-700 hover:bg-green-800 text-white text-xs sm:text-sm gap-1.5"
+                  onClick={handleInstall}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Install
+                </Button>
+                <button
+                  onClick={dismissBanner}
+                  className="text-muted-foreground hover:text-slate-700 dark:hover:text-slate-300 p-1 rounded"
+                  aria-label="Dismiss"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* iOS step-by-step guide */}
+            {showIosGuide && (
+              <div className="mt-4 p-3 rounded-lg bg-white dark:bg-slate-900 border border-green-100 dark:border-green-900">
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 mb-2">How to install on iPhone / iPad:</p>
+                <ol className="space-y-1.5 text-xs text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <span className="font-bold text-green-700 dark:text-green-400">1.</span>
+                    <span>Tap the <Share className="inline h-3.5 w-3.5 text-green-700" /> <strong>Share</strong> button at the bottom of your Safari browser</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="font-bold text-green-700 dark:text-green-400">2.</span>
+                    <span>Scroll down and tap <strong>"Add to Home Screen"</strong></span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="font-bold text-green-700 dark:text-green-400">3.</span>
+                    <span>Tap <strong>"Add"</strong> — the Arapoint icon will appear on your home screen</span>
+                  </li>
+                </ol>
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">⚠️ Only works in Safari — not Chrome or Firefox on iOS.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {appInstalled && (
+        <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 rounded-lg px-4 py-3">
+          <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+          <span>Arapoint is installed on your device! Open it from your home screen anytime.</span>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-6">
         <Card className="border-slate-200 dark:border-slate-700">
