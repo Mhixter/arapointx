@@ -1624,6 +1624,7 @@ router.get('/aggregator-settings', adminAuthMiddleware, async (req: Request, res
     const keys = [
       'active_vtu_airtime', 'active_vtu_data', 'active_vtu_electricity',
       'active_identity_provider', 'identity_prembly_enabled', 'identity_youverify_enabled',
+      'identity_payvessel_enabled',
       'vtu_airtimenigeria_enabled', 'vtu_vtpass_enabled', 'vtu_vtugate_enabled',
     ];
     const rows = await db.select().from(adminSettings).where(
@@ -1646,6 +1647,7 @@ router.post('/aggregator-settings', adminAuthMiddleware, async (req: Request, re
     const allowed = new Set([
       'active_vtu_airtime', 'active_vtu_data', 'active_vtu_electricity',
       'active_identity_provider', 'identity_prembly_enabled', 'identity_youverify_enabled',
+      'identity_payvessel_enabled',
       'vtu_airtimenigeria_enabled', 'vtu_vtpass_enabled', 'vtu_vtugate_enabled',
     ]);
     for (const [key, value] of Object.entries(settings)) {
@@ -1950,6 +1952,75 @@ router.get('/identity/pricing-info', adminAuthMiddleware, async (req: Request, r
     }));
   } catch (error: any) {
     res.status(500).json(formatErrorResponse(500, 'Failed to get identity pricing'));
+  }
+});
+
+// ── Developer API Pricing ─────────────────────────────────────────────────────
+const DEV_API_PRICE_DEFAULTS: Record<string, { label: string; defaultPrice: number; description: string }> = {
+  nin:                  { label: 'NIN Verification',        defaultPrice: 130, description: 'Basic NIN lookup' },
+  bvn:                  { label: 'BVN Verification',        defaultPrice: 80,  description: 'Basic BVN lookup' },
+  education:            { label: 'Education Verification',  defaultPrice: 250, description: 'WAEC / NECO / NABTEB / NBAIS RPA lookup' },
+  unified:              { label: 'Unified Verification',    defaultPrice: 400, description: 'NIN + BVN + Education in one call' },
+  employment_standard:  { label: 'Employment Screening',   defaultPrice: 350, description: 'Employment screening (standard)' },
+  employment_higher:    { label: 'Employment Screening+',  defaultPrice: 450, description: 'Employment screening (higher credentials)' },
+  fraud_score:          { label: 'Fraud Score',            defaultPrice: 50,  description: 'Identity cross-check fraud score' },
+  faceLiveness:         { label: 'Face Liveness',          defaultPrice: 50,  description: 'Biometric face liveness detection' },
+  faceMatch:            { label: 'Face Match',             defaultPrice: 80,  description: 'Two-photo biometric face comparison' },
+};
+
+router.get('/developer-api-prices', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const rows = await db.select({ key: adminSettings.settingKey, value: adminSettings.settingValue })
+      .from(adminSettings);
+    const saved: Record<string, string> = {};
+    rows.forEach(r => {
+      if (r.key.startsWith('dev_api_price_')) {
+        const priceKey = r.key.replace('dev_api_price_', '');
+        saved[priceKey] = r.value || '';
+      }
+    });
+    const prices = Object.entries(DEV_API_PRICE_DEFAULTS).map(([key, meta]) => ({
+      key,
+      label: meta.label,
+      description: meta.description,
+      defaultPrice: meta.defaultPrice,
+      currentPrice: saved[key] !== undefined ? Number(saved[key]) : meta.defaultPrice,
+      isCustom: saved[key] !== undefined,
+    }));
+    res.json(formatResponse('success', 200, 'Developer API prices retrieved', { prices }));
+  } catch (error: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to get developer API prices'));
+  }
+});
+
+router.post('/developer-api-prices', adminAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { prices } = req.body as { prices: Record<string, number> };
+    if (!prices || typeof prices !== 'object') {
+      return res.status(400).json(formatErrorResponse(400, 'prices object required'));
+    }
+    for (const [key, value] of Object.entries(prices)) {
+      if (!DEV_API_PRICE_DEFAULTS[key]) continue;
+      const num = Number(value);
+      if (isNaN(num) || num < 0) continue;
+      const settingKey = `dev_api_price_${key}`;
+      const existing = await db.select().from(adminSettings).where(eq(adminSettings.settingKey, settingKey)).limit(1);
+      if (existing.length > 0) {
+        await db.update(adminSettings).set({ settingValue: String(num), updatedAt: new Date() }).where(eq(adminSettings.settingKey, settingKey));
+      } else {
+        await db.insert(adminSettings).values({ settingKey, settingValue: String(num) });
+      }
+    }
+    // Invalidate the developer price cache
+    try {
+      const { invalidateDevPriceCache } = await import('./developer/shared');
+      invalidateDevPriceCache();
+    } catch { /* ignore */ }
+    logger.info('Developer API prices updated', { keys: Object.keys(prices) });
+    res.json(formatResponse('success', 200, 'Developer API prices saved'));
+  } catch (error: any) {
+    logger.error('Save developer API prices error', { error: error.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to save developer API prices'));
   }
 });
 

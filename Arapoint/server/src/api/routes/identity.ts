@@ -4,6 +4,7 @@ import { walletService } from '../../services/walletService';
 import { youverifyService } from '../../services/youverifyService';
 import { premblyService } from '../../services/premblyService';
 import { techhubService } from '../../services/techhubService';
+import { payVesselIdentityService } from '../../services/payVesselIdentityService';
 import { virtualAccountService } from '../../services/virtualAccountService';
 import { generateNINSlip } from '../../utils/slipGenerator';
 import { generatePdfSlip, SlipData } from '../../services/pdfSlipGenerator';
@@ -68,7 +69,7 @@ async function notifyAdmins(serviceType: string, trackingId: string, customerNam
   }
 }
 
-async function getActiveIdentityProviders(): Promise<('techhub' | 'prembly' | 'youverify')[]> {
+async function getActiveIdentityProviders(): Promise<('techhub' | 'prembly' | 'youverify' | 'payvessel')[]> {
   // Read the admin-selected preferred provider from DB
   let preferred: string | null = null;
   try {
@@ -77,28 +78,30 @@ async function getActiveIdentityProviders(): Promise<('techhub' | 'prembly' | 'y
     preferred = row?.settingValue?.toLowerCase() || null;
   } catch { /* ignore */ }
 
-  const all: ('techhub' | 'prembly' | 'youverify')[] = [];
+  const all: ('techhub' | 'prembly' | 'youverify' | 'payvessel')[] = [];
   if (premblyService.isConfigured()) all.push('prembly');
   if (techhubService.isConfigured()) all.push('techhub');
   if (youverifyService.isConfigured()) all.push('youverify');
+  if (payVesselIdentityService.isConfigured()) all.push('payvessel');
 
   if (all.length === 0) throw new Error('No identity verification provider configured. Please configure API credentials in Settings → Gateways.');
 
   // Put the admin-preferred provider first (if it's configured)
   if (preferred && all.includes(preferred as any)) {
-    return [preferred as 'prembly' | 'youverify' | 'techhub', ...all.filter(p => p !== preferred)];
+    return [preferred as 'prembly' | 'youverify' | 'techhub' | 'payvessel', ...all.filter(p => p !== preferred)];
   }
   // Default priority: prembly first
   return all;
 }
 
 // Legacy sync wrapper — only used in non-critical paths; async version preferred
-const getConfiguredProviders = (): ('techhub' | 'prembly' | 'youverify')[] => {
-  const providers: ('techhub' | 'prembly' | 'youverify')[] = [];
+const getConfiguredProviders = (): ('techhub' | 'prembly' | 'youverify' | 'payvessel')[] => {
+  const providers: ('techhub' | 'prembly' | 'youverify' | 'payvessel')[] = [];
   if (premblyService.isConfigured()) providers.push('prembly');
   if (providers.length > 0) return providers;
   if (techhubService.isConfigured()) providers.push('techhub');
   if (youverifyService.isConfigured()) providers.push('youverify');
+  if (payVesselIdentityService.isConfigured()) providers.push('payvessel');
   if (providers.length === 0) throw new Error('No identity verification provider configured.');
   return providers;
 };
@@ -137,6 +140,8 @@ const verifyNINWithFallback = async (nin: string): Promise<{ success: boolean; d
         }
       } else if (provider === 'prembly') {
         result = await premblyService.verifyNIN(nin);
+      } else if (provider === 'payvessel') {
+        result = await payVesselIdentityService.verifyNIN(nin);
       } else {
         result = await youverifyService.verifyNIN(nin);
       }
@@ -173,6 +178,8 @@ const verifyVNINWithFallback = async (vnin: string, validationData?: { firstName
         result = await techhubService.verifyVNIN(vnin, validationData);
       } else if (provider === 'prembly') {
         result = await premblyService.verifyVNIN(vnin, validationData);
+      } else if (provider === 'payvessel') {
+        continue;
       } else {
         result = await youverifyService.verifyVNIN(vnin, validationData);
       }

@@ -11,7 +11,7 @@ import {
   pgTable, uuid, varchar, text, timestamp, boolean, jsonb, integer, decimal
 } from 'drizzle-orm/pg-core';
 import { otpService } from '../../../services/otpService';
-import { rpaJobs } from '../../../db/schema';
+import { rpaJobs, adminSettings } from '../../../db/schema';
 import { runWebhookMigrations, developerWebhookLogs, fireWebhookIfEnabled, startWebhookRetryProcessor } from '../../../services/webhookService';
 import { ErrorCodes } from '../../../utils/errorCodes';
 import * as paystackService from '../../../services/paystackService';
@@ -105,6 +105,36 @@ export const API_PRICES: Record<string, number> = {
   'faceLiveness': 50,
   'faceMatch': 80,
 };
+
+export let LIVE_PRICES: Record<string, number> = { ...API_PRICES };
+let _devPriceCacheExpiry = 0;
+
+export async function refreshDeveloperApiPrices(): Promise<void> {
+  try {
+    const rows = await db.select({ key: adminSettings.settingKey, value: adminSettings.settingValue })
+      .from(adminSettings);
+    const updated: Record<string, number> = { ...API_PRICES };
+    for (const row of rows) {
+      if (row.key.startsWith('dev_api_price_') && row.value) {
+        const priceKey = row.key.replace('dev_api_price_', '');
+        const val = Number(row.value);
+        if (!isNaN(val) && val >= 0) updated[priceKey] = val;
+      }
+    }
+    LIVE_PRICES = updated;
+    _devPriceCacheExpiry = Date.now() + 60_000;
+  } catch { /* keep existing prices */ }
+}
+
+export async function getDeveloperApiPrices(): Promise<Record<string, number>> {
+  if (Date.now() < _devPriceCacheExpiry) return LIVE_PRICES;
+  await refreshDeveloperApiPrices();
+  return LIVE_PRICES;
+}
+
+export function invalidateDevPriceCache(): void {
+  _devPriceCacheExpiry = 0;
+}
 
 export const RATE_LIMITS: Record<string, number> = { sandbox: 100, live: 10000 };
 export const BURST_LIMITS: Record<string, number> = { sandbox: 10, live: 60 }; // per minute

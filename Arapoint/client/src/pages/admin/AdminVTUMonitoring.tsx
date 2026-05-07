@@ -40,6 +40,7 @@ interface AggregatorSettings {
   active_identity_provider?: string;
   identity_prembly_enabled?: string;
   identity_youverify_enabled?: string;
+  identity_payvessel_enabled?: string;
   vtu_airtimenigeria_enabled?: string;
   vtu_vtpass_enabled?: string;
   vtu_vtugate_enabled?: string;
@@ -249,8 +250,10 @@ export default function AdminVTUMonitoring() {
     { value: 'vtugate', label: 'VTUGate' },
   ];
   const identityOptions = [
-    { value: 'prembly', label: 'Prembly' },
+    { value: 'prembly', label: 'Prembly (IdentityPass)' },
     { value: 'youverify', label: 'YouVerify' },
+    { value: 'techhub', label: 'TechHub' },
+    { value: 'payvessel', label: 'PayVessel KYC' },
   ];
 
   return (
@@ -350,9 +353,11 @@ export default function AdminVTUMonitoring() {
                   />
                 </div>
                 <div className="mt-4 pt-3 border-t text-xs text-gray-500 dark:text-gray-400 space-y-1">
-                  <p>• <strong>Prembly</strong> (IdentityPass): Primary identity provider. Has response_code-based error mapping.</p>
-                  <p>• <strong>YouVerify</strong>: Fallback identity provider. Configure credentials in Settings → Gateways.</p>
-                  <p className="text-blue-600 dark:text-blue-400 mt-2">Note: The identity route automatically uses Prembly if configured and available.</p>
+                  <p>• <strong>Prembly</strong> (IdentityPass): Primary provider — NIN, vNIN, BVN. Full response_code mapping.</p>
+                  <p>• <strong>YouVerify</strong>: Fallback provider — NIN, vNIN, BVN. Configure credentials in Settings → Gateways.</p>
+                  <p>• <strong>TechHub</strong>: Alternative provider with HTML slip generation for NIN lookups.</p>
+                  <p>• <strong>PayVessel KYC</strong>: Uses <code>kyc/api/v1/merchant</code> — NIN Basic, BVN Basic + Enhanced. Same API key as PayVessel virtual accounts.</p>
+                  <p className="text-blue-600 dark:text-blue-400 mt-2">The selected provider is tried first; unconfigured providers in the chain are skipped automatically.</p>
                 </div>
               </div>
             </div>

@@ -168,6 +168,13 @@ export default function AdminPricing() {
   const [identityCosts, setIdentityCosts] = useState<{ prembly: { service: string; costPrice: number; description: string }[]; youverify: { service: string; costPrice: number; description: string }[]; note: string } | null>(null);
   const [identityCostsLoading, setIdentityCostsLoading] = useState(false);
 
+  // Developer API pricing tab state
+  type DevApiPrice = { key: string; label: string; description: string; defaultPrice: number; currentPrice: number; isCustom: boolean };
+  const [devApiPrices, setDevApiPrices] = useState<DevApiPrice[]>([]);
+  const [devApiPricesLoading, setDevApiPricesLoading] = useState(false);
+  const [devApiEdits, setDevApiEdits] = useState<Record<string, string>>({});
+  const [devApiSaving, setDevApiSaving] = useState(false);
+
   const fetchDataPlans = async () => {
     setDataPlansLoading(true);
     try {
@@ -478,6 +485,47 @@ export default function AdminPricing() {
     finally { setIdentityCostsLoading(false); }
   };
 
+  const fetchDevApiPrices = async () => {
+    setDevApiPricesLoading(true);
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/admin/developer-api-prices', { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setDevApiPrices(data.data.prices || []);
+        const edits: Record<string, string> = {};
+        (data.data.prices || []).forEach((p: any) => { edits[p.key] = String(p.currentPrice); });
+        setDevApiEdits(edits);
+      }
+    } catch (e) { console.error('Failed to fetch developer API prices', e); }
+    finally { setDevApiPricesLoading(false); }
+  };
+
+  const saveDevApiPrices = async () => {
+    setDevApiSaving(true);
+    try {
+      const token = getAuthToken();
+      const prices: Record<string, number> = {};
+      Object.entries(devApiEdits).forEach(([k, v]) => {
+        const num = Number(v);
+        if (!isNaN(num) && num >= 0) prices[k] = num;
+      });
+      const res = await fetch('/api/admin/developer-api-prices', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prices }),
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        toast({ title: 'Developer API Prices Saved', variant: 'success', description: 'Prices updated and cache cleared' });
+        fetchDevApiPrices();
+      } else {
+        toast({ title: 'Error', description: data.message, variant: 'destructive' });
+      }
+    } catch { toast({ title: 'Error', description: 'Failed to save prices', variant: 'destructive' }); }
+    finally { setDevApiSaving(false); }
+  };
+
   const fetchGatewayStatus = async () => {
     try {
       const token = getAuthToken();
@@ -718,6 +766,9 @@ export default function AdminPricing() {
           </TabsTrigger>
           <TabsTrigger value="identity-costs" onClick={() => { if (!identityCosts) fetchIdentityCosts(); }}>
             Identity Costs
+          </TabsTrigger>
+          <TabsTrigger value="developer-api" onClick={() => { if (devApiPrices.length === 0) fetchDevApiPrices(); }}>
+            Developer API
           </TabsTrigger>
         </TabsList>
 
@@ -1422,6 +1473,92 @@ export default function AdminPricing() {
                 </Card>
               </div>
             )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="developer-api">
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="p-4 sm:p-6 flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-violet-600" />
+                    Developer API Prices
+                  </CardTitle>
+                  <CardDescription className="text-xs sm:text-sm mt-1">
+                    Set the price (in Naira) charged to developer portal accounts for each API call. Changes take effect within 60 seconds for live requests.
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <Button variant="outline" size="sm" onClick={fetchDevApiPrices} disabled={devApiPricesLoading} className="gap-2">
+                    {devApiPricesLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    Refresh
+                  </Button>
+                  <Button size="sm" onClick={saveDevApiPrices} disabled={devApiSaving || devApiPricesLoading} className="gap-2">
+                    {devApiSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Save Prices
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {devApiPricesLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : devApiPrices.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+                    <DollarSign className="h-8 w-8 opacity-30" />
+                    <p className="text-sm">Click Refresh to load prices</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/30">
+                          <th className="text-left p-3 sm:p-4 font-medium text-muted-foreground">API Endpoint</th>
+                          <th className="text-left p-3 sm:p-4 font-medium text-muted-foreground hidden sm:table-cell">Description</th>
+                          <th className="text-right p-3 sm:p-4 font-medium text-muted-foreground">Default (₦)</th>
+                          <th className="text-right p-3 sm:p-4 font-medium text-muted-foreground">Current Price (₦)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {devApiPrices.map((item, idx) => (
+                          <tr key={item.key} className={`border-b last:border-0 ${idx % 2 === 0 ? '' : 'bg-muted/10'}`}>
+                            <td className="p-3 sm:p-4">
+                              <div className="font-medium">{item.label}</div>
+                              {item.isCustom && (
+                                <span className="text-[10px] text-violet-600 font-medium bg-violet-50 px-1.5 py-0.5 rounded-full">Custom</span>
+                              )}
+                            </td>
+                            <td className="p-3 sm:p-4 text-muted-foreground hidden sm:table-cell text-xs">{item.description}</td>
+                            <td className="p-3 sm:p-4 text-right text-muted-foreground">₦{item.defaultPrice}</td>
+                            <td className="p-3 sm:p-4 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <span className="text-muted-foreground text-xs">₦</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  value={devApiEdits[item.key] ?? String(item.currentPrice)}
+                                  onChange={e => setDevApiEdits(prev => ({ ...prev, [item.key]: e.target.value }))}
+                                  className="w-24 text-right border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-background"
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+              {devApiPrices.length > 0 && (
+                <div className="p-3 sm:p-4 border-t bg-muted/20 text-xs text-muted-foreground flex items-start gap-2">
+                  <span className="text-violet-600 font-bold mt-0.5">ℹ</span>
+                  <span>Prices are deducted from the developer's wallet balance per successful API call in live mode. Sandbox calls deduct from the sandbox balance.</span>
+                </div>
+              )}
+            </Card>
           </div>
         </TabsContent>
 

@@ -3,10 +3,12 @@ import {
   Request, Response, db, crypto, logger, sql, eq,
   developerUsers,
   apiKeyAuth, logApiCall, deductDeveloperBalance,
-  API_PRICES, getCached, setCache, CACHE_TTL,
+  API_PRICES, LIVE_PRICES, getDeveloperApiPrices, getCached, setCache, CACHE_TTL,
   sandboxNIN, sandboxBVN, sandboxEducation, sandboxFraudScore,
   rpaJobs,
 } from './shared';
+
+getDeveloperApiPrices().catch(() => {});
 
 const router = Router();
 
@@ -256,7 +258,7 @@ router.post('/verify/nin', apiKeyAuth, async (req: Request, res: Response) => {
       return res.status(400).json(responseData);
     }
 
-    await deductDeveloperBalance(dev.id, API_PRICES.nin, `NIN verification - ${nin || phone}`, (dev as any).environmentMode);
+    await deductDeveloperBalance(dev.id, LIVE_PRICES.nin, `NIN verification - ${nin || phone}`, (dev as any).environmentMode);
 
     if ((dev as any).environmentMode === 'sandbox') {
       const sbx = sandboxNIN(nin || phone);
@@ -323,7 +325,7 @@ router.post('/verify/nin', apiKeyAuth, async (req: Request, res: Response) => {
     res.status(500).json(responseData);
   } finally {
     await logApiCall(dev.id, apiKeyId, '/verify/nin', 'POST', { nin, phone },
-      responseData, statusCode, statusCode === 200 ? API_PRICES.nin : 0,
+      responseData, statusCode, statusCode === 200 ? LIVE_PRICES.nin : 0,
       Date.now() - start, req.ip || '', (dev as any).environmentMode || 'sandbox');
   }
 });
@@ -348,7 +350,7 @@ router.post('/verify/bvn', apiKeyAuth, async (req: Request, res: Response) => {
       return res.status(400).json(responseData);
     }
 
-    await deductDeveloperBalance(dev.id, API_PRICES.bvn, `BVN verification - ${bvn}`, (dev as any).environmentMode);
+    await deductDeveloperBalance(dev.id, LIVE_PRICES.bvn, `BVN verification - ${bvn}`, (dev as any).environmentMode);
 
     if ((dev as any).environmentMode === 'sandbox') {
       const sbx = sandboxBVN(bvn);
@@ -417,7 +419,7 @@ router.post('/verify/bvn', apiKeyAuth, async (req: Request, res: Response) => {
     res.status(500).json(responseData);
   } finally {
     await logApiCall(dev.id, apiKeyId, '/verify/bvn', 'POST', { bvn },
-      responseData, statusCode, statusCode === 200 ? API_PRICES.bvn : 0,
+      responseData, statusCode, statusCode === 200 ? LIVE_PRICES.bvn : 0,
       Date.now() - start, req.ip || '', (dev as any).environmentMode || 'sandbox');
   }
 });
@@ -472,7 +474,7 @@ router.post('/verify/education', apiKeyAuth, async (req: Request, res: Response)
       return res.status(400).json(responseData);
     }
 
-    await deductDeveloperBalance(dev.id, API_PRICES.education,
+    await deductDeveloperBalance(dev.id, LIVE_PRICES.education,
       `Education verification - ${provider.toUpperCase()} ${registrationNumber}`, (dev as any).environmentMode);
 
     if ((dev as any).environmentMode === 'sandbox') {
@@ -532,7 +534,7 @@ router.post('/verify/education', apiKeyAuth, async (req: Request, res: Response)
     await logApiCall(dev.id, apiKeyId, '/verify/education', 'POST',
       { provider, examYear, registrationNumber, examType,
         cardPin: cardPin ? '***' : undefined, cardSerialNumber, state, schoolName, examMonth },
-      responseData, statusCode, statusCode === 200 ? API_PRICES.education : 0,
+      responseData, statusCode, statusCode === 200 ? LIVE_PRICES.education : 0,
       Date.now() - start, req.ip || '', (dev as any).environmentMode || 'sandbox');
   }
 });
@@ -600,11 +602,11 @@ router.post('/verify/unified', apiKeyAuth, async (req: Request, res: Response) =
     }
 
     let rawCost = 0;
-    if (nin) rawCost += API_PRICES.nin;
-    if (bvn) rawCost += API_PRICES.bvn;
-    rawCost += education.length * API_PRICES.education;
-    if (fraudCheck) rawCost += API_PRICES.fraud_score;
-    if (employment) rawCost += API_PRICES.employment_standard;
+    if (nin) rawCost += LIVE_PRICES.nin;
+    if (bvn) rawCost += LIVE_PRICES.bvn;
+    rawCost += education.length * LIVE_PRICES.education;
+    if (fraudCheck) rawCost += LIVE_PRICES.fraud_score;
+    if (employment) rawCost += LIVE_PRICES.employment_standard;
     const bundleDiscount = rawCost > 300 ? 0.15 : 0;
     const totalCost = Math.round(rawCost * (1 - bundleDiscount));
 
@@ -957,7 +959,7 @@ router.post('/verify/fraud-score', apiKeyAuth, async (req: Request, res: Respons
       return res.status(400).json(responseData);
     }
 
-    await deductDeveloperBalance(dev.id, API_PRICES.fraud_score, `Fraud score - ${nin || bvn || phone}`, (dev as any).environmentMode);
+    await deductDeveloperBalance(dev.id, LIVE_PRICES.fraud_score, `Fraud score - ${nin || bvn || phone}`, (dev as any).environmentMode);
 
     if ((dev as any).environmentMode === 'sandbox') {
       const sbxFraud = sandboxFraudScore(nin || bvn || phone);
@@ -1034,7 +1036,7 @@ router.post('/verify/fraud-score', apiKeyAuth, async (req: Request, res: Respons
     res.status(500).json(responseData);
   } finally {
     await logApiCall(dev.id, apiKeyId, '/verify/fraud-score', 'POST', { nin, bvn, phone },
-      responseData, statusCode, statusCode === 200 ? API_PRICES.fraud_score : 0,
+      responseData, statusCode, statusCode === 200 ? LIVE_PRICES.fraud_score : 0,
       Date.now() - start, req.ip || '', (dev as any).environmentMode || 'sandbox');
   }
 });
@@ -1129,7 +1131,7 @@ router.post('/verify/employment-screening', apiKeyAuth, async (req: Request, res
       return res.status(400).json(responseData);
     }
 
-    const rawCost = API_PRICES.nin + API_PRICES.bvn + API_PRICES.education;
+    const rawCost = LIVE_PRICES.nin + LIVE_PRICES.bvn + LIVE_PRICES.education;
     const bundleDiscount = 0.15;
     totalCost = Math.round(rawCost * (1 - bundleDiscount));
 
@@ -1483,7 +1485,7 @@ router.get('/verify/employment-screening/result/:requestId', apiKeyAuth, async (
           subjects: breakdown.ssceAnalysis?.subjects || eduEntry.result?.subjects || [],
         } : eduEntry,
         flags,
-        pricing: { rawCost: API_PRICES.nin + API_PRICES.bvn + API_PRICES.education, bundleDiscount: '15%', totalCost: row.total_cost },
+        pricing: { rawCost: LIVE_PRICES.nin + LIVE_PRICES.bvn + LIVE_PRICES.education, bundleDiscount: '15%', totalCost: row.total_cost },
         completedAt: row.completed_at || null,
       }
     };
@@ -1547,7 +1549,7 @@ router.post('/verify/face-liveness', apiKeyAuth, faceUpload.single('image'), asy
   const dev = (req as any).developer;
   const apiKeyId = (req as any).apiKeyId;
   const envMode = (dev as any).environmentMode || 'sandbox';
-  const price = API_PRICES.faceLiveness ?? 50;
+  const price = LIVE_PRICES.faceLiveness ?? 50;
   let statusCode = 200;
   let responseData: any;
 
@@ -1601,7 +1603,7 @@ router.post('/verify/face-match', apiKeyAuth, faceUpload.fields([{ name: 'image_
   const dev = (req as any).developer;
   const apiKeyId = (req as any).apiKeyId;
   const envMode = (dev as any).environmentMode || 'sandbox';
-  const price = API_PRICES.faceMatch ?? 80;
+  const price = LIVE_PRICES.faceMatch ?? 80;
   let statusCode = 200;
   let responseData: any;
 

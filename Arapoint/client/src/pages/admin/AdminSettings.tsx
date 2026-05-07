@@ -226,8 +226,7 @@ export default function AdminSettings() {
     } catch (err) {
       toast({
         title: "Error",
-        description: "Failed to save gateway credentials.",
-        variant: "destructive"
+        description: "Failed to save gateway credentials.", variant: "destructive"
       });
     } finally {
       setSavingGateway(null);

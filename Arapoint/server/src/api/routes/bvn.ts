@@ -3,6 +3,7 @@ import { authMiddleware } from '../middleware/auth';
 import { walletService } from '../../services/walletService';
 import { youverifyService } from '../../services/youverifyService';
 import { premblyService } from '../../services/premblyService';
+import { payVesselIdentityService } from '../../services/payVesselIdentityService';
 import { generateBVNSlip } from '../../utils/slipGenerator';
 import { bvnRetrieveSchema, bvnDigitalCardSchema, bvnModifySchema } from '../validators/bvn';
 import { logger } from '../../utils/logger';
@@ -12,10 +13,11 @@ import { bvnServices, users, adminNotifications } from '../../db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { generateReferenceId } from '../../utils/helpers';
 
-const getConfiguredProviders = (): ('prembly' | 'youverify')[] => {
-  const providers: ('prembly' | 'youverify')[] = [];
+const getConfiguredProviders = (): ('prembly' | 'youverify' | 'payvessel')[] => {
+  const providers: ('prembly' | 'youverify' | 'payvessel')[] = [];
   if (premblyService.isConfigured()) providers.push('prembly');
   if (youverifyService.isConfigured()) providers.push('youverify');
+  if (payVesselIdentityService.isConfigured()) providers.push('payvessel');
   if (providers.length === 0) throw new Error('No identity verification provider configured');
   return providers;
 };
@@ -46,7 +48,9 @@ const verifyBVNWithFallback = async (bvn: string, isPremium: boolean) => {
       logger.info('Attempting BVN verification', { provider, bvn: bvn.substring(0, 4) + '***' });
       const result = provider === 'prembly'
         ? await premblyService.verifyBVN(bvn, isPremium)
-        : await youverifyService.verifyBVN(bvn, isPremium);
+        : provider === 'payvessel'
+          ? await payVesselIdentityService.verifyBVN(bvn, isPremium)
+          : await youverifyService.verifyBVN(bvn, isPremium);
       
       if (result.success && result.data && hasValidBVNData(result.data)) {
         return { ...result, provider };
