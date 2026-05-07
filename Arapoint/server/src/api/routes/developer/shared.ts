@@ -379,8 +379,30 @@ export async function adminAuth(req: Request, res: Response, next: Function) {
   }
   try {
     const decoded = jwt.verify(auth.slice(7), config.JWT_SECRET) as any;
-    if (!decoded.adminId && !decoded.id) {
+    const adminId = decoded.adminId || decoded.id;
+    if (!adminId) {
       return res.status(401).json({ status: 'error', code: 401, message: 'Invalid admin token' });
+    }
+    if (!decoded.isAdmin) {
+      return res.status(403).json({ status: 'error', code: 403, message: 'Access denied' });
+    }
+    if (decoded.type === 'refresh') {
+      return res.status(403).json({ status: 'error', code: 403, message: 'Access denied' });
+    }
+    const result = await db.execute(sql`
+      SELECT au.id, au.is_active, ar.name AS role_name
+      FROM admin_users au
+      LEFT JOIN admin_roles ar ON ar.id = au.role_id
+      WHERE au.id = ${adminId}
+      LIMIT 1
+    `);
+    const adminRow = result.rows[0] as any;
+    if (!adminRow || !adminRow.is_active) {
+      return res.status(401).json({ status: 'error', code: 401, message: 'Account not found or inactive' });
+    }
+    const effectiveRole = adminRow.role_name || decoded.role || 'admin';
+    if (effectiveRole === 'support_agent') {
+      return res.status(403).json({ status: 'error', code: 403, message: 'Access denied' });
     }
     next();
   } catch {

@@ -539,6 +539,7 @@ router.post('/verify/education', apiKeyAuth, async (req: Request, res: Response)
 
 router.get('/verify/education/result', apiKeyAuth, async (req: Request, res: Response) => {
   const { jobId } = req.query;
+  const dev = (req as any).developer;
   if (!jobId) {
     return res.status(400).json({ status: 'error', code: 400, message: 'jobId required' });
   }
@@ -546,6 +547,10 @@ router.get('/verify/education/result', apiKeyAuth, async (req: Request, res: Res
     const [job] = await db.select().from(rpaJobs)
       .where(eq(rpaJobs.id, jobId as string)).limit(1);
     if (!job) {
+      return res.status(404).json({ status: 'error', code: 404, message: 'Job not found' });
+    }
+    const queryData = job.queryData as any;
+    if (!queryData || queryData.developerId !== dev.id) {
       return res.status(404).json({ status: 'error', code: 404, message: 'Job not found' });
     }
     res.json({
