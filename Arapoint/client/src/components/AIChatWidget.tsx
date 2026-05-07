@@ -61,7 +61,7 @@ export default function AIChatWidget() {
     if (open) {
       scrollToBottom();
       setUnread(0);
-      setTimeout(() => inputRef.current?.focus(), 100);
+      setTimeout(() => inputRef.current?.focus(), 300);
     }
   }, [open, messages, scrollToBottom]);
 
@@ -171,19 +171,38 @@ export default function AIChatWidget() {
           0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
           50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
         }
+        .chat-messages-scroll {
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+          overscroll-behavior: contain;
+        }
+        .chat-textarea {
+          font-size: 16px !important;
+          resize: none;
+        }
+        .chat-btn {
+          touch-action: manipulation;
+          -webkit-tap-highlight-color: transparent;
+          cursor: pointer;
+        }
       `}</style>
 
-      {/* Floating Button */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+      {/* Floating Button — clears iOS home indicator via safe-area-inset-bottom */}
+      <div
+        className="fixed right-6 z-50 flex flex-col items-end gap-3"
+        style={{ bottom: "max(1.5rem, calc(env(safe-area-inset-bottom) + 0.5rem))" }}
+      >
         {!open && (
-          <div className="bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 max-w-[180px] text-center font-normal text-[8px]"
-            style={{ animation: "slideUp 0.3s ease-out" }}>
-            Need help? 
+          <div
+            className="bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 px-3 py-2 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 max-w-[180px] text-center font-normal text-[8px]"
+            style={{ animation: "slideUp 0.3s ease-out" }}
+          >
+            Need help?
           </div>
         )}
         <button
           onClick={() => open ? setOpen(false) : handleOpen()}
-          className="w-14 h-14 rounded-full flex items-center justify-center shadow-xl transition-all hover:scale-110 active:scale-95 relative"
+          className="chat-btn w-14 h-14 rounded-full flex items-center justify-center shadow-xl transition-all hover:scale-110 active:scale-95 relative"
           style={{ background: "linear-gradient(135deg, #059669, #047857)" }}
           aria-label="Chat with Ara AI"
         >
@@ -206,17 +225,21 @@ export default function AIChatWidget() {
       {/* Chat Panel */}
       {open && (
         <div
-          className="chat-panel fixed bottom-24 right-6 z-50 flex flex-col rounded-2xl shadow-2xl overflow-hidden"
+          className="chat-panel fixed right-6 z-50 flex flex-col rounded-2xl shadow-2xl overflow-hidden"
           style={{
+            bottom: "max(5.5rem, calc(env(safe-area-inset-bottom) + 5rem))",
             width: "min(380px, calc(100vw - 24px))",
-            height: "min(560px, calc(100vh - 120px))",
+            /* dvh shrinks when iOS keyboard appears; vh fallback for older Safari */
+            height: "min(560px, calc(100dvh - 140px))",
             background: "#ffffff",
             border: "1px solid #e5e7eb",
           }}
         >
           {/* Header */}
-          <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0"
-            style={{ background: "linear-gradient(135deg, #059669, #047857)" }}>
+          <div
+            className="flex items-center gap-3 px-4 py-3 flex-shrink-0"
+            style={{ background: "linear-gradient(135deg, #059669, #047857)" }}
+          >
             <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
               <Bot className="w-5 h-5 text-white" />
             </div>
@@ -225,21 +248,29 @@ export default function AIChatWidget() {
               <p className="text-green-100 text-xs">Always here to help</p>
             </div>
             <div className="flex items-center gap-1">
-              <button onClick={clearChat} title="New chat"
-                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors"
-                style={{ color: "rgba(255,255,255,0.8)" }}>
+              <button
+                onClick={clearChat}
+                title="New chat"
+                className="chat-btn w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors"
+                style={{ color: "rgba(255,255,255,0.8)" }}
+              >
                 <Minimize2 className="w-4 h-4" />
               </button>
-              <button onClick={() => setOpen(false)} title="Close"
-                className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors text-white">
+              <button
+                onClick={() => setOpen(false)}
+                title="Close"
+                className="chat-btn w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/20 transition-colors text-white"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3"
-            style={{ background: "#f9fafb" }}>
+          {/* Messages — -webkit-overflow-scrolling:touch for smooth iOS scroll */}
+          <div
+            className="chat-messages-scroll flex-1 px-4 py-3 space-y-3"
+            style={{ background: "#f9fafb" }}
+          >
             {messages.map(msg => (
               <div key={msg.id} className={`flex gap-2 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
                 <div className={`w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold
@@ -278,29 +309,32 @@ export default function AIChatWidget() {
             <div ref={bottomRef} />
           </div>
 
-          {/* Input */}
-          <div className="px-3 py-3 border-t border-gray-100 dark:border-gray-800 flex-shrink-0 bg-white dark:bg-gray-900">
+          {/* Input — font-size 16px prevents iOS auto-zoom on textarea focus */}
+          <div
+            className="px-3 py-3 border-t border-gray-100 dark:border-gray-800 flex-shrink-0 bg-white dark:bg-gray-900"
+            style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+          >
             <div className="flex gap-2 items-end">
               <textarea
                 ref={inputRef}
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Type a message… (Enter to send)"
+                placeholder="Type a message…"
                 rows={1}
                 disabled={loading}
-                className="flex-1 resize-none text-sm px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all disabled:opacity-50"
-                style={{ minHeight: "42px", maxHeight: "120px" }}
+                className="chat-textarea flex-1 px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all disabled:opacity-50"
+                style={{ minHeight: "42px", maxHeight: "100px" }}
                 onInput={e => {
                   const t = e.currentTarget;
                   t.style.height = "auto";
-                  t.style.height = `${Math.min(t.scrollHeight, 120)}px`;
+                  t.style.height = `${Math.min(t.scrollHeight, 100)}px`;
                 }}
               />
               <button
                 onClick={sendMessage}
                 disabled={loading || !input.trim()}
-                className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="chat-btn w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ background: "linear-gradient(135deg, #059669, #047857)" }}
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
