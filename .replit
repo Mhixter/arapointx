@@ -80,32 +80,16 @@ args = "rm -f exports/raw/05-education-silent.mp4 && node scripts/record-video.m
 
 [[ports]]
 localPort = 3001
-externalPort = 4200
-
-[[ports]]
-localPort = 3002
-externalPort = 5173
-
-[[ports]]
-localPort = 4500
-externalPort = 3000
-
-[[ports]]
-localPort = 4501
 externalPort = 3001
-
-[[ports]]
-localPort = 4502
-externalPort = 3002
 
 [[ports]]
 localPort = 5000
 externalPort = 80
 
 [deployment]
-deploymentTarget = "vm"
-run = ["npm", "run", "start"]
-build = ["npm", "run", "build"]
+deploymentTarget = "autoscale"
+run = ["bash", "-c", "cd Arapoint && npm start"]
+build = ["bash", "-c", "cd Arapoint && npm install && npm run build"]
 
 [userenv]
 
