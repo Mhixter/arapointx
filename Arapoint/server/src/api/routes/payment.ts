@@ -346,12 +346,18 @@ router.post('/palmpay/va-webhook', async (req: Request, res: Response) => {
     });
 
     const palmpayPublicKey = process.env.PALMPAY_PUBLIC_KEY;
-    if (palmpayPublicKey && payload.sign) {
-      const isValid = verifyPalmpayCallbackSignature(payload, palmpayPublicKey);
-      if (!isValid) {
-        logger.warn('Invalid PalmPay VA webhook signature', { orderNo: payload.orderNo });
-        return res.status(200).send('success');
-      }
+    if (!palmpayPublicKey) {
+      logger.error('PalmPay VA webhook received but PALMPAY_PUBLIC_KEY is not configured — rejecting request');
+      return res.status(200).send('success');
+    }
+    if (!payload.sign) {
+      logger.warn('PalmPay VA webhook rejected: missing signature', { orderNo: payload.orderNo });
+      return res.status(200).send('success');
+    }
+    const isValid = verifyPalmpayCallbackSignature(payload, palmpayPublicKey);
+    if (!isValid) {
+      logger.warn('Invalid PalmPay VA webhook signature', { orderNo: payload.orderNo });
+      return res.status(200).send('success');
     }
 
     if (payload.orderStatus === 1) {
