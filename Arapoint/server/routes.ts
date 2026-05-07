@@ -40,6 +40,7 @@ import rpaRecoveryRoutes from "./src/api/routes/rpaRecovery";
 import { publicRateLimiter, authenticatedRateLimiter } from "./src/api/middleware/rateLimit";
 import { errorHandler } from "./src/api/middleware/errorHandler";
 import { authMiddleware, adminAuthMiddleware } from "./src/api/middleware/auth";
+import { objectAccessMiddleware } from "./src/api/middleware/objectAccess";
 import { logger } from "./src/utils/logger";
 import { getAllCircuitStats, resetCircuit } from "./src/utils/circuitBreaker";
 import { cacheService } from "./src/services/cacheService";
@@ -256,7 +257,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get('/objects/*', async (req, res) => {
+  app.get('/objects/*', objectAccessMiddleware, async (req, res) => {
     try {
       const objectFile = await objectStorageService.getObjectEntityFile(req.path);
       await objectStorageService.downloadObject(objectFile, res);

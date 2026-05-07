@@ -3,6 +3,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { randomUUID } from "crypto";
 import * as fs from "fs";
 import * as path from "path";
+import { objectAccessMiddleware } from "../../api/middleware/objectAccess";
 
 const UPLOADS_DIR = path.join(process.cwd(), "uploads");
 
@@ -125,13 +126,14 @@ export function registerObjectStorageRoutes(app: Express): void {
   });
 
   /**
-   * Serve uploaded objects (cloud storage).
+   * Serve uploaded objects (cloud storage). Requires authentication and ownership check.
+   * objectAccessMiddleware enforces JWT auth + shared_files ACL in one place.
    */
-  app.get("/objects/:objectPath(*)", async (req: Request, res: Response) => {
+  app.get("/objects/:objectPath(*)", objectAccessMiddleware, async (req: Request, res: Response) => {
     if (!useCloudStorage || !objectStorageService) {
       return res.status(404).json({ error: "Cloud storage not configured" });
     }
-    
+
     try {
       const objectFile = await objectStorageService.getObjectEntityFile(req.path);
       await objectStorageService.downloadObject(objectFile, res);

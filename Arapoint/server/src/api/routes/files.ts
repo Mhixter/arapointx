@@ -50,7 +50,7 @@ router.post('/upload', authMiddleware, upload.single('file'), async (req: Reques
       fileSize: size,
       relatedRequestId: relatedRequestId || null,
       relatedRequestType: relatedRequestType || null,
-      accessibleTo: accessibleTo || 'all',
+      accessibleTo: accessibleTo || 'user',
       description: description || null,
     }).returning();
 
@@ -96,18 +96,26 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
           or(
             eq(sharedFiles.uploadedByUserId, req.userId!),
             eq(sharedFiles.accessibleTo, 'all'),
-            eq(sharedFiles.accessibleTo, 'user'),
           )
         )
       )
       .orderBy(desc(sharedFiles.createdAt))
       .limit(100);
 
-    const filtered = files.filter(f => {
-      if (relatedRequestId && f.relatedRequestId !== relatedRequestId) return false;
-      if (relatedRequestType && f.relatedRequestType !== relatedRequestType) return false;
-      return true;
-    });
+    const filtered = files
+      .filter(f => {
+        if (relatedRequestId && f.relatedRequestId !== relatedRequestId) return false;
+        if (relatedRequestType && f.relatedRequestType !== relatedRequestType) return false;
+        return true;
+      })
+      .map(f => {
+        const isOwner = f.uploadedByUserId === req.userId;
+        return {
+          ...f,
+          shareToken: isOwner ? f.shareToken : undefined,
+          shareTokenExpiresAt: isOwner ? f.shareTokenExpiresAt : undefined,
+        };
+      });
 
     res.json(formatResponse('success', 200, 'Files retrieved', { files: filtered }));
   } catch (error: any) {
@@ -132,9 +140,9 @@ router.get('/:id/download', authMiddleware, async (req: Request, res: Response) 
     }
 
     const isOwner = file.uploadedByUserId === req.userId;
-    const isAccessible = file.accessibleTo === 'all' || file.accessibleTo === 'user';
+    const isPubliclyAccessible = file.accessibleTo === 'all';
 
-    if (!isOwner && !isAccessible) {
+    if (!isOwner && !isPubliclyAccessible) {
       return res.status(403).json(formatErrorResponse(403, 'Access denied'));
     }
 

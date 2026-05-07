@@ -13,9 +13,11 @@ import {
   cacBusinessNatures,
   cacAgents,
   adminUsers,
-  users
+  users,
+  sharedFiles,
 } from '../../db/schema';
 import { eq, desc, count, and } from 'drizzle-orm';
+import { objectStorageService, ObjectNotFoundError } from '../../services/objectStorage';
 import { sendEmail } from '../../services/emailService';
 import { agentNewRequestEmailHtml, SERVICE_LABELS } from '../../utils/agentEmailTemplates';
 
@@ -309,6 +311,23 @@ router.post('/requests/:id/documents', async (req: Request, res: Response) => {
       comment: `Document uploaded: ${documentType}`,
     });
 
+    // Register in shared_files so the user can access the object later
+    const normalizedKey = normalizeFileUrl(fileUrl);
+    if (normalizedKey && normalizedKey.startsWith('/objects/')) {
+      db.insert(sharedFiles).values({
+        uploadedByUserId: req.userId!,
+        uploaderRole: 'user',
+        fileKey: normalizedKey,
+        fileName: fileName || 'cac-document',
+        mimeType: mimeType || 'application/octet-stream',
+        fileSize: fileSize || null,
+        relatedRequestId: id,
+        relatedRequestType: 'cac',
+        accessibleTo: 'user',
+        description: `CAC ${documentType} document`,
+      }).catch(e => logger.warn('Failed to register CAC user doc in shared_files', { error: e.message }));
+    }
+
     logger.info('CAC document uploaded', { userId: req.userId, requestId: id, documentType });
 
     res.status(201).json(formatResponse('success', 201, 'Document uploaded successfully', { document }));
@@ -535,7 +554,22 @@ router.get('/documents/:docId/download', async (req: Request, res: Response) => 
     }
 
     if (document.fileUrl) {
-      return res.redirect(normalizeFileUrl(document.fileUrl));
+      const normalizedUrl = normalizeFileUrl(document.fileUrl);
+      if (normalizedUrl.startsWith('/objects/')) {
+        try {
+          const objectKey = await objectStorageService.getObjectEntityFile(normalizedUrl);
+          res.setHeader('Content-Disposition', `attachment; filename="${document.fileName || 'document'}"`);
+          res.setHeader('Content-Type', document.mimeType || 'application/octet-stream');
+          await objectStorageService.downloadObject(objectKey, res);
+        } catch (objErr) {
+          if (objErr instanceof ObjectNotFoundError) {
+            return res.status(404).json(formatErrorResponse(404, 'File not found in storage'));
+          }
+          throw objErr;
+        }
+        return;
+      }
+      return res.redirect(normalizedUrl);
     }
 
     res.status(404).json(formatErrorResponse(404, 'File URL not available'));
