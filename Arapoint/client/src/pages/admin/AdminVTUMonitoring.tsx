@@ -253,7 +253,6 @@ export default function AdminVTUMonitoring() {
     { value: 'prembly', label: 'Prembly (IdentityPass)' },
     { value: 'youverify', label: 'YouVerify' },
     { value: 'techhub', label: 'TechHub' },
-    { value: 'payvessel', label: 'PayVessel KYC' },
   ];
 
   return (

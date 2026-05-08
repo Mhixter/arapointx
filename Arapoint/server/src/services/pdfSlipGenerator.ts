@@ -690,7 +690,8 @@ export const generatePdfSlip = async (
 
     await page.setViewport(dimensions);
 
-    await page.setContent(populatedHtml, { waitUntil: "networkidle0", timeout: 60000 });
+    await page.setContent(populatedHtml, { waitUntil: "domcontentloaded", timeout: 30000 });
+    await new Promise(resolve => setTimeout(resolve, 800));
 
     await page.pdf({
       path: pdfPath,

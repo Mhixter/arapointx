@@ -15,7 +15,7 @@ const getPremiumTemplateBase64 = (): string => {
   if (cachedPremiumTemplateBase64) return cachedPremiumTemplateBase64;
   
   try {
-    const templatePath = path.join(process.cwd(), 'server/src/templates/premium_slip_template.jpg');
+    const templatePath = path.join(process.cwd(), 'server/src/templates/premium_template.png');
     if (fs.existsSync(templatePath)) {
       const imageBuffer = fs.readFileSync(templatePath);
       cachedPremiumTemplateBase64 = imageBuffer.toString('base64');
@@ -350,11 +350,11 @@ function generateStandardSlip(data: NINData, reference: string, generatedAt: str
   const qrData = JSON.stringify({ nin: data.id, name: fullName });
   
   // Load the standard template as base64
-  const templatePath = path.join(process.cwd(), 'server/src/templates/standard_slip_template.jpg');
+  const templatePath = path.join(process.cwd(), 'server/src/templates/standard_template.png');
   let templateSrc = '';
   try {
     const templateBuffer = fs.readFileSync(templatePath);
-    templateSrc = `data:image/jpeg;base64,${templateBuffer.toString('base64')}`;
+    templateSrc = `data:image/png;base64,${templateBuffer.toString('base64')}`;
   } catch (error) {
     console.error('Failed to load standard template:', error);
     templateSrc = '';
@@ -555,7 +555,7 @@ function generateStandardSlip(data: NINData, reference: string, generatedAt: str
 }
 
 // PREMIUM SLIP - Uses exact user template image as background with data overlay
-// Template image stored at: server/src/templates/premium_slip_template.jpg
+// Template image stored at: server/src/templates/premium_template.png
 function generatePremiumSlip(data: NINData, reference: string, generatedAt: string): string {
   const issueDate = formatDateShort(new Date().toISOString());
   const gender = data.gender?.charAt(0).toUpperCase() || 'M';

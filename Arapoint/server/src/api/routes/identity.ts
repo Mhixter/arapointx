@@ -249,16 +249,15 @@ router.get('/template-image', async (req, res) => {
     const path = await import('path');
     const type = (req.query.type as string) || 'premium';
     
-    let templatePath = path.join(process.cwd(), 'server/src/templates/premium_slip_template.jpg');
-    let contentType = 'image/jpeg';
+    let templatePath = path.join(process.cwd(), 'server/src/templates/premium_template.png');
+    let contentType = 'image/png';
     
     if (type === 'standard') {
-      templatePath = path.join(process.cwd(), 'server/src/templates/standard_slip_template.jpg');
+      templatePath = path.join(process.cwd(), 'server/src/templates/standard_template.png');
     } else if (type === 'regular') {
-      templatePath = path.join(process.cwd(), 'server/src/templates/regular_slip_template.jpg');
+      templatePath = path.join(process.cwd(), 'server/src/templates/standard_template.png');
     } else if (type === 'full_info' || type === 'information') {
       templatePath = path.join(process.cwd(), 'server/src/templates/full_info_template.png');
-      contentType = 'image/png';
     }
     
     logger.info('Serving template image', { templatePath, exists: fs.existsSync(templatePath) });
