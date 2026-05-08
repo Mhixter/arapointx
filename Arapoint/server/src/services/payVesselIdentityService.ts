@@ -21,7 +21,7 @@ function getConfig() {
 function getHeaders(config: ReturnType<typeof getConfig>) {
   return {
     'api-key': config.apiKey,
-    'api-secret': `Bearer ${config.secretKey}`,
+    'api-secret': config.secretKey,
     'Content-Type': 'application/json',
   };
 }
