@@ -20,6 +20,7 @@ const IDENTITY_PROVIDERS = [
   { value: 'prembly',   label: 'Prembly',    sub: 'IdentityPass API',        color: 'blue' },
   { value: 'youverify', label: 'YouVerify',   sub: 'YouVerify KYC API',       color: 'purple' },
   { value: 'techhub',   label: 'TechHub',     sub: 'TechHub Identity API',    color: 'orange' },
+  { value: 'payvessel', label: 'PayVessel',   sub: 'Enhanced NIN + BVN API',  color: 'green' },
 ] as const;
 
 export default function AdminSettings() {

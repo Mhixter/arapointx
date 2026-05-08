@@ -1,0 +1,268 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://docs.payvessel.com/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# Verify BVN (Basic)
+
+> Verify a BVN against submitted identity details using the basic verification endpoint.
+
+
+
+## OpenAPI
+
+````yaml POST /api/v1/merchant/bvn/basic
+openapi: 3.1.0
+info:
+  title: PayVessel API
+  description: >-
+    PayVessel API for accepting payments, sending money, verifying identities,
+    and managing wallets
+  version: 1.0.0
+servers:
+  - url: https://api.payvessel.com
+  - url: https://sandbox.payvessel.com
+security:
+  - {}
+paths:
+  /api/v1/merchant/bvn/basic:
+    post:
+      tags:
+        - Identity Verification
+      summary: Basic BVN Verification
+      description: >-
+        Verify a BVN against submitted identity details such as first name,
+        middle name, last name, gender, date of birth, and phone number.
+      parameters:
+        - name: api-key
+          in: header
+          description: Your PayVessel API key
+          required: true
+          schema:
+            type: string
+          example: PVKEY-9A1BC2D3EF4G5H6J7K8L
+        - name: api-secret
+          in: header
+          description: Your PayVessel API secret
+          required: true
+          schema:
+            type: string
+          example: PVSECRET-8Z7Y6X5W4V3U2T1S0R9Q
+        - name: Content-Type
+          in: header
+          description: Request content type
+          required: true
+          schema:
+            type: string
+            enum:
+              - application/json
+          example: application/json
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BasicBvnVerificationRequest'
+            examples:
+              default:
+                summary: Basic BVN verification request
+                value:
+                  bvn: '22123456789'
+                  first_name: John
+                  middle_name: Adebayo
+                  last_name: Doe
+                  gender: MALE
+                  birthday: '1992-08-14'
+                  phone_number: '08012345678'
+      responses:
+        '200':
+          description: BVN verification response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicBvnVerificationResponse'
+              examples:
+                successfulVerification:
+                  summary: Successful basic BVN verification
+                  value:
+                    success: true
+                    message: BVN verification completed successfully
+                    data:
+                      name_match_rlt: MATCH
+                      names_match_percentage: '96'
+                      birthday_match_rlt: MATCH
+                      gender_match_rlt: MATCH
+                      phone_number_match_rlt: MATCH
+                    charges:
+                      charged: false
+                      charged_amount: '0.00'
+                bvnNotFound:
+                  summary: BVN not found
+                  value:
+                    success: false
+                    message: BVN not found
+                    data: null
+                    charges:
+                      charged: true
+                      charged_amount: '25.00'
+        '402':
+          description: >-
+            Verification could not be processed because the wallet balance is
+            insufficient
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationPaymentErrorResponse'
+              examples:
+                insufficientBalance:
+                  summary: Insufficient wallet balance
+                  value:
+                    success: false
+                    message: >-
+                      Your wallet balance is insufficient for this request.
+                      Required 25.00, available 0. Please fund your wallet and
+                      try again.
+                    details:
+                      - >-
+                        Your wallet balance is insufficient for this request.
+                        Required 25.00, available 0. Please fund your wallet and
+                        try again.
+      servers:
+        - url: https://api.payvessel.com/kyc
+        - url: https://sandbox.payvessel.com/kyc
+components:
+  schemas:
+    BasicBvnVerificationRequest:
+      type: object
+      required:
+        - bvn
+        - first_name
+        - middle_name
+        - last_name
+        - gender
+        - birthday
+        - phone_number
+      properties:
+        bvn:
+          type: string
+          description: Customer BVN
+          example: '22123456789'
+        first_name:
+          type: string
+          description: Customer first name
+          example: John
+        middle_name:
+          type: string
+          description: Customer middle name
+          example: Adebayo
+        last_name:
+          type: string
+          description: Customer last name
+          example: Doe
+        gender:
+          type: string
+          description: Customer gender
+          enum:
+            - MALE
+            - FEMALE
+          example: MALE
+        birthday:
+          type: string
+          format: date
+          description: Customer date of birth
+          example: '1992-08-14'
+        phone_number:
+          type: string
+          description: Customer phone number
+          example: '08012345678'
+    BasicBvnVerificationResponse:
+      type: object
+      required:
+        - success
+        - message
+        - data
+        - charges
+      properties:
+        success:
+          type: boolean
+          description: Whether the request completed successfully
+          example: true
+        message:
+          type: string
+          description: Response message
+          example: BVN verification completed successfully
+        data:
+          oneOf:
+            - $ref: '#/components/schemas/BasicBvnVerificationData'
+            - type: 'null'
+        charges:
+          $ref: '#/components/schemas/VerificationCharges'
+    VerificationPaymentErrorResponse:
+      type: object
+      required:
+        - success
+        - message
+        - details
+      properties:
+        success:
+          type: boolean
+          description: Whether the request completed successfully
+          example: false
+        message:
+          type: string
+          description: Reason the request could not be processed
+          example: >-
+            Your wallet balance is insufficient for this request. Required
+            25.00, available 0. Please fund your wallet and try again.
+        details:
+          type: array
+          description: Detailed error messages returned by the API
+          items:
+            type: string
+          example:
+            - >-
+              Your wallet balance is insufficient for this request. Required
+              25.00, available 0. Please fund your wallet and try again.
+    BasicBvnVerificationData:
+      type: object
+      required:
+        - name_match_rlt
+        - names_match_percentage
+        - birthday_match_rlt
+        - gender_match_rlt
+        - phone_number_match_rlt
+      properties:
+        name_match_rlt:
+          type: string
+          description: Result of the name match check
+          example: MATCH
+        names_match_percentage:
+          type: string
+          description: Percentage score for matched names
+          example: '96'
+        birthday_match_rlt:
+          type: string
+          description: Result of the birthday match check
+          example: MATCH
+        gender_match_rlt:
+          type: string
+          description: Result of the gender match check
+          example: MATCH
+        phone_number_match_rlt:
+          type: string
+          description: Result of the phone number match check
+          example: MATCH
+    VerificationCharges:
+      type: object
+      required:
+        - charged
+        - charged_amount
+      properties:
+        charged:
+          type: boolean
+          description: Whether the verification request was billed
+        charged_amount:
+          type: string
+          description: Amount charged for the verification request
+          example: '0.00'
+
+````

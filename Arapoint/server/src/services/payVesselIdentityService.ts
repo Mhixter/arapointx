@@ -30,12 +30,12 @@ function mapNINResponse(raw: any, nin: string): Record<string, any> {
   return {
     id: raw.nin || raw.NIN || nin,
     trackingId: raw.trackingId || raw.tracking_id || raw.centralID || '',
-    firstName: raw.firstname || raw.firstName || raw.first_name || '',
-    middleName: raw.middlename || raw.middleName || raw.middle_name || '',
-    lastName: raw.lastname || raw.lastName || raw.last_name || raw.surname || '',
-    dateOfBirth: raw.dob || raw.dateOfBirth || raw.date_of_birth || raw.birthdate || '',
+    firstName: raw.first_name || raw.firstname || raw.firstName || '',
+    middleName: raw.middle_name || raw.middlename || raw.middleName || '',
+    lastName: raw.surname || raw.last_name || raw.lastname || raw.lastName || '',
+    dateOfBirth: raw.birth_date || raw.dob || raw.dateOfBirth || raw.date_of_birth || raw.birthdate || '',
     gender: raw.gender || '',
-    phone: raw.phone || raw.telephoneno || raw.mobile || '',
+    phone: raw.telephone_no || raw.phone || raw.telephoneno || raw.mobile || '',
     email: raw.email || '',
     address: raw.residence_address || raw.address || '',
     town: raw.residence_town || raw.town || '',
@@ -56,11 +56,11 @@ function mapNINResponse(raw: any, nin: string): Record<string, any> {
 function mapBVNResponse(raw: any, bvn: string): Record<string, any> {
   return {
     id: raw.bvn || raw.BVN || bvn,
-    firstName: raw.firstname || raw.firstName || raw.first_name || '',
-    middleName: raw.middlename || raw.middleName || raw.middle_name || '',
-    lastName: raw.lastname || raw.lastName || raw.last_name || raw.surname || '',
-    dateOfBirth: raw.dob || raw.dateOfBirth || raw.date_of_birth || '',
-    phone: raw.phone || raw.mobile || raw.phoneNumber || raw.phoneNumber1 || '',
+    firstName: raw.first_name || raw.firstname || raw.firstName || '',
+    middleName: raw.middle_name || raw.middlename || raw.middleName || '',
+    lastName: raw.last_name || raw.surname || raw.lastname || raw.lastName || '',
+    dateOfBirth: raw.birth_date || raw.date_of_birth || raw.dob || raw.dateOfBirth || raw.birthday || '',
+    phone: raw.telephone_no || raw.phone_number || raw.phone || raw.mobile || raw.phoneNumber || raw.phoneNumber1 || '',
     email: raw.email || '',
     gender: raw.gender || '',
     enrollmentBranch: raw.enrollmentBranch || raw.enrollment_branch || '',
@@ -100,11 +100,11 @@ class PayVesselIdentityService {
     return response.data;
   }
 
-  async verifyNIN(nin: string, enhanced = false): Promise<VerificationResult> {
+  async verifyNIN(nin: string, _enhanced = false): Promise<VerificationResult> {
     const reference = generateReferenceId();
     if (!this.isConfigured()) return { success: false, error: 'PayVessel not configured', reference };
 
-    const endpoint = enhanced ? '/nin/enhanced' : '/nin/basic';
+    const endpoint = '/nin/enhanced';
     try {
       logger.info('PayVessel NIN verification started', { endpoint, nin: nin.substring(0, 4) + '***', reference });
       const data = await this.post(endpoint, { nin });
@@ -124,11 +124,11 @@ class PayVesselIdentityService {
     }
   }
 
-  async verifyBVN(bvn: string, enhanced = false): Promise<VerificationResult> {
+  async verifyBVN(bvn: string, _enhanced = false): Promise<VerificationResult> {
     const reference = generateReferenceId();
     if (!this.isConfigured()) return { success: false, error: 'PayVessel not configured', reference };
 
-    const endpoint = enhanced ? '/bvn/enhanced' : '/bvn/basic';
+    const endpoint = '/bvn/enhanced';
     try {
       logger.info('PayVessel BVN verification started', { endpoint, bvn: bvn.substring(0, 4) + '***', reference });
       const data = await this.post(endpoint, { bvn });
