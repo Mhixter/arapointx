@@ -86,9 +86,13 @@ async function getActiveIdentityProviders(): Promise<('techhub' | 'prembly' | 'y
 
   if (all.length === 0) throw new Error('No identity verification provider configured. Please configure API credentials in Settings → Gateways.');
 
-  // Put the admin-preferred provider first (if it's configured)
-  if (preferred && all.includes(preferred as any)) {
-    return [preferred as 'prembly' | 'youverify' | 'techhub' | 'payvessel', ...all.filter(p => p !== preferred)];
+  // Always honour the admin-preferred provider — put it first even if isConfigured()
+  // returned false (credentials may be loaded at runtime; let the call fail gracefully
+  // and fall through to the next configured provider).
+  const validProviders = ['prembly', 'youverify', 'techhub', 'payvessel'] as const;
+  if (preferred && validProviders.includes(preferred as any)) {
+    const rest = all.filter(p => p !== preferred);
+    return [preferred as (typeof validProviders)[number], ...rest];
   }
   // Default priority: prembly first
   return all;

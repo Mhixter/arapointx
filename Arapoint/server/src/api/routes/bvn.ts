@@ -9,18 +9,33 @@ import { bvnRetrieveSchema, bvnDigitalCardSchema, bvnModifySchema } from '../val
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { db } from '../../config/database';
-import { bvnServices, users, adminNotifications } from '../../db/schema';
+import { bvnServices, users, adminNotifications, adminSettings } from '../../db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { generateReferenceId } from '../../utils/helpers';
 
-const getConfiguredProviders = (): ('prembly' | 'youverify' | 'payvessel')[] => {
-  const providers: ('prembly' | 'youverify' | 'payvessel')[] = [];
-  if (premblyService.isConfigured()) providers.push('prembly');
-  if (youverifyService.isConfigured()) providers.push('youverify');
-  if (payVesselIdentityService.isConfigured()) providers.push('payvessel');
-  if (providers.length === 0) throw new Error('No identity verification provider configured');
-  return providers;
-};
+async function getActiveProviders(): Promise<('prembly' | 'youverify' | 'payvessel')[]> {
+  // Read admin-preferred provider from DB — same logic as identity.ts
+  let preferred: string | null = null;
+  try {
+    const [row] = await db.select({ settingValue: adminSettings.settingValue })
+      .from(adminSettings).where(eq(adminSettings.settingKey, 'active_identity_provider')).limit(1);
+    preferred = row?.settingValue?.toLowerCase() || null;
+  } catch { /* ignore */ }
+
+  const all: ('prembly' | 'youverify' | 'payvessel')[] = [];
+  if (premblyService.isConfigured()) all.push('prembly');
+  if (youverifyService.isConfigured()) all.push('youverify');
+  if (payVesselIdentityService.isConfigured()) all.push('payvessel');
+  if (all.length === 0) throw new Error('No identity verification provider configured');
+
+  // Honour admin preference — put it first even if isConfigured() returned false
+  const validProviders = ['prembly', 'youverify', 'payvessel'] as const;
+  if (preferred && validProviders.includes(preferred as any)) {
+    const rest = all.filter(p => p !== preferred);
+    return [preferred as (typeof validProviders)[number], ...rest];
+  }
+  return all;
+}
 
 const isRealValue = (val: any): boolean => {
   if (!val || typeof val !== 'string') return false;
@@ -40,7 +55,7 @@ const hasValidBVNData = (data: any): boolean => {
 };
 
 const verifyBVNWithFallback = async (bvn: string, isPremium: boolean) => {
-  const providers = getConfiguredProviders();
+  const providers = await getActiveProviders();
   let lastError: string | undefined;
   
   for (const provider of providers) {
