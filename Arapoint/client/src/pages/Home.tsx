@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { CheckCircle2, Shield, GraduationCap, Building2, Zap, ChevronRight, Lock, ArrowRight, Code2, Terminal, Globe, Webhook, Users, CreditCard, Briefcase, BarChart3, Clock, BadgeCheck, Star, TrendingUp, CheckCheck, Database, Fingerprint, BookOpen } from "lucide-react";
 import { Link } from "wouter";
 import { useEffect, useRef, useState } from "react";
-import heroImage from "@/assets/hero-woman.png";
+import heroCutout from "@/assets/hero-cutout.png";
 
 function useCountUp(target: number, duration = 2000, start = false) {
   const [count, setCount] = useState(0);
@@ -199,30 +199,34 @@ export default function Home() {
           </div>
 
           <div className="relative animate-in slide-in-from-right-5 duration-1000 fade-in delay-200 justify-self-end w-full max-w-md">
-            <div className="absolute -inset-4 bg-gradient-to-br from-primary/10 to-blue-500/10 rounded-3xl blur-2xl" />
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl ring-1 ring-primary/20 bg-card">
-              <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 to-transparent" />
-              <img
-                src={heroImage}
-                alt="Nigerian professional using Arapoint identity verification"
-                className="object-cover w-full h-[420px] lg:h-[520px]"
-              />
-              <div className="absolute bottom-4 left-4 right-4">
-                <div className="bg-background/95 backdrop-blur-sm rounded-xl p-3 border border-border/60 shadow-lg">
-                  <div className="flex items-center gap-2.5">
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <Fingerprint className="w-4 h-4 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-foreground">Identity Verified</p>
-                      <p className="text-xs text-muted-foreground">NIN · BVN · SSCE · JAMB</p>
-                    </div>
-                    <div className="flex items-center gap-1 bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0">
-                      <CheckCheck className="w-3 h-3" /> PASS
-                    </div>
-                  </div>
-                </div>
+            {/* Gradient background panel */}
+            <div className="relative rounded-3xl overflow-hidden" style={{ background: "linear-gradient(135deg, #059669 0%, #065f46 60%, #022c22 100%)", minHeight: 480 }}>
+              {/* Subtle grid pattern overlay */}
+              <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.4) 1px, transparent 0)", backgroundSize: "28px 28px" }} />
+              {/* Floating stat cards */}
+              <div className="absolute top-6 left-5 bg-white/95 backdrop-blur rounded-xl shadow-lg px-3 py-2.5 z-20">
+                <p className="text-xs font-bold text-gray-900">Identity Verified</p>
+                <p className="text-xs text-gray-400 mt-0.5">NIN · BVN · SSCE</p>
               </div>
+              <div className="absolute top-6 right-5 flex items-center gap-1.5 bg-white/95 backdrop-blur rounded-xl shadow-lg px-3 py-2.5 z-20">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-xs font-bold text-green-700">PASS</span>
+              </div>
+              <div className="absolute bottom-6 left-5 bg-white/95 backdrop-blur rounded-xl shadow-lg px-3 py-2.5 z-20">
+                <p className="text-xs text-gray-400">Response time</p>
+                <p className="text-sm font-bold text-gray-900">1.2s</p>
+              </div>
+              <div className="absolute bottom-6 right-5 bg-white/95 backdrop-blur rounded-xl shadow-lg px-3 py-2.5 z-20">
+                <p className="text-xs text-gray-400">Confidence</p>
+                <p className="text-sm font-bold text-gray-900">99.4%</p>
+              </div>
+              {/* Cutout person — bottom aligned so they "stand" in the card */}
+              <img
+                src={heroCutout}
+                alt="Nigerian professional using Arapoint identity verification"
+                className="relative z-10 w-full object-contain object-bottom"
+                style={{ height: 480 }}
+              />
             </div>
           </div>
         </div>

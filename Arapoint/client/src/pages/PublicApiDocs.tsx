@@ -1,716 +1,821 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
-  Copy, CheckCircle, Book, Key, Zap, Globe, Shield,
-  AlertTriangle, Code2, Webhook, CreditCard, FlaskConical,
-  RefreshCw, Lock, BarChart3, ArrowRight, Menu, X,
-  ChevronDown, ChevronRight, ExternalLink
+  Copy, Check, Search, ChevronRight, ExternalLink, Menu, X,
+  ChevronDown, ArrowRight
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import arapointLogo from "@assets/generated_images/arapoint_solution_logo.png";
 
 const BASE_URL = "https://arapoint.com.ng/api/v1/developer";
 
-const endpoints = [
+type LangKey = "cURL" | "JavaScript" | "Python" | "PHP";
+
+interface Endpoint {
+  id: string;
+  group: string;
+  method: "GET" | "POST";
+  path: string;
+  title: string;
+  description: string;
+  price: number;
+  priceNote?: string;
+  isAsync?: boolean;
+  request: Record<string, unknown>;
+  response: Record<string, unknown>;
+  params: { name: string; type: string; required: boolean; desc: string }[];
+  notes: string[];
+}
+
+const ENDPOINTS: Endpoint[] = [
   {
+    id: "nin",
     group: "Verification",
     method: "POST",
     path: "/verify/nin",
     title: "NIN Verification",
-    description: "Verify a National Identification Number in real-time. Returns full identity data including name, date of birth, gender, and address from NIMC.",
+    description: "Verify a National Identification Number in real-time. Returns full identity data — name, date of birth, gender, phone, and address — directly from the NIMC registry.",
     price: 130,
-    auth: "api-key",
-    async: false,
+    isAsync: false,
     request: { nin: "12345678901" },
     response: {
-      status: "success", code: 200, message: "NIN verification completed",
+      status: "success",
+      code: 200,
+      message: "NIN verification completed",
       data: {
-        verification: { firstName: "CHUKWUEMEKA", middleName: "JAMES", lastName: "OKONKWO", dateOfBirth: "1995-03-14", gender: "Male", phone: "08012345678", nin: "12345678901", address: "12 Lagos Street, Abuja" },
-        source: "ARAPOINT", cached: false, requestId: "NIN-abc123"
+        verification: {
+          firstName: "CHUKWUEMEKA",
+          middleName: "JAMES",
+          lastName: "OKONKWO",
+          dateOfBirth: "1995-03-14",
+          gender: "Male",
+          phone: "08012345678",
+          nin: "12345678901",
+          address: "12 Lagos Street, Abuja"
+        },
+        source: "ARAPOINT",
+        cached: false,
+        requestId: "NIN-abc123"
       }
     },
     params: [
-      { name: "nin", type: "string", required: false, desc: "11-digit National ID Number (provide nin OR phone)" },
-      { name: "phone", type: "string", required: false, desc: "Registered phone number (alternative to NIN)" },
+      { name: "nin", type: "string", required: false, desc: "11-digit National ID Number. Provide either nin or phone." },
+      { name: "phone", type: "string", required: false, desc: "Phone number registered with NIMC (alternative to NIN)." },
     ],
-    notes: ["Either nin or phone must be provided", "Results cached 24h to reduce cost on repeated lookups", "Sandbox returns mock data instantly"]
+    notes: [
+      "Either nin or phone must be provided.",
+      "Results are cached for 24 hours to reduce cost on repeated lookups.",
+      "Sandbox mode returns mock data instantly at no charge."
+    ]
   },
   {
+    id: "bvn",
     group: "Verification",
     method: "POST",
     path: "/verify/bvn",
-    title: "BVN Verification",
+    title: "BVN Lookup",
     description: "Verify a Bank Verification Number and retrieve the associated identity record from the Central Bank of Nigeria network.",
     price: 80,
-    auth: "api-key",
-    async: false,
+    isAsync: false,
     request: { bvn: "12345678901" },
     response: {
-      status: "success", code: 200, message: "BVN verification completed",
+      status: "success",
+      code: 200,
+      message: "BVN verification completed",
       data: {
-        verification: { firstName: "CHUKWUEMEKA", lastName: "OKONKWO", dateOfBirth: "1995-03-14", bvn: "12345678901", phone: "08012345678", enrollmentBank: "ACCESS BANK", enrollmentBranch: "VICTORIA ISLAND" },
-        source: "CBN", cached: false, requestId: "BVN-def456"
+        verification: {
+          firstName: "CHUKWUEMEKA",
+          lastName: "OKONKWO",
+          dateOfBirth: "1995-03-14",
+          bvn: "12345678901",
+          phone: "08012345678",
+          enrollmentBank: "ACCESS BANK",
+          enrollmentBranch: "VICTORIA ISLAND"
+        },
+        source: "CBN",
+        cached: false,
+        requestId: "BVN-def456"
       }
     },
-    params: [{ name: "bvn", type: "string", required: true, desc: "11-digit Bank Verification Number" }],
-    notes: ["Results cached 24h", "Cross-reference with NIN to confirm identity consistency"]
+    params: [
+      { name: "bvn", type: "string", required: true, desc: "11-digit Bank Verification Number." },
+    ],
+    notes: [
+      "Results are cached for 24 hours.",
+      "Cross-reference with NIN to confirm identity consistency."
+    ]
   },
   {
+    id: "education",
     group: "Verification",
     method: "POST",
     path: "/verify/education",
     title: "Education Verification",
-    description: "Verify academic results from WAEC, NECO, NABTEB, or NBAIS. Async — returns a jobId immediately. Results delivered via webhook or polling.",
+    description: "Verify academic results from WAEC, NECO, NABTEB, or NBAIS. Returns a jobId immediately — results arrive via webhook or polling within 1 to 3 minutes.",
     price: 250,
-    auth: "api-key",
-    async: true,
-    request: { provider: "waec", registrationNumber: "4190101001", examYear: 2023, examType: "WASSCE", cardPin: "12345678", cardSerialNumber: "AA123456789" },
+    isAsync: true,
+    request: {
+      provider: "waec",
+      registrationNumber: "4190101001",
+      examYear: 2023,
+      examType: "WASSCE",
+      cardPin: "12345678",
+      cardSerialNumber: "AA123456789"
+    },
     response: {
-      status: "success", code: 200, message: "Education verification queued",
-      data: { provider: "WAEC", examYear: 2023, registrationNumber: "4190101001", status: "processing", jobId: "uuid-job-id-here", note: "Results available in 1–3 minutes." }
+      status: "success",
+      code: 200,
+      message: "Education verification queued",
+      data: {
+        provider: "WAEC",
+        examYear: 2023,
+        registrationNumber: "4190101001",
+        status: "processing",
+        jobId: "uuid-job-id-here",
+        note: "Results available in 1–3 minutes."
+      }
     },
     params: [
-      { name: "provider", type: "string", required: true, desc: "Exam body: waec | neco | nabteb | nbais" },
-      { name: "registrationNumber", type: "string", required: true, desc: "Candidate exam number" },
-      { name: "examYear", type: "number", required: true, desc: "Year of examination" },
-      { name: "examType", type: "string", required: true, desc: "WAEC: WASSCE or GCE — NECO: school_candidate or private" },
-      { name: "cardPin", type: "string", required: true, desc: "Scratch-card PIN or verification token" },
-      { name: "cardSerialNumber", type: "string", required: false, desc: "WAEC & NABTEB only: scratch-card serial" },
+      { name: "provider", type: "string", required: true, desc: "Exam body: waec, neco, nabteb, or nbais." },
+      { name: "registrationNumber", type: "string", required: true, desc: "Candidate exam registration number." },
+      { name: "examYear", type: "number", required: true, desc: "Year the examination was taken." },
+      { name: "examType", type: "string", required: true, desc: "WAEC: WASSCE or GCE. NECO: school_candidate or private." },
+      { name: "cardPin", type: "string", required: true, desc: "Scratch-card PIN or verification token." },
+      { name: "cardSerialNumber", type: "string", required: false, desc: "Required for WAEC and NABTEB only." },
     ],
-    notes: ["ASYNC — poll or use webhooks for results", "Charge deducted when request is accepted"]
+    notes: [
+      "This endpoint is asynchronous. Poll /verify/education/result or configure a webhook.",
+      "The charge is deducted when the request is accepted by the queue.",
+      "Sandbox mode returns instant mock results at no charge."
+    ]
   },
   {
+    id: "employment",
     group: "Verification",
     method: "POST",
     path: "/verify/employment-screening",
     title: "Employment Screening",
-    description: "NIN + BVN + SSCE in one API call. Cross-references names and DOB across all three sources, analyzes SSCE grades, and returns a 100-point PASS/REVIEW/FAIL score.",
+    description: "NIN, BVN, and SSCE in one API call. Cross-references names and dates of birth across all three sources, analyses SSCE grades, and returns a 100-point PASS, REVIEW, or FAIL decision.",
     price: 391,
-    priceNote: "NIN ₦130 + BVN ₦80 + SSCE ₦250 = ₦460 — 15% bundle = ₦391",
-    auth: "api-key",
-    async: true,
-    request: { nin: "12345678901", bvn: "12345678901", educationProvider: "waec", registrationNumber: "WA2020/12345", examYear: 2020, examType: "Internal", cardSerialNumber: "CS123456", cardPin: "1234" },
+    priceNote: "₦130 NIN + ₦80 BVN + ₦250 SSCE = ₦460, with 15% bundle discount = ₦391",
+    isAsync: true,
+    request: {
+      nin: "12345678901",
+      bvn: "12345678901",
+      educationProvider: "waec",
+      registrationNumber: "WA2020/12345",
+      examYear: 2020,
+      examType: "Internal",
+      cardSerialNumber: "CS123456",
+      cardPin: "1234"
+    },
     response: {
-      status: "success", code: 200,
-      data: { requestId: "IDC-abc123", decision: "PASS", score: 94, crossCheck: { ninBvnNameMatch: true, ninBvnDobMatch: true }, ssceAnalysis: { meetsMinimumRequirement: true, englishCredit: true, mathCredit: true } }
+      status: "success",
+      code: 200,
+      data: {
+        requestId: "IDC-abc123",
+        decision: "PASS",
+        score: 94,
+        crossCheck: { ninBvnNameMatch: true, ninBvnDobMatch: true },
+        ssceAnalysis: { meetsMinimumRequirement: true, englishCredit: true, mathCredit: true }
+      }
     },
     params: [
-      { name: "nin", type: "string", required: true, desc: "11-digit NIN" },
-      { name: "bvn", type: "string", required: true, desc: "11-digit BVN" },
-      { name: "educationProvider", type: "string", required: true, desc: "waec | neco | nabteb | nbais" },
-      { name: "registrationNumber", type: "string", required: true, desc: "SSCE registration number" },
-      { name: "examYear", type: "number", required: true, desc: "Year of examination" },
+      { name: "nin", type: "string", required: true, desc: "11-digit NIN." },
+      { name: "bvn", type: "string", required: true, desc: "11-digit BVN." },
+      { name: "educationProvider", type: "string", required: true, desc: "waec, neco, nabteb, or nbais." },
+      { name: "registrationNumber", type: "string", required: true, desc: "SSCE registration number." },
+      { name: "examYear", type: "number", required: true, desc: "Year of examination." },
     ],
-    notes: ["PASS ≥ 85 | REVIEW 60–84 | FAIL < 60", "15% bundle discount applied automatically", "Sandbox returns instant result"]
+    notes: [
+      "PASS is 85 and above. REVIEW is 60 to 84. FAIL is below 60.",
+      "The 15% bundle discount is applied automatically.",
+      "Sandbox mode returns an instant composed result at no charge."
+    ]
   },
   {
+    id: "fraud",
     group: "Verification",
     method: "POST",
     path: "/verify/fraud-score",
     title: "Fraud Score",
-    description: "Run identity risk scoring across NIN and BVN records. Detects name mismatches, DOB inconsistencies, and data anomalies.",
+    description: "Run identity risk scoring across NIN and BVN records. Detects name mismatches, date-of-birth inconsistencies, and data anomalies.",
     price: 50,
-    auth: "api-key",
-    async: false,
+    isAsync: false,
     request: { nin: "12345678901", bvn: "12345678901" },
-    response: { status: "success", code: 200, data: { score: 8, riskLevel: "low", signals: {}, flags: [], decision: "PASS" } },
+    response: {
+      status: "success",
+      code: 200,
+      data: { score: 8, riskLevel: "low", signals: {}, flags: [], decision: "PASS" }
+    },
     params: [
-      { name: "nin", type: "string", required: false, desc: "11-digit NIN" },
-      { name: "bvn", type: "string", required: false, desc: "11-digit BVN" },
+      { name: "nin", type: "string", required: false, desc: "11-digit NIN (provide at least one identifier)." },
+      { name: "bvn", type: "string", required: false, desc: "11-digit BVN (provide at least one identifier)." },
     ],
-    notes: ["riskLevel: low | medium | high", "score 0–100 (lower = less risky)"]
-  },
-  {
-    group: "Account",
-    method: "GET",
-    path: "/profile",
-    title: "Get Profile",
-    description: "Retrieve your developer account profile including wallet balance, KYB status, and environment mode.",
-    price: 0,
-    auth: "jwt",
-    async: false,
-    request: {},
-    response: { status: "success", code: 200, data: { id: "dev_abc123", name: "John Doe", email: "john@acme.com", walletBalance: 4500.00, environmentMode: "sandbox", kycStatus: "approved" } },
-    params: [],
-    notes: ["Requires Authorization: Bearer <jwt_token> header"]
+    notes: [
+      "Risk levels: low, medium, or high.",
+      "Score of 0 to 100 — lower means less risky."
+    ]
   },
 ];
 
-const docSections = [
-  { id: "overview", label: "Overview", icon: Book },
-  { id: "quickstart", label: "Quick Start", icon: Zap },
-  { id: "authentication", label: "Authentication", icon: Key },
-  { id: "sandbox", label: "Sandbox & Live", icon: FlaskConical },
-  { id: "endpoints", label: "API Endpoints", icon: Code2 },
-  { id: "async-flow", label: "Async Verification", icon: RefreshCw },
-  { id: "errors", label: "Error Handling", icon: AlertTriangle },
-  { id: "webhooks", label: "Webhooks", icon: Webhook },
-  { id: "billing", label: "Billing & Pricing", icon: CreditCard },
+const GUIDE_SECTIONS = [
+  { id: "welcome", label: "Welcome" },
+  { id: "authentication", label: "Authentication" },
+  { id: "sandbox", label: "Sandbox and Live" },
+  { id: "async-flow", label: "Async Verification" },
+  { id: "errors", label: "Error Codes" },
+  { id: "webhooks", label: "Webhooks" },
+  { id: "pricing", label: "Pricing" },
 ];
 
-const LANG_TABS = ["cURL", "JavaScript", "Python", "PHP"] as const;
-type Lang = typeof LANG_TABS[number];
-
-function buildExample(lang: Lang, method: string, path: string, request: object): string {
+function buildCode(lang: LangKey, method: string, path: string, body: Record<string, unknown>): string {
   const url = `${BASE_URL}${path}`;
-  const hasBody = method !== "GET" && Object.keys(request).length > 0;
-  const bodyStr = JSON.stringify(request, null, 2);
+  const hasBody = method !== "GET" && Object.keys(body).length > 0;
   if (lang === "cURL") {
     return method === "GET"
-      ? `curl -X GET "${url}" \\\n  -H "X-API-Key: ara_your_api_key_here"`
-      : `curl -X POST "${url}" \\\n  -H "X-API-Key: ara_your_api_key_here" \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify(request)}'`;
+      ? `curl "${url}" \\\n  -H "X-API-Key: ara_live_your_key_here"`
+      : `curl -X POST "${url}" \\\n  -H "X-API-Key: ara_live_your_key_here" \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify(body, null, 2)}'`;
   }
   if (lang === "JavaScript") {
-    return `const response = await fetch("${url}", {\n  method: "${method}",\n  headers: {\n    "X-API-Key": "ara_your_api_key_here"${hasBody ? `,\n    "Content-Type": "application/json"` : ""}\n  }${hasBody ? `,\n  body: JSON.stringify(${bodyStr})` : ""}\n});\nconst data = await response.json();\nconsole.log(data);`;
+    return `const res = await fetch("${url}", {\n  method: "${method}",\n  headers: {\n    "X-API-Key": "ara_live_your_key_here"${hasBody ? `,\n    "Content-Type": "application/json"` : ""}\n  }${hasBody ? `,\n  body: JSON.stringify(${JSON.stringify(body, null, 2)})` : ""}\n});\nconst data = await res.json();\nconsole.log(data);`;
   }
   if (lang === "Python") {
-    return `import requests\n\nresponse = requests.${method.toLowerCase()}(\n    "${url}",\n    headers={"X-API-Key": "ara_your_api_key_here"}${hasBody ? `,\n    json=${bodyStr}` : ""}\n)\nprint(response.json())`;
+    return `import requests\n\nres = requests.${method.toLowerCase()}(\n    "${url}",\n    headers={"X-API-Key": "ara_live_your_key_here"}${hasBody ? `,\n    json=${JSON.stringify(body, null, 2)}` : ""}\n)\nprint(res.json())`;
   }
   if (lang === "PHP") {
-    return `<?php\n$ch = curl_init("${url}");\ncurl_setopt($ch, CURLOPT_RETURNTRANSFER, true);\ncurl_setopt($ch, CURLOPT_HTTPHEADER, [\n  "X-API-Key: ara_your_api_key_here",${hasBody ? `\n  "Content-Type: application/json"` : ""}\n]);${hasBody ? `\ncurl_setopt($ch, CURLOPT_POST, true);\ncurl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(${bodyStr}));` : ""}\n$result = curl_exec($ch);\necho $result;`;
+    return `<?php\n$ch = curl_init("${url}");\ncurl_setopt_array($ch, [\n  CURLOPT_RETURNTRANSFER => true,\n  CURLOPT_HTTPHEADER => [\n    "X-API-Key: ara_live_your_key_here",${hasBody ? `\n    "Content-Type: application/json",` : ""}\n  ],${hasBody ? `\n  CURLOPT_POST => true,\n  CURLOPT_POSTFIELDS => json_encode(${JSON.stringify(body, null, 2)}),` : ""}\n]);\necho curl_exec($ch);`;
   }
   return "";
 }
 
-function CopyableCode({ code }: { code: string }) {
+function CodeBlock({ code, lang }: { code: string; lang?: string }) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const copy = () => {
     navigator.clipboard.writeText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    toast({ title: "Copied to clipboard" });
+    toast({ title: "Copied" });
   };
   return (
-    <div className="relative group">
-      <pre className="bg-gray-950 border border-gray-800 rounded-lg p-4 text-xs text-gray-300 overflow-x-auto leading-relaxed whitespace-pre-wrap">{code}</pre>
-      <button onClick={copy} className="absolute top-2 right-2 text-gray-500 hover:text-gray-300 transition-colors">
-        {copied ? <CheckCircle className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
-      </button>
+    <div className="relative group rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-950">
+      {lang && (
+        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800 bg-gray-900">
+          <span className="text-xs text-gray-400 font-mono uppercase tracking-widest">{lang}</span>
+          <button onClick={copy} className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors">
+            {copied ? <><Check className="w-3.5 h-3.5 text-green-400" /><span className="text-green-400">Copied</span></> : <><Copy className="w-3.5 h-3.5" />Copy</>}
+          </button>
+        </div>
+      )}
+      {!lang && (
+        <button onClick={copy} className="absolute top-2 right-2 text-gray-500 hover:text-gray-300 transition-colors z-10">
+          {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+        </button>
+      )}
+      <pre className="p-4 text-xs text-gray-300 overflow-x-auto leading-relaxed font-mono whitespace-pre-wrap">{code}</pre>
     </div>
   );
 }
 
-function MethodBadge({ method }: { method: string }) {
-  const colors: Record<string, string> = {
-    GET: "text-blue-400 border-blue-800 bg-blue-950/30",
-    POST: "text-green-400 border-green-800 bg-green-950/30",
-    DELETE: "text-red-400 border-red-800 bg-red-950/30",
-  };
-  return (
-    <Badge variant="outline" className={`text-xs font-mono px-1.5 py-0 ${colors[method] || "text-gray-400 border-gray-700"}`}>
-      {method}
-    </Badge>
-  );
+function MethodPill({ method }: { method: string }) {
+  const cls = method === "POST"
+    ? "bg-green-100 text-green-700 border border-green-200"
+    : "bg-blue-100 text-blue-700 border border-blue-200";
+  return <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold font-mono ${cls}`}>{method}</span>;
+}
+
+function AsyncPill() {
+  return <span className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200">async</span>;
 }
 
 export default function PublicApiDocs() {
-  const [activeSection, setActiveSection] = useState("overview");
-  const [activeEndpoint, setActiveEndpoint] = useState(endpoints[0].path);
-  const [activeLang, setActiveLang] = useState<Lang>("cURL");
+  const [activeSection, setActiveSection] = useState("welcome");
+  const [activeEndpoint, setActiveEndpoint] = useState<string | null>(null);
+  const [activeLang, setActiveLang] = useState<LangKey>("cURL");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [endpointsExpanded, setEndpointsExpanded] = useState(true);
+  const [search, setSearch] = useState("");
   const contentRef = useRef<HTMLDivElement>(null);
+  const endpoint = ENDPOINTS.find(e => e.id === activeEndpoint) ?? null;
 
-  const endpoint = endpoints.find(e => e.path === activeEndpoint) || endpoints[0];
-  const groups = [
-    { name: "Verification", items: endpoints.filter(e => e.group === "Verification") },
-    { name: "Account", items: endpoints.filter(e => e.group === "Account") },
-  ];
-  const codeExample = buildExample(activeLang, endpoint.method, endpoint.path, endpoint.request);
+  const filteredEndpoints = search.trim()
+    ? ENDPOINTS.filter(e =>
+        e.title.toLowerCase().includes(search.toLowerCase()) ||
+        e.path.toLowerCase().includes(search.toLowerCase())
+      )
+    : ENDPOINTS;
 
-  const scrollToSection = (id: string) => {
-    setActiveSection(id);
-    setSidebarOpen(false);
-    const el = document.getElementById(id);
-    if (el && contentRef.current) {
-      contentRef.current.scrollTo({ top: el.offsetTop - 16, behavior: "smooth" });
+  const filteredGuide = search.trim()
+    ? GUIDE_SECTIONS.filter(s => s.label.toLowerCase().includes(search.toLowerCase()))
+    : GUIDE_SECTIONS;
+
+  function goTo(sectionId: string, endpointId?: string) {
+    if (endpointId) {
+      setActiveSection("endpoint");
+      setActiveEndpoint(endpointId);
+    } else {
+      setActiveSection(sectionId);
+      setActiveEndpoint(null);
     }
-  };
-
-  const selectEndpoint = (path: string) => {
-    setActiveEndpoint(path);
-    setActiveSection("endpoints");
     setSidebarOpen(false);
-  };
+    if (contentRef.current) contentRef.current.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
-  useEffect(() => {
-    const container = contentRef.current;
-    if (!container) return;
-    const onScroll = () => {
-      const scrollTop = container.scrollTop;
-      for (const section of docSections) {
-        const el = document.getElementById(section.id);
-        if (el && el.offsetTop - 80 <= scrollTop) setActiveSection(section.id);
-      }
-    };
-    container.addEventListener("scroll", onScroll, { passive: true });
-    return () => container.removeEventListener("scroll", onScroll);
-  }, []);
-
-  const Sidebar = () => (
-    <div className="flex flex-col h-full" style={{ background: "#0B0F1A" }}>
-      <div className="px-4 py-4 flex items-center justify-between border-b border-gray-800">
-        <div>
-          <Link href="/" className="text-sm font-bold text-white flex items-center gap-1.5 hover:text-primary transition-colors">
-            ← Arapoint
-          </Link>
-          <p className="text-xs text-gray-500 mt-1">API Docs v2.0</p>
-        </div>
-        <button className="lg:hidden text-gray-500" onClick={() => setSidebarOpen(false)}><X className="w-4 h-4" /></button>
+  const SidebarContent = () => (
+    <div className="flex flex-col h-full bg-white border-r border-gray-100">
+      <div className="px-4 py-4 border-b border-gray-100">
+        <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <img src={arapointLogo} alt="Arapoint" className="h-7 w-7 object-contain" />
+          <span className="font-bold text-gray-900 text-sm">Arapoint Docs</span>
+        </Link>
       </div>
 
-      <div className="flex-1 overflow-y-auto py-3 px-2">
-        <div className="mb-4">
-          <p className="text-xs font-semibold uppercase tracking-widest px-2 mb-1.5 text-gray-600">Guide</p>
-          {docSections.filter(s => s.id !== "endpoints").map(s => {
-            const active = activeSection === s.id;
+      <div className="px-3 py-3 border-b border-gray-100">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+          <input
+            type="search"
+            placeholder="Search docs..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-8 pr-3 py-2 text-xs bg-gray-50 border border-gray-200 rounded-md outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-400 text-gray-700 placeholder-gray-400"
+          />
+        </div>
+      </div>
+
+      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
+        <div>
+          <p className="px-2 mb-1.5 text-xs font-semibold uppercase tracking-widest text-gray-400">Getting Started</p>
+          {filteredGuide.map(s => {
+            const active = activeSection === s.id && !activeEndpoint;
             return (
               <button
                 key={s.id}
-                onClick={() => scrollToSection(s.id)}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-all mb-0.5"
-                style={{
-                  background: active ? "#0B5FFF18" : "transparent",
-                  color: active ? "#FFFFFF" : "#6B7280",
-                  borderLeft: active ? "2px solid #0B5FFF" : "2px solid transparent",
-                }}
+                onClick={() => goTo(s.id)}
+                className={`w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-all mb-0.5 ${active ? "bg-green-50 text-green-700 font-medium" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`}
               >
-                <s.icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: active ? "#0B5FFF" : undefined }} />
-                <span className="text-xs font-medium">{s.label}</span>
+                {active && <ChevronRight className="w-3 h-3 flex-shrink-0" />}
+                {!active && <span className="w-3 flex-shrink-0" />}
+                {s.label}
               </button>
             );
           })}
         </div>
 
         <div>
-          <button onClick={() => setEndpointsExpanded(v => !v)} className="w-full flex items-center justify-between px-2 mb-1.5">
-            <p className="text-xs font-semibold uppercase tracking-widest text-gray-600">API Endpoints</p>
-            {endpointsExpanded ? <ChevronDown className="w-3 h-3 text-gray-600" /> : <ChevronRight className="w-3 h-3 text-gray-600" />}
-          </button>
-
-          {endpointsExpanded && groups.map(group => (
-            <div key={group.name} className="mb-3">
-              <p className="text-xs px-3 py-1 font-medium text-gray-600">{group.name}</p>
-              {group.items.map(ep => {
-                const active = activeEndpoint === ep.path && activeSection === "endpoints";
+          <p className="px-2 mb-1.5 text-xs font-semibold uppercase tracking-widest text-gray-400">API Endpoints</p>
+          {["Verification"].map(group => (
+            <div key={group} className="mb-2">
+              <p className="px-2 py-1 text-xs font-medium text-gray-400">{group}</p>
+              {filteredEndpoints.filter(e => e.group === group).map(ep => {
+                const active = activeEndpoint === ep.id;
                 return (
                   <button
-                    key={ep.path}
-                    onClick={() => selectEndpoint(ep.path)}
-                    className="w-full text-left px-3 py-2 rounded-lg transition-all mb-0.5"
-                    style={{
-                      background: active ? "#0B5FFF18" : "transparent",
-                      borderLeft: active ? "2px solid #0B5FFF" : "2px solid transparent",
-                    }}
+                    key={ep.id}
+                    onClick={() => goTo("endpoint", ep.id)}
+                    className={`w-full text-left px-2 py-1.5 rounded-md text-sm transition-all mb-0.5 ${active ? "bg-green-50 text-green-700 font-medium" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`}
                   >
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <MethodBadge method={ep.method} />
-                      {ep.async && <span className="text-xs text-purple-400">async</span>}
+                    <div className="flex items-center gap-2">
+                      {active && <ChevronRight className="w-3 h-3 flex-shrink-0 text-green-500" />}
+                      {!active && <span className="w-3 flex-shrink-0" />}
+                      <span className="flex-1 truncate">{ep.title}</span>
+                      <MethodPill method={ep.method} />
                     </div>
-                    <p className="text-xs font-medium leading-snug" style={{ color: active ? "#FFFFFF" : "#9CA3AF" }}>{ep.title}</p>
-                    {(ep as any).priceNote
-                      ? <p className="text-xs mt-0.5 text-purple-400">Bundle pricing</p>
-                      : ep.price > 0
-                      ? <p className="text-xs mt-0.5 text-gray-500">₦{ep.price}/req</p>
-                      : <p className="text-xs mt-0.5 text-green-600">Free</p>}
+                    {ep.isAsync && (
+                      <div className="pl-5 mt-0.5">
+                        <AsyncPill />
+                      </div>
+                    )}
                   </button>
                 );
               })}
             </div>
           ))}
         </div>
-      </div>
+      </nav>
 
-      <div className="px-3 py-3 border-t border-gray-800 space-y-2">
-        <div className="rounded-lg p-3" style={{ background: "#111827" }}>
-          <p className="text-xs font-semibold text-white mb-1">Base URL</p>
-          <code className="text-xs break-all text-blue-400">{BASE_URL}</code>
+      <div className="px-3 py-4 border-t border-gray-100 space-y-2">
+        <div className="rounded-lg bg-gray-50 border border-gray-200 p-3">
+          <p className="text-xs font-semibold text-gray-700 mb-1">Base URL</p>
+          <code className="text-xs text-green-700 break-all font-mono">{BASE_URL}</code>
         </div>
-        <Link href="/developer/login">
-          <Button className="w-full h-8 text-xs">Get API Keys <ExternalLink className="w-3 h-3 ml-1.5" /></Button>
+        <Link href="/auth/signup">
+          <Button size="sm" className="w-full h-8 text-xs bg-green-600 hover:bg-green-700 text-white">
+            Get API Keys <ExternalLink className="w-3 h-3 ml-1.5" />
+          </Button>
         </Link>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen flex" style={{ background: "#0B0F1A", color: "#E5E7EB" }}>
+    <div className="min-h-screen flex bg-white" style={{ fontFamily: "'Inter', sans-serif" }}>
       {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/70 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Mobile sidebar drawer */}
-      <aside
-        className={`fixed lg:hidden inset-y-0 left-0 z-50 w-64 transition-transform duration-200 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
-        style={{ borderRight: "1px solid #1F2937" }}
-      >
-        <Sidebar />
+      <aside className={`fixed lg:hidden inset-y-0 left-0 z-50 transition-transform duration-200 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`} style={{ width: 260 }}>
+        <div className="h-full">
+          <SidebarContent />
+        </div>
       </aside>
 
-      {/* Desktop sidebar */}
-      <aside
-        className="hidden lg:flex flex-col flex-shrink-0"
-        style={{ width: 240, borderRight: "1px solid #1F2937", background: "#0B0F1A" }}
-      >
-        <Sidebar />
+      <aside className="hidden lg:block flex-shrink-0" style={{ width: 260 }}>
+        <div className="sticky top-0 h-screen overflow-hidden">
+          <SidebarContent />
+        </div>
       </aside>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0" style={{ background: "#0B0F1A" }}>
-        {/* Top bar */}
-        <div className="flex items-center gap-3 px-4 py-3 flex-shrink-0 border-b border-gray-800 sticky top-0 z-20" style={{ background: "#0B0F1A" }}>
-          <button className="lg:hidden text-gray-400 hover:text-white" onClick={() => setSidebarOpen(true)}>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-3 px-6 py-3 border-b border-gray-100 sticky top-0 bg-white z-20">
+          <button className="lg:hidden text-gray-500 hover:text-gray-800" onClick={() => setSidebarOpen(true)}>
             <Menu className="w-5 h-5" />
           </button>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-white">
-              {activeSection === "endpoints" ? endpoint.title : docSections.find(s => s.id === activeSection)?.label || "Documentation"}
-            </p>
-            <p className="text-xs text-gray-500">Arapoint API Reference — arapoint.com.ng</p>
+          <div className="flex-1 flex items-center gap-2 text-sm text-gray-500">
+            <Link href="/" className="hover:text-green-600 transition-colors">Arapoint</Link>
+            <ChevronRight className="w-3.5 h-3.5" />
+            <span className="text-gray-800 font-medium">
+              {activeEndpoint ? endpoint?.title : GUIDE_SECTIONS.find(s => s.id === activeSection)?.label ?? "Docs"}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <Link href="/auth/signup">
-              <Button size="sm" className="h-7 text-xs px-3 hidden sm:flex">Create Account</Button>
+              <Button size="sm" className="h-7 text-xs px-3 bg-green-600 hover:bg-green-700 text-white hidden sm:flex">Create Account</Button>
             </Link>
             <Link href="/developer/login">
-              <Button size="sm" variant="outline" className="h-7 text-xs px-3 border-gray-700 text-gray-300 hover:text-white">Sign In</Button>
+              <Button size="sm" variant="outline" className="h-7 text-xs px-3 border-gray-200 text-gray-600 hover:text-gray-900">Sign In</Button>
             </Link>
           </div>
         </div>
 
-        {/* Docs content */}
-        <div ref={contentRef} className="flex-1 overflow-y-auto">
-          <div className="max-w-4xl mx-auto px-4 py-8 space-y-16">
-
-            {/* CTA Banner */}
-            <div className="rounded-xl border border-blue-800/60 bg-blue-950/20 p-4 flex items-center justify-between gap-4 flex-wrap">
-              <div>
-                <p className="text-sm font-semibold text-white">Explore & test in the sandbox — no credit card required</p>
-                <p className="text-xs text-gray-400 mt-0.5">Create a free developer account to get your API keys and start verifying.</p>
-              </div>
-              <Link href="/auth/signup">
-                <Button className="h-8 text-xs px-4 flex-shrink-0">Get API Keys <ArrowRight className="w-3 h-3 ml-1.5" /></Button>
-              </Link>
-            </div>
-
-            {/* OVERVIEW */}
-            <section id="overview" className="space-y-6">
-              <div>
-                <h1 className="text-2xl font-bold text-white mb-2">Arapoint API Reference</h1>
-                <p className="text-gray-400 leading-relaxed">
-                  The Arapoint API lets you verify Nigerian identities, education credentials, and screen employees — all through a single RESTful JSON API. NIN, BVN, WAEC, NECO, NABTEB, and NBAIS supported.
-                </p>
-              </div>
-              <div className="grid sm:grid-cols-3 gap-4">
-                {[
-                  { icon: Zap, title: "Fast", desc: "NIN and BVN verified in under 2 seconds. SSCE in 1–3 minutes." },
-                  { icon: Shield, title: "Secure", desc: "HMAC-signed webhooks. TLS 1.3. IP allowlist. NDPA compliant." },
-                  { icon: CreditCard, title: "Pay-as-you-go", desc: "No monthly fees. Fund your wallet and pay per successful call." },
-                ].map(({ icon: Icon, title, desc }) => (
-                  <div key={title} className="rounded-xl border border-gray-800 bg-gray-900/40 p-4">
-                    <Icon className="w-5 h-5 text-blue-400 mb-2" />
-                    <p className="text-sm font-semibold text-white mb-1">{title}</p>
-                    <p className="text-xs text-gray-400 leading-relaxed">{desc}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            {/* QUICK START */}
-            <section id="quickstart" className="space-y-4">
-              <h2 className="text-xl font-bold text-white">Quick Start</h2>
-              <p className="text-gray-400 text-sm">Verify your first NIN in under 5 minutes:</p>
-              <div className="space-y-3">
-                {[
-                  { step: "1", title: "Create an account", desc: "Sign up at arapoint.com.ng/auth/signup. Free sandbox access — no credit card needed." },
-                  { step: "2", title: "Get your API key", desc: "Go to Developer Portal → API Keys → Create Key. Copy your key." },
-                  { step: "3", title: "Make your first request", desc: "Use the example below to verify an NIN. Use sandbox mode for free testing." },
-                ].map(({ step, title, desc }) => (
-                  <div key={step} className="flex gap-4 rounded-xl border border-gray-800 bg-gray-900/30 p-4">
-                    <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">{step}</div>
-                    <div>
-                      <p className="text-sm font-semibold text-white mb-0.5">{title}</p>
-                      <p className="text-xs text-gray-400">{desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <CopyableCode code={`curl -X POST "https://arapoint.com.ng/api/v1/developer/verify/nin" \\\n  -H "X-API-Key: ara_your_api_key_here" \\\n  -H "Content-Type: application/json" \\\n  -d '{"nin": "12345678901"}'`} />
-            </section>
-
-            {/* AUTHENTICATION */}
-            <section id="authentication" className="space-y-4">
-              <h2 className="text-xl font-bold text-white">Authentication</h2>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Arapoint uses two authentication methods: API key for verification endpoints, and JWT Bearer token for account management endpoints.
-              </p>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="rounded-xl border border-gray-800 bg-gray-900/30 p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Key className="w-4 h-4 text-green-400" />
-                    <p className="text-sm font-semibold text-white">API Key (Verification)</p>
-                  </div>
-                  <p className="text-xs text-gray-400 mb-3">For all verification endpoints. Passed in the X-API-Key header.</p>
-                  <CopyableCode code={`X-API-Key: ara_your_api_key_here`} />
-                </div>
-                <div className="rounded-xl border border-gray-800 bg-gray-900/30 p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Lock className="w-4 h-4 text-blue-400" />
-                    <p className="text-sm font-semibold text-white">JWT Bearer (Account)</p>
-                  </div>
-                  <p className="text-xs text-gray-400 mb-3">For profile, billing, and analytics endpoints.</p>
-                  <CopyableCode code={`Authorization: Bearer your_jwt_token_here`} />
-                </div>
-              </div>
-            </section>
-
-            {/* SANDBOX */}
-            <section id="sandbox" className="space-y-4">
-              <h2 className="text-xl font-bold text-white">Sandbox &amp; Live Mode</h2>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Your account defaults to Sandbox mode. In sandbox, all verification endpoints return instant mock data at zero cost. Switch to Live mode from the Developer Portal when ready.
-              </p>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="rounded-xl border border-yellow-800/50 bg-yellow-950/10 p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FlaskConical className="w-4 h-4 text-yellow-400" />
-                    <p className="text-sm font-semibold text-yellow-300">Sandbox Mode</p>
-                  </div>
-                  <ul className="space-y-1.5 text-xs text-gray-400">
-                    <li>✓ Instant mock responses</li>
-                    <li>✓ No wallet balance required</li>
-                    <li>✓ All endpoints available</li>
-                    <li>✗ Returns fictional data only</li>
-                  </ul>
-                </div>
-                <div className="rounded-xl border border-green-800/50 bg-green-950/10 p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Globe className="w-4 h-4 text-green-400" />
-                    <p className="text-sm font-semibold text-green-300">Live Mode</p>
-                  </div>
-                  <ul className="space-y-1.5 text-xs text-gray-400">
-                    <li>✓ Real registry queries</li>
-                    <li>✓ Actual verification results</li>
-                    <li>✓ Webhook delivery</li>
-                    <li>✗ Wallet balance required</li>
-                  </ul>
-                </div>
-              </div>
-            </section>
-
-            {/* ENDPOINTS */}
-            <section id="endpoints" className="space-y-6">
-              <h2 className="text-xl font-bold text-white">API Endpoints</h2>
-
-              <div className="rounded-xl border border-gray-800 bg-gray-900/20 overflow-hidden">
-                {/* Endpoint selector tabs */}
-                <div className="flex flex-wrap gap-1 p-2 border-b border-gray-800">
-                  {endpoints.map(ep => (
-                    <button
-                      key={ep.path}
-                      onClick={() => selectEndpoint(ep.path)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all ${activeEndpoint === ep.path ? "bg-blue-600 text-white" : "text-gray-400 hover:text-white hover:bg-gray-800"}`}
-                    >
-                      <MethodBadge method={ep.method} />
-                      <span className="font-medium">{ep.title}</span>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="p-5 space-y-6">
-                  <div className="flex items-start justify-between gap-4 flex-wrap">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        <MethodBadge method={endpoint.method} />
-                        <code className="text-xs text-gray-300 font-mono bg-gray-800 px-2 py-0.5 rounded">{BASE_URL}{endpoint.path}</code>
-                        {endpoint.async && <Badge className="bg-purple-900/40 text-purple-400 border border-purple-800 text-xs">async</Badge>}
-                      </div>
-                      <h3 className="text-base font-bold text-white">{endpoint.title}</h3>
-                      <p className="text-sm text-gray-400 mt-1 leading-relaxed max-w-2xl">{endpoint.description}</p>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      {(endpoint as any).priceNote
-                        ? <span className="text-xs text-purple-400 font-mono">{(endpoint as any).priceNote}</span>
-                        : endpoint.price > 0
-                        ? <span className="text-sm font-bold text-white">₦{endpoint.price}<span className="text-xs text-gray-500 font-normal">/req</span></span>
-                        : <span className="text-xs text-green-400 font-semibold">Free</span>}
-                    </div>
-                  </div>
-
-                  {endpoint.params.length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Parameters</p>
-                      <div className="rounded-lg border border-gray-800 overflow-hidden">
-                        <table className="w-full text-xs">
-                          <thead><tr className="bg-gray-900/50"><th className="text-left p-2.5 text-gray-500 font-medium">Name</th><th className="text-left p-2.5 text-gray-500 font-medium">Type</th><th className="text-left p-2.5 text-gray-500 font-medium">Required</th><th className="text-left p-2.5 text-gray-500 font-medium">Description</th></tr></thead>
-                          <tbody>
-                            {endpoint.params.map((p, i) => (
-                              <tr key={p.name} className={i % 2 === 0 ? "bg-gray-900/20" : ""}>
-                                <td className="p-2.5 font-mono text-blue-300">{p.name}</td>
-                                <td className="p-2.5 text-gray-400">{p.type}</td>
-                                <td className="p-2.5">{p.required ? <span className="text-red-400">required</span> : <span className="text-gray-500">optional</span>}</td>
-                                <td className="p-2.5 text-gray-400">{p.desc}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Request Body</p>
-                      <CopyableCode code={JSON.stringify(endpoint.request, null, 2)} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">Response</p>
-                      <CopyableCode code={JSON.stringify(endpoint.response, null, 2)} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">Code Example</p>
-                      <div className="flex gap-1">
-                        {LANG_TABS.map(lang => (
-                          <button
-                            key={lang}
-                            onClick={() => setActiveLang(lang)}
-                            className={`px-2.5 py-1 rounded text-xs transition-all ${activeLang === lang ? "bg-blue-600 text-white" : "text-gray-400 hover:text-white bg-gray-800"}`}
-                          >
-                            {lang}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <CopyableCode code={codeExample} />
-                  </div>
-
-                  {endpoint.notes.length > 0 && (
-                    <div className="rounded-xl border border-blue-900/50 bg-blue-950/10 p-4">
-                      <p className="text-xs font-semibold text-blue-300 mb-2">Notes</p>
-                      <ul className="space-y-1">
-                        {endpoint.notes.map((note, i) => (
-                          <li key={i} className="text-xs text-gray-400 flex items-start gap-2">
-                            <span className="text-blue-400 flex-shrink-0 mt-0.5">→</span> {note}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            {/* ASYNC FLOW */}
-            <section id="async-flow" className="space-y-4">
-              <h2 className="text-xl font-bold text-white">Async Verification Flow</h2>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Education and employment screening endpoints are asynchronous. They return a <code className="text-blue-300 bg-gray-800 px-1 rounded">requestId</code> immediately and process results in the background (1–3 minutes for SSCE).
-              </p>
-              <div className="space-y-2">
-                {[
-                  { step: "POST", desc: "Submit verification request → get requestId" },
-                  { step: "WAIT", desc: "Arapoint processes the request (1–3 min for SSCE)" },
-                  { step: "WEBHOOK", desc: "Result posted to your callbackUrl (if configured)" },
-                  { step: "POLL", desc: "Or GET /verify/.../result?requestId=... until status = completed" },
-                ].map(({ step, desc }) => (
-                  <div key={step} className="flex items-center gap-3 rounded-lg border border-gray-800 bg-gray-900/20 px-4 py-3">
-                    <Badge variant="outline" className="text-blue-400 border-blue-800 bg-blue-950/30 font-mono text-xs flex-shrink-0">{step}</Badge>
-                    <p className="text-sm text-gray-300">{desc}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            {/* ERRORS */}
-            <section id="errors" className="space-y-4">
-              <h2 className="text-xl font-bold text-white">Error Handling</h2>
-              <div className="rounded-xl border border-gray-800 overflow-hidden">
-                <table className="w-full text-xs">
-                  <thead><tr className="bg-gray-900/50"><th className="text-left p-3 text-gray-500 font-medium">Code</th><th className="text-left p-3 text-gray-500 font-medium">Meaning</th></tr></thead>
-                  <tbody>
-                    {[
-                      { code: "400", label: "Bad Request", desc: "Missing or invalid parameters" },
-                      { code: "401", label: "Unauthorized", desc: "Invalid or missing API key / token" },
-                      { code: "402", label: "Payment Required", desc: "Insufficient wallet balance" },
-                      { code: "404", label: "Not Found", desc: "No record found for the provided identifier" },
-                      { code: "409", label: "Conflict", desc: "Request already exists" },
-                      { code: "422", label: "Unprocessable", desc: "Portal or provider temporarily unavailable" },
-                      { code: "429", label: "Rate Limited", desc: "Too many requests — slow down and retry" },
-                      { code: "500", label: "Server Error", desc: "Internal error — try again or contact support" },
-                    ].map(({ code, label, desc }, i) => (
-                      <tr key={code} className={i % 2 === 0 ? "bg-gray-900/20" : ""}>
-                        <td className="p-3 font-mono">
-                          <Badge variant="outline" className={`text-xs ${code.startsWith("2") ? "text-green-400 border-green-800" : code.startsWith("4") ? "text-yellow-400 border-yellow-800" : "text-red-400 border-red-800"}`}>{code} {label}</Badge>
-                        </td>
-                        <td className="p-3 text-gray-400">{desc}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-
-            {/* WEBHOOKS */}
-            <section id="webhooks" className="space-y-4">
-              <h2 className="text-xl font-bold text-white">Webhooks</h2>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Configure webhook URLs in the Developer Portal. Arapoint sends a POST request to your endpoint when async verifications complete. Events are signed with HMAC-SHA256.
-              </p>
-              <CopyableCode code={`// Verify webhook signature\nconst crypto = require('crypto');\nconst sig = req.headers['x-arapoint-signature'];\nconst expected = crypto\n  .createHmac('sha256', process.env.WEBHOOK_SECRET)\n  .update(JSON.stringify(req.body))\n  .digest('hex');\nif (sig !== expected) return res.status(401).send('Invalid signature');`} />
-            </section>
-
-            {/* BILLING */}
-            <section id="billing" className="space-y-4">
-              <h2 className="text-xl font-bold text-white">Billing &amp; Pricing</h2>
-              <p className="text-gray-400 text-sm">Pay-as-you-go. Fund your wallet via Paystack. Charged per successful API call.</p>
-              <div className="rounded-xl border border-gray-800 overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead><tr className="bg-gray-900/50"><th className="text-left p-3 text-gray-400 font-medium">Service</th><th className="text-right p-3 text-gray-400 font-medium">Price</th></tr></thead>
-                  <tbody>
-                    {[
-                      { service: "NIN Verification", price: "₦130 / request" },
-                      { service: "BVN Lookup", price: "₦80 / request" },
-                      { service: "SSCE / Education Verification", price: "₦250 / request" },
-                      { service: "Employment Screening (NIN + BVN + SSCE)", price: "₦391 (15% bundle discount)" },
-                      { service: "Fraud Score", price: "₦50 / request" },
-                      { service: "Polling (result check)", price: "Free" },
-                    ].map(({ service, price }, i) => (
-                      <tr key={service} className={i % 2 === 0 ? "bg-gray-900/20" : ""}>
-                        <td className="p-3 text-gray-200">{service}</td>
-                        <td className="p-3 text-right font-mono text-green-400">{price}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="rounded-xl border border-green-800/40 bg-green-950/10 p-4 text-xs text-gray-400">
-                <p className="text-green-300 font-semibold mb-1">Free Sandbox</p>
-                All endpoints available at zero cost in sandbox mode. Switch to Live mode when you're ready to go to production.
-              </div>
-            </section>
-
-            {/* BOTTOM CTA */}
-            <div className="rounded-2xl border border-blue-800/50 bg-blue-950/15 p-8 text-center space-y-4">
-              <h3 className="text-xl font-bold text-white">Ready to start verifying?</h3>
-              <p className="text-gray-400 text-sm max-w-md mx-auto">Create a free developer account to get API keys, access the sandbox, and go live in minutes.</p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Link href="/auth/signup">
-                  <Button className="h-10 px-6">Create Free Account <ArrowRight className="w-4 h-4 ml-2" /></Button>
-                </Link>
-                <Link href="/pricing">
-                  <Button variant="outline" className="h-10 px-6 border-gray-700 text-gray-300 hover:text-white">View Full Pricing</Button>
-                </Link>
-              </div>
-            </div>
-
-          </div>
+        <div ref={contentRef} className="max-w-3xl mx-auto px-6 py-10">
+          {!activeEndpoint && activeSection === "welcome" && <WelcomeSection onGetStarted={() => goTo("endpoint", "nin")} />}
+          {!activeEndpoint && activeSection === "authentication" && <AuthSection />}
+          {!activeEndpoint && activeSection === "sandbox" && <SandboxSection />}
+          {!activeEndpoint && activeSection === "async-flow" && <AsyncSection />}
+          {!activeEndpoint && activeSection === "errors" && <ErrorsSection />}
+          {!activeEndpoint && activeSection === "webhooks" && <WebhooksSection />}
+          {!activeEndpoint && activeSection === "pricing" && <PricingSection />}
+          {activeEndpoint && endpoint && (
+            <EndpointSection
+              endpoint={endpoint}
+              activeLang={activeLang}
+              setActiveLang={setActiveLang}
+            />
+          )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function SectionHeader({ title, description }: { title: string; description?: string }) {
+  return (
+    <div className="mb-8 pb-6 border-b border-gray-100">
+      <h1 className="text-2xl font-bold text-gray-900 mb-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{title}</h1>
+      {description && <p className="text-gray-500 text-base leading-relaxed">{description}</p>}
+    </div>
+  );
+}
+
+function InfoBox({ children, variant = "info" }: { children: React.ReactNode; variant?: "info" | "warning" | "success" }) {
+  const styles = {
+    info: "bg-blue-50 border-blue-200 text-blue-800",
+    warning: "bg-amber-50 border-amber-200 text-amber-800",
+    success: "bg-green-50 border-green-200 text-green-800",
+  };
+  return (
+    <div className={`rounded-lg border p-4 text-sm leading-relaxed my-4 ${styles[variant]}`}>
+      {children}
+    </div>
+  );
+}
+
+function WelcomeSection({ onGetStarted }: { onGetStarted: () => void }) {
+  return (
+    <div>
+      <SectionHeader
+        title="Welcome to Arapoint"
+        description="The Arapoint API lets you verify Nigerian identities, education credentials, and screen employees — all through a single RESTful JSON API."
+      />
+
+      <div className="rounded-xl border border-green-200 bg-green-50 p-5 mb-8">
+        <p className="text-sm font-semibold text-green-800 mb-1">Free Sandbox Access</p>
+        <p className="text-sm text-green-700 mb-3">All endpoints are available at zero cost in sandbox mode. No credit card required.</p>
+        <div className="flex gap-2">
+          <Link href="/auth/signup">
+            <Button size="sm" className="h-8 text-xs bg-green-600 hover:bg-green-700 text-white">Create Account <ArrowRight className="w-3 h-3 ml-1.5" /></Button>
+          </Link>
+          <Button size="sm" variant="outline" onClick={onGetStarted} className="h-8 text-xs border-green-300 text-green-700 hover:bg-green-50">
+            View NIN Endpoint
+          </Button>
+        </div>
+      </div>
+
+      <h2 className="text-lg font-bold text-gray-900 mb-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Key Features</h2>
+      <div className="grid sm:grid-cols-3 gap-4 mb-8">
+        {[
+          { title: "Real-time", desc: "NIN and BVN verified in under 2 seconds from NIMC and CBN registries." },
+          { title: "Secure", desc: "TLS 1.3, HMAC-signed webhooks, IP allowlist, and NDPA compliant." },
+          { title: "Pay as you go", desc: "No monthly fees. Fund your wallet and pay per successful API call." },
+        ].map(f => (
+          <div key={f.title} className="rounded-xl border border-gray-200 p-4">
+            <p className="text-sm font-semibold text-gray-900 mb-1">{f.title}</p>
+            <p className="text-xs text-gray-500 leading-relaxed">{f.desc}</p>
+          </div>
+        ))}
+      </div>
+
+      <h2 className="text-lg font-bold text-gray-900 mb-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Development Environments</h2>
+      <div className="grid sm:grid-cols-2 gap-4 mb-8">
+        <div className="rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="w-2 h-2 rounded-full bg-yellow-400" />
+            <p className="text-sm font-semibold text-gray-900">Sandbox</p>
+          </div>
+          <p className="text-xs text-gray-500 leading-relaxed">Instant mock responses. No wallet balance needed. All endpoints available. Returns fictional data only.</p>
+        </div>
+        <div className="rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="w-2 h-2 rounded-full bg-green-500" />
+            <p className="text-sm font-semibold text-gray-900">Live</p>
+          </div>
+          <p className="text-xs text-gray-500 leading-relaxed">Real registry queries. Actual verification results. Webhook delivery. Requires wallet balance.</p>
+        </div>
+      </div>
+
+      <h2 className="text-lg font-bold text-gray-900 mb-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Quick Start</h2>
+      <div className="space-y-3 mb-6">
+        {[
+          { n: "1", t: "Create an account", d: "Sign up at arapoint.com.ng. Sandbox access is instant — no credit card needed." },
+          { n: "2", t: "Generate API keys", d: "Developer Portal → API Keys → Create Key. Your key starts with ara_." },
+          { n: "3", t: "Make your first call", d: "Pass your key in the X-API-Key header. Start with sandbox mode." },
+        ].map(s => (
+          <div key={s.n} className="flex gap-4 rounded-xl border border-gray-200 p-4">
+            <div className="w-6 h-6 rounded-full bg-green-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">{s.n}</div>
+            <div>
+              <p className="text-sm font-semibold text-gray-900 mb-0.5">{s.t}</p>
+              <p className="text-xs text-gray-500">{s.d}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <CodeBlock lang="cURL" code={`curl -X POST "${BASE_URL}/verify/nin" \\\n  -H "X-API-Key: ara_your_key_here" \\\n  -H "Content-Type: application/json" \\\n  -d '{"nin": "12345678901"}'`} />
+    </div>
+  );
+}
+
+function AuthSection() {
+  return (
+    <div>
+      <SectionHeader title="Authentication" description="Arapoint uses two authentication methods depending on the endpoint type." />
+      <h2 className="text-base font-bold text-gray-900 mb-3" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>API Key — Verification Endpoints</h2>
+      <p className="text-sm text-gray-500 mb-3">Pass your API key in the X-API-Key header. Keys begin with <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono text-gray-700">ara_</code>.</p>
+      <CodeBlock lang="HTTP" code={`X-API-Key: ara_live_your_key_here`} />
+      <h2 className="text-base font-bold text-gray-900 mb-3 mt-8" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Bearer Token — Account Endpoints</h2>
+      <p className="text-sm text-gray-500 mb-3">For profile, billing, and analytics endpoints, pass your JWT in the Authorization header.</p>
+      <CodeBlock lang="HTTP" code={`Authorization: Bearer your_jwt_token_here`} />
+      <InfoBox variant="warning">Never expose your API key in client-side code. All Arapoint API calls must be made from your server.</InfoBox>
+      <h2 className="text-base font-bold text-gray-900 mb-3 mt-8" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Rotating Keys</h2>
+      <p className="text-sm text-gray-500">You can create, view, and revoke API keys at any time from Developer Portal → API Keys. Revoked keys are rejected immediately with HTTP 401.</p>
+    </div>
+  );
+}
+
+function SandboxSection() {
+  return (
+    <div>
+      <SectionHeader title="Sandbox and Live Mode" description="Your account defaults to Sandbox. Switch to Live mode from the Developer Portal when you are ready to go to production." />
+      <div className="grid sm:grid-cols-2 gap-4 mb-8">
+        <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-5">
+          <p className="text-sm font-bold text-yellow-800 mb-3">Sandbox Mode</p>
+          <ul className="space-y-2 text-xs text-yellow-700">
+            {["Instant mock responses", "Zero cost per call", "All endpoints available", "Returns fictional data only"].map(t => (
+              <li key={t} className="flex items-center gap-2"><Check className="w-3.5 h-3.5 flex-shrink-0" />{t}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-xl border border-green-200 bg-green-50 p-5">
+          <p className="text-sm font-bold text-green-800 mb-3">Live Mode</p>
+          <ul className="space-y-2 text-xs text-green-700">
+            {["Real NIMC and CBN registry queries", "Actual verification results", "Webhook delivery", "Wallet balance required"].map(t => (
+              <li key={t} className="flex items-center gap-2"><Check className="w-3.5 h-3.5 flex-shrink-0" />{t}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      <InfoBox variant="info">Switching between sandbox and live does not change your API key — the same key works in both modes. Mode is controlled from your developer profile settings.</InfoBox>
+    </div>
+  );
+}
+
+function AsyncSection() {
+  return (
+    <div>
+      <SectionHeader title="Async Verification Flow" description="Education and employment screening endpoints are asynchronous. They accept the request immediately and process results in the background." />
+      <div className="space-y-3 mb-8">
+        {[
+          { label: "POST request", desc: "Submit verification. Response contains a requestId or jobId immediately." },
+          { label: "Processing", desc: "Arapoint queries the relevant registry — 1 to 3 minutes for SSCE results." },
+          { label: "Webhook delivery", desc: "Result is POSTed to your configured callbackUrl with HMAC signature." },
+          { label: "Polling (optional)", desc: "GET /verify/.../result?requestId=IDC-... until status is completed." },
+        ].map((s, i) => (
+          <div key={i} className="flex items-start gap-4 rounded-xl border border-gray-200 p-4">
+            <span className="text-xs font-mono font-bold text-green-600 bg-green-50 border border-green-200 rounded px-2 py-1 flex-shrink-0">{i + 1}</span>
+            <div>
+              <p className="text-sm font-semibold text-gray-900 mb-0.5">{s.label}</p>
+              <p className="text-xs text-gray-500">{s.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <InfoBox variant="success">Charges are deducted when the job is accepted by the queue, not when results are returned. Sandbox mode returns instant mock results at no charge.</InfoBox>
+    </div>
+  );
+}
+
+function ErrorsSection() {
+  const errors = [
+    { code: "200", text: "OK", desc: "Request succeeded." },
+    { code: "400", text: "Bad Request", desc: "Missing or invalid parameters." },
+    { code: "401", text: "Unauthorized", desc: "Invalid or missing API key or token." },
+    { code: "402", text: "Payment Required", desc: "Insufficient wallet balance." },
+    { code: "404", text: "Not Found", desc: "No record found for the provided identifier." },
+    { code: "409", text: "Conflict", desc: "Request already exists or is being processed." },
+    { code: "422", text: "Unprocessable", desc: "Portal or provider temporarily unavailable." },
+    { code: "429", text: "Rate Limited", desc: "Too many requests. Slow down and retry." },
+    { code: "500", text: "Server Error", desc: "Internal error. Try again or contact support." },
+  ];
+  return (
+    <div>
+      <SectionHeader title="Error Codes" description="All errors return JSON with a status field of error and a human-readable message." />
+      <div className="rounded-xl border border-gray-200 overflow-hidden mb-6">
+        {errors.map((e, i) => (
+          <div key={e.code} className={`flex items-start gap-4 px-5 py-3.5 text-sm ${i % 2 === 0 ? "bg-white" : "bg-gray-50"} ${i < errors.length - 1 ? "border-b border-gray-100" : ""}`}>
+            <span className={`font-mono font-bold text-xs rounded px-1.5 py-0.5 flex-shrink-0 ${e.code === "200" ? "bg-green-100 text-green-700" : e.code.startsWith("4") ? "bg-amber-100 text-amber-700" : e.code.startsWith("5") ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700"}`}>{e.code}</span>
+            <div className="flex-1 min-w-0">
+              <span className="font-semibold text-gray-900 text-xs">{e.text}</span>
+              <span className="text-gray-500 text-xs ml-2">{e.desc}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <CodeBlock lang="JSON" code={`{\n  "status": "error",\n  "code": 401,\n  "message": "Invalid API key. Please check your X-API-Key header."\n}`} />
+    </div>
+  );
+}
+
+function WebhooksSection() {
+  return (
+    <div>
+      <SectionHeader title="Webhooks" description="Configure a webhook URL in Developer Portal. Arapoint sends a signed POST request to your endpoint when async verifications complete." />
+      <h2 className="text-base font-bold text-gray-900 mb-3" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Signature Verification</h2>
+      <p className="text-sm text-gray-500 mb-4">Every webhook request includes an <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono">X-Arapoint-Signature</code> header. Verify it using HMAC-SHA256 with your webhook secret.</p>
+      <CodeBlock lang="Node.js" code={`const crypto = require("crypto");\n\napp.post("/webhook", (req, res) => {\n  const sig = req.headers["x-arapoint-signature"];\n  const expected = crypto\n    .createHmac("sha256", process.env.ARAPOINT_WEBHOOK_SECRET)\n    .update(JSON.stringify(req.body))\n    .digest("hex");\n\n  if (sig !== expected) {\n    return res.status(401).json({ error: "Invalid signature" });\n  }\n\n  const { event, data } = req.body;\n  // handle: education.completed, employment.completed\n  console.log(event, data);\n  res.json({ received: true });\n});`} />
+      <h2 className="text-base font-bold text-gray-900 mb-3 mt-8" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Retry Schedule</h2>
+      <p className="text-sm text-gray-500 mb-3">Failed deliveries are retried at 1 minute, 5 minutes, 15 minutes, and 1 hour after the initial attempt.</p>
+      <InfoBox variant="info">Respond with HTTP 200 as quickly as possible. Process webhook data asynchronously to avoid timeouts.</InfoBox>
+    </div>
+  );
+}
+
+function PricingSection() {
+  const rows = [
+    { service: "NIN Verification", price: "₦130", per: "per request" },
+    { service: "BVN Lookup", price: "₦80", per: "per request" },
+    { service: "Education Verification (WAEC, NECO, NABTEB, NBAIS)", price: "₦250", per: "per request" },
+    { service: "Employment Screening (NIN + BVN + SSCE bundle)", price: "₦391", per: "per request (15% discount)" },
+    { service: "Fraud Score", price: "₦50", per: "per request" },
+    { service: "Polling (result check)", price: "Free", per: "" },
+  ];
+  return (
+    <div>
+      <SectionHeader title="Pricing" description="Pay as you go. Fund your wallet via Paystack. Charges are applied per successful API call." />
+      <div className="rounded-xl border border-gray-200 overflow-hidden mb-6">
+        <div className="grid grid-cols-3 bg-gray-50 border-b border-gray-200 px-5 py-3">
+          <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Service</span>
+          <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Price</span>
+          <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Notes</span>
+        </div>
+        {rows.map((r, i) => (
+          <div key={r.service} className={`grid grid-cols-3 px-5 py-3.5 text-sm ${i % 2 === 0 ? "bg-white" : "bg-gray-50"} ${i < rows.length - 1 ? "border-b border-gray-100" : ""}`}>
+            <span className="text-gray-700 text-xs">{r.service}</span>
+            <span className="font-semibold text-gray-900 font-mono text-xs">{r.price}</span>
+            <span className="text-gray-400 text-xs">{r.per}</span>
+          </div>
+        ))}
+      </div>
+      <InfoBox variant="success">Sandbox mode is always free. All endpoints return mock data at zero cost until you switch to Live mode.</InfoBox>
+      <div className="mt-6 rounded-xl border border-gray-200 p-5 flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <p className="text-sm font-semibold text-gray-900">Ready to go live?</p>
+          <p className="text-xs text-gray-500 mt-0.5">Fund your wallet and flip to Live mode in seconds.</p>
+        </div>
+        <Link href="/auth/signup">
+          <Button size="sm" className="h-8 text-xs bg-green-600 hover:bg-green-700 text-white">
+            Create Account <ArrowRight className="w-3 h-3 ml-1.5" />
+          </Button>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function EndpointSection({ endpoint, activeLang, setActiveLang }: {
+  endpoint: Endpoint;
+  activeLang: LangKey;
+  setActiveLang: (l: LangKey) => void;
+}) {
+  const code = buildCode(activeLang, endpoint.method, endpoint.path, endpoint.request);
+  const langs: LangKey[] = ["cURL", "JavaScript", "Python", "PHP"];
+  return (
+    <div>
+      <div className="mb-8 pb-6 border-b border-gray-100">
+        <div className="flex items-center flex-wrap gap-2 mb-3">
+          <MethodPill method={endpoint.method} />
+          {endpoint.isAsync && <AsyncPill />}
+          {endpoint.price > 0
+            ? <span className="text-xs font-semibold text-gray-600 bg-gray-100 border border-gray-200 rounded px-2 py-0.5 font-mono">₦{endpoint.price}/req</span>
+            : <span className="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded px-2 py-0.5">Free</span>}
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{endpoint.title}</h1>
+        <p className="text-gray-500 text-sm leading-relaxed">{endpoint.description}</p>
+        {endpoint.priceNote && (
+          <div className="mt-3 text-xs text-purple-700 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">{endpoint.priceNote}</div>
+        )}
+      </div>
+
+      <div className="rounded-lg bg-gray-950 border border-gray-800 px-4 py-2.5 flex items-center gap-2 mb-6">
+        <MethodPill method={endpoint.method} />
+        <code className="text-xs text-gray-300 font-mono">{BASE_URL}{endpoint.path}</code>
+      </div>
+
+      {endpoint.params.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-base font-bold text-gray-900 mb-3" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Parameters</h2>
+          <div className="rounded-xl border border-gray-200 overflow-hidden">
+            <div className="grid grid-cols-4 bg-gray-50 border-b border-gray-200 px-4 py-2.5">
+              {["Name", "Type", "Required", "Description"].map(h => (
+                <span key={h} className="text-xs font-semibold uppercase tracking-wide text-gray-400">{h}</span>
+              ))}
+            </div>
+            {endpoint.params.map((p, i) => (
+              <div key={p.name} className={`grid grid-cols-4 px-4 py-3 text-xs gap-2 ${i % 2 === 0 ? "bg-white" : "bg-gray-50"} ${i < endpoint.params.length - 1 ? "border-b border-gray-100" : ""}`}>
+                <code className="font-mono text-green-700 font-medium">{p.name}</code>
+                <span className="text-gray-500 font-mono">{p.type}</span>
+                <span className={p.required ? "text-red-600 font-medium" : "text-gray-400"}>
+                  {p.required ? "required" : "optional"}
+                </span>
+                <span className="text-gray-600 leading-relaxed">{p.desc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="grid sm:grid-cols-2 gap-6 mb-8">
+        <div>
+          <h2 className="text-base font-bold text-gray-900 mb-3" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Request Body</h2>
+          <CodeBlock lang="JSON" code={JSON.stringify(endpoint.request, null, 2)} />
+        </div>
+        <div>
+          <h2 className="text-base font-bold text-gray-900 mb-3" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Response</h2>
+          <CodeBlock lang="JSON" code={JSON.stringify(endpoint.response, null, 2)} />
+        </div>
+      </div>
+
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-bold text-gray-900" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Code Example</h2>
+          <div className="flex gap-1">
+            {langs.map(l => (
+              <button
+                key={l}
+                onClick={() => setActiveLang(l)}
+                className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${activeLang === l ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+        <CodeBlock lang={activeLang} code={code} />
+      </div>
+
+      {endpoint.notes.length > 0 && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-5">
+          <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-3">Notes</p>
+          <ul className="space-y-2">
+            {endpoint.notes.map((note, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-blue-800">
+                <ChevronRight className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-blue-500" />
+                {note}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
