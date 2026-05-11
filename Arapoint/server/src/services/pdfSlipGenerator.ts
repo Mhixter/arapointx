@@ -1,4 +1,4 @@
-import puppeteer from "puppeteer";
+import PDFDocument from "pdfkit";
 import * as fs from "fs";
 import * as path from "path";
 import QRCode from "qrcode";
@@ -491,231 +491,213 @@ export const generatePdfSlip = async (
     nin_masked: data.nin ? `***${data.nin.slice(-4)}` : "",
   };
 
-  const qrCodeImage = await generateQRCode(qrCodeData);
-
-  let template = loadTemplate(slipType);
-  const templateImage = loadTemplateImage(slipType);
   const settings = getSlipSettings(slipType);
   const positions = settings.positions;
   const hiddenFields = settings.hidden_fields || [];
   const fieldConfigs = settings.field_configs || {};
 
-  const photoSrc = data.photo
-    ? data.photo.startsWith("data:")
-      ? data.photo
-      : `data:image/jpeg;base64,${data.photo}`
-    : 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 130"><rect fill="%23ddd" width="100" height="130"/><text x="50" y="70" text-anchor="middle" fill="%23999" font-size="12">Photo</text></svg>';
+  const dims =
+    slipType === "full_info"
+      ? { width: 1162, height: 1758 }
+      : slipType === "long"
+        ? { width: 1245, height: 1758 }
+        : { width: 1246, height: 1755 };
 
-  const templateData: Record<string, string> = {
-    nin: formatNIN(data.nin),
-    surname: data.surname?.toUpperCase() || "",
-    firstname: data.firstname?.toUpperCase() || "",
-    middlename: data.middlename?.toUpperCase() || "",
-    date_of_birth: formatDate(data.date_of_birth),
-    gender: data.gender?.toUpperCase() || "M",
-    photo: photoSrc,
-    qr_code: qrCodeImage,
-    slip_reference: slipReference,
-    verification_url: verificationUrl,
-    issue_date: formatDate(new Date().toISOString()),
-    tracking_id: data.tracking_id || "",
-    photo_top: positions.photo_top,
-    photo_left: positions.photo_left,
-    photo_width: positions.photo_width,
-    surname_top: positions.surname_top,
-    surname_left: positions.surname_left,
-    surname_size: positions.surname_size,
-    names_top: positions.names_top,
-    names_left: positions.names_left,
-    names_size: positions.names_size,
-    firstname_top: positions.firstname_top || positions.names_top,
-    firstname_left: positions.firstname_left || positions.names_left,
-    firstname_size: positions.firstname_size || positions.names_size,
-    middlename_top: positions.middlename_top || "",
-    middlename_left: positions.middlename_left || "",
-    middlename_size: positions.middlename_size || positions.names_size,
-    dob_top: positions.dob_top,
-    dob_left: positions.dob_left,
-    dob_size: positions.dob_size,
-    nin_top: positions.nin_top,
-    nin_left: positions.nin_left,
-    nin_size: positions.nin_size,
-    qr_top: positions.qr_top,
-    qr_right: positions.qr_right,
-    qr_width: positions.qr_width,
-    sex_top: positions.sex_top || "",
-    sex_left: positions.sex_left || "",
-    sex_size: positions.sex_size || "",
-    issue_top: positions.issue_top || "",
-    issue_right: positions.issue_right || "",
-    issue_size: positions.issue_size || "",
-    tracking_top: positions.tracking_top || "",
-    tracking_left: positions.tracking_left || "",
-    tracking_size: positions.tracking_size || "",
-    address: wrapAddress(data.address?.toUpperCase() || "", 17),
-    address_top: positions.address_top || "",
-    address_left: positions.address_left || "",
-    address_size: positions.address_size || "",
-    phone: data.phone || "",
-    phone_top: positions.phone_top || "",
-    phone_left: positions.phone_left || "",
-    phone_size: positions.phone_size || "",
-    state: data.state?.toUpperCase() || "",
-    state_top: positions.state_top || "",
-    state_left: positions.state_left || "",
-    state_size: positions.state_size || "",
-    lga: data.lga?.toUpperCase() || "",
-    lga_top: positions.lga_top || "",
-    lga_left: positions.lga_left || "",
-    lga_size: positions.lga_size || "",
-    birth_state: data.birthState?.toUpperCase() || "",
-    birth_state_top: positions.birth_state_top || "",
-    birth_state_left: positions.birth_state_left || "",
-    birth_state_size: positions.birth_state_size || "",
-    birth_lga: data.birthLga?.toUpperCase() || "",
-    birth_lga_top: positions.birth_lga_top || "",
-    birth_lga_left: positions.birth_lga_left || "",
-    birth_lga_size: positions.birth_lga_size || "",
-    nationality: data.nationality?.toUpperCase() || "NIGERIAN",
-    nationality_top: positions.nationality_top || "",
-    nationality_left: positions.nationality_left || "",
-    nationality_size: positions.nationality_size || "",
-    issue_left: positions.issue_left || "",
-    template_image: templateImage,
-    global_font_family:
-      settings.global_font_family || "'Roboto', Arial, sans-serif",
-    global_font_weight: settings.global_font_weight || "700",
-    global_color: settings.global_color || "#000",
+  const { width, height } = dims;
+
+  const toPx = (val: string, base: number): number => {
+    if (!val) return 0;
+    const s = val.trim();
+    if (s.endsWith("%")) return (parseFloat(s) / 100) * base;
+    if (s.endsWith("px")) return parseFloat(s);
+    const n = parseFloat(s);
+    return isNaN(n) ? 0 : n;
   };
 
-  const fieldToSelector: Record<string, string> = {
-    photo: ".photo-overlay",
-    surname: ".surname-overlay",
-    names: ".given-names-overlay",
-    firstname: ".firstname-overlay",
-    middlename: ".middlename-overlay",
-    dob: ".dob-overlay",
-    nin: ".nin-overlay",
-    qr_code: ".qr-overlay",
-    sex: ".sex-overlay",
-    issue_date: ".issue-date-overlay",
-    tracking_id: ".tracking-overlay, .tracking-id-overlay",
-    address: ".address-overlay",
-    phone: ".phone-overlay",
-    state: ".state-overlay",
-    lga: ".lga-overlay",
-    birth_state: ".birth-state-overlay",
-    birth_lga: ".birth-lga-overlay",
-    nationality: ".nationality-overlay",
+  const resolveFont = (weight?: string): string => {
+    const w = weight || settings.global_font_weight || "700";
+    return parseInt(w) >= 700 || w === "bold" ? "Helvetica-Bold" : "Helvetica";
   };
 
-  let hiddenFieldsCss = "";
-  for (const field of hiddenFields) {
-    const selector = fieldToSelector[field];
-    if (selector) {
-      hiddenFieldsCss += `${selector} { display: none !important; }\n`;
-    }
-  }
+  const globalFont = resolveFont(settings.global_font_weight);
+  const globalColor = settings.global_color || "#000000";
 
-  const globalFamily =
-    settings.global_font_family || "'Roboto', Arial, sans-serif";
-  const globalWeight = settings.global_font_weight || "700";
-  const globalColor = settings.global_color || "#000";
+  // Generate QR code as PNG buffer — no network, fully self-contained
+  const qrBuffer = await QRCode.toBuffer(JSON.stringify(qrCodeData), {
+    width: 200,
+    margin: 1,
+    errorCorrectionLevel: "M",
+    color: { dark: "#000000", light: "#ffffff" },
+  });
 
-  let fieldFontCss = `.data-overlay div, .data-overlay { font-family: ${globalFamily} !important; font-weight: ${globalWeight} !important; color: ${globalColor} !important; }\n`;
-
-  for (const [field, config] of Object.entries(fieldConfigs)) {
-    const selector = fieldToSelector[field];
-    if (selector && config) {
-      let styles = "";
-      if (config.font_family)
-        styles += `font-family: ${config.font_family} !important; `;
-      if (config.font_weight)
-        styles += `font-weight: ${config.font_weight} !important; `;
-      if (config.font_style)
-        styles += `font-style: ${config.font_style} !important; `;
-      if (config.text_transform)
-        styles += `text-transform: ${config.text_transform} !important; `;
-      if (config.letter_spacing)
-        styles += `letter-spacing: ${config.letter_spacing} !important; `;
-      if (config.color) styles += `color: ${config.color} !important; `;
-      if (styles) fieldFontCss += `${selector} { ${styles}}\n`;
-    }
-  }
-
-  templateData["hidden_fields_css"] = hiddenFieldsCss;
-  templateData["field_font_css"] = fieldFontCss;
-
-  const populatedHtml = injectDataIntoTemplate(template, templateData);
+  // Load template PNG from disk as buffer
+  const loadTemplateBuffer = (): Buffer | null => {
+    const p1 = path.join(process.cwd(), "server/src/templates", `${slipType}_template.png`);
+    if (fs.existsSync(p1)) return fs.readFileSync(p1);
+    const p2 = path.join(process.cwd(), "server/src/templates", `${slipType}_template-1.png`);
+    if (fs.existsSync(p2)) return fs.readFileSync(p2);
+    return null;
+  };
+  const templateBuffer = loadTemplateBuffer();
 
   const outputDir = ensureOutputDir();
   const pdfFilename = `${slipReference}.pdf`;
   const pdfPath = path.join(outputDir, pdfFilename);
 
-  const chromiumPath =
-    process.env.PUPPETEER_EXECUTABLE_PATH ||
-    process.env.CHROMIUM_PATH ||
-    "/nix/store/qa9cnw4v5xkxyip6mb9kxqfq1z4x2dx1-chromium-138.0.7204.100/bin/chromium";
+  // Build PDF with pdfkit — no Chromium required, works in any environment
+  const doc = new (PDFDocument as any)({
+    size: [width, height],
+    margin: 0,
+    autoFirstPage: true,
+    compress: false,
+  });
 
-  let browser = null;
-  try {
-    browser = await puppeteer.launch({
-      headless: true,
-      executablePath: chromiumPath,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-        "--disable-software-rasterizer",
-        "--no-first-run",
-        "--no-zygote",
-        "--disable-background-networking",
-        "--disable-default-apps",
-        "--disable-extensions",
-        "--disable-sync",
-        "--mute-audio",
-      ],
-    });
+  const writeStream = fs.createWriteStream(pdfPath);
+  doc.pipe(writeStream);
 
-    const page = await browser.newPage();
-    await page.setDefaultTimeout(60000);
+  // 1. Full-page template image background
+  if (templateBuffer) {
+    doc.image(templateBuffer, 0, 0, { width, height });
+  }
 
-    await page.setRequestInterception(true);
-    page.on('request', (req) => {
-      const url = req.url();
-      if (url.startsWith('data:') || url === 'about:blank') {
-        req.continue();
-      } else {
-        req.abort();
-      }
-    });
+  // Draw text at a top/left percentage position
+  const drawText = (
+    text: string,
+    topPct: string,
+    leftPct: string,
+    sizePx: string,
+    fieldKey?: string,
+  ) => {
+    if (!text || !topPct || !leftPct) return;
+    const x = toPx(leftPct, width);
+    const y = toPx(topPct, height);
+    const sz = parseFloat(sizePx) || 14;
+    const cfg = fieldKey ? fieldConfigs[fieldKey] : undefined;
+    const font = cfg?.font_weight ? resolveFont(cfg.font_weight) : globalFont;
+    const color = cfg?.color || globalColor;
+    doc.font(font).fontSize(sz).fillColor(color).text(text, x, y, { lineBreak: false });
+  };
 
-    const dimensions =
-      slipType === "full_info"
-        ? { width: 1162, height: 1758 }
-        : slipType === "long"
-          ? { width: 1245, height: 1758 }
-          : { width: 1246, height: 1755 };
+  // Draw text right-aligned from the right edge
+  const drawTextRight = (
+    text: string,
+    topPct: string,
+    rightPct: string,
+    sizePx: string,
+  ) => {
+    if (!text || !topPct || !rightPct) return;
+    const y = toPx(topPct, height);
+    const sz = parseFloat(sizePx) || 14;
+    doc.font(globalFont).fontSize(sz).fillColor(globalColor);
+    const textW = doc.widthOfString(text);
+    const x = width - toPx(rightPct, width) - textW;
+    doc.text(text, x, y, { lineBreak: false });
+  };
 
-    await page.setViewport(dimensions);
+  // 2. Photo
+  if (!hiddenFields.includes("photo") && data.photo) {
+    try {
+      const photoBase64 = data.photo.startsWith("data:")
+        ? data.photo.replace(/^data:image\/\w+;base64,/, "")
+        : data.photo;
+      const photoBuffer = Buffer.from(photoBase64, "base64");
+      const px = toPx(positions.photo_left, width);
+      const py = toPx(positions.photo_top, height);
+      const pw = toPx(positions.photo_width, width);
+      doc.image(photoBuffer, px, py, { width: pw });
+    } catch (_) {}
+  }
 
-    await page.setContent(populatedHtml, { waitUntil: "domcontentloaded", timeout: 30000 });
-    await new Promise(resolve => setTimeout(resolve, 800));
+  // 3. QR code
+  if (!hiddenFields.includes("qr_code") && positions.qr_top) {
+    try {
+      const qrW = toPx(positions.qr_width, width);
+      const qrY = toPx(positions.qr_top, height);
+      const qrX = positions.qr_right
+        ? width - toPx(positions.qr_right, width) - qrW
+        : toPx(positions.qr_top, width);
+      doc.image(qrBuffer, qrX, qrY, { width: qrW });
+    } catch (_) {}
+  }
 
-    await page.pdf({
-      path: pdfPath,
-      width: `${dimensions.width}px`,
-      height: `${dimensions.height}px`,
-      printBackground: true,
-      margin: { top: "0", right: "0", bottom: "0", left: "0" },
-      pageRanges: "1",
-    });
-  } finally {
-    if (browser) {
-      await browser.close();
+  // 4. All text fields — each checks hiddenFields and uses admin-configured positions
+  if (!hiddenFields.includes("surname")) {
+    drawText((data.surname || "").toUpperCase(), positions.surname_top, positions.surname_left, positions.surname_size, "surname");
+  }
+
+  if (!hiddenFields.includes("names") && positions.names_top) {
+    const names = `${(data.firstname || "").toUpperCase()} ${(data.middlename || "").toUpperCase()}`.trim();
+    drawText(names, positions.names_top, positions.names_left, positions.names_size, "names");
+  }
+
+  if (!hiddenFields.includes("firstname") && positions.firstname_top) {
+    drawText((data.firstname || "").toUpperCase(), positions.firstname_top, positions.firstname_left || positions.names_left, positions.firstname_size || positions.names_size, "firstname");
+  }
+
+  if (!hiddenFields.includes("middlename") && positions.middlename_top) {
+    drawText((data.middlename || "").toUpperCase(), positions.middlename_top, positions.middlename_left || positions.names_left, positions.middlename_size || positions.names_size, "middlename");
+  }
+
+  if (!hiddenFields.includes("dob") && positions.dob_top) {
+    drawText(formatDate(data.date_of_birth), positions.dob_top, positions.dob_left, positions.dob_size, "dob");
+  }
+
+  if (!hiddenFields.includes("nin")) {
+    drawText(formatNIN(data.nin), positions.nin_top, positions.nin_left, positions.nin_size, "nin");
+  }
+
+  if (!hiddenFields.includes("sex") && positions.sex_top) {
+    drawText((data.gender || "").toUpperCase(), positions.sex_top, positions.sex_left || "", positions.sex_size || "14px", "sex");
+  }
+
+  if (!hiddenFields.includes("issue_date") && positions.issue_top) {
+    const issueText = formatDate(new Date().toISOString());
+    if (positions.issue_right) {
+      drawTextRight(issueText, positions.issue_top, positions.issue_right, positions.issue_size || "14px");
+    } else {
+      drawText(issueText, positions.issue_top, positions.issue_left || "", positions.issue_size || "14px", "issue_date");
     }
   }
+
+  if (!hiddenFields.includes("tracking_id") && positions.tracking_top) {
+    drawText(data.tracking_id || "", positions.tracking_top, positions.tracking_left || "", positions.tracking_size || "14px", "tracking_id");
+  }
+
+  if (!hiddenFields.includes("address") && positions.address_top) {
+    drawText((data.address || "").toUpperCase(), positions.address_top, positions.address_left || "", positions.address_size || "14px", "address");
+  }
+
+  if (!hiddenFields.includes("phone") && positions.phone_top) {
+    drawText(data.phone || "", positions.phone_top, positions.phone_left || "", positions.phone_size || "14px", "phone");
+  }
+
+  if (!hiddenFields.includes("state") && positions.state_top) {
+    drawText((data.state || "").toUpperCase(), positions.state_top, positions.state_left || "", positions.state_size || "14px", "state");
+  }
+
+  if (!hiddenFields.includes("lga") && positions.lga_top) {
+    drawText((data.lga || "").toUpperCase(), positions.lga_top, positions.lga_left || "", positions.lga_size || "14px", "lga");
+  }
+
+  if (!hiddenFields.includes("birth_state") && positions.birth_state_top) {
+    drawText((data.birthState || "").toUpperCase(), positions.birth_state_top, positions.birth_state_left || "", positions.birth_state_size || "14px", "birth_state");
+  }
+
+  if (!hiddenFields.includes("birth_lga") && positions.birth_lga_top) {
+    drawText((data.birthLga || "").toUpperCase(), positions.birth_lga_top, positions.birth_lga_left || "", positions.birth_lga_size || "14px", "birth_lga");
+  }
+
+  if (!hiddenFields.includes("nationality") && positions.nationality_top) {
+    drawText((data.nationality || "NIGERIAN").toUpperCase(), positions.nationality_top, positions.nationality_left || "", positions.nationality_size || "14px", "nationality");
+  }
+
+  doc.end();
+
+  // Wait for file write to complete
+  await new Promise<void>((resolve, reject) => {
+    writeStream.on("finish", resolve);
+    writeStream.on("error", reject);
+  });
 
   // Read the generated PDF and store as base64 in DB for permanent persistence
   let pdfBase64: string | null = null;
