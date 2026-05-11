@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, CheckCircle2, ArrowRight, BookOpen, Shield, Zap, Users, ChevronDown } from "lucide-react";
+import { GraduationCap, CheckCircle2, ArrowRight, BookOpen, Shield, Zap, Users, ChevronDown, Building2 } from "lucide-react";
 import { useState } from "react";
 import SeoSchema, { orgSchema, faqSchema, productSchema } from "@/components/SeoSchema";
 

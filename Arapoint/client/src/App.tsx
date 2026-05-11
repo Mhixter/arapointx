@@ -34,6 +34,7 @@ import KYCApiPage from "@/pages/seo/KYCApiPage";
 import BackgroundChecksPage from "@/pages/seo/BackgroundChecksPage";
 import BestIdentityPlatformPage from "@/pages/seo/BestIdentityPlatformPage";
 import CompareVerifyMePage from "@/pages/seo/CompareVerifyMePage";
+import PublicApiDocs from "@/pages/PublicApiDocs";
 
 // Dashboard Imports
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -384,7 +385,8 @@ function Router() {
             <Route path="/background-checks" component={BackgroundChecksPage} />
             <Route path="/best-identity-verification-platform-nigeria" component={BestIdentityPlatformPage} />
             <Route path="/compare/verifyme-alternative" component={CompareVerifyMePage} />
-        
+            <Route path="/docs" component={PublicApiDocs} />
+
         {/* Dashboard Routes */}
         <Route path="/dashboard">
           <DashboardLayout>

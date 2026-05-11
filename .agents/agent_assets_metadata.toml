@@ -300,6 +300,12 @@ uri = "file://public/images/bg-wallet.png"
 type = "image"
 title = "Abstract wallet finance nodes"
 
+[[generated]]
+id = "onrjm4e4XTUzBqOq7_Vey"
+uri = "file://Arapoint/client/src/assets/hero-woman.png"
+type = "image"
+title = "african-businesswoman-hero"
+
 [[outputs]]
 id = "z6o-oO6GVSPv_J9EZkzSF"
 uri = "file://attached_assets/generated_images/arapoint_launch_banner.png"

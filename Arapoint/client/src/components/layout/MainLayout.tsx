@@ -35,6 +35,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
             <Link href="/features" className={`transition-colors hover:text-primary ${location === "/features" ? "text-primary font-semibold" : "text-muted-foreground"}`}>Features</Link>
             <Link href="/services" className={`transition-colors hover:text-primary ${location === "/services" ? "text-primary font-semibold" : "text-muted-foreground"}`}>Services</Link>
             <Link href="/pricing" className={`transition-colors hover:text-primary ${location === "/pricing" ? "text-primary font-semibold" : "text-muted-foreground"}`}>Pricing</Link>
+            <Link href="/docs" className={`transition-colors hover:text-primary ${location === "/docs" ? "text-primary font-semibold" : "text-muted-foreground"}`}>API Docs</Link>
             <a href="https://developer.arapoint.com.ng" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors">Developers</a>
             <Link href="/contact" className={`transition-colors hover:text-primary ${location === "/contact" ? "text-primary font-semibold" : "text-muted-foreground"}`}>Contact</Link>
           </nav>
@@ -64,6 +65,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
                 <Link href="/features" className="text-lg font-medium hover:text-primary transition-colors">Features</Link>
                 <Link href="/services" className="text-lg font-medium hover:text-primary transition-colors">Services</Link>
                 <Link href="/pricing" className="text-lg font-medium hover:text-primary transition-colors">Pricing</Link>
+                <Link href="/docs" className="text-lg font-medium hover:text-primary transition-colors">API Docs</Link>
                 <a href="https://developer.arapoint.com.ng" target="_blank" rel="noopener noreferrer" className="text-lg font-medium text-primary">Developers</a>
                 <Link href="/contact" className="text-lg font-medium hover:text-primary transition-colors">Contact</Link>
                 <Link href="/auth/login">
@@ -196,7 +198,9 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           {/* Bottom bar */}
           <div className="mt-12 pt-6 border-t border-border/40 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
             <span>© {new Date().getFullYear()} {settings.siteName || "Arapoint"}. All rights reserved.</span>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap justify-center">
+              <Link href="/docs" className="hover:text-primary transition-colors">API Docs</Link>
+              <Link href="/best-identity-verification-platform-nigeria" className="hover:text-primary transition-colors">Compare</Link>
               <Link href="/privacy" className="hover:text-primary transition-colors">Privacy</Link>
               <Link href="/terms" className="hover:text-primary transition-colors">Terms</Link>
               <a href="mailto:legal@arapoint.com.ng" className="hover:text-primary transition-colors">Legal</a>
