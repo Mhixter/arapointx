@@ -5,6 +5,87 @@ import { Link } from "wouter";
 import { useEffect, useRef, useState } from "react";
 import heroCutout from "@/assets/hero-cutout.png";
 
+const ORBIT_SECTORS = [
+  { label: "Fintechs", icon: Zap, angle: -90 },
+  { label: "Banks & Lenders", icon: Building2, angle: -30 },
+  { label: "Loan Platforms", icon: CreditCard, angle: 30 },
+  { label: "HR & Recruiting", icon: Users, angle: 90 },
+  { label: "Insurance", icon: Shield, angle: 150 },
+  { label: "Gov't & KYC", icon: BadgeCheck, angle: 210 },
+];
+
+function HeroOrbit() {
+  const SZ = 460;
+  const CX = SZ / 2;
+  const CY = SZ / 2;
+  const R = 195;
+
+  return (
+    <div className="relative mx-auto select-none" style={{ width: SZ, height: SZ }}>
+      {/* Outer dotted decorative ring */}
+      <div
+        className="absolute rounded-full pointer-events-none"
+        style={{ inset: 18, border: "2px dashed rgba(16,120,50,0.18)" }}
+      />
+      {/* Inner halo ring */}
+      <div
+        className="absolute rounded-full pointer-events-none"
+        style={{ inset: 62, border: "1.5px solid rgba(16,120,50,0.08)" }}
+      />
+
+      {/* Green dot connectors on the outer ring */}
+      {ORBIT_SECTORS.map(({ angle }) => {
+        const rad = (angle * Math.PI) / 180;
+        const dotR = R - 32;
+        const x = CX + dotR * Math.cos(rad);
+        const y = CY + dotR * Math.sin(rad);
+        return (
+          <div
+            key={angle}
+            className="absolute rounded-full bg-green-500"
+            style={{ width: 8, height: 8, left: x, top: y, transform: "translate(-50%,-50%)" }}
+          />
+        );
+      })}
+
+      {/* Center circular image */}
+      <div
+        className="absolute rounded-full overflow-hidden shadow-2xl"
+        style={{
+          inset: 68,
+          background: "radial-gradient(ellipse at 50% 0%, #bbf7d0 0%, #dcfce7 45%, #f0fdf4 85%)",
+          border: "5px solid white",
+        }}
+      >
+        <img
+          src={heroCutout}
+          alt="Nigerian professional — Arapoint identity verification"
+          className="w-full h-full object-cover object-top"
+        />
+      </div>
+
+      {/* Sector pills orbiting */}
+      {ORBIT_SECTORS.map(({ label, icon: Icon, angle }) => {
+        const rad = (angle * Math.PI) / 180;
+        const x = CX + R * Math.cos(rad);
+        const y = CY + R * Math.sin(rad);
+        return (
+          <div
+            key={label}
+            className="absolute flex items-center gap-2 bg-white shadow-md border border-gray-100 rounded-full px-3 py-2 whitespace-nowrap"
+            style={{ left: x, top: y, transform: "translate(-50%,-50%)" }}
+          >
+            <div className="w-5 h-5 rounded-full bg-green-700 flex items-center justify-center flex-shrink-0">
+              <Icon className="w-3 h-3 text-white" />
+            </div>
+            <span className="text-xs font-semibold text-gray-800">{label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function useCountUp(target: number, duration = 2000, start = false) {
   const [count, setCount] = useState(0);
   useEffect(() => {
@@ -198,30 +279,8 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="relative animate-in slide-in-from-right-5 duration-1000 fade-in delay-200 justify-self-end w-full max-w-md">
-            {/* Floating stat cards */}
-            <div className="absolute top-8 left-2 bg-white shadow-lg border border-border/40 rounded-xl px-3 py-2.5 z-20">
-              <p className="text-xs font-bold text-foreground">Identity Verified</p>
-              <p className="text-xs text-muted-foreground mt-0.5">NIN · BVN · SSCE</p>
-            </div>
-            <div className="absolute top-8 right-2 flex items-center gap-1.5 bg-white shadow-lg border border-border/40 rounded-xl px-3 py-2.5 z-20">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-xs font-bold text-green-700">PASS</span>
-            </div>
-            <div className="absolute bottom-8 left-2 bg-white shadow-lg border border-border/40 rounded-xl px-3 py-2.5 z-20">
-              <p className="text-xs text-muted-foreground">Response time</p>
-              <p className="text-sm font-bold text-foreground">1.2s</p>
-            </div>
-            <div className="absolute bottom-8 right-2 bg-white shadow-lg border border-border/40 rounded-xl px-3 py-2.5 z-20">
-              <p className="text-xs text-muted-foreground">Confidence</p>
-              <p className="text-sm font-bold text-foreground">99.4%</p>
-            </div>
-            <img
-              src={heroCutout}
-              alt="Nigerian professional using Arapoint identity verification"
-              className="relative z-10 w-full object-contain object-bottom drop-shadow-2xl"
-              style={{ height: 480 }}
-            />
+          <div className="animate-in slide-in-from-right-5 duration-1000 fade-in delay-200 justify-self-end hidden lg:flex items-center justify-center">
+            <HeroOrbit />
           </div>
         </div>
       </section>

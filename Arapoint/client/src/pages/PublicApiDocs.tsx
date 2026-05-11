@@ -281,8 +281,8 @@ function CodeBlock({ code, lang }: { code: string; lang?: string }) {
 
 function MethodPill({ method }: { method: string }) {
   const cls = method === "POST"
-    ? "bg-green-100 text-green-700 border border-green-200"
-    : "bg-blue-100 text-blue-700 border border-blue-200";
+    ? "bg-green-700 text-white border border-green-800"
+    : "bg-blue-700 text-white border border-blue-800";
   return <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold font-mono ${cls}`}>{method}</span>;
 }
 
@@ -346,7 +346,7 @@ export default function PublicApiDocs() {
               <button
                 key={s.id}
                 onClick={() => goTo(s.id)}
-                className={`w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-all mb-0.5 ${active ? "bg-green-50 text-green-700 font-medium" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`}
+                className={`w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-all mb-0.5 ${active ? "bg-green-700 text-white font-medium" : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"}`}
               >
                 {active && <ChevronRight className="w-3 h-3 flex-shrink-0" />}
                 {!active && <span className="w-3 flex-shrink-0" />}
@@ -367,10 +367,10 @@ export default function PublicApiDocs() {
                   <button
                     key={ep.id}
                     onClick={() => goTo("endpoint", ep.id)}
-                    className={`w-full text-left px-2 py-1.5 rounded-md text-sm transition-all mb-0.5 ${active ? "bg-green-50 text-green-700 font-medium" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`}
+                    className={`w-full text-left px-2 py-1.5 rounded-md text-sm transition-all mb-0.5 ${active ? "bg-green-700 text-white font-medium" : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"}`}
                   >
                     <div className="flex items-center gap-2">
-                      {active && <ChevronRight className="w-3 h-3 flex-shrink-0 text-green-500" />}
+                      {active && <ChevronRight className="w-3 h-3 flex-shrink-0 text-white" />}
                       {!active && <span className="w-3 flex-shrink-0" />}
                       <span className="flex-1 truncate">{ep.title}</span>
                       <MethodPill method={ep.method} />
@@ -458,16 +458,16 @@ function SectionHeader({ title, description }: { title: string; description?: st
   return (
     <div className="mb-8 pb-6 border-b border-gray-100">
       <h1 className="text-2xl font-bold text-gray-900 mb-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{title}</h1>
-      {description && <p className="text-gray-500 text-base leading-relaxed">{description}</p>}
+      {description && <p className="text-gray-600 text-base leading-relaxed">{description}</p>}
     </div>
   );
 }
 
 function InfoBox({ children, variant = "info" }: { children: React.ReactNode; variant?: "info" | "warning" | "success" }) {
   const styles = {
-    info: "bg-blue-50 border-blue-200 text-blue-800",
-    warning: "bg-amber-50 border-amber-200 text-amber-800",
-    success: "bg-green-50 border-green-200 text-green-800",
+    info: "bg-blue-50 border-blue-300 text-blue-900",
+    warning: "bg-amber-50 border-amber-300 text-amber-900",
+    success: "bg-green-700/10 border-green-700/40 text-green-900",
   };
   return (
     <div className={`rounded-lg border p-4 text-sm leading-relaxed my-4 ${styles[variant]}`}>
@@ -500,13 +500,13 @@ function WelcomeSection({ onGetStarted }: { onGetStarted: () => void }) {
       <h2 className="text-lg font-bold text-gray-900 mb-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Key Features</h2>
       <div className="grid sm:grid-cols-3 gap-4 mb-8">
         {[
-          { title: "Real-time", desc: "NIN and BVN verified in under 2 seconds from NIMC and CBN registries." },
-          { title: "Secure", desc: "TLS 1.3, HMAC-signed webhooks, IP allowlist, and NDPA compliant." },
-          { title: "Pay as you go", desc: "No monthly fees. Fund your wallet and pay per successful API call." },
+          { title: "Real-time verification", desc: "NIN and BVN queries resolve directly from NIMC and CBN registries in under 2 seconds. No stale or third-party cached data." },
+          { title: "Bank-grade security", desc: "Every request is encrypted with TLS 1.3. Webhooks are HMAC-SHA256 signed. IP allowlisting is available for all plans." },
+          { title: "Pay as you go", desc: "No monthly contracts or seat fees. Fund your Arapoint wallet via Paystack and pay only per successful API call." },
         ].map(f => (
           <div key={f.title} className="rounded-xl border border-gray-200 p-4">
             <p className="text-sm font-semibold text-gray-900 mb-1">{f.title}</p>
-            <p className="text-xs text-gray-500 leading-relaxed">{f.desc}</p>
+            <p className="text-xs text-gray-600 leading-relaxed">{f.desc}</p>
           </div>
         ))}
       </div>
@@ -518,34 +518,48 @@ function WelcomeSection({ onGetStarted }: { onGetStarted: () => void }) {
             <span className="w-2 h-2 rounded-full bg-yellow-400" />
             <p className="text-sm font-semibold text-gray-900">Sandbox</p>
           </div>
-          <p className="text-xs text-gray-500 leading-relaxed">Instant mock responses. No wallet balance needed. All endpoints available. Returns fictional data only.</p>
+          <p className="text-xs text-gray-600 leading-relaxed">Returns instant mock data at zero cost. All endpoints are available. Ideal for development, testing, and CI/CD pipelines. No wallet balance required.</p>
         </div>
         <div className="rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-2 mb-2">
-            <span className="w-2 h-2 rounded-full bg-green-500" />
+            <span className="w-2 h-2 rounded-full bg-green-600" />
             <p className="text-sm font-semibold text-gray-900">Live</p>
           </div>
-          <p className="text-xs text-gray-500 leading-relaxed">Real registry queries. Actual verification results. Webhook delivery. Requires wallet balance.</p>
+          <p className="text-xs text-gray-600 leading-relaxed">Queries real NIMC and CBN registries. Returns verified identity data with full audit trail. Requires a funded wallet. Webhooks are delivered to your configured endpoint.</p>
         </div>
+      </div>
+
+      <h2 className="text-lg font-bold text-gray-900 mb-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>What you can build</h2>
+      <div className="grid sm:grid-cols-3 gap-3 mb-8">
+        {[
+          { title: "KYC Onboarding", desc: "Verify NIN and BVN during user sign-up. Meet CBN KYC requirements for fintechs and lending platforms." },
+          { title: "Employment Screening", desc: "Run NIN + BVN + SSCE checks before hiring. Get automated PASS/REVIEW/FAIL decisions with grade analysis." },
+          { title: "Fraud Detection", desc: "Cross-reference identity sources. Flag mismatched names, suspicious DOB patterns, and anomalous records instantly." },
+        ].map(f => (
+          <div key={f.title} className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <p className="text-sm font-semibold text-gray-900 mb-1">{f.title}</p>
+            <p className="text-xs text-gray-600 leading-relaxed">{f.desc}</p>
+          </div>
+        ))}
       </div>
 
       <h2 className="text-lg font-bold text-gray-900 mb-4" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Quick Start</h2>
       <div className="space-y-3 mb-6">
         {[
-          { n: "1", t: "Create an account", d: "Sign up at arapoint.com.ng. Sandbox access is instant — no credit card needed." },
-          { n: "2", t: "Generate API keys", d: "Developer Portal → API Keys → Create Key. Your key starts with ara_." },
-          { n: "3", t: "Make your first call", d: "Pass your key in the X-API-Key header. Start with sandbox mode." },
+          { n: "1", t: "Create an account", d: "Sign up at arapoint.com.ng — takes under 60 seconds. Sandbox access is granted immediately, no credit card required." },
+          { n: "2", t: "Generate an API key", d: "Go to Developer Portal → API Keys → Create Key. Your live key starts with ara_live_ and sandbox key with ara_sandbox_." },
+          { n: "3", t: "Add the header and call", d: "Pass your key in the X-API-Key header on every request. Start in sandbox mode, then flip to Live when you are ready to go to production." },
         ].map(s => (
           <div key={s.n} className="flex gap-4 rounded-xl border border-gray-200 p-4">
-            <div className="w-6 h-6 rounded-full bg-green-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">{s.n}</div>
+            <div className="w-6 h-6 rounded-full bg-green-700 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">{s.n}</div>
             <div>
               <p className="text-sm font-semibold text-gray-900 mb-0.5">{s.t}</p>
-              <p className="text-xs text-gray-500">{s.d}</p>
+              <p className="text-xs text-gray-600">{s.d}</p>
             </div>
           </div>
         ))}
       </div>
-      <CodeBlock lang="cURL" code={`curl -X POST "${BASE_URL}/verify/nin" \\\n  -H "X-API-Key: ara_your_key_here" \\\n  -H "Content-Type: application/json" \\\n  -d '{"nin": "12345678901"}'`} />
+      <CodeBlock lang="cURL" code={`curl -X POST "${BASE_URL}/verify/nin" \\\n  -H "X-API-Key: ara_live_your_key_here" \\\n  -H "Content-Type: application/json" \\\n  -d '{"nin": "12345678901"}'`} />
     </div>
   );
 }
@@ -555,14 +569,22 @@ function AuthSection() {
     <div>
       <SectionHeader title="Authentication" description="Arapoint uses two authentication methods depending on the endpoint type." />
       <h2 className="text-base font-bold text-gray-900 mb-3" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>API Key — Verification Endpoints</h2>
-      <p className="text-sm text-gray-500 mb-3">Pass your API key in the X-API-Key header. Keys begin with <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono text-gray-700">ara_</code>.</p>
+      <p className="text-sm text-gray-700 mb-3">Pass your API key in the <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono text-gray-800">X-API-Key</code> header on every request. Live keys begin with <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono text-gray-800">ara_live_</code> and sandbox keys with <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono text-gray-800">ara_sandbox_</code>.</p>
       <CodeBlock lang="HTTP" code={`X-API-Key: ara_live_your_key_here`} />
       <h2 className="text-base font-bold text-gray-900 mb-3 mt-8" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Bearer Token — Account Endpoints</h2>
-      <p className="text-sm text-gray-500 mb-3">For profile, billing, and analytics endpoints, pass your JWT in the Authorization header.</p>
+      <p className="text-sm text-gray-700 mb-3">Profile, billing, and analytics management endpoints use JWT-based authentication. Obtain a token by logging in to your developer account and pass it in the <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono text-gray-800">Authorization</code> header.</p>
       <CodeBlock lang="HTTP" code={`Authorization: Bearer your_jwt_token_here`} />
-      <InfoBox variant="warning">Never expose your API key in client-side code. All Arapoint API calls must be made from your server.</InfoBox>
-      <h2 className="text-base font-bold text-gray-900 mb-3 mt-8" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Rotating Keys</h2>
-      <p className="text-sm text-gray-500">You can create, view, and revoke API keys at any time from Developer Portal → API Keys. Revoked keys are rejected immediately with HTTP 401.</p>
+      <InfoBox variant="warning">Never expose your API key in client-side JavaScript. All Arapoint API calls must originate from your server. Treat your API key like a password — rotate it immediately if you suspect it has been leaked.</InfoBox>
+      <h2 className="text-base font-bold text-gray-900 mb-3 mt-8" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Key Lifecycle and Rotation</h2>
+      <p className="text-sm text-gray-700 mb-2">You can create, label, and revoke API keys at any time from Developer Portal → API Keys. A revoked key is rejected immediately with HTTP 401 — no grace period. Best practices:</p>
+      <ul className="space-y-1.5 mb-4">
+        {["Create separate keys for each environment (staging, production).", "Revoke and re-issue keys after any team-member departure.", "Use the IP allowlist to restrict which servers can call the API."].map(t => (
+          <li key={t} className="flex items-start gap-2 text-sm text-gray-700">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-700 mt-1.5 flex-shrink-0" />
+            {t}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -637,10 +659,10 @@ function ErrorsSection() {
       <div className="rounded-xl border border-gray-200 overflow-hidden mb-6">
         {errors.map((e, i) => (
           <div key={e.code} className={`flex items-start gap-4 px-5 py-3.5 text-sm ${i % 2 === 0 ? "bg-white" : "bg-gray-50"} ${i < errors.length - 1 ? "border-b border-gray-100" : ""}`}>
-            <span className={`font-mono font-bold text-xs rounded px-1.5 py-0.5 flex-shrink-0 ${e.code === "200" ? "bg-green-100 text-green-700" : e.code.startsWith("4") ? "bg-amber-100 text-amber-700" : e.code.startsWith("5") ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700"}`}>{e.code}</span>
+            <span className={`font-mono font-bold text-xs rounded px-1.5 py-0.5 flex-shrink-0 ${e.code === "200" ? "bg-green-700 text-white" : e.code.startsWith("4") ? "bg-amber-600 text-white" : e.code.startsWith("5") ? "bg-red-600 text-white" : "bg-gray-600 text-white"}`}>{e.code}</span>
             <div className="flex-1 min-w-0">
               <span className="font-semibold text-gray-900 text-xs">{e.text}</span>
-              <span className="text-gray-500 text-xs ml-2">{e.desc}</span>
+              <span className="text-gray-600 text-xs ml-2">{e.desc}</span>
             </div>
           </div>
         ))}
@@ -655,10 +677,10 @@ function WebhooksSection() {
     <div>
       <SectionHeader title="Webhooks" description="Configure a webhook URL in Developer Portal. Arapoint sends a signed POST request to your endpoint when async verifications complete." />
       <h2 className="text-base font-bold text-gray-900 mb-3" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Signature Verification</h2>
-      <p className="text-sm text-gray-500 mb-4">Every webhook request includes an <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono">X-Arapoint-Signature</code> header. Verify it using HMAC-SHA256 with your webhook secret.</p>
+      <p className="text-sm text-gray-700 mb-4">Every webhook request includes an <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono text-gray-800">X-Arapoint-Signature</code> header. Always verify this signature before processing the payload — it confirms the request came from Arapoint and the body has not been tampered with.</p>
       <CodeBlock lang="Node.js" code={`const crypto = require("crypto");\n\napp.post("/webhook", (req, res) => {\n  const sig = req.headers["x-arapoint-signature"];\n  const expected = crypto\n    .createHmac("sha256", process.env.ARAPOINT_WEBHOOK_SECRET)\n    .update(JSON.stringify(req.body))\n    .digest("hex");\n\n  if (sig !== expected) {\n    return res.status(401).json({ error: "Invalid signature" });\n  }\n\n  const { event, data } = req.body;\n  // handle: education.completed, employment.completed\n  console.log(event, data);\n  res.json({ received: true });\n});`} />
       <h2 className="text-base font-bold text-gray-900 mb-3 mt-8" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Retry Schedule</h2>
-      <p className="text-sm text-gray-500 mb-3">Failed deliveries are retried at 1 minute, 5 minutes, 15 minutes, and 1 hour after the initial attempt.</p>
+      <p className="text-sm text-gray-700 mb-3">Failed deliveries are retried at 1 minute, 5 minutes, 15 minutes, and 1 hour after the initial attempt. The delivery log in Developer Portal shows the status of every attempt.</p>
       <InfoBox variant="info">Respond with HTTP 200 as quickly as possible. Process webhook data asynchronously to avoid timeouts.</InfoBox>
     </div>
   );
@@ -724,7 +746,7 @@ function EndpointSection({ endpoint, activeLang, setActiveLang }: {
             : <span className="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded px-2 py-0.5">Free</span>}
         </div>
         <h1 className="text-2xl font-bold text-gray-900 mb-2" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{endpoint.title}</h1>
-        <p className="text-gray-500 text-sm leading-relaxed">{endpoint.description}</p>
+        <p className="text-gray-700 text-sm leading-relaxed">{endpoint.description}</p>
         {endpoint.priceNote && (
           <div className="mt-3 text-xs text-purple-700 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">{endpoint.priceNote}</div>
         )}
@@ -747,8 +769,8 @@ function EndpointSection({ endpoint, activeLang, setActiveLang }: {
             {endpoint.params.map((p, i) => (
               <div key={p.name} className={`grid grid-cols-4 px-4 py-3 text-xs gap-2 ${i % 2 === 0 ? "bg-white" : "bg-gray-50"} ${i < endpoint.params.length - 1 ? "border-b border-gray-100" : ""}`}>
                 <code className="font-mono text-green-700 font-medium">{p.name}</code>
-                <span className="text-gray-500 font-mono">{p.type}</span>
-                <span className={p.required ? "text-red-600 font-medium" : "text-gray-400"}>
+                <span className="text-gray-700 font-mono">{p.type}</span>
+                <span className={p.required ? "text-red-700 font-semibold" : "text-gray-500"}>
                   {p.required ? "required" : "optional"}
                 </span>
                 <span className="text-gray-600 leading-relaxed">{p.desc}</span>
