@@ -71,16 +71,19 @@ export default function Home() {
             icon={Shield}
             title="Identity Verification"
             description="Instant NIN and BVN validation directly from government registries. Confirm a person's legal identity in seconds."
+            href="/identity-verification"
           />
           <FeatureCard 
             icon={Briefcase}
             title="Employment Screening"
             description="Verify NIN + BVN + SSCE in one request. Cross-reference names, DOB, and grades with an automated PASS/REVIEW/FAIL decision."
+            href="/employment-screening"
           />
           <FeatureCard 
             icon={GraduationCap}
             title="Education Checks"
             description="Verify WAEC, NECO, NABTEB, and NBAIS results programmatically. Automated credit-level analysis for English, Maths, and minimum 5-credit requirement."
+            href="/education-verification"
           />
           <FeatureCard 
             icon={Building2}
@@ -91,12 +94,30 @@ export default function Home() {
             icon={Lock}
             title="Fraud Prevention"
             description="Advanced risk scoring that detects name mismatches, DOB inconsistencies, and data anomalies across identity sources."
+            href="/background-checks"
           />
           <FeatureCard 
             icon={Zap}
             title="VTU & Utilities"
             description="Purchase airtime, data bundles, and pay electricity bills instantly. Result checker PINs available for WAEC and NECO."
           />
+        </div>
+        
+        <div className="mt-10 text-center">
+          <p className="text-sm text-muted-foreground">
+            Explore dedicated pages: {" "}
+            <Link href="/nin-verification" className="text-primary hover:underline">NIN Verification</Link>
+            {" · "}
+            <Link href="/bvn-verification" className="text-primary hover:underline">BVN Verification</Link>
+            {" · "}
+            <Link href="/kyc-api" className="text-primary hover:underline">KYC API</Link>
+            {" · "}
+            <Link href="/employment-screening" className="text-primary hover:underline">Employment Screening</Link>
+            {" · "}
+            <Link href="/education-verification" className="text-primary hover:underline">Education Verification</Link>
+            {" · "}
+            <Link href="/background-checks" className="text-primary hover:underline">Background Checks</Link>
+          </p>
         </div>
       </section>
 
@@ -345,9 +366,9 @@ const { data } = await response.json();
   );
 }
 
-function FeatureCard({ icon: Icon, title, description }: { icon: any, title: string, description: string }) {
-  return (
-    <Card className="border-border/50 shadow-sm hover:shadow-md transition-all hover:-translate-y-1 duration-300">
+function FeatureCard({ icon: Icon, title, description, href }: { icon: any, title: string, description: string, href?: string }) {
+  const card = (
+    <Card className={`border-border/50 shadow-sm hover:shadow-md transition-all hover:-translate-y-1 duration-300 h-full ${href ? "cursor-pointer hover:border-primary/30" : ""}`}>
       <CardHeader>
         <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 text-primary">
           <Icon className="h-6 w-6" />
@@ -361,4 +382,6 @@ function FeatureCard({ icon: Icon, title, description }: { icon: any, title: str
       </CardContent>
     </Card>
   );
+  if (href) return <Link href={href}>{card}</Link>;
+  return card;
 }

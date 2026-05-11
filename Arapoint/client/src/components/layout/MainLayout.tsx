@@ -111,17 +111,20 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
 
             {/* Platform */}
             <div className="space-y-4">
-              <h4 className="font-semibold text-foreground text-sm">Platform</h4>
+              <h4 className="font-semibold text-foreground text-sm">Identity & Verification</h4>
               <ul className="space-y-2.5">
                 {[
-                  { label: "Identity Verification", href: "/features#identity" },
-                  { label: "Education Checks", href: "/features#education" },
-                  { label: "Business Lookup", href: "/features#business" },
-                  { label: "VTU Services", href: "/features#vtu" },
+                  { label: "Identity Verification", href: "/identity-verification" },
+                  { label: "NIN Verification", href: "/nin-verification" },
+                  { label: "BVN Verification", href: "/bvn-verification" },
+                  { label: "Education Verification", href: "/education-verification" },
+                  { label: "Employment Screening", href: "/employment-screening" },
+                  { label: "Background Checks", href: "/background-checks" },
+                  { label: "KYC API", href: "/kyc-api" },
                   { label: "Developer API", href: "https://developer.arapoint.com.ng", external: true },
                 ].map(item => (
                   <li key={item.label}>
-                    {item.external ? (
+                    {(item as any).external ? (
                       <a href={item.href} target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-primary transition-colors">
                         {item.label}
                       </a>
@@ -141,6 +144,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
               <ul className="space-y-2.5">
                 {[
                   { label: "About Us", href: "/about" },
+                  { label: "Features", href: "/features" },
+                  { label: "Pricing", href: "/pricing" },
                   { label: "Careers", href: "/careers" },
                   { label: "Privacy Policy", href: "/privacy" },
                   { label: "Terms of Service", href: "/terms" },

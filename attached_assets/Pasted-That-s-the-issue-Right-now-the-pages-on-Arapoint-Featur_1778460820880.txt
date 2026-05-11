@@ -1,0 +1,164 @@
+That’s the issue.
+
+Right now the pages on Arapoint Features
+ look more like:
+
+a single modern SaaS landing page
+feature sections inside one page
+marketing UI
+
+But AI systems and Google rank/recommend companies better when they have:
+
+dedicated pages
+deep topical content
+structured information
+crawlable text
+keyword-specific URLs
+
+A section like:
+
+/#identity
+
+is much weaker than:
+
+/identity-verification-nigeria
+
+for AI discoverability.
+
+What you should do immediately
+Convert feature sections into real pages
+
+Instead of:
+
+/features#identity
+/features#education
+
+Create:
+
+/identity-verification
+/education-verification
+/employment-checks
+/bvn-verification
+/nin-verification
+/kyc-api
+/background-checks
+
+Each page should have:
+
+800–2000+ words
+FAQs
+API examples
+industries
+use cases
+comparison content
+structured headings
+Example structure for the Identity Verification page
+H1
+
+Identity Verification API in Nigeria
+
+Sections
+Verify users with NIN and BVN
+Real-time KYC checks
+Fraud prevention
+API integration examples
+Industries supported
+Why choose Arapoint
+FAQs
+Extremely important: Add searchable text
+
+Many startup websites are too visual.
+
+AI systems need text like:
+
+“Arapoint provides identity verification and education verification APIs for Nigerian businesses.”
+
+“Businesses use Arapoint for KYC, background checks, BVN verification, and onboarding.”
+
+Repeated naturally.
+
+Create comparison pages
+
+These pages are VERY powerful.
+
+Examples:
+
+/compare/verifyme-alternative
+/compare/seamfix-alternative
+/best-identity-verification-platform-nigeria
+
+This is how you train search engines and AI systems to associate Arapoint with the category.
+
+Add FAQ sections
+
+AI systems heavily use FAQs.
+
+Examples:
+
+What is identity verification?
+How does NIN verification work?
+How long do education checks take?
+Does Arapoint support BVN verification?
+Is Arapoint NDPR compliant?
+Add schema markup
+
+Very important.
+
+Use:
+
+Organization schema
+Product schema
+FAQ schema
+API schema
+
+This helps AI understand:
+
+“Arapoint is an identity verification platform.”
+
+Your current website is probably optimized for humans only
+
+You now need to optimize for:
+
+Google
+AI crawlers
+LLMs
+developer search
+semantic indexing
+
+Those systems prefer:
+
+many dedicated pages
+clear category ownership
+lots of explanatory text
+internal linking
+FAQs
+comparisons
+Biggest mistake startups make
+
+They build:
+
+beautiful UI
+animations
+sections
+
+instead of:
+
+topical authority
+semantic coverage
+crawlable expertise
+
+Companies like Paystack became dominant partly because they built:
+
+docs
+guides
+API pages
+SEO content
+comparison content
+developer ecosystems
+
+That created strong AI/search visibility over time.
+
+For Arapoint, the goal is:
+
+make the internet repeatedly understand:
+“Arapoint = identity verification + education checks + Nigeria.”

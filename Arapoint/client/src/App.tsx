@@ -25,6 +25,16 @@ import ServicesPage from "@/pages/Services";
 import PricingPage from "@/pages/Pricing";
 import ContactPage from "@/pages/Contact";
 
+import IdentityVerificationPage from "@/pages/seo/IdentityVerificationPage";
+import NINVerificationPage from "@/pages/seo/NINVerificationPage";
+import BVNVerificationPage from "@/pages/seo/BVNVerificationPage";
+import EducationVerificationPage from "@/pages/seo/EducationVerificationPage";
+import EmploymentScreeningPage from "@/pages/seo/EmploymentScreeningPage";
+import KYCApiPage from "@/pages/seo/KYCApiPage";
+import BackgroundChecksPage from "@/pages/seo/BackgroundChecksPage";
+import BestIdentityPlatformPage from "@/pages/seo/BestIdentityPlatformPage";
+import CompareVerifyMePage from "@/pages/seo/CompareVerifyMePage";
+
 // Dashboard Imports
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AdminDashboardLayout from "@/components/layout/AdminDashboardLayout";
@@ -364,6 +374,16 @@ function Router() {
             <Route path="/auth/login" component={Login} />
             <Route path="/auth/signup" component={Signup} />
             <Route path="/auth/forgot-password" component={ForgotPassword} />
+
+            <Route path="/identity-verification" component={IdentityVerificationPage} />
+            <Route path="/nin-verification" component={NINVerificationPage} />
+            <Route path="/bvn-verification" component={BVNVerificationPage} />
+            <Route path="/education-verification" component={EducationVerificationPage} />
+            <Route path="/employment-screening" component={EmploymentScreeningPage} />
+            <Route path="/kyc-api" component={KYCApiPage} />
+            <Route path="/background-checks" component={BackgroundChecksPage} />
+            <Route path="/best-identity-verification-platform-nigeria" component={BestIdentityPlatformPage} />
+            <Route path="/compare/verifyme-alternative" component={CompareVerifyMePage} />
         
         {/* Dashboard Routes */}
         <Route path="/dashboard">
