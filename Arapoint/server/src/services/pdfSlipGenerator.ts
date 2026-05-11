@@ -681,6 +681,16 @@ export const generatePdfSlip = async (
     const page = await browser.newPage();
     await page.setDefaultTimeout(60000);
 
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      const url = req.url();
+      if (url.startsWith('data:') || url === 'about:blank') {
+        req.continue();
+      } else {
+        req.abort();
+      }
+    });
+
     const dimensions =
       slipType === "full_info"
         ? { width: 1162, height: 1758 }
