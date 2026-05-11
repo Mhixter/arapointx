@@ -324,13 +324,6 @@ export default function PublicApiDocs() {
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-white border-r border-gray-100">
-      <div className="px-4 py-4 border-b border-gray-100">
-        <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-          <img src={arapointLogo} alt="Arapoint" className="h-7 w-7 object-contain" />
-          <span className="font-bold text-gray-900 text-sm">Arapoint Docs</span>
-        </Link>
-      </div>
-
       <div className="px-3 py-3 border-b border-gray-100">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
@@ -410,43 +403,34 @@ export default function PublicApiDocs() {
   );
 
   return (
-    <div className="min-h-screen flex bg-white" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="flex bg-white" style={{ fontFamily: "'Inter', sans-serif", minHeight: "calc(100vh - 4rem)" }}>
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      <aside className={`fixed lg:hidden inset-y-0 left-0 z-50 transition-transform duration-200 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`} style={{ width: 260 }}>
-        <div className="h-full">
+      {/* Mobile sidebar drawer — starts below the sticky main header (top-16) */}
+      <aside className={`fixed lg:hidden top-16 bottom-0 left-0 z-50 transition-transform duration-200 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`} style={{ width: 260 }}>
+        <div className="h-full overflow-hidden">
           <SidebarContent />
         </div>
       </aside>
 
+      {/* Desktop sidebar — sticky below the main site header */}
       <aside className="hidden lg:block flex-shrink-0" style={{ width: 260 }}>
-        <div className="sticky top-0 h-screen overflow-hidden">
+        <div className="sticky top-16 overflow-hidden" style={{ height: "calc(100vh - 4rem)" }}>
           <SidebarContent />
         </div>
       </aside>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-3 px-6 py-3 border-b border-gray-100 sticky top-0 bg-white z-20">
-          <button className="lg:hidden text-gray-500 hover:text-gray-800" onClick={() => setSidebarOpen(true)}>
+        {/* Mobile hamburger strip */}
+        <div className="flex lg:hidden items-center gap-3 px-4 py-2.5 border-b border-gray-100 bg-white sticky top-16 z-20">
+          <button className="text-gray-500 hover:text-gray-800" onClick={() => setSidebarOpen(true)}>
             <Menu className="w-5 h-5" />
           </button>
-          <div className="flex-1 flex items-center gap-2 text-sm text-gray-500">
-            <Link href="/" className="hover:text-green-600 transition-colors">Arapoint</Link>
-            <ChevronRight className="w-3.5 h-3.5" />
-            <span className="text-gray-800 font-medium">
-              {activeEndpoint ? endpoint?.title : GUIDE_SECTIONS.find(s => s.id === activeSection)?.label ?? "Docs"}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link href="/auth/signup">
-              <Button size="sm" className="h-7 text-xs px-3 bg-green-600 hover:bg-green-700 text-white hidden sm:flex">Create Account</Button>
-            </Link>
-            <Link href="/developer/login">
-              <Button size="sm" variant="outline" className="h-7 text-xs px-3 border-gray-200 text-gray-600 hover:text-gray-900">Sign In</Button>
-            </Link>
-          </div>
+          <span className="text-sm text-gray-600 font-medium">
+            {activeEndpoint ? endpoint?.title : GUIDE_SECTIONS.find(s => s.id === activeSection)?.label ?? "Docs"}
+          </span>
         </div>
 
         <div ref={contentRef} className="max-w-3xl mx-auto px-6 py-10">

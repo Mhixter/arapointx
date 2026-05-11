@@ -199,35 +199,29 @@ export default function Home() {
           </div>
 
           <div className="relative animate-in slide-in-from-right-5 duration-1000 fade-in delay-200 justify-self-end w-full max-w-md">
-            {/* Gradient background panel */}
-            <div className="relative rounded-3xl overflow-hidden" style={{ background: "linear-gradient(135deg, #059669 0%, #065f46 60%, #022c22 100%)", minHeight: 480 }}>
-              {/* Subtle grid pattern overlay */}
-              <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.4) 1px, transparent 0)", backgroundSize: "28px 28px" }} />
-              {/* Floating stat cards */}
-              <div className="absolute top-6 left-5 bg-white/95 backdrop-blur rounded-xl shadow-lg px-3 py-2.5 z-20">
-                <p className="text-xs font-bold text-gray-900">Identity Verified</p>
-                <p className="text-xs text-gray-400 mt-0.5">NIN · BVN · SSCE</p>
-              </div>
-              <div className="absolute top-6 right-5 flex items-center gap-1.5 bg-white/95 backdrop-blur rounded-xl shadow-lg px-3 py-2.5 z-20">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-xs font-bold text-green-700">PASS</span>
-              </div>
-              <div className="absolute bottom-6 left-5 bg-white/95 backdrop-blur rounded-xl shadow-lg px-3 py-2.5 z-20">
-                <p className="text-xs text-gray-400">Response time</p>
-                <p className="text-sm font-bold text-gray-900">1.2s</p>
-              </div>
-              <div className="absolute bottom-6 right-5 bg-white/95 backdrop-blur rounded-xl shadow-lg px-3 py-2.5 z-20">
-                <p className="text-xs text-gray-400">Confidence</p>
-                <p className="text-sm font-bold text-gray-900">99.4%</p>
-              </div>
-              {/* Cutout person — bottom aligned so they "stand" in the card */}
-              <img
-                src={heroCutout}
-                alt="Nigerian professional using Arapoint identity verification"
-                className="relative z-10 w-full object-contain object-bottom"
-                style={{ height: 480 }}
-              />
+            {/* Floating stat cards */}
+            <div className="absolute top-8 left-2 bg-white shadow-lg border border-border/40 rounded-xl px-3 py-2.5 z-20">
+              <p className="text-xs font-bold text-foreground">Identity Verified</p>
+              <p className="text-xs text-muted-foreground mt-0.5">NIN · BVN · SSCE</p>
             </div>
+            <div className="absolute top-8 right-2 flex items-center gap-1.5 bg-white shadow-lg border border-border/40 rounded-xl px-3 py-2.5 z-20">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-xs font-bold text-green-700">PASS</span>
+            </div>
+            <div className="absolute bottom-8 left-2 bg-white shadow-lg border border-border/40 rounded-xl px-3 py-2.5 z-20">
+              <p className="text-xs text-muted-foreground">Response time</p>
+              <p className="text-sm font-bold text-foreground">1.2s</p>
+            </div>
+            <div className="absolute bottom-8 right-2 bg-white shadow-lg border border-border/40 rounded-xl px-3 py-2.5 z-20">
+              <p className="text-xs text-muted-foreground">Confidence</p>
+              <p className="text-sm font-bold text-foreground">99.4%</p>
+            </div>
+            <img
+              src={heroCutout}
+              alt="Nigerian professional using Arapoint identity verification"
+              className="relative z-10 w-full object-contain object-bottom drop-shadow-2xl"
+              style={{ height: 480 }}
+            />
           </div>
         </div>
       </section>
