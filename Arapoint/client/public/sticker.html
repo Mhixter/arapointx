@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Arapoint Sticker – Print Ready</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', Arial, sans-serif;
+      background: #e8f5e9;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 30px;
+      gap: 30px;
+    }
+
+    .print-hint {
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-size: 13px;
+      color: #555;
+      text-align: center;
+      max-width: 600px;
+    }
+    .print-hint strong { color: #15803d; }
+
+    @media print {
+      body { background: white; padding: 0; gap: 0; justify-content: flex-start; }
+      .print-hint { display: none; }
+    }
+
+    /* ═══════════════════════════════════════
+       STICKER – 105mm × 148mm (A6)
+    ═══════════════════════════════════════ */
+    .sticker {
+      width: 105mm;
+      min-height: 148mm;
+      background: #ffffff;
+      border-radius: 8mm;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      border: 1px solid #d1fae5;
+    }
+
+    /* Top green header band */
+    .sticker-header {
+      background: linear-gradient(135deg, #15803d 0%, #16a34a 60%, #22c55e 100%);
+      padding: 14px 16px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+    }
+
+    .sticker-header::after {
+      content: '';
+      position: absolute;
+      bottom: -10px;
+      left: 0;
+      right: 0;
+      height: 10px;
+      background: linear-gradient(135deg, #15803d 0%, #16a34a 60%, #22c55e 100%);
+      clip-path: ellipse(55% 100% at 50% 0%);
+    }
+
+    .logo-mark {
+      width: 44px;
+      height: 44px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border: 1.5px solid rgba(255,255,255,0.35);
+    }
+
+    .header-text { flex: 1; }
+
+    .brand-name {
+      font-size: 20px;
+      font-weight: 900;
+      color: #ffffff;
+      letter-spacing: -0.3px;
+      line-height: 1;
+    }
+
+    .brand-tagline {
+      font-size: 8px;
+      color: rgba(255,255,255,0.85);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-top: 3px;
+      font-weight: 500;
+    }
+
+    /* Body */
+    .sticker-body {
+      flex: 1;
+      padding: 20px 16px 14px;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      gap: 13px;
+    }
+
+    /* Services */
+    .section-label {
+      font-size: 7.5px;
+      font-weight: 700;
+      color: #15803d;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .services-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px 8px;
+    }
+
+    .service-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 9.5px;
+      color: #1c4532;
+      font-weight: 500;
+    }
+
+    .service-item .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #22c55e;
+      flex-shrink: 0;
+    }
+
+    /* Commission highlight */
+    .commission-box {
+      background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+      border: 1.5px solid #86efac;
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+    }
+
+    .commission-icon {
+      width: 28px;
+      height: 28px;
+      background: #16a34a;
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 14px;
+    }
+
+    .commission-text { flex: 1; }
+
+    .commission-title {
+      font-size: 10px;
+      font-weight: 800;
+      color: #14532d;
+      line-height: 1.2;
+    }
+
+    .commission-desc {
+      font-size: 8.5px;
+      color: #166534;
+      margin-top: 2px;
+      line-height: 1.4;
+      font-weight: 400;
+    }
+
+    /* Divider */
+    .divider {
+      height: 1px;
+      background: linear-gradient(to right, transparent, #d1fae5, transparent);
+    }
+
+    /* Contact section */
+    .contact-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .contact-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 9.5px;
+      color: #1c4532;
+      font-weight: 500;
+    }
+
+    .contact-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 11px;
+    }
+
+    .contact-icon.phone   { background: #dcfce7; }
+    .contact-icon.whatsapp{ background: #d1fae5; }
+    .contact-icon.email   { background: #ecfdf5; }
+    .contact-icon.web     { background: #f0fdf4; }
+
+    .contact-value {
+      font-weight: 600;
+      color: #14532d;
+    }
+
+    /* Footer */
+    .sticker-footer {
+      background: linear-gradient(135deg, #14532d 0%, #15803d 100%);
+      padding: 9px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer-url {
+      font-size: 9px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 0.3px;
+    }
+
+    .footer-badge {
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 20px;
+      padding: 2px 9px;
+      font-size: 7.5px;
+      color: #ffffff;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    /* Cut line for printing */
+    .cut-line {
+      width: 105mm;
+      text-align: center;
+      font-size: 10px;
+      color: #aaa;
+      letter-spacing: 2px;
+      user-select: none;
+    }
+    @media print {
+      .cut-line { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="print-hint">
+    To print: press <strong>Ctrl + P</strong> (or Cmd + P on Mac) → set paper to <strong>A6 or A4</strong> → enable <strong>"Background graphics"</strong> → Print. Cut along the rounded edges.
+  </div>
+
+  <!-- STICKER -->
+  <div class="sticker">
+
+    <!-- Header -->
+    <div class="sticker-header">
+      <div class="logo-mark">
+        <svg width="28" height="28" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <g transform="translate(256 280)">
+            <path d="M -8 -180 Q 0 -200 8 -180 L -90 150 Q -100 178 -72 178 L -10 178 Q 0 178 0 168 Z" fill="#ffffff"/>
+            <path d="M 8 -180 Q 0 -200 -8 -180 L 90 150 Q 100 178 72 178 L 18 178 Q 8 178 8 168 Z" fill="rgba(255,255,255,0.72)"/>
+            <path d="M 22 28 Q 28 14 46 14 L 78 14 Q 96 14 102 28 L 102 162 Q 102 178 86 178 L 38 178 Q 22 178 22 162 Z" fill="rgba(0,0,0,0.25)"/>
+          </g>
+        </svg>
+      </div>
+      <div class="header-text">
+        <div class="brand-name">Arapoint</div>
+        <div class="brand-tagline">Identity &amp; Digital Services</div>
+      </div>
+    </div>
+
+    <!-- Body -->
+    <div class="sticker-body">
+
+      <!-- Services -->
+      <div>
+        <div class="section-label">Our Services</div>
+        <div class="services-grid">
+          <div class="service-item"><span class="dot"></span>NIN Verification</div>
+          <div class="service-item"><span class="dot"></span>BVN Verification</div>
+          <div class="service-item"><span class="dot"></span>Education Check</div>
+          <div class="service-item"><span class="dot"></span>Airtime &amp; Data</div>
+          <div class="service-item"><span class="dot"></span>Electricity Bills</div>
+          <div class="service-item"><span class="dot"></span>Cable TV Sub.</div>
+        </div>
+      </div>
+
+      <!-- Commission Highlight -->
+      <div class="commission-box">
+        <div class="commission-icon">💰</div>
+        <div class="commission-text">
+          <div class="commission-title">Earn 5% Commission!</div>
+          <div class="commission-desc">Refer clients and earn 5% on every successful transaction they complete on our platform.</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Contact -->
+      <div>
+        <div class="section-label">Contact Us</div>
+        <div class="contact-list">
+          <div class="contact-item">
+            <div class="contact-icon phone">📞</div>
+            <span class="contact-value">08133688584</span>
+          </div>
+          <div class="contact-item">
+            <div class="contact-icon whatsapp">💬</div>
+            <span class="contact-value">WhatsApp: 08133688584</span>
+          </div>
+          <div class="contact-item">
+            <div class="contact-icon email">✉️</div>
+            <span>support@arapoint.com.ng</span>
+          </div>
+          <div class="contact-item">
+            <div class="contact-icon web">🌐</div>
+            <span class="contact-value">www.arapoint.com.ng</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="sticker-footer">
+      <div class="footer-url">arapoint.com.ng</div>
+      <div class="footer-badge">VERIFIED PLATFORM</div>
+    </div>
+
+  </div>
+
+  <div class="cut-line">— — — ✂ — — — cut here — — — ✂ — — —</div>
+
+</body>
+</html>
