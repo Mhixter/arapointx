@@ -1,0 +1,51 @@
+[Migration] nin_validation key migration skipped: relation "service_pricing" does not exist
+Seeding service pricing records...
+Skipping nin_slip_information: relation "service_pricing" does not exist
+Skipping nin_slip_regular: relation "service_pricing" does not exist
+Skipping nin_slip_standard: relation "service_pricing" does not exist
+{"level":"info","time":"2026-05-15T23:01:28.479Z","pid":73,"hostname":"srv-d837nuegvqtc73em1ckg-hibernate-5d44d8dc67-nhn7t","msg":"Webhook retry processor started (30s interval)"}
+Skipping nin_slip_premium: relation "service_pricing" does not exist
+Skipping nin_phone: relation "service_pricing" does not exist
+Skipping nin_tracking: relation "service_pricing" does not exist
+Skipping bvn_verification: relation "service_pricing" does not exist
+Skipping bvn_modification_name: relation "service_pricing" does not exist
+Skipping bvn_modification_dob: relation "service_pricing" does not exist
+Skipping ipe_clearance: relation "service_pricing" does not exist
+Skipping nin_validation: relation "service_pricing" does not exist
+Skipping jamb_result: relation "service_pricing" does not exist
+Skipping waec_result: relation "service_pricing" does not exist
+Skipping waec_scratch_card: relation "service_pricing" does not exist
+Skipping neco_result: relation "service_pricing" does not exist
+Skipping neco_scratch_card: relation "service_pricing" does not exist
+Skipping nabteb_result: relation "service_pricing" does not exist
+Skipping nbais_result: relation "service_pricing" does not exist
+Skipping cac_business_name: relation "service_pricing" does not exist
+Skipping cac_limited_company: relation "service_pricing" does not exist
+Skipping cac_incorporated_trustees: relation "service_pricing" does not exist
+Skipping airtime_to_cash: relation "service_pricing" does not exist
+Skipping airtime_purchase: relation "service_pricing" does not exist
+Skipping data_purchase: relation "service_pricing" does not exist
+Skipping nin_personalization: relation "service_pricing" does not exist
+Skipping birth_attestation: relation "service_pricing" does not exist
+Skipping waec_pin: relation "service_pricing" does not exist
+Skipping neco_pin: relation "service_pricing" does not exist
+Skipping nabteb_pin: relation "service_pricing" does not exist
+Skipping nbais_pin: relation "service_pricing" does not exist
+Skipping jamb_exam_slip: relation "service_pricing" does not exist
+Service pricing seeding complete.
+[Seed] Admin seed skipped: relation "admin_roles" does not exist
+Gateway credentials load skipped: relation "admin_settings" does not exist
+{"level":"info","time":"2026-05-15T23:01:41.881Z","pid":73,"hostname":"srv-d837nuegvqtc73em1ckg-hibernate-5d44d8dc67-nhn7t","msg":"DB cache table ready"}
+11:01:41 PM [express] serving on port 3001
+11:01:41 PM [express] RPA bot will start in 60s (after server warm-up)
+11:01:41 PM [express] VTU status poller started (5s interval)
+{"level":"info","time":"2026-05-15T23:01:41.883Z","pid":73,"hostname":"srv-d837nuegvqtc73em1ckg-hibernate-5d44d8dc67-nhn7t","msg":"Job auto-release sweeper started (every 2m, threshold 30m)"}
+[VTU Poller] Error: relation "airtime_services" does not exist
+==> Your service is live 🎉
+==> 
+==> ///////////////////////////////////////////////////////////
+==> 
+Menu
+==> Available at your primary URL https://arapointx-1.onrender.com
+==> 
+==> ///////////////////////////////////////////////////////////
