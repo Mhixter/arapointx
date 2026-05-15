@@ -1,0 +1,85 @@
+M
+My Workspace
+Dan mama
+
+Production
+
+
+arapointx
+
+Search
+Ctrl+
+K
+
+New
+
+Upgrade
+
+
+Environment
+arapointx
+Events
+Settings
+Monitor
+Logs
+Metrics
+Manage
+Environment
+Shell
+Scaling
+Previews
+Disk
+One-Off Jobs
+
+Changelog
+Invite a friend
+
+Contact support
+Render Status
+Web Service
+arapointx
+Node
+Free
+Upgrade your instance
+
+Connect
+
+Manual Deploy
+Service ID:
+srv-d837iol7vvec7394bpjg
+
+Mhixter / arapointx
+main
+https://arapointx.onrender.com
+
+Your free instance will spin down with inactivity, which can delay requests by 50 seconds or more.
+Upgrade now
+
+Filter events31
+Deploy failed for e694799: Configure deployment settings for the API to run correctly Create a new render.yaml file at the repository root to correctly configure the web service, specifying the 'Arapoint' as the root directory and setting appropriate build and start commands. Replit-Commit-Author: Agent Replit-Commit-Session-Id: b3250b72-88a9-4d23-885c-bdc7c8272241 Replit-Commit-Checkpoint-Type: full_checkpoint Replit-Commit-Event-Id: 1e580769-be29-4e94-b34f-ef89fe615b8b Replit-Commit-Screenshot-Url: https://storage.googleapis.com/screenshot-production-us-central1/ef24917d-3d4a-4e3c-bcd8-e8cec0904855/b3250b72-88a9-4d23-885c-bdc7c8272241/EQm5Rvd Replit-Helium-Checkpoint-Created: true
+Exited with status 1 while running your code. Check your deploy logs for more information.
+May 14, 2026 at 6:52 PM
+
+Rollback
+Deploy started for e694799: Configure deployment settings for the API to run correctly Create a new render.yaml file at the repository root to correctly configure the web service, specifying the 'Arapoint' as the root directory and setting appropriate build and start commands. Replit-Commit-Author: Agent Replit-Commit-Session-Id: b3250b72-88a9-4d23-885c-bdc7c8272241 Replit-Commit-Checkpoint-Type: full_checkpoint Replit-Commit-Event-Id: 1e580769-be29-4e94-b34f-ef89fe615b8b Replit-Commit-Screenshot-Url: https://storage.googleapis.com/screenshot-production-us-central1/ef24917d-3d4a-4e3c-bcd8-e8cec0904855/b3250b72-88a9-4d23-885c-bdc7c8272241/EQm5Rvd Replit-Helium-Checkpoint-Created: true
+Manually triggered by you via Dashboard
+May 14, 2026 at 6:50 PM
+Deploy failed for e694799: Configure deployment settings for the API to run correctly Create a new render.yaml file at the repository root to correctly configure the web service, specifying the 'Arapoint' as the root directory and setting appropriate build and start commands. Replit-Commit-Author: Agent Replit-Commit-Session-Id: b3250b72-88a9-4d23-885c-bdc7c8272241 Replit-Commit-Checkpoint-Type: full_checkpoint Replit-Commit-Event-Id: 1e580769-be29-4e94-b34f-ef89fe615b8b Replit-Commit-Screenshot-Url: https://storage.googleapis.com/screenshot-production-us-central1/ef24917d-3d4a-4e3c-bcd8-e8cec0904855/b3250b72-88a9-4d23-885c-bdc7c8272241/EQm5Rvd Replit-Helium-Checkpoint-Created: true
+Exited with status 1 while running your code. Check your deploy logs for more information.
+May 14, 2026 at 6:50 PM
+
+Rollback
+Deploy started for e694799: Configure deployment settings for the API to run correctly Create a new render.yaml file at the repository root to correctly configure the web service, specifying the 'Arapoint' as the root directory and setting appropriate build and start commands. Replit-Commit-Author: Agent Replit-Commit-Session-Id: b3250b72-88a9-4d23-885c-bdc7c8272241 Replit-Commit-Checkpoint-Type: full_checkpoint Replit-Commit-Event-Id: 1e580769-be29-4e94-b34f-ef89fe615b8b Replit-Commit-Screenshot-Url: https://storage.googleapis.com/screenshot-production-us-central1/ef24917d-3d4a-4e3c-bcd8-e8cec0904855/b3250b72-88a9-4d23-885c-bdc7c8272241/EQm5Rvd Replit-Helium-Checkpoint-Created: true
+New commit via Auto-Deploy
+May 14, 2026 at 6:48 PM
+Deploy failed for fcff969: Fix: Payment Webhook Trust - Unsigned PalmPay VA webhook can mint wallet balance (Task #16) ## Problem The PalmPay virtual-account webhook handler in `Arapoint/server/src/api/routes/payment.ts` used a conditional `if (palmpayPublicKey && payload.sign)` guard before calling `verifyPalmpayCallbackSignature`. This meant signature verification was entirely bypassed when: - `payload.sign` was absent (attacker simply omits the field), OR - `PALMPAY_PUBLIC_KEY` was not set in the environment An attacker could obtain their virtual account number via the authenticated wallet endpoints and then POST to `/api/payment/palmpay/va-webhook` with no `sign` field, any `orderAmount`, and `orderStatus: 1` to mint arbitrary wallet balance. The `walletService.addBalance()` call would execute with fully attacker-controlled values. ## Fix Replaced the optional guard with three mandatory sequential checks: 1. Reject immediately if `PALMPAY_PUBLIC_KEY` is not configured (log at error level). 2. Reject immediately if `payload.sign` is missing (missing signature = unauthenticated). 3. Call `verifyPalmpayCallbackSignature()` unconditionally and reject if it returns false. Only requests that pass all three checks proceed to wallet crediting logic. The `verifyPalmpayCallbackSignature` helper in `palmpayVirtualAccountService.ts` already correctly returns `false` when `sign` is absent, so the new explicit check in the route adds a clear early-exit and audit log entry before the helper is reached. ## Files Changed - `Arapoint/server/src/api/routes/payment.ts` — webhook handler hardened Replit-Task-Id: b5fd638c-62c9-415d-9b4c-17b631ec3efc
+Exited with status 1 while running your code. Check your deploy logs for more information.
+May 14, 2026 at 6:43 PM
+
+Rollback
+First deploy started for fcff969: Fix: Payment Webhook Trust - Unsigned PalmPay VA webhook can mint wallet balance (Task #16) ## Problem The PalmPay virtual-account webhook handler in `Arapoint/server/src/api/routes/payment.ts` used a conditional `if (palmpayPublicKey && payload.sign)` guard before calling `verifyPalmpayCallbackSignature`. This meant signature verification was entirely bypassed when: - `payload.sign` was absent (attacker simply omits the field), OR - `PALMPAY_PUBLIC_KEY` was not set in the environment An attacker could obtain their virtual account number via the authenticated wallet endpoints and then POST to `/api/payment/palmpay/va-webhook` with no `sign` field, any `orderAmount`, and `orderStatus: 1` to mint arbitrary wallet balance. The `walletService.addBalance()` call would execute with fully attacker-controlled values. ## Fix Replaced the optional guard with three mandatory sequential checks: 1. Reject immediately if `PALMPAY_PUBLIC_KEY` is not configured (log at error level). 2. Reject immediately if `payload.sign` is missing (missing signature = unauthenticated). 3. Call `verifyPalmpayCallbackSignature()` unconditionally and reject if it returns false. Only requests that pass all three checks proceed to wallet crediting logic. The `verifyPalmpayCallbackSignature` helper in `palmpayVirtualAccountService.ts` already correctly returns `false` when `sign` is absent, so the new explicit check in the route adds a clear early-exit and audit log entry before the helper is reached. ## Files Changed - `Arapoint/server/src/api/routes/payment.ts` — webhook handler hardened Replit-Task-Id: b5fd638c-62c9-415d-9b4c-17b631ec3efc
+May 14, 2026 at 6:39 PM
+0 services selected:
+
+Move
+
