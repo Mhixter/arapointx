@@ -85,14 +85,14 @@ app.get('/api/ping', (_req: Request, res: Response) => {
 
 app.use(
   express.json({
-    limit: '10mb',
+    limit: '50mb',
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
   }),
 );
 
-app.use(express.urlencoded({ extended: false, limit: '10mb' }));
+app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -280,6 +280,14 @@ async function pollPendingVtu(): Promise<void> {
   await seedAdmin().catch(err => console.log('Admin seed skipped:', err.message));
   await loadGatewayCredentials().catch(err => console.log('Gateway credentials load skipped:', err.message));
   await cacheService.ensureInit().catch(err => console.log('Cache service init skipped:', err.message));
+
+  // Ensure webhook retry queue table exists before routes/retry-processor start
+  await import('./src/services/webhookService').then(({ runWebhookMigrations }) =>
+    runWebhookMigrations().catch((e: any) =>
+      console.warn('[Startup] Webhook table migration skipped:', e.message)
+    )
+  ).catch(() => {});
+
   await registerRoutes(httpServer, app);
 
   const { startJobAutoReleaseSweeper } = await import('./src/services/agentJobClaim');
