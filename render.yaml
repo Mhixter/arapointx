@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: arapoint-api
+    runtime: node
+    region: frankfurt
+    plan: starter
+    rootDir: Arapoint
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+    autoDeploy: true
+
+databases:
+  - name: arapoint-db
+    region: frankfurt
+    plan: starter
+    databaseName: arapoint
+    user: arapoint
