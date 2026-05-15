@@ -6,12 +6,14 @@ import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { db } from '../../config/database';
 import { loadGatewayCredentials } from '../../config/loadGatewayCredentials';
-import { 
-  users, 
-  transactions, 
-  rpaJobs, 
+import {
+  users,
+  users as usersTable,
+  transactions,
+  rpaJobs,
   adminSettings,
   bvnServices,
+  bvnVerifications,
   educationServices,
   airtimeServices,
   dataServices,
@@ -21,51 +23,59 @@ import {
   cacAgents,
   cacServiceTypes,
   cacRegistrationRequests,
+  cacRequests,
+  cacRequestActivity,
+  cacFiles,
+  cacBusinessNatures,
+  cacRequestMessages,
   adminUsers,
+  adminUsers as admin_users,
   adminRoles,
+  adminRoles as admin_roles,
+  adminNotifications,
+  adminActivityLogs,
   identityAgents,
   identityServiceRequests,
+  identityRequestActivity,
+  identityVerifications,
   educationAgents,
   educationServiceRequests,
-  identityVerifications,
+  educationRequestDocuments,
   educationPins,
   educationPinOrders,
+  jambAgents,
+  jambServiceRequests,
+  jambRequestDocuments,
   a2cAgents,
   a2cRequests,
+  a2cStatusHistory,
+  a2cPhoneInventory,
   nbaisSchools,
+  scrapedDataPlans,
   whatsappTemplates,
   agentChannels,
   agentNotifications,
-  jambAgents,
-  jambServiceRequests,
-  adminNotifications,
-  scrapedDataPlans,
-} from '../../db/schema';
-import { 
-  supportTickets as support_tickets, 
-  supportConversations as support_conversations, 
+  agentInternalMessages,
+  agentActivityLogs,
+  supportTickets as support_tickets,
+  supportConversations as support_conversations,
   supportMessages as support_messages,
   supportInternalNotes as support_internal_notes,
   supportPresence as support_presence,
   supportQueue as support_queue,
-  agentInternalMessages,
   fraudAlerts,
-  users as usersTable,
-  adminUsers as admin_users, 
-  adminRoles as admin_roles,
-  identityRequestActivity,
-  cacRequests,
-  cacRegistrationRequests,
-  cacRequestActivity,
-  cacFiles,
-  jambRequestDocuments,
-  educationRequestDocuments,
-  a2cStatusHistory,
+  virtualAccounts,
+  botCredentials,
+  marketingBanners,
+  aiKnowledgeBase,
+  aiUnresolvedQueries,
+  aiChatSessions,
+  aiChatMessages,
+  providerHealth,
+  rpaRecoverySuggestions,
   birthAttestations,
-  bvnVerifications,
   ninSlips,
   sharedFiles,
-  adminActivityLogs,
   otpVerifications,
   loginActivities,
 } from '../../db/schema';
@@ -5996,97 +6006,233 @@ router.get('/search', adminAuthMiddleware, async (req: Request, res: Response) =
 
 router.get('/db/backup', adminAuthMiddleware, async (req: Request, res: Response) => {
   try {
+    const safe = (p: Promise<any>, fallback: any[] = []) => p.catch(() => fallback);
+
     const [
-      userRows,
-      txRows,
-      rpaJobRows,
-      jambRows,
-      identityRows,
-      eduRows,
-      pricingRows,
-      settingRows,
-      cacRows,
-      bvnRows,
-      ninSlipRows,
-      adminUserRows,
-      developerUserRows,
+      // ── Core users & finance ──────────────────────────────────────
+      userRows, txRows, virtualAccountRows,
+      // ── Verification services ─────────────────────────────────────
+      identityVerificationRows, bvnVerificationRows, bvnServiceRows,
+      educationServiceRows, airtimeServiceRows, dataServiceRows,
+      electricityServiceRows, cableServiceRows, ninSlipRows,
+      birthAttestationRows,
+      // ── Agent service requests ────────────────────────────────────
+      identityRequestRows, identityRequestActivityRows,
+      educationRequestRows, educationRequestDocRows,
+      jambRequestRows, jambRequestDocRows,
+      cacRequestRows, cacRegRows, cacRequestActivityRows,
+      cacFileRows, cacRequestMessageRows,
+      a2cRequestRows, a2cStatusRows, a2cPhoneRows,
+      // ── Agent profiles ────────────────────────────────────────────
+      identityAgentRows, educationAgentRows, jambAgentRows,
+      cacAgentRows, a2cAgentRows,
+      // ── RPA ───────────────────────────────────────────────────────
+      rpaJobRows, rpaRecoveryRows, botCredentialRows,
+      // ── Support system ────────────────────────────────────────────
+      supportTicketRows, supportConversationRows, supportMessageRows,
+      supportNoteRows, supportQueueRows, agentInternalMsgRows,
+      // ── Admin & configuration ─────────────────────────────────────
+      adminSettingRows, adminUserRows, adminRoleRows,
+      adminNotificationRows, adminActivityRows,
+      servicePricingRows, cacServiceTypeRows, cacBusinessNatureRows,
+      marketingBannerRows, whatsappTemplateRows, providerHealthRows,
+      // ── AI & support AI ───────────────────────────────────────────
+      aiKnowledgeRows, aiUnresolvedRows, aiChatSessionRows, aiChatMsgRows,
+      // ── Agents misc ───────────────────────────────────────────────
+      agentChannelRows, agentNotificationRows, agentActivityRows,
+      fraudAlertRows, sharedFileRows, nbaisSchoolRows, scrapedDataPlanRows,
+      otpRows, loginActivityRows,
+      // ── Developer portal (raw SQL – separate schema) ──────────────
+      devUserRows, devApiKeyRows, devTransactionRows, devApiLogRows,
+      devWebhookRows, devWebhookLogRows, devKybRows,
+      devUnifiedRows, devEmploymentRows, devIpAllowRows,
     ] = await Promise.all([
-      db.select({
-        id: users.id,
-        email: users.email,
-        name: users.name,
-        phone: users.phone,
-        passwordHash: users.passwordHash,
-        walletBalance: users.walletBalance,
-        bvn: users.bvn,
-        nin: users.nin,
-        kycStatus: users.kycStatus,
-        emailVerified: users.emailVerified,
-        isSuspended: users.isSuspended,
-        suspendReason: users.suspendReason,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
-      }).from(users).limit(10000),
-      db.select().from(transactions).limit(20000),
-      db.select({
-        id: rpaJobs.id,
-        userId: rpaJobs.userId,
-        serviceType: rpaJobs.serviceType,
-        queryData: rpaJobs.queryData,
-        status: rpaJobs.status,
-        result: rpaJobs.result,
-        errorMessage: rpaJobs.errorMessage,
-        retryCount: rpaJobs.retryCount,
-        maxRetries: rpaJobs.maxRetries,
-        priority: rpaJobs.priority,
-        createdAt: rpaJobs.createdAt,
-        startedAt: rpaJobs.startedAt,
-        completedAt: rpaJobs.completedAt,
-      }).from(rpaJobs).limit(10000),
-      db.select().from(jambServiceRequests).limit(5000),
-      db.select().from(identityServiceRequests).limit(5000),
-      db.select().from(educationServiceRequests).limit(5000),
-      db.select().from(servicePricing),
-      db.select().from(adminSettings),
-      db.select().from(cacRegistrationRequests).limit(5000),
-      db.select().from(bvnVerifications).limit(5000),
-      db.select().from(ninSlips).limit(5000),
-      db.select({
-        id: adminUsers.id,
-        email: adminUsers.email,
-        name: adminUsers.name,
-        roleId: adminUsers.roleId,
-        isActive: adminUsers.isActive,
-        createdAt: adminUsers.createdAt,
-      }).from(adminUsers).limit(200),
-      db.execute(sql`SELECT id, email, name, company_name, phone, api_key, is_active, wallet_balance, created_at, plan FROM developer_users LIMIT 2000`).then(r => r.rows).catch(() => []),
+      // core
+      safe(db.select().from(users).limit(50000)),
+      safe(db.select().from(transactions).limit(100000)),
+      safe(db.select().from(virtualAccounts).limit(20000)),
+      // verification
+      safe(db.select().from(identityVerifications).limit(50000)),
+      safe(db.select().from(bvnVerifications).limit(20000)),
+      safe(db.select().from(bvnServices).limit(20000)),
+      safe(db.select().from(educationServices).limit(20000)),
+      safe(db.select().from(airtimeServices).limit(50000)),
+      safe(db.select().from(dataServices).limit(50000)),
+      safe(db.select().from(electricityServices).limit(20000)),
+      safe(db.select().from(cableServices).limit(20000)),
+      safe(db.select().from(ninSlips).limit(20000)),
+      safe(db.select().from(birthAttestations).limit(10000)),
+      // agent requests
+      safe(db.select().from(identityServiceRequests).limit(20000)),
+      safe(db.select().from(identityRequestActivity).limit(50000)),
+      safe(db.select().from(educationServiceRequests).limit(20000)),
+      safe(db.select().from(educationRequestDocuments).limit(20000)),
+      safe(db.select().from(jambServiceRequests).limit(20000)),
+      safe(db.select().from(jambRequestDocuments).limit(20000)),
+      safe(db.select().from(cacRequests).limit(10000)),
+      safe(db.select().from(cacRegistrationRequests).limit(10000)),
+      safe(db.select().from(cacRequestActivity).limit(20000)),
+      safe(db.select().from(cacFiles).limit(20000)),
+      safe(db.select().from(cacRequestMessages).limit(20000)),
+      safe(db.select().from(a2cRequests).limit(20000)),
+      safe(db.select().from(a2cStatusHistory).limit(20000)),
+      safe(db.select().from(a2cPhoneInventory).limit(20000)),
+      // agent profiles
+      safe(db.select().from(identityAgents).limit(1000)),
+      safe(db.select().from(educationAgents).limit(1000)),
+      safe(db.select().from(jambAgents).limit(1000)),
+      safe(db.select().from(cacAgents).limit(1000)),
+      safe(db.select().from(a2cAgents).limit(1000)),
+      // rpa
+      safe(db.select().from(rpaJobs).limit(50000)),
+      safe(db.select().from(rpaRecoverySuggestions).limit(5000)),
+      safe(db.select().from(botCredentials).limit(100)),
+      // support
+      safe(db.select().from(support_tickets).limit(20000)),
+      safe(db.select().from(support_conversations).limit(20000)),
+      safe(db.select().from(support_messages).limit(100000)),
+      safe(db.select().from(support_internal_notes).limit(20000)),
+      safe(db.select().from(support_queue).limit(5000)),
+      safe(db.select().from(agentInternalMessages).limit(20000)),
+      // admin & config
+      safe(db.select().from(adminSettings)),
+      safe(db.select().from(adminUsers).limit(500)),
+      safe(db.select().from(adminRoles).limit(100)),
+      safe(db.select().from(adminNotifications).limit(10000)),
+      safe(db.select().from(adminActivityLogs).limit(50000)),
+      safe(db.select().from(servicePricing)),
+      safe(db.select().from(cacServiceTypes).limit(200)),
+      safe(db.select().from(cacBusinessNatures).limit(500)),
+      safe(db.select().from(marketingBanners).limit(500)),
+      safe(db.select().from(whatsappTemplates).limit(500)),
+      safe(db.select().from(providerHealth).limit(500)),
+      // ai
+      safe(db.select().from(aiKnowledgeBase).limit(5000)),
+      safe(db.select().from(aiUnresolvedQueries).limit(10000)),
+      safe(db.select().from(aiChatSessions).limit(20000)),
+      safe(db.select().from(aiChatMessages).limit(100000)),
+      // agents misc
+      safe(db.select().from(agentChannels).limit(1000)),
+      safe(db.select().from(agentNotifications).limit(20000)),
+      safe(db.select().from(agentActivityLogs).limit(50000)),
+      safe(db.select().from(fraudAlerts).limit(20000)),
+      safe(db.select().from(sharedFiles).limit(20000)),
+      safe(db.select().from(nbaisSchools).limit(5000)),
+      safe(db.select().from(scrapedDataPlans).limit(5000)),
+      safe(db.select().from(otpVerifications).limit(20000)),
+      safe(db.select().from(loginActivities).limit(50000)),
+      // developer portal (raw SQL)
+      safe(db.execute(sql`SELECT * FROM developer_users LIMIT 10000`).then(r => r.rows)),
+      safe(db.execute(sql`SELECT * FROM developer_api_keys LIMIT 20000`).then(r => r.rows)),
+      safe(db.execute(sql`SELECT * FROM developer_transactions LIMIT 100000`).then(r => r.rows)),
+      safe(db.execute(sql`SELECT * FROM developer_api_logs LIMIT 100000`).then(r => r.rows)),
+      safe(db.execute(sql`SELECT * FROM developer_webhooks LIMIT 5000`).then(r => r.rows)),
+      safe(db.execute(sql`SELECT * FROM developer_webhook_logs LIMIT 20000`).then(r => r.rows)),
+      safe(db.execute(sql`SELECT * FROM developer_kyb_applications LIMIT 5000`).then(r => r.rows)),
+      safe(db.execute(sql`SELECT * FROM developer_unified_requests LIMIT 20000`).then(r => r.rows)),
+      safe(db.execute(sql`SELECT * FROM developer_employment_requests LIMIT 20000`).then(r => r.rows)),
+      safe(db.execute(sql`SELECT * FROM developer_ip_allowlist LIMIT 5000`).then(r => r.rows)),
     ]);
+
+    const t = (rows: any[]) => ({ count: rows.length, data: rows });
 
     const backup = {
       exportedAt: new Date().toISOString(),
-      version: '2.1',
+      version: '3.0',
       tables: {
-        users: { count: userRows.length, data: userRows },
-        transactions: { count: txRows.length, data: txRows },
-        rpaJobs: { count: rpaJobRows.length, data: rpaJobRows },
-        jambServiceRequests: { count: jambRows.length, data: jambRows },
-        identityServiceRequests: { count: identityRows.length, data: identityRows },
-        educationServiceRequests: { count: eduRows.length, data: eduRows },
-        servicePricing: { count: pricingRows.length, data: pricingRows },
-        adminSettings: { count: settingRows.length, data: settingRows },
-        cacRegistrationRequests: { count: cacRows.length, data: cacRows },
-        bvnVerifications: { count: bvnRows.length, data: bvnRows },
-        ninSlips: { count: ninSlipRows.length, data: ninSlipRows },
-        adminUsers: { count: adminUserRows.length, data: adminUserRows },
-        developerUsers: { count: (developerUserRows as any[]).length, data: developerUserRows },
+        // core
+        users:                    t(userRows),
+        transactions:             t(txRows),
+        virtualAccounts:          t(virtualAccountRows),
+        // verification
+        identityVerifications:    t(identityVerificationRows),
+        bvnVerifications:         t(bvnVerificationRows),
+        bvnServices:              t(bvnServiceRows),
+        educationServices:        t(educationServiceRows),
+        airtimeServices:          t(airtimeServiceRows),
+        dataServices:             t(dataServiceRows),
+        electricityServices:      t(electricityServiceRows),
+        cableServices:            t(cableServiceRows),
+        ninSlips:                 t(ninSlipRows),
+        birthAttestations:        t(birthAttestationRows),
+        // agent requests
+        identityServiceRequests:  t(identityRequestRows),
+        identityRequestActivity:  t(identityRequestActivityRows),
+        educationServiceRequests: t(educationRequestRows),
+        educationRequestDocuments:t(educationRequestDocRows),
+        jambServiceRequests:      t(jambRequestRows),
+        jambRequestDocuments:     t(jambRequestDocRows),
+        cacRequests:              t(cacRequestRows),
+        cacRegistrationRequests:  t(cacRegRows),
+        cacRequestActivity:       t(cacRequestActivityRows),
+        cacFiles:                 t(cacFileRows),
+        cacRequestMessages:       t(cacRequestMessageRows),
+        a2cRequests:              t(a2cRequestRows),
+        a2cStatusHistory:         t(a2cStatusRows),
+        a2cPhoneInventory:        t(a2cPhoneRows),
+        // agent profiles
+        identityAgents:           t(identityAgentRows),
+        educationAgents:          t(educationAgentRows),
+        jambAgents:               t(jambAgentRows),
+        cacAgents:                t(cacAgentRows),
+        a2cAgents:                t(a2cAgentRows),
+        // rpa
+        rpaJobs:                  t(rpaJobRows),
+        rpaRecoverySuggestions:   t(rpaRecoveryRows),
+        botCredentials:           t(botCredentialRows),
+        // support
+        supportTickets:           t(supportTicketRows),
+        supportConversations:     t(supportConversationRows),
+        supportMessages:          t(supportMessageRows),
+        supportInternalNotes:     t(supportNoteRows),
+        supportQueue:             t(supportQueueRows),
+        agentInternalMessages:    t(agentInternalMsgRows),
+        // admin & config
+        adminSettings:            t(adminSettingRows),
+        adminUsers:               t(adminUserRows),
+        adminRoles:               t(adminRoleRows),
+        adminNotifications:       t(adminNotificationRows),
+        adminActivityLogs:        t(adminActivityRows),
+        servicePricing:           t(servicePricingRows),
+        cacServiceTypes:          t(cacServiceTypeRows),
+        cacBusinessNatures:       t(cacBusinessNatureRows),
+        marketingBanners:         t(marketingBannerRows),
+        whatsappTemplates:        t(whatsappTemplateRows),
+        providerHealth:           t(providerHealthRows),
+        // ai
+        aiKnowledgeBase:          t(aiKnowledgeRows),
+        aiUnresolvedQueries:      t(aiUnresolvedRows),
+        aiChatSessions:           t(aiChatSessionRows),
+        aiChatMessages:           t(aiChatMsgRows),
+        // agents misc
+        agentChannels:            t(agentChannelRows),
+        agentNotifications:       t(agentNotificationRows),
+        agentActivityLogs:        t(agentActivityRows),
+        fraudAlerts:              t(fraudAlertRows),
+        sharedFiles:              t(sharedFileRows),
+        nbaisSchools:             t(nbaisSchoolRows),
+        scrapedDataPlans:         t(scrapedDataPlanRows),
+        otpVerifications:         t(otpRows),
+        loginActivities:          t(loginActivityRows),
+        // developer portal
+        developerUsers:           t(devUserRows as any[]),
+        developerApiKeys:         t(devApiKeyRows as any[]),
+        developerTransactions:    t(devTransactionRows as any[]),
+        developerApiLogs:         t(devApiLogRows as any[]),
+        developerWebhooks:        t(devWebhookRows as any[]),
+        developerWebhookLogs:     t(devWebhookLogRows as any[]),
+        developerKybApplications: t(devKybRows as any[]),
+        developerUnifiedRequests: t(devUnifiedRows as any[]),
+        developerEmploymentRequests: t(devEmploymentRows as any[]),
+        developerIpAllowlist:     t(devIpAllowRows as any[]),
       },
     };
 
-    const filename = `arapoint-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    const filename = `arapoint-full-backup-${new Date().toISOString().slice(0, 10)}.json`;
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(JSON.stringify(backup, null, 2));
-    logger.info('Database backup exported', { adminId: (req as any).adminId });
+    res.send(JSON.stringify(backup));
+    logger.info('Full database backup exported', { adminId: (req as any).adminId, tableCounts: Object.fromEntries(Object.entries(backup.tables).map(([k, v]) => [k, v.count])) });
   } catch (error: any) {
     logger.error('DB backup error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to generate backup'));
@@ -6133,7 +6279,7 @@ router.post('/db/restore', adminAuthMiddleware, async (req: Request, res: Respon
       let count = 0;
       const chunks = chunkArray(tables.servicePricing.data, 100);
       for (const chunk of chunks) {
-        for (const r of chunk) {
+        for (const r of chunk as any[]) {
           try {
             await db.insert(servicePricing)
               .values({
@@ -6413,7 +6559,6 @@ router.get('/db/logs', adminAuthMiddleware, async (req: Request, res: Response) 
 });
 
 // ===== Portal Health Monitoring (Tier 1) =====
-import { providerHealth } from '../../db/schema';
 import { runHealthCheck, type ProviderName } from '../../rpa/healthMonitor';
 
 router.get('/portal-health', async (req: Request, res: Response) => {
