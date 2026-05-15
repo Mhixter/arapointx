@@ -85,14 +85,14 @@ app.get('/api/ping', (_req: Request, res: Response) => {
 
 app.use(
   express.json({
-    limit: '50mb',
+    limit: '1gb',
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
   }),
 );
 
-app.use(express.urlencoded({ extended: false, limit: '50mb' }));
+app.use(express.urlencoded({ extended: false, limit: '1gb' }));
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
