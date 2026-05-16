@@ -117,6 +117,7 @@ const SENSITIVE_LOG_KEYS = new Set([
 
 function redactSensitive(obj: any, depth = 0): any {
   if (depth > 5 || obj === null || typeof obj !== "object") return obj;
+  if (obj instanceof Date) return obj.toISOString();
   if (Array.isArray(obj)) return obj.map((item) => redactSensitive(item, depth + 1));
   const result: Record<string, any> = {};
   for (const key of Object.keys(obj)) {
