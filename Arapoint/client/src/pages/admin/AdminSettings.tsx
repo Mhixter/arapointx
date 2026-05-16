@@ -445,7 +445,7 @@ export default function AdminSettings() {
       const blob = await res.blob();
       const disposition = res.headers.get('Content-Disposition') || '';
       const match = disposition.match(/filename="([^"]+)"/);
-      const filename = match?.[1] || `arapoint-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      const filename = match?.[1] || `arapoint-full-backup-${new Date().toISOString().slice(0, 10)}.json`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

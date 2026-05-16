@@ -6231,7 +6231,10 @@ router.get('/db/backup', adminAuthMiddleware, async (req: Request, res: Response
     const filename = `arapoint-full-backup-${new Date().toISOString().slice(0, 10)}.json`;
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(JSON.stringify(backup));
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.send(JSON.stringify(backup, null, 2));
     logger.info('Full database backup exported', { adminId: (req as any).adminId, tableCounts: Object.fromEntries(Object.entries(backup.tables).map(([k, v]) => [k, v.count])) });
   } catch (error: any) {
     logger.error('DB backup error', { error: error.message });
