@@ -6253,226 +6253,196 @@ router.post('/db/restore', adminAuthMiddleware, async (req: Request, res: Respon
     const restored: Record<string, number> = {};
     const tables = backup.tables;
 
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    const ISO_RE = /^\d{4}-\d{2}-\d{2}T[\d:.]+Z?$/;
+    const fixDates = (r: any): any => Object.fromEntries(
+      Object.entries(r).map(([k, v]) =>
+        [k, typeof v === 'string' && ISO_RE.test(v) ? new Date(v) : v]
+      )
+    );
+    const tryInsert = async (table: any, data: any[] | undefined, chunkSize = 300): Promise<number> => {
+      if (!data?.length) return 0;
+      let count = 0;
+      for (const chunk of chunkArray(data, chunkSize)) {
+        try {
+          await db.insert(table).values(chunk.map(fixDates)).onConflictDoNothing();
+          count += chunk.length;
+        } catch {
+          for (const row of chunk) {
+            try { await db.insert(table).values(fixDates(row)).onConflictDoNothing(); count++; } catch {}
+          }
+        }
+      }
+      return count;
+    };
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // ── 1. Config tables (upsert — always overwrite with backup values) ───────
     if (tables.adminSettings?.data?.length) {
       let count = 0;
-      const chunks = chunkArray(tables.adminSettings.data, 100);
-      for (const chunk of chunks) {
-        await db.insert(adminSettings)
-          .values(chunk.map((r: any) => ({
-            id: r.id,
-            settingKey: r.settingKey || r.setting_key,
-            settingValue: r.settingValue ?? r.setting_value ?? null,
-            description: r.description || null,
-            updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
-          })))
-          .onConflictDoUpdate({
-            target: adminSettings.settingKey,
-            set: {
-              settingValue: sql`excluded.setting_value`,
-              description: sql`excluded.description`,
-              updatedAt: new Date(),
-            },
-          });
-        count += chunk.length;
+      for (const chunk of chunkArray(tables.adminSettings.data, 100)) {
+        try {
+          await db.insert(adminSettings)
+            .values(chunk.map((r: any) => ({
+              id: r.id,
+              settingKey: r.settingKey || r.setting_key,
+              settingValue: r.settingValue ?? r.setting_value ?? null,
+              description: r.description || null,
+              updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
+            })))
+            .onConflictDoUpdate({
+              target: adminSettings.settingKey,
+              set: { settingValue: sql`excluded.setting_value`, description: sql`excluded.description`, updatedAt: new Date() },
+            });
+          count += chunk.length;
+        } catch {}
       }
       restored.adminSettings = count;
     }
 
     if (tables.servicePricing?.data?.length) {
       let count = 0;
-      const chunks = chunkArray(tables.servicePricing.data, 100);
-      for (const chunk of chunks) {
-        for (const r of chunk as any[]) {
-          try {
-            await db.insert(servicePricing)
-              .values({
-                id: r.id,
-                serviceType: r.serviceType || r.service_type,
-                serviceName: r.serviceName || r.service_name,
-                price: r.price,
-                costPrice: r.costPrice ?? r.cost_price ?? '0',
-                markup: r.markup ?? '0',
-                isActive: r.isActive ?? r.is_active ?? true,
-                description: r.description || null,
-                updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
-              })
-              .onConflictDoUpdate({
-                target: servicePricing.serviceType,
-                set: {
-                  serviceName: sql`excluded.service_name`,
-                  price: sql`excluded.price`,
-                  costPrice: sql`excluded.cost_price`,
-                  markup: sql`excluded.markup`,
-                  isActive: sql`excluded.is_active`,
-                  description: sql`excluded.description`,
-                  updatedAt: new Date(),
-                },
-              });
-            count++;
-          } catch (e: any) {
-            logger.warn('Skipped service pricing row', { error: e.message, serviceType: r.serviceType || r.service_type });
-          }
-        }
+      for (const r of tables.servicePricing.data as any[]) {
+        try {
+          await db.insert(servicePricing)
+            .values({
+              id: r.id, serviceType: r.serviceType || r.service_type,
+              serviceName: r.serviceName || r.service_name, price: r.price,
+              costPrice: r.costPrice ?? r.cost_price ?? '0', markup: r.markup ?? '0',
+              isActive: r.isActive ?? r.is_active ?? true, description: r.description || null,
+              updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
+            })
+            .onConflictDoUpdate({
+              target: servicePricing.serviceType,
+              set: { serviceName: sql`excluded.service_name`, price: sql`excluded.price`, costPrice: sql`excluded.cost_price`, markup: sql`excluded.markup`, isActive: sql`excluded.is_active`, description: sql`excluded.description`, updatedAt: new Date() },
+            });
+          count++;
+        } catch {}
       }
       restored.servicePricing = count;
     }
 
+    if (tables.adminUsers?.data?.length) {
+      let count = 0;
+      for (const chunk of chunkArray(tables.adminUsers.data, 100)) {
+        try {
+          await db.insert(adminUsers).values(chunk.map(fixDates)).onConflictDoNothing();
+          count += chunk.length;
+        } catch {
+          for (const r of chunk) { try { await db.insert(adminUsers).values(fixDates(r)).onConflictDoNothing(); count++; } catch {} }
+        }
+      }
+      restored.adminUsers = count;
+    }
+
+    if (tables.adminRoles?.data?.length)      { restored.adminRoles      = await tryInsert(adminRoles,      tables.adminRoles.data); }
+    if (tables.cacServiceTypes?.data?.length)  { restored.cacServiceTypes  = await tryInsert(cacServiceTypes,  tables.cacServiceTypes.data); }
+    if (tables.cacBusinessNatures?.data?.length){ restored.cacBusinessNatures = await tryInsert(cacBusinessNatures, tables.cacBusinessNatures.data); }
+    if (tables.marketingBanners?.data?.length) { restored.marketingBanners = await tryInsert(marketingBanners, tables.marketingBanners.data); }
+    if (tables.whatsappTemplates?.data?.length){ restored.whatsappTemplates = await tryInsert(whatsappTemplates, tables.whatsappTemplates.data); }
+    if (tables.nbaisSchools?.data?.length)     { restored.nbaisSchools     = await tryInsert(nbaisSchools,     tables.nbaisSchools.data, 500); }
+    if (tables.scrapedDataPlans?.data?.length) { restored.scrapedDataPlans = await tryInsert(scrapedDataPlans, tables.scrapedDataPlans.data, 500); }
+    if (tables.providerHealth?.data?.length)   { restored.providerHealth   = await tryInsert(providerHealth,   tables.providerHealth.data); }
+    if (tables.botCredentials?.data?.length)   { restored.botCredentials   = await tryInsert(botCredentials,   tables.botCredentials.data); }
+
+    // ── 2. Root user data ────────────────────────────────────────────────────
     if (tables.users?.data?.length) {
       let count = 0;
-      const chunks = chunkArray(tables.users.data, 200);
-      for (const chunk of chunks) {
-        await db.insert(users)
-          .values(chunk.map((r: any) => ({
-            id: r.id,
-            email: r.email,
-            name: r.name || `${r.firstName || ''} ${r.lastName || ''}`.trim() || r.email,
-            phone: r.phone || null,
-            passwordHash: r.passwordHash || r.password_hash || null,
-            walletBalance: r.walletBalance ?? r.wallet_balance ?? '0',
-            bvn: r.bvn || null,
-            nin: r.nin || null,
-            kycStatus: r.kycStatus || r.kyc_status || 'pending',
-            emailVerified: r.emailVerified ?? r.email_verified ?? r.isVerified ?? false,
-            isSuspended: r.isSuspended ?? r.is_suspended ?? false,
-            suspendReason: r.suspendReason || r.suspend_reason || null,
-            createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
-            updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
-          })))
-          .onConflictDoUpdate({
-            target: users.id,
-            set: {
-              email: sql`excluded.email`,
-              name: sql`excluded.name`,
-              phone: sql`excluded.phone`,
-              walletBalance: sql`excluded.wallet_balance`,
-              bvn: sql`excluded.bvn`,
-              nin: sql`excluded.nin`,
-              kycStatus: sql`excluded.kyc_status`,
-              emailVerified: sql`excluded.email_verified`,
-              isSuspended: sql`excluded.is_suspended`,
-              suspendReason: sql`excluded.suspend_reason`,
-              updatedAt: new Date(),
-            },
-          });
-        count += chunk.length;
+      for (const chunk of chunkArray(tables.users.data, 200)) {
+        try {
+          await db.insert(users)
+            .values(chunk.map((r: any) => ({
+              id: r.id, email: r.email,
+              name: r.name || `${r.firstName || ''} ${r.lastName || ''}`.trim() || r.email,
+              phone: r.phone || null, passwordHash: r.passwordHash || r.password_hash || null,
+              walletBalance: r.walletBalance ?? r.wallet_balance ?? '0',
+              bvn: r.bvn || null, nin: r.nin || null,
+              kycStatus: r.kycStatus || r.kyc_status || 'pending',
+              emailVerified: r.emailVerified ?? r.email_verified ?? false,
+              isSuspended: r.isSuspended ?? r.is_suspended ?? false,
+              suspendReason: r.suspendReason || r.suspend_reason || null,
+              createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
+              updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
+            })))
+            .onConflictDoUpdate({
+              target: users.id,
+              set: { email: sql`excluded.email`, name: sql`excluded.name`, phone: sql`excluded.phone`, walletBalance: sql`excluded.wallet_balance`, bvn: sql`excluded.bvn`, nin: sql`excluded.nin`, kycStatus: sql`excluded.kyc_status`, emailVerified: sql`excluded.email_verified`, isSuspended: sql`excluded.is_suspended`, suspendReason: sql`excluded.suspend_reason`, updatedAt: new Date() },
+            });
+          count += chunk.length;
+        } catch { for (const r of chunk) { try { await db.insert(users).values(fixDates(r)).onConflictDoNothing(); count++; } catch {} } }
       }
       restored.users = count;
     }
 
+    if (tables.virtualAccounts?.data?.length)  { restored.virtualAccounts  = await tryInsert(virtualAccounts,  tables.virtualAccounts.data); }
+
+    // ── 3. Transactions ──────────────────────────────────────────────────────
     if (tables.transactions?.data?.length) {
       let count = 0;
-      const chunks = chunkArray(tables.transactions.data, 500);
-      for (const chunk of chunks) {
+      for (const chunk of chunkArray(tables.transactions.data, 500)) {
         try {
           await db.insert(transactions)
             .values(chunk.map((r: any) => ({
-              id: r.id,
-              userId: r.userId || r.user_id,
+              id: r.id, userId: r.userId || r.user_id,
               transactionType: r.transactionType || r.transaction_type,
-              amount: r.amount,
-              paymentMethod: r.paymentMethod || r.payment_method || null,
+              amount: r.amount, paymentMethod: r.paymentMethod || r.payment_method || null,
               referenceId: r.referenceId || r.reference_id || null,
-              status: r.status || 'completed',
-              description: r.description || null,
+              status: r.status || 'completed', description: r.description || null,
               createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
             })))
-            .onConflictDoUpdate({
-              target: transactions.id,
-              set: {
-                status: sql`excluded.status`,
-                description: sql`excluded.description`,
-              },
-            });
+            .onConflictDoUpdate({ target: transactions.id, set: { status: sql`excluded.status`, description: sql`excluded.description` } });
           count += chunk.length;
-        } catch (e: any) {
-          logger.warn('Skipped transaction chunk (FK error)', { error: e.message });
-        }
+        } catch { for (const r of chunk) { try { await db.insert(transactions).values(fixDates(r)).onConflictDoNothing(); count++; } catch {} } }
       }
       restored.transactions = count;
     }
 
-    if (tables.identityServiceRequests?.data?.length) {
-      let count = 0;
-      const chunks = chunkArray(tables.identityServiceRequests.data, 200);
-      for (const chunk of chunks) {
-        try {
-          await db.insert(identityServiceRequests)
-            .values(chunk.map((r: any) => ({
-              ...r,
-              createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
-              updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
-            })))
-            .onConflictDoUpdate({
-              target: identityServiceRequests.id,
-              set: { status: sql`excluded.status`, updatedAt: new Date() },
-            });
-          count += chunk.length;
-        } catch (e: any) {
-          logger.warn('Skipped identity request chunk', { error: e.message });
-        }
-      }
-      restored.identityServiceRequests = count;
-    }
+    // ── 4. Verification records ───────────────────────────────────────────────
+    if (tables.identityVerifications?.data?.length) { restored.identityVerifications = await tryInsert(identityVerifications, tables.identityVerifications.data, 500); }
+    if (tables.bvnVerifications?.data?.length)      { restored.bvnVerifications      = await tryInsert(bvnVerifications,      tables.bvnVerifications.data, 300); }
+    if (tables.bvnServices?.data?.length)           { restored.bvnServices           = await tryInsert(bvnServices,           tables.bvnServices.data, 300); }
+    if (tables.educationServices?.data?.length)     { restored.educationServices     = await tryInsert(educationServices,     tables.educationServices.data, 300); }
+    if (tables.airtimeServices?.data?.length)       { restored.airtimeServices       = await tryInsert(airtimeServices,       tables.airtimeServices.data, 500); }
+    if (tables.dataServices?.data?.length)          { restored.dataServices          = await tryInsert(dataServices,          tables.dataServices.data, 500); }
+    if (tables.electricityServices?.data?.length)   { restored.electricityServices   = await tryInsert(electricityServices,   tables.electricityServices.data, 300); }
+    if (tables.cableServices?.data?.length)         { restored.cableServices         = await tryInsert(cableServices,         tables.cableServices.data, 300); }
+    if (tables.ninSlips?.data?.length)              { restored.ninSlips              = await tryInsert(ninSlips,              tables.ninSlips.data, 300); }
+    if (tables.birthAttestations?.data?.length)     { restored.birthAttestations     = await tryInsert(birthAttestations,     tables.birthAttestations.data, 200); }
 
-    if (tables.educationServiceRequests?.data?.length) {
-      let count = 0;
-      const chunks = chunkArray(tables.educationServiceRequests.data, 200);
-      for (const chunk of chunks) {
-        try {
-          await db.insert(educationServiceRequests)
-            .values(chunk.map((r: any) => ({
-              ...r,
-              createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
-              updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
-            })))
-            .onConflictDoUpdate({
-              target: educationServiceRequests.id,
-              set: { status: sql`excluded.status`, updatedAt: new Date() },
-            });
-          count += chunk.length;
-        } catch (e: any) {
-          logger.warn('Skipped education request chunk', { error: e.message });
-        }
-      }
-      restored.educationServiceRequests = count;
-    }
+    // ── 5. Agent profiles ─────────────────────────────────────────────────────
+    if (tables.identityAgents?.data?.length)  { restored.identityAgents  = await tryInsert(identityAgents,  tables.identityAgents.data); }
+    if (tables.educationAgents?.data?.length) { restored.educationAgents = await tryInsert(educationAgents, tables.educationAgents.data); }
+    if (tables.jambAgents?.data?.length)      { restored.jambAgents      = await tryInsert(jambAgents,      tables.jambAgents.data); }
+    if (tables.cacAgents?.data?.length)       { restored.cacAgents       = await tryInsert(cacAgents,       tables.cacAgents.data); }
+    if (tables.a2cAgents?.data?.length)       { restored.a2cAgents       = await tryInsert(a2cAgents,       tables.a2cAgents.data); }
 
-    if (tables.jambServiceRequests?.data?.length) {
-      let count = 0;
-      const chunks = chunkArray(tables.jambServiceRequests.data, 200);
-      for (const chunk of chunks) {
-        try {
-          await db.insert(jambServiceRequests)
-            .values(chunk.map((r: any) => ({
-              ...r,
-              createdAt: r.createdAt ? new Date(r.createdAt) : new Date(),
-              updatedAt: r.updatedAt ? new Date(r.updatedAt) : new Date(),
-            })))
-            .onConflictDoUpdate({
-              target: jambServiceRequests.id,
-              set: { status: sql`excluded.status`, updatedAt: new Date() },
-            });
-          count += chunk.length;
-        } catch (e: any) {
-          logger.warn('Skipped JAMB request chunk', { error: e.message });
-        }
-      }
-      restored.jambServiceRequests = count;
-    }
+    // ── 6. Agent service requests (parent before child) ───────────────────────
+    if (tables.identityServiceRequests?.data?.length)  { restored.identityServiceRequests  = await tryInsert(identityServiceRequests,  tables.identityServiceRequests.data); }
+    if (tables.identityRequestActivity?.data?.length)  { restored.identityRequestActivity  = await tryInsert(identityRequestActivity,  tables.identityRequestActivity.data); }
+    if (tables.educationServiceRequests?.data?.length) { restored.educationServiceRequests = await tryInsert(educationServiceRequests, tables.educationServiceRequests.data); }
+    if (tables.educationRequestDocuments?.data?.length){ restored.educationRequestDocuments= await tryInsert(educationRequestDocuments,tables.educationRequestDocuments.data); }
+    if (tables.jambServiceRequests?.data?.length)      { restored.jambServiceRequests      = await tryInsert(jambServiceRequests,      tables.jambServiceRequests.data); }
+    if (tables.jambRequestDocuments?.data?.length)     { restored.jambRequestDocuments     = await tryInsert(jambRequestDocuments,     tables.jambRequestDocuments.data); }
+    if (tables.cacRequests?.data?.length)              { restored.cacRequests              = await tryInsert(cacRequests,              tables.cacRequests.data); }
+    if (tables.cacRegistrationRequests?.data?.length)  { restored.cacRegistrationRequests  = await tryInsert(cacRegistrationRequests,  tables.cacRegistrationRequests.data); }
+    if (tables.cacRequestActivity?.data?.length)       { restored.cacRequestActivity       = await tryInsert(cacRequestActivity,       tables.cacRequestActivity.data); }
+    if (tables.cacFiles?.data?.length)                 { restored.cacFiles                 = await tryInsert(cacFiles,                 tables.cacFiles.data); }
+    if (tables.cacRequestMessages?.data?.length)       { restored.cacRequestMessages       = await tryInsert(cacRequestMessages,       tables.cacRequestMessages.data); }
+    if (tables.a2cPhoneInventory?.data?.length)        { restored.a2cPhoneInventory        = await tryInsert(a2cPhoneInventory,        tables.a2cPhoneInventory.data); }
+    if (tables.a2cRequests?.data?.length)              { restored.a2cRequests              = await tryInsert(a2cRequests,              tables.a2cRequests.data); }
+    if (tables.a2cStatusHistory?.data?.length)         { restored.a2cStatusHistory         = await tryInsert(a2cStatusHistory,         tables.a2cStatusHistory.data); }
 
+    // ── 7. RPA ────────────────────────────────────────────────────────────────
     if (tables.rpaJobs?.data?.length) {
       let count = 0;
-      const chunks = chunkArray(tables.rpaJobs.data, 200);
-      for (const chunk of chunks) {
+      for (const chunk of chunkArray(tables.rpaJobs.data, 200)) {
         try {
           await db.insert(rpaJobs)
             .values(chunk.map((r: any) => ({
-              id: r.id,
-              userId: r.userId || r.user_id,
+              id: r.id, userId: r.userId || r.user_id,
               serviceType: r.serviceType || r.service_type,
               queryData: r.queryData || r.query_data || {},
-              status: r.status || 'pending',
-              result: r.result || null,
+              status: r.status || 'pending', result: r.result || null,
               errorMessage: r.errorMessage || r.error_message || null,
               retryCount: r.retryCount || r.retry_count || 0,
               maxRetries: r.maxRetries || r.max_retries || 3,
@@ -6481,25 +6451,83 @@ router.post('/db/restore', adminAuthMiddleware, async (req: Request, res: Respon
               startedAt: r.startedAt ? new Date(r.startedAt) : null,
               completedAt: r.completedAt ? new Date(r.completedAt) : null,
             })))
-            .onConflictDoUpdate({
-              target: rpaJobs.id,
-              set: {
-                status: sql`excluded.status`,
-                result: sql`excluded.result`,
-                errorMessage: sql`excluded.error_message`,
-                completedAt: sql`excluded.completed_at`,
-              },
-            });
+            .onConflictDoUpdate({ target: rpaJobs.id, set: { status: sql`excluded.status`, result: sql`excluded.result`, errorMessage: sql`excluded.error_message`, completedAt: sql`excluded.completed_at` } });
           count += chunk.length;
-        } catch (e: any) {
-          logger.warn('Skipped RPA job chunk', { error: e.message });
-        }
+        } catch { for (const r of chunk) { try { await db.insert(rpaJobs).values(fixDates(r)).onConflictDoNothing(); count++; } catch {} } }
       }
       restored.rpaJobs = count;
     }
+    if (tables.rpaRecoverySuggestions?.data?.length) { restored.rpaRecoverySuggestions = await tryInsert(rpaRecoverySuggestions, tables.rpaRecoverySuggestions.data); }
 
-    logger.info('Database restore complete', { adminId: (req as any).adminId, restored });
-    res.json(formatResponse(200, 'Database restored successfully from backup', { restored }));
+    // ── 8. Support system ─────────────────────────────────────────────────────
+    if (tables.supportTickets?.data?.length)        { restored.supportTickets        = await tryInsert(support_tickets,        tables.supportTickets.data, 200); }
+    if (tables.supportConversations?.data?.length)  { restored.supportConversations  = await tryInsert(support_conversations,  tables.supportConversations.data, 200); }
+    if (tables.supportMessages?.data?.length)       { restored.supportMessages       = await tryInsert(support_messages,       tables.supportMessages.data, 500); }
+    if (tables.supportInternalNotes?.data?.length)  { restored.supportInternalNotes  = await tryInsert(support_internal_notes, tables.supportInternalNotes.data); }
+    if (tables.supportQueue?.data?.length)          { restored.supportQueue          = await tryInsert(support_queue,          tables.supportQueue.data); }
+    if (tables.agentInternalMessages?.data?.length) { restored.agentInternalMessages = await tryInsert(agentInternalMessages,  tables.agentInternalMessages.data, 500); }
+
+    // ── 9. Admin activity & notifications ─────────────────────────────────────
+    if (tables.adminNotifications?.data?.length)    { restored.adminNotifications    = await tryInsert(adminNotifications,    tables.adminNotifications.data, 500); }
+    if (tables.adminActivityLogs?.data?.length)     { restored.adminActivityLogs     = await tryInsert(adminActivityLogs,     tables.adminActivityLogs.data, 500); }
+
+    // ── 10. AI & knowledge base ────────────────────────────────────────────────
+    if (tables.aiKnowledgeBase?.data?.length)       { restored.aiKnowledgeBase       = await tryInsert(aiKnowledgeBase,       tables.aiKnowledgeBase.data); }
+    if (tables.aiUnresolvedQueries?.data?.length)   { restored.aiUnresolvedQueries   = await tryInsert(aiUnresolvedQueries,   tables.aiUnresolvedQueries.data); }
+    if (tables.aiChatSessions?.data?.length)        { restored.aiChatSessions        = await tryInsert(aiChatSessions,        tables.aiChatSessions.data); }
+    if (tables.aiChatMessages?.data?.length)        { restored.aiChatMessages        = await tryInsert(aiChatMessages,        tables.aiChatMessages.data, 500); }
+
+    // ── 11. Agents misc ────────────────────────────────────────────────────────
+    if (tables.agentChannels?.data?.length)         { restored.agentChannels         = await tryInsert(agentChannels,         tables.agentChannels.data); }
+    if (tables.agentNotifications?.data?.length)    { restored.agentNotifications    = await tryInsert(agentNotifications,    tables.agentNotifications.data, 500); }
+    if (tables.agentActivityLogs?.data?.length)     { restored.agentActivityLogs     = await tryInsert(agentActivityLogs,     tables.agentActivityLogs.data, 500); }
+    if (tables.fraudAlerts?.data?.length)           { restored.fraudAlerts           = await tryInsert(fraudAlerts,           tables.fraudAlerts.data); }
+    if (tables.sharedFiles?.data?.length)           { restored.sharedFiles           = await tryInsert(sharedFiles,           tables.sharedFiles.data); }
+    if (tables.otpVerifications?.data?.length)      { restored.otpVerifications      = await tryInsert(otpVerifications,      tables.otpVerifications.data, 500); }
+    if (tables.loginActivities?.data?.length)       { restored.loginActivities       = await tryInsert(loginActivities,       tables.loginActivities.data, 500); }
+
+    // ── 12. Developer portal (raw SQL — separate schema tables) ───────────────
+    const devTables: Record<string, string> = {
+      developerUsers:               'developer_users',
+      developerApiKeys:             'developer_api_keys',
+      developerTransactions:        'developer_transactions',
+      developerApiLogs:             'developer_api_logs',
+      developerWebhooks:            'developer_webhooks',
+      developerWebhookLogs:         'developer_webhook_logs',
+      developerKybApplications:     'developer_kyb_applications',
+      developerUnifiedRequests:     'developer_unified_requests',
+      developerEmploymentRequests:  'developer_employment_requests',
+      developerIpAllowlist:         'developer_ip_allowlist',
+    };
+    for (const [key, tableName] of Object.entries(devTables)) {
+      const rows = tables[key]?.data;
+      if (!rows?.length) continue;
+      let count = 0;
+      for (const chunk of chunkArray(rows, 200)) {
+        for (const row of chunk) {
+          try {
+            const cols = Object.keys(row);
+            const colList = cols.map((c: string) => `"${c.replace(/([A-Z])/g, '_$1').toLowerCase()}"`).join(', ');
+            const vals = cols.map((c: string) => {
+              const v = (row as any)[c];
+              if (v === null || v === undefined) return 'NULL';
+              if (typeof v === 'string' && ISO_RE.test(v)) return `'${v}'`;
+              if (typeof v === 'string') return `'${v.replace(/'/g, "''")}'`;
+              if (typeof v === 'boolean') return v ? 'true' : 'false';
+              if (typeof v === 'object') return `'${JSON.stringify(v).replace(/'/g, "''")}'`;
+              return String(v);
+            }).join(', ');
+            await db.execute(sql.raw(`INSERT INTO ${tableName} (${colList}) VALUES (${vals}) ON CONFLICT DO NOTHING`));
+            count++;
+          } catch {}
+        }
+      }
+      restored[key] = count;
+    }
+
+    const totalRestored = Object.values(restored).reduce((a, b) => a + b, 0);
+    logger.info('Database restore complete', { adminId: (req as any).adminId, restored, totalRestored });
+    res.json(formatResponse(200, 'Database restored successfully from backup', { restored, totalRestored, tablesRestored: Object.keys(restored).length }));
   } catch (error: any) {
     logger.error('DB restore error', { error: error.message });
     res.status(500).json(formatErrorResponse(500, `Restore failed: ${error.message}`));
