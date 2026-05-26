@@ -6,7 +6,7 @@ const getPayvesselConfig = () => ({
   apiKey: process.env.PAYVESSEL_API_KEY,
   secretKey: process.env.PAYVESSEL_SECRET_KEY,
   businessId: process.env.PAYVESSEL_BUSINESS_ID,
-  baseUrl: 'https://api.payvessel.com/pms/api/external',
+  baseUrl: 'https://ap.payvessel.com/pms/api/external',
 });
 
 interface PayvesselVirtualAccountRequest {
