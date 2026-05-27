@@ -1,0 +1,479 @@
+Arapoint — Complete Dashboard UI & Report Design Examples
+1. LOGIN PAGE DESIGN
+Layout Style
+Modern enterprise SaaS design.
+
+Left Side
+Large branding section:
+
+Arapoint
+Employment Trust Infrastructure
+Subtext:
+
+Verify identity, education, and hiring risk in minutes.
+Background:
+
+dark blue gradient
+abstract fintech patterns
+subtle grid lines
+glowing verification icons
+Right Side
+Centered login card.
+
+Fields:
+
+Email Address
+Password
+Buttons:
+
+Sign In
+Continue with Google
+Links:
+
+Forgot Password
+Contact Support
+Bottom:
+
+Trusted by modern African businesses.
+2. MAIN RECRUITER DASHBOARD
+Layout Structure
+┌──────────────────────────────────────────┐
+│ Top Navbar                              │
+├───────────────┬──────────────────────────┤
+│ Sidebar       │ Main Content Area        │
+│ Navigation    │                          │
+└───────────────┴──────────────────────────┘
+TOP NAVBAR
+Left:
+
+Arapoint logo
+organization switcher
+Center:
+
+search candidate
+Right:
+
+notifications
+support chat
+recruiter profile
+settings
+SIDEBAR MENU
+Dashboard
+Candidates
+Bulk Screening
+Reports
+Analytics
+Fraud Center
+Integrations
+Team Management
+Billing
+Settings
+DASHBOARD HOME DESIGN
+HERO SECTION
+Large welcome section.
+
+Welcome back, Sarah.
+You processed 142 candidate screenings this week.
+Button:
+
++ Start New Screening
+KPI CARDS SECTION
+Use large clean rounded cards.
+
+CARD 1
+Total Screenings
+18,420
++12% this month
+CARD 2
+PASS Rate
+82%
+CARD 3
+Average Verification Time
+3m 44s
+CARD 4
+Fraud Alerts
+26
+ANALYTICS CHARTS SECTION
+Chart 1 — Verification Trend
+Line chart:
+
+daily screenings
+pass trend
+failure spikes
+Chart 2 — Risk Distribution
+Pie chart:
+
+PASS
+REVIEW
+FAIL
+Chart 3 — Education Providers
+Bar chart:
+
+WAEC
+NECO
+NABTEB
+NBAIS
+LIVE ACTIVITY PANEL
+Right-side activity feed.
+
+Example:
+
+✓ Musa Ibrahim completed verification
+✓ Sarah James PDF generated
+⚠ John Daniel moved to review queue
+3. SINGLE CANDIDATE SCREENING PAGE
+PAGE HEADER
+Employment Screening
+Subtext:
+
+Verify candidate identity, education, and hiring risk.
+SCREENING FORM CARD
+Candidate Information
+Fields:
+
+Full Name
+Email
+Phone Number
+Position Applied For
+Identity Verification
+Fields:
+
+NIN
+BVN
+Education Verification
+Dropdown:
+
+WAEC
+NECO
+NABTEB
+NBAIS
+Fields:
+
+Exam Number
+Exam Year
+Card Serial
+Card PIN
+Button:
+
+Start Verification
+LIVE PROCESSING PANEL
+While verification runs:
+
+✓ NIN Verified
+✓ BVN Verified
+⟳ WAEC Verification Running
+⟳ Fraud Analysis Running
+Animated progress bar.
+
+Estimated time:
+
+Approx. 3–5 minutes remaining
+4. BULK SCREENING PAGE
+HEADER SECTION
+Buttons:
+
+Upload CSV
+Download Template
+Export Results
+BULK STATUS SUMMARY
+Cards:
+
+Total Candidates: 1,200
+Completed: 984
+Processing: 154
+Review Queue: 62
+MAIN BULK TABLE
+Candidate	Status	Score	Decision	Time
+Musa Ibrahim	Completed	94	PASS	3m
+Sarah James	Review	72	REVIEW	4m
+John Daniel	Failed	41	FAIL	5m
+TABLE FEATURES
+Filters:
+
+date range
+recruiter
+department
+risk level
+verification status
+Actions:
+
+view profile
+download PDF
+retry verification
+move to manual review
+LIVE PROCESSING PROGRESS
+Progress bar:
+
+984 / 1200 candidates completed
+5. CANDIDATE RESULT PAGE
+HEADER CARD
+Candidate avatar/photo.
+
+Right side:
+
+Musa Ibrahim
+Compliance Officer Applicant
+Large score badge:
+
+95/100
+PASS
+Verification Reference:
+
+ARP-EMP-2026-00182
+VERIFICATION SUMMARY CARD
+Candidate identity verified successfully across NIN and BVN databases. WAEC result confirmed with six credits including English and Mathematics. No significant fraud indicators detected.
+IDENTITY VERIFICATION SECTION
+Check	Status
+NIN Verification	Verified
+BVN Verification	Verified
+Date of Birth Match	Exact Match
+Name Similarity	98%
+EDUCATION VERIFICATION SECTION
+Subject	Grade
+English	B3
+Mathematics	C4
+Economics	B2
+Commerce	B3
+Government	C5
+CRS	B2
+Summary:
+
+6 Credits Achieved
+FRAUD ANALYSIS SECTION
+Status card:
+
+Low Risk
+Indicators:
+
+✓ No duplicate identity detected
+✓ No suspicious mismatch patterns
+✓ Verification confidence high
+AI RECOMMENDATION SECTION
+Large highlighted card.
+
+Recommendation:
+Candidate meets employment verification requirements and is suitable for onboarding under standard HR review.
+ACTION BUTTONS
+Buttons:
+
+Download PDF Report
+Move to Hiring Stage
+Request Manual Review
+6. FRAUD CENTER DASHBOARD
+PAGE PURPOSE
+Enterprise fraud intelligence center.
+
+FRAUD OVERVIEW CARDS
+High Risk Candidates: 18
+Duplicate Identities: 7
+Name Mismatch Cases: 42
+Education Mismatch Cases: 13
+FRAUD ALERT TABLE
+Candidate	Risk Type	Severity
+John Daniel	DOB Mismatch	High
+Sarah James	Duplicate Exam Record	Medium
+FRAUD MAP
+Visual chart showing:
+
+fraud hotspots
+organization risk trends
+verification anomalies
+7. ANALYTICS DASHBOARD
+HEADER
+Verification Intelligence Analytics
+CHARTS
+Pass vs Fail Trends
+Line graph.
+
+Fraud Detection Rate
+Monthly fraud statistics.
+
+Average Processing Time
+Track worker performance.
+
+Most Common Failure Reasons
+Bar chart:
+
+name mismatch
+invalid WAEC
+insufficient credits
+BVN inconsistency
+INSIGHTS PANEL
+Example:
+
+23% increase in education mismatch detected this month.
+Average processing speed improved by 12%.
+8. TEAM MANAGEMENT PAGE
+USER TABLE
+User	Role	Activity
+Sarah Admin	Admin	Active
+Musa HR	Recruiter	Last seen 2h ago
+ROLES
+Admin
+Full access.
+
+HR Manager
+Review access.
+
+Recruiter
+Candidate screening only.
+
+ACTIVITY LOGS
+Sarah downloaded 14 reports.
+Musa initiated 22 screenings.
+9. DEVELOPER CONSOLE DESIGN
+HEADER
+Developer Console
+Subtext:
+
+Build employment verification directly into your applications.
+API OVERVIEW CARDS
+Requests Today: 12,442
+Success Rate: 99.2%
+Average Response: 3m 18s
+API KEYS SECTION
+Buttons:
+
+Create API Key
+Revoke Key
+Enable Sandbox
+WEBHOOKS SECTION
+Table:
+
+Endpoint	Status
+hiring.company.com/webhook	Active
+API LOGS TABLE
+Endpoint	Status	Time
+/verify/employment	200	3m
+10. PDF REPORT DESIGN
+COVER PAGE
+Top:
+
+Arapoint logo
+company logo
+report timestamp
+verification reference ID
+TITLE
+Employment Screening Report
+CANDIDATE SUMMARY SECTION
+Candidate identity and education verification completed successfully.
+FINAL DECISION BANNER
+Large colored banner.
+
+Examples:
+
+PASS — VERIFIED
+REVIEW REQUIRED
+FAIL — HIGH RISK
+VERIFICATION TABLE
+Check	Status
+NIN	Verified
+BVN	Verified
+WAEC	Verified
+EDUCATION DETAILS
+Include:
+
+subjects
+grades
+credit count
+FRAUD ANALYSIS SECTION
+Examples:
+
+No fraud indicators detected.
+OR
+
+DOB inconsistency identified between submitted records.
+AI RECOMMENDATION SECTION
+Candidate suitable for onboarding with standard compliance approval.
+FOOTER
+Generated by Arapoint
+Timestamp: 2026-05-28 10:42 AM
+Verification ID: ARP-EMP-2026-00182
+11. DESIGN STYLE GUIDE
+COLORS
+Primary
+Deep blue.
+
+Secondary
+White and dark gray.
+
+Accent
+Gold or cyan.
+
+Status Colors
+Green = PASS Yellow = REVIEW Red = FAIL
+
+UI STYLE
+Use:
+
+rounded cards
+soft shadows
+clean typography
+spacing-heavy layout
+modern charts
+enterprise tables
+subtle animations
+Avoid:
+
+cluttered admin dashboards
+too many colors
+outdated templates
+TYPOGRAPHY
+Recommended:
+
+Inter
+Satoshi
+SF Pro
+12. RECOMMENDED TECH STACK
+FRONTEND
+Next.js
+TailwindCSS
+shadcn/ui
+Recharts
+BACKEND
+Node.js
+NestJS
+PostgreSQL
+Redis
+BullMQ
+PDF GENERATION
+Puppeteer
+PDFKit
+REAL-TIME FEATURES
+Socket.IO
+Pusher
+FINAL PRODUCT FEEL
+The platform should feel like:
+
+enterprise SaaS
+modern fintech infrastructure
+AI-powered trust platform
+intelligent verification system
+NOT like:
+
+old HR software
+basic admin panel
+simple government verification portal
+The experience should communicate:
+
+trust
+speed
+intelligence
+compliance
+automation
+enterprise reliability
+I created a full professional UI/UX design blueprint for the entire Arapoint platform, including:
+
+Recruiter Dashboard
+Developer Console
+Bulk Screening System
+Candidate Result Pages
+Fraud Intelligence Center
+Analytics Dashboard
+Team Management
+PDF Report Layout
+Live Processing UI
+Enterprise SaaS design style
+Recommended frontend/backend stack
+Professional layout structure and workflow
+It is structured like a real enterprise infrastructure platform so your team or frontend developer can directly use it as a reference for building the system professionally.
