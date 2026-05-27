@@ -34,14 +34,14 @@ export default function EmploymentScreeningPage() {
             The most complete pre-employment background check in Nigeria. Verify NIN, BVN, and SSCE certificate in a single API call. Arapoint cross-references all three sources and returns a 100-point score with an automated PASS / REVIEW / FAIL decision — in under 5 minutes.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2">
-            <Link href="/auth/signup">
+            <Link href="/employment-screening/register">
               <Button size="lg" className="h-12 px-8 text-base shadow-lg shadow-primary/20">
                 Start Screening Now <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/developer">
+            <Link href="/employment-screening/login">
               <Button size="lg" variant="outline" className="h-12 px-8 text-base">
-                Developer API Docs
+                Sign In to Dashboard
               </Button>
             </Link>
           </div>

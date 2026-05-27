@@ -124,6 +124,22 @@ import AdminRPARecovery from "@/pages/admin/AdminRPARecovery";
 import AdminSearch from "@/pages/admin/AdminSearch";
 import AdminCRUDLayout from "@/components/layout/AdminCRUDLayout";
 
+// Employment Screening Platform Imports
+import ScreeningLogin from "@/pages/screening/Login";
+import ScreeningRegister from "@/pages/screening/Register";
+import ScreeningOverview from "@/pages/screening/dashboard/Overview";
+import ScreeningCandidates from "@/pages/screening/dashboard/Candidates";
+import NewScreening from "@/pages/screening/dashboard/NewScreening";
+import CandidateDetail from "@/pages/screening/dashboard/CandidateDetail";
+import BulkUpload from "@/pages/screening/dashboard/BulkUpload";
+import BatchDetail from "@/pages/screening/dashboard/BatchDetail";
+import ScreeningAnalytics from "@/pages/screening/dashboard/Analytics";
+import FraudCenter from "@/pages/screening/dashboard/FraudCenter";
+import ScreeningAlerts from "@/pages/screening/dashboard/Alerts";
+import TeamManagement from "@/pages/screening/dashboard/Team";
+import BillingPage from "@/pages/screening/dashboard/Billing";
+import ScreeningSettings from "@/pages/screening/dashboard/SettingsPage";
+
 // Developer Portal Imports
 import DevLogin from "@/pages/developer/DevLogin";
 import DevDashboard from "@/pages/developer/DevDashboard";
@@ -140,6 +156,22 @@ function Router() {
   return (
     <Switch>
       <Route path="/suspended" component={SuspendedPage} />
+
+      {/* Employment Screening Platform Routes */}
+      <Route path="/employment-screening/login" component={ScreeningLogin} />
+      <Route path="/employment-screening/register" component={ScreeningRegister} />
+      <Route path="/employment-screening/dashboard" component={ScreeningOverview} />
+      <Route path="/employment-screening/dashboard/candidates" component={ScreeningCandidates} />
+      <Route path="/employment-screening/dashboard/screen" component={NewScreening} />
+      <Route path="/employment-screening/dashboard/candidates/:id" component={CandidateDetail} />
+      <Route path="/employment-screening/dashboard/bulk" component={BulkUpload} />
+      <Route path="/employment-screening/dashboard/bulk/:batchId" component={BatchDetail} />
+      <Route path="/employment-screening/dashboard/analytics" component={ScreeningAnalytics} />
+      <Route path="/employment-screening/dashboard/fraud" component={FraudCenter} />
+      <Route path="/employment-screening/dashboard/alerts" component={ScreeningAlerts} />
+      <Route path="/employment-screening/dashboard/team" component={TeamManagement} />
+      <Route path="/employment-screening/dashboard/billing" component={BillingPage} />
+      <Route path="/employment-screening/dashboard/settings" component={ScreeningSettings} />
 
       {/* Support Agent Routes */}
       <Route path="/support/agent/login" component={SupportAgentLogin} />

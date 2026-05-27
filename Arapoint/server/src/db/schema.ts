@@ -1164,3 +1164,134 @@ export const marketingBanners = pgTable('marketing_banners', {
   index('mb_category_idx').on(table.category),
   index('mb_created_idx').on(table.createdAt),
 ]);
+
+// ===== Employment Screening Platform =====
+
+export const screeningOrganizations = pgTable('screening_organizations', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar('name', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }).unique().notNull(),
+  phone: varchar('phone', { length: 20 }),
+  rcNumber: varchar('rc_number', { length: 50 }),
+  industry: varchar('industry', { length: 100 }),
+  size: varchar('size', { length: 50 }),
+  website: varchar('website', { length: 255 }),
+  logoUrl: varchar('logo_url', { length: 500 }),
+  passwordHash: varchar('password_hash', { length: 255 }).notNull(),
+  walletBalance: decimal('wallet_balance', { precision: 15, scale: 2 }).default('0'),
+  isActive: boolean('is_active').default(true),
+  emailVerified: boolean('email_verified').default(false),
+  autoDebitEnabled: boolean('auto_debit_enabled').default(false),
+  autoDebitThreshold: decimal('auto_debit_threshold', { precision: 15, scale: 2 }).default('5000'),
+  autoDebitAmount: decimal('auto_debit_amount', { precision: 15, scale: 2 }).default('50000'),
+  billingType: varchar('billing_type', { length: 20 }).default('prepaid'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export const screeningUsers = pgTable('screening_users', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  orgId: uuid('org_id').notNull().references(() => screeningOrganizations.id, { onDelete: 'cascade' }),
+  email: varchar('email', { length: 255 }).notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  role: varchar('role', { length: 30 }).notNull().default('recruiter'),
+  passwordHash: varchar('password_hash', { length: 255 }),
+  isActive: boolean('is_active').default(true),
+  lastLoginAt: timestamp('last_login_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => [
+  index('su_org_idx').on(table.orgId),
+  index('su_email_idx').on(table.email),
+]);
+
+export const screeningCandidates = pgTable('screening_candidates', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  orgId: uuid('org_id').notNull().references(() => screeningOrganizations.id, { onDelete: 'cascade' }),
+  createdByUserId: uuid('created_by_user_id').references(() => screeningUsers.id),
+  batchId: uuid('batch_id'),
+  reference: varchar('reference', { length: 50 }).notNull().unique(),
+  fullName: varchar('full_name', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }),
+  phone: varchar('phone', { length: 20 }),
+  position: varchar('position', { length: 255 }),
+  nin: varchar('nin', { length: 11 }).notNull(),
+  bvn: varchar('bvn', { length: 11 }).notNull(),
+  educationProvider: varchar('education_provider', { length: 20 }),
+  educationData: jsonb('education_data'),
+  status: varchar('status', { length: 30 }).notNull().default('pending'),
+  overallScore: integer('overall_score'),
+  decision: varchar('decision', { length: 20 }),
+  ninResult: jsonb('nin_result'),
+  bvnResult: jsonb('bvn_result'),
+  educationResult: jsonb('education_result'),
+  fraudResult: jsonb('fraud_result'),
+  crossCheckResult: jsonb('cross_check_result'),
+  rpaJobId: uuid('rpa_job_id'),
+  amountCharged: decimal('amount_charged', { precision: 10, scale: 2 }).default('0'),
+  processingStartedAt: timestamp('processing_started_at'),
+  completedAt: timestamp('completed_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => [
+  index('sc_org_idx').on(table.orgId),
+  index('sc_status_idx').on(table.status),
+  index('sc_reference_idx').on(table.reference),
+  index('sc_created_idx').on(table.createdAt),
+]);
+
+export const screeningBatches = pgTable('screening_batches', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  orgId: uuid('org_id').notNull().references(() => screeningOrganizations.id, { onDelete: 'cascade' }),
+  createdByUserId: uuid('created_by_user_id').references(() => screeningUsers.id),
+  batchReference: varchar('batch_reference', { length: 50 }).notNull().unique(),
+  fileName: varchar('file_name', { length: 255 }),
+  totalCandidates: integer('total_candidates').default(0),
+  completedCandidates: integer('completed_candidates').default(0),
+  processingCandidates: integer('processing_candidates').default(0),
+  failedCandidates: integer('failed_candidates').default(0),
+  reviewCandidates: integer('review_candidates').default(0),
+  passCount: integer('pass_count').default(0),
+  status: varchar('status', { length: 30 }).notNull().default('pending'),
+  totalAmountCharged: decimal('total_amount_charged', { precision: 15, scale: 2 }).default('0'),
+  createdAt: timestamp('created_at').defaultNow(),
+  completedAt: timestamp('completed_at'),
+}, (table) => [
+  index('sb_org_idx').on(table.orgId),
+  index('sb_status_idx').on(table.status),
+]);
+
+export const screeningBillingTransactions = pgTable('screening_billing_transactions', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  orgId: uuid('org_id').notNull().references(() => screeningOrganizations.id, { onDelete: 'cascade' }),
+  type: varchar('type', { length: 30 }).notNull(),
+  amount: decimal('amount', { precision: 15, scale: 2 }).notNull(),
+  balanceBefore: decimal('balance_before', { precision: 15, scale: 2 }),
+  balanceAfter: decimal('balance_after', { precision: 15, scale: 2 }),
+  description: varchar('description', { length: 500 }),
+  reference: varchar('reference', { length: 100 }),
+  candidateId: uuid('candidate_id'),
+  batchId: uuid('batch_id'),
+  paymentMethod: varchar('payment_method', { length: 50 }),
+  paystackRef: varchar('paystack_ref', { length: 100 }),
+  status: varchar('status', { length: 30 }).default('completed'),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => [
+  index('sbt_org_idx').on(table.orgId),
+  index('sbt_created_idx').on(table.createdAt),
+]);
+
+export const screeningNotifications = pgTable('screening_notifications', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  orgId: uuid('org_id').notNull().references(() => screeningOrganizations.id, { onDelete: 'cascade' }),
+  type: varchar('type', { length: 50 }).notNull(),
+  title: varchar('title', { length: 255 }).notNull(),
+  message: text('message').notNull(),
+  candidateId: uuid('candidate_id'),
+  batchId: uuid('batch_id'),
+  severity: varchar('severity', { length: 20 }).default('info'),
+  isRead: boolean('is_read').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => [
+  index('sn_org_idx').on(table.orgId),
+  index('sn_read_idx').on(table.isRead),
+]);

@@ -122,6 +122,31 @@ export const adminAuthMiddleware = async (req: Request, res: Response, next: Nex
   }
 };
 
+export const screeningAuthMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ status: 'error', code: 401, message: 'No token provided' });
+    }
+    const token = authHeader.slice(7);
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, config.JWT_SECRET) as any;
+    } catch (jwtErr: any) {
+      return res.status(401).json({ status: 'error', code: 401, message: 'Invalid or expired token' });
+    }
+    if (!decoded.isScreening || !decoded.screeningOrgId) {
+      return res.status(403).json({ status: 'error', code: 403, message: 'Screening account token required' });
+    }
+    (req as any).screeningOrgId = decoded.screeningOrgId;
+    (req as any).screeningUserId = decoded.screeningUserId;
+    (req as any).screeningRole = decoded.role || 'recruiter';
+    next();
+  } catch (error) {
+    res.status(401).json({ status: 'error', code: 401, message: 'Invalid token' });
+  }
+};
+
 export const requireAdminRole = (...allowedRoles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const role = req.adminRole || 'admin';
