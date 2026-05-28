@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard, Users, FileText, BarChart3, Shield, Bell, Settings,
-  CreditCard, UserCog, LogOut, Menu, X, Search, ChevronRight, Briefcase,
+  CreditCard, UserCog, LogOut, Menu, X, Search, ChevronRight,
   Upload, AlertTriangle, Plus
 } from "lucide-react";
+import arapointLogo from "@assets/arapoint-logo-transparent.png";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { clearScreeningSession, getScreeningSession, screeningApi } from "@/lib/screening/api";
@@ -48,8 +49,8 @@ export default function ScreeningDashboardLayout({ children }: { children: React
     <div className="flex flex-col h-full">
       <div className="px-6 py-5 border-b border-blue-800/30">
         <div className="flex items-center gap-2 mb-1">
-          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-            <Briefcase className="w-4 h-4 text-blue-700" />
+          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center p-1">
+            <img src={arapointLogo} alt="Arapoint" className="w-full h-full object-contain" />
           </div>
           <div>
             <p className="text-white font-bold text-sm leading-none">Arapoint</p>

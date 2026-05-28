@@ -78,6 +78,8 @@ export default function AdminSettings() {
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsPage, setLogsPage] = useState(1);
   const [logsPagination, setLogsPagination] = useState<{ total: number; pages: number }>({ total: 0, pages: 1 });
+  const [screeningPrices, setScreeningPrices] = useState({ nin: 130, bvn: 80, education: 120, fraud: 20 });
+  const [savingPrices, setSavingPrices] = useState(false);
   const [cloudinary, setCloudinary] = useState({ cloudName: '', apiKey: '', apiSecret: '' });
   const [cloudinaryStatus, setCloudinaryStatus] = useState<{ greenUrl?: string; blueUrl?: string; cloudName?: string }>({});
   const [uploadingLogos, setUploadingLogos] = useState(false);
@@ -124,6 +126,12 @@ export default function AdminSettings() {
               }
             });
             setSettings(prev => ({ ...prev, ...mappedSettings }));
+            setScreeningPrices({
+              nin: parseFloat(data.data.screening_price_nin) || 130,
+              bvn: parseFloat(data.data.screening_price_bvn) || 80,
+              education: parseFloat(data.data.screening_price_education) || 120,
+              fraud: parseFloat(data.data.screening_price_fraud) || 20,
+            });
           }
         }
       } catch (err) {
@@ -546,6 +554,32 @@ export default function AdminSettings() {
     fetchLogs(1);
   };
 
+  const handleSaveScreeningPrices = async () => {
+    setSavingPrices(true);
+    try {
+      const token = tokenStorage.getItem('adminToken');
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          screening_price_nin: String(screeningPrices.nin),
+          screening_price_bvn: String(screeningPrices.bvn),
+          screening_price_education: String(screeningPrices.education),
+          screening_price_fraud: String(screeningPrices.fraud),
+        }),
+      });
+      if (res.ok) {
+        toast({ title: 'Pricing updated', description: 'Screening prices saved successfully.', variant: 'success' });
+      } else {
+        toast({ title: 'Failed', description: 'Could not save pricing.', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error saving prices.', variant: 'destructive' });
+    } finally {
+      setSavingPrices(false);
+    }
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <div>
@@ -554,7 +588,7 @@ export default function AdminSettings() {
       </div>
 
       <Tabs defaultValue="general" className="space-y-4 sm:space-y-6">
-        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 h-auto p-1 gap-1">
+        <TabsList className="flex flex-wrap w-full h-auto p-1 gap-1">
           <TabsTrigger value="general" className="gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm">
             <Globe className="h-3 w-3 sm:h-4 sm:w-4" />
             <span className="hidden xs:inline sm:inline">General</span>
@@ -586,6 +620,10 @@ export default function AdminSettings() {
           <TabsTrigger value="advanced" className="gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm">
             <Database className="h-3 w-3 sm:h-4 sm:w-4" />
             <span className="hidden xs:inline sm:inline">Advanced</span>
+          </TabsTrigger>
+          <TabsTrigger value="pricing" className="gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm">
+            <Percent className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden xs:inline sm:inline">Pricing</span>
           </TabsTrigger>
         </TabsList>
 
@@ -1589,6 +1627,64 @@ export default function AdminSettings() {
             </Button>
           </div>
         </TabsContent>
+
+        <TabsContent value="pricing" className="space-y-4 sm:space-y-6">
+          <Card>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <Percent className="h-4 w-4 text-primary" />
+                Screening Service Prices
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Set the per-candidate price (₦) for each component. Changes take effect on all new screenings immediately.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-6 pt-0 space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {([
+                  { key: 'nin', label: 'NIN Verification', desc: 'National Identity Number lookup' },
+                  { key: 'bvn', label: 'BVN Verification', desc: 'Bank Verification Number lookup' },
+                  { key: 'education', label: 'Education Verification', desc: 'WAEC / NECO / NABTEB / NBAIS' },
+                  { key: 'fraud', label: 'Fraud Risk Check', desc: 'AI-powered risk scoring' },
+                ] as { key: keyof typeof screeningPrices; label: string; desc: string }[]).map(({ key, label, desc }) => (
+                  <div key={key} className="space-y-1.5">
+                    <Label className="text-sm font-medium">{label}</Label>
+                    <p className="text-xs text-muted-foreground">{desc}</p>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted-foreground">₦</span>
+                      <Input
+                        type="number" min="0" step="1"
+                        value={screeningPrices[key]}
+                        onChange={e => setScreeningPrices(p => ({ ...p, [key]: parseFloat(e.target.value) || 0 }))}
+                        className="pl-7 h-10"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <Separator />
+
+              <div className="flex items-center justify-between bg-muted/40 rounded-lg px-4 py-3">
+                <div>
+                  <p className="text-sm font-semibold">Total per candidate (full screening)</p>
+                  <p className="text-xs text-muted-foreground">NIN + BVN + Education + Fraud Check</p>
+                </div>
+                <span className="text-xl font-bold text-primary">
+                  ₦{(screeningPrices.nin + screeningPrices.bvn + screeningPrices.education + screeningPrices.fraud).toLocaleString()}
+                </span>
+              </div>
+
+              <div className="flex justify-end">
+                <Button onClick={handleSaveScreeningPrices} disabled={savingPrices} className="gap-2">
+                  {savingPrices ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Save Pricing
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
       </Tabs>
 
       {/* Restore Confirmation Dialog */}

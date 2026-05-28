@@ -163,15 +163,15 @@
 }
 
 :root {
-  --dev-bg: #0A0A0A;
-  --dev-card: #111827;
-  --dev-border: #1F2937;
-  --dev-text: #E5E7EB;
-  --dev-muted: #6B7280;
-  --dev-blue: #0B5FFF;
-  --dev-green: #12B76A;
-  --dev-amber: #F59E0B;
-  --dev-red: #EF4444;
+  --dev-bg: #f1f5f9;
+  --dev-card: #ffffff;
+  --dev-border: #e2e8f0;
+  --dev-text: #1e293b;
+  --dev-muted: #64748b;
+  --dev-blue: #1d4ed8;
+  --dev-green: #16a34a;
+  --dev-amber: #d97706;
+  --dev-red: #dc2626;
 }
 
 @layer base {

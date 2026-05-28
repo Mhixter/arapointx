@@ -49,6 +49,8 @@ export const screeningApi = {
   billing: {
     get: () => request('GET', '/billing'),
     fund: (amount: number) => request('POST', '/billing/fund', { amount }),
+    initiatePaystack: (amount: number) => request('POST', '/billing/paystack/initiate', { amount }),
+    verifyPaystack: (reference: string) => request('GET', `/billing/paystack/verify/${reference}`),
   },
   team: {
     list: () => request('GET', '/team'),

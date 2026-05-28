@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { Menu, X, Mail, Phone, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import arapointLogo from "@assets/generated_images/arapoint_solution_logo.png";
+import arapointLogo from "@assets/arapoint-logo-transparent.png";
 import { useSettings } from "@/contexts/SettingsContext";
 import AIChatWidget from "@/components/AIChatWidget";
 

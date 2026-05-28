@@ -1,15 +1,16 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Code2, Loader2, Mail, ArrowLeft, CheckCircle, Eye, EyeOff, KeyRound, Lock, ShieldCheck, AlertTriangle } from "lucide-react";
+import { Loader2, Mail, ArrowLeft, CheckCircle, Eye, EyeOff, KeyRound, Lock, ShieldCheck, AlertTriangle, Zap } from "lucide-react";
+import arapointLogo from "@assets/arapoint-logo-transparent.png";
 
 const C = {
-  bg: "var(--dev-bg)",
-  card: "var(--dev-card)",
-  border: "var(--dev-border)",
-  text: "var(--dev-text)",
-  muted: "var(--dev-muted)",
-  blue: "var(--dev-blue)",
-  green: "var(--dev-green)",
+  bg: "#f8fafc",
+  card: "#ffffff",
+  border: "#e2e8f0",
+  text: "#1e293b",
+  muted: "#64748b",
+  blue: "#1d4ed8",
+  green: "#16a34a",
 };
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -28,7 +29,7 @@ function StyledInput({ type = "text", ...props }: React.InputHTMLAttributes<HTML
       {...props}
       className="w-full px-3 py-2.5 rounded-lg text-sm outline-none transition-all"
       style={{
-        background: "#0A0A0A",
+        background: "#ffffff",
         border: `1px solid ${C.border}`,
         color: C.text,
       }}
@@ -387,10 +388,10 @@ export default function DevLogin() {
       <div className="min-h-screen flex items-center justify-center p-4" style={{ background: C.bg }}>
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: "linear-gradient(135deg,#0B5FFF,#12B76A)", boxShadow: `0 8px 32px ${C.blue}40` }}>
-              <Code2 className="w-8 h-8 text-white" />
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-white p-2" style={{ boxShadow: `0 8px 32px ${C.blue}40`, border: `1px solid ${C.border}` }}>
+              <img src={arapointLogo} alt="Arapoint" className="w-full h-full object-contain" />
             </div>
-            <h1 className="text-2xl font-extrabold text-white">Arapoint Developer Portal</h1>
+            <h1 className="text-2xl font-extrabold text-gray-900">Arapoint Developer Portal</h1>
             <p className="text-sm mt-1" style={{ color: C.muted }}>Build with Nigeria's verification infrastructure</p>
           </div>
 
@@ -400,7 +401,7 @@ export default function DevLogin() {
                 <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: `${C.blue}1A` }}>
                   <Mail className="w-8 h-8" style={{ color: C.blue }} />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2">Check your email</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Check your email</h3>
                 <p className="text-sm mb-2" style={{ color: C.muted }}>
                   We've sent a recovery link to{" "}
                   <span className="font-semibold" style={{ color: C.blue }}>{recoveryForm.email}</span>
@@ -430,7 +431,7 @@ export default function DevLogin() {
                   <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: "#3D0A0A" }}>
                     <ShieldCheck className="w-6 h-6" style={{ color: "#F87171" }} />
                   </div>
-                  <h2 className="text-lg font-bold text-white">Recover Authenticator Access</h2>
+                  <h2 className="text-lg font-bold text-gray-900">Recover Authenticator Access</h2>
                   <p className="text-sm mt-1" style={{ color: C.muted }}>
                     Verify your identity to receive a one-time recovery link via email. This will disable 2FA on your account.
                   </p>
@@ -477,10 +478,10 @@ export default function DevLogin() {
       <div className="min-h-screen flex items-center justify-center p-4" style={{ background: C.bg }}>
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: "linear-gradient(135deg,#0B5FFF,#12B76A)", boxShadow: `0 8px 32px ${C.blue}40` }}>
-              <Code2 className="w-8 h-8 text-white" />
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-white p-2" style={{ boxShadow: `0 8px 32px ${C.blue}40`, border: `1px solid ${C.border}` }}>
+              <img src={arapointLogo} alt="Arapoint" className="w-full h-full object-contain" />
             </div>
-            <h1 className="text-2xl font-extrabold text-white">Arapoint Developer Portal</h1>
+            <h1 className="text-2xl font-extrabold text-gray-900">Arapoint Developer Portal</h1>
             <p className="text-sm mt-1" style={{ color: C.muted }}>Build with Nigeria's verification infrastructure</p>
           </div>
 
@@ -491,7 +492,7 @@ export default function DevLogin() {
                 <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: `${C.green}1A` }}>
                   <CheckCircle className="w-10 h-10" style={{ color: C.green }} />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2">Password Reset!</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Password Reset!</h3>
                 <p className="text-sm mb-6" style={{ color: C.muted }}>Your password has been updated. You can now sign in.</p>
                 <button onClick={() => { setView("auth"); setForgotStep("email"); setForgotEmail(""); setForgotOtp(""); setNewPassword(""); setConfirmNewPassword(""); }}
                   className="w-full py-2.5 rounded-lg text-sm font-bold text-white transition-opacity hover:opacity-90"
@@ -510,7 +511,7 @@ export default function DevLogin() {
                   <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: `${C.blue}1A` }}>
                     <KeyRound className="w-6 h-6" style={{ color: C.blue }} />
                   </div>
-                  <h2 className="text-lg font-bold text-white">Enter Reset Code</h2>
+                  <h2 className="text-lg font-bold text-gray-900">Enter Reset Code</h2>
                   <p className="text-sm mt-1" style={{ color: C.muted }}>
                     We sent a 6-digit code to{" "}
                     <span className="font-semibold" style={{ color: C.blue }}>{forgotEmail}</span>
@@ -573,7 +574,7 @@ export default function DevLogin() {
                   <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: `${C.blue}1A` }}>
                     <Mail className="w-6 h-6" style={{ color: C.blue }} />
                   </div>
-                  <h2 className="text-lg font-bold text-white">Recover your account</h2>
+                  <h2 className="text-lg font-bold text-gray-900">Recover your account</h2>
                   <p className="text-sm mt-1" style={{ color: C.muted }}>Enter your registered email and we'll send a reset code.</p>
                 </div>
                 <form onSubmit={handleForgotSendOtp} className="space-y-4">
@@ -601,16 +602,72 @@ export default function DevLogin() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: C.bg }}>
+    <div className="min-h-screen flex">
+      {/* Left — Branding panel */}
+      <div className="hidden lg:flex flex-col justify-between w-1/2 bg-gradient-to-br from-[#0F2461] via-[#1E3A8A] to-[#1D4ED8] p-12 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-20 left-20 w-64 h-64 border border-white rounded-full" />
+          <div className="absolute top-40 left-40 w-40 h-40 border border-white rounded-full" />
+          <div className="absolute bottom-20 right-10 w-80 h-80 border border-white rounded-full" />
+          {[...Array(20)].map((_, i) => (
+            <div key={i} className="absolute w-1 h-1 bg-white rounded-full"
+              style={{ top: `${(i * 17 + 5) % 100}%`, left: `${(i * 23 + 7) % 100}%`, opacity: 0.4 }} />
+          ))}
+        </div>
+        <div className="relative">
+          <div className="flex items-center gap-3 mb-16">
+            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1">
+              <img src={arapointLogo} alt="Arapoint" className="w-full h-full object-contain" />
+            </div>
+            <div>
+              <p className="text-white font-bold text-xl">Arapoint</p>
+              <p className="text-blue-300 text-xs">Developer Portal</p>
+            </div>
+          </div>
+          <h1 className="text-4xl font-bold text-white mb-4 leading-tight">
+            Build with Nigeria's<br />verification<br />infrastructure.
+          </h1>
+          <p className="text-blue-200 text-lg">NIN, BVN, WAEC, NECO and employment screening — all through a single API.</p>
+        </div>
+        <div className="relative space-y-4">
+          {[
+            { icon: KeyRound, label: "API Keys & Sandbox", desc: "Test free with sandbox — no credit card needed" },
+            { icon: Zap, label: "Sub-2s NIN/BVN Response", desc: "Production-grade, NDPA compliant" },
+            { icon: Lock, label: "Webhook Delivery", desc: "Signed events pushed to your server in real time" },
+          ].map(({ icon: Icon, label, desc }) => (
+            <div key={label} className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Icon className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-white text-sm font-semibold">{label}</p>
+                <p className="text-blue-300 text-xs">{desc}</p>
+              </div>
+            </div>
+          ))}
+          <p className="text-blue-300 text-xs pt-2">250,000+ verifications processed. 99.98% uptime SLA.</p>
+        </div>
+      </div>
+
+      {/* Right — Form panel */}
+      <div className="flex-1 flex items-center justify-center p-8 bg-white overflow-y-auto">
       <div className="w-full max-w-md">
 
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: "linear-gradient(135deg,#0B5FFF,#12B76A)", boxShadow: `0 8px 32px ${C.blue}40` }}>
-            <Code2 className="w-8 h-8 text-white" />
+        {/* Logo (mobile only) */}
+        <div className="lg:hidden text-center mb-8">
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3 bg-white border border-gray-200 p-2">
+            <img src={arapointLogo} alt="Arapoint" className="w-full h-full object-contain" />
           </div>
-          <h1 className="text-2xl font-extrabold text-white">Arapoint Developer Portal</h1>
-          <p className="text-sm mt-1" style={{ color: C.muted }}>Build with Nigeria's verification infrastructure</p>
+          <h1 className="text-xl font-extrabold text-gray-900">Arapoint Developer Portal</h1>
+          <p className="text-sm mt-1 text-gray-500">Build with Nigeria's verification infrastructure</p>
+        </div>
+        <div className="hidden lg:block mb-8">
+          <h2 className="text-2xl font-bold text-gray-900">
+            {tab === "login" ? "Sign in to your account" : "Create developer account"}
+          </h2>
+          <p className="text-gray-500 text-sm mt-1">
+            {tab === "login" ? "Access your API keys, logs, and billing" : "Start integrating Arapoint APIs for free"}
+          </p>
         </div>
 
         {/* Tabs */}
@@ -632,7 +689,7 @@ export default function DevLogin() {
           {/* ── Login ── */}
           {tab === "login" && loginStep === "credentials" && (
             <>
-              <h2 className="text-lg font-bold text-white mb-0.5">Welcome back</h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-0.5">Welcome back</h2>
               <p className="text-sm mb-5" style={{ color: C.muted }}>Sign in to your developer account</p>
               <form onSubmit={handleLogin} className="space-y-4">
                 <Field label="Email">
@@ -675,7 +732,7 @@ export default function DevLogin() {
                   style={{ background: `${C.blue}1A`, border: `1px solid ${C.blue}40` }}>
                   <ShieldCheck className="w-7 h-7" style={{ color: C.blue }} />
                 </div>
-                <h2 className="text-lg font-bold text-white">Two-Factor Authentication</h2>
+                <h2 className="text-lg font-bold text-gray-900">Two-Factor Authentication</h2>
                 <p className="text-sm mt-1" style={{ color: C.muted }}>
                   Open Google Authenticator and enter the<br />6-digit code for Arapoint Developer Portal
                 </p>
@@ -723,7 +780,7 @@ export default function DevLogin() {
               <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: `${C.green}1A` }}>
                 <CheckCircle className="w-10 h-10" style={{ color: C.green }} />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">Account Created!</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Account Created!</h3>
               <p className="text-sm" style={{ color: C.muted }}>Redirecting to your dashboard...</p>
             </div>
           )}
@@ -737,7 +794,7 @@ export default function DevLogin() {
                 <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: `${C.blue}1A` }}>
                   <Mail className="w-6 h-6" style={{ color: C.blue }} />
                 </div>
-                <h2 className="text-lg font-bold text-white">Verify your email</h2>
+                <h2 className="text-lg font-bold text-gray-900">Verify your email</h2>
                 <p className="text-sm mt-1" style={{ color: C.muted }}>
                   Enter the 6-digit code sent to{" "}
                   <span className="font-semibold" style={{ color: C.blue }}>{registerForm.email}</span>
@@ -777,7 +834,7 @@ export default function DevLogin() {
 
           {tab === "register" && registerStep === "form" && (
             <>
-              <h2 className="text-lg font-bold text-white mb-0.5">Create developer account</h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-0.5">Create developer account</h2>
               <p className="text-sm mb-5" style={{ color: C.muted }}>Start integrating Arapoint APIs</p>
               <form onSubmit={handleSendOtp} className="space-y-4">
                 <Field label="Full Name">
@@ -814,6 +871,7 @@ export default function DevLogin() {
         <p className="text-center text-xs mt-4" style={{ color: C.muted }}>
           <a href="/" style={{ color: C.blue }} className="hover:underline">← Back to Arapoint</a>
         </p>
+      </div>
       </div>
     </div>
   );

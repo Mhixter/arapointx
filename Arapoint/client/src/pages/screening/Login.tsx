@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Briefcase, Eye, EyeOff, Shield, Zap, Users } from "lucide-react";
+import { Eye, EyeOff, Shield, Zap, Users } from "lucide-react";
+import arapointLogo from "@assets/arapoint-logo-transparent.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,8 +46,8 @@ export default function ScreeningLogin() {
 
         <div className="relative">
           <div className="flex items-center gap-3 mb-16">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
-              <Briefcase className="w-5 h-5 text-blue-700" />
+            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1">
+              <img src={arapointLogo} alt="Arapoint" className="w-full h-full object-contain" />
             </div>
             <div>
               <p className="text-white font-bold text-xl">Arapoint</p>
@@ -83,8 +84,8 @@ export default function ScreeningLogin() {
       <div className="flex-1 flex items-center justify-center p-8 bg-white">
         <div className="w-full max-w-md">
           <div className="lg:hidden flex items-center gap-2 mb-8">
-            <div className="w-8 h-8 bg-blue-700 rounded-lg flex items-center justify-center">
-              <Briefcase className="w-4 h-4 text-white" />
+            <div className="w-8 h-8 bg-white border border-gray-200 rounded-lg flex items-center justify-center p-1">
+              <img src={arapointLogo} alt="Arapoint" className="w-full h-full object-contain" />
             </div>
             <span className="text-lg font-bold text-gray-900">Arapoint Screening</span>
           </div>

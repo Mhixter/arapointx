@@ -3,6 +3,7 @@ import { db } from '../../config/database';
 import {
   screeningOrganizations, screeningUsers, screeningCandidates,
   screeningBatches, screeningBillingTransactions, screeningNotifications, rpaJobs,
+  adminSettings,
 } from '../../db/schema';
 import { eq, and, desc, sql, gte, lt, count, sum, inArray } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
@@ -12,16 +13,48 @@ import { premblyService } from '../../services/premblyService';
 import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { screeningAuthMiddleware } from '../middleware/auth';
+import * as paystackService from '../../services/paystackService';
+
+// Create screening_paystack_transactions if it doesn't exist yet
+db.execute(sql`
+  CREATE TABLE IF NOT EXISTS screening_paystack_transactions (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    org_id UUID NOT NULL,
+    reference TEXT UNIQUE NOT NULL,
+    amount_ngn NUMERIC(12,2) NOT NULL,
+    status TEXT DEFAULT 'pending' NOT NULL,
+    authorization_url TEXT,
+    paid_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL
+  )
+`).catch((e: any) => logger.error('[screening] paystack table migration error', { error: e.message }));
 
 const router = Router();
 
-const PRICING = {
-  nin: 130,
-  bvn: 80,
-  education: 120,
-  fraud: 20,
-  total: 350,
-};
+const DEFAULT_PRICING = { nin: 130, bvn: 80, education: 120, fraud: 20, total: 350 };
+
+async function getScreeningPricing() {
+  try {
+    const rows = await db.select()
+      .from(adminSettings)
+      .where(inArray(adminSettings.settingKey, [
+        'screening_price_nin', 'screening_price_bvn',
+        'screening_price_education', 'screening_price_fraud',
+      ]));
+    const map: Record<string, number> = {};
+    rows.forEach((r: { settingKey: string; settingValue: string | null }) => {
+      const v = parseFloat(r.settingValue || '');
+      if (!isNaN(v) && v > 0) map[r.settingKey] = v;
+    });
+    const nin = map['screening_price_nin'] ?? DEFAULT_PRICING.nin;
+    const bvn = map['screening_price_bvn'] ?? DEFAULT_PRICING.bvn;
+    const education = map['screening_price_education'] ?? DEFAULT_PRICING.education;
+    const fraud = map['screening_price_fraud'] ?? DEFAULT_PRICING.fraud;
+    return { nin, bvn, education, fraud, total: nin + bvn + education + fraud };
+  } catch {
+    return { ...DEFAULT_PRICING };
+  }
+}
 
 function generateCandidateRef(): string {
   const year = new Date().getFullYear();
@@ -296,6 +329,7 @@ router.post('/candidates', screeningAuthMiddleware, async (req: Request, res: Re
     if (!org) return res.status(404).json(formatErrorResponse(404, 'Organization not found'));
 
     const balance = parseFloat(String(org.walletBalance || '0'));
+    const PRICING = await getScreeningPricing();
     const charge = educationProvider ? PRICING.total : (PRICING.nin + PRICING.bvn + PRICING.fraud);
     if (balance < charge) {
       return res.status(402).json(formatErrorResponse(402, `Insufficient wallet balance. Need ₦${charge}, have ₦${balance.toLocaleString()}`));
@@ -490,6 +524,7 @@ router.post('/bulk/upload', screeningAuthMiddleware, async (req: Request, res: R
       return res.status(400).json(formatErrorResponse(400, 'Maximum 500 candidates per batch'));
     }
 
+    const PRICING = await getScreeningPricing();
     const charge = candidates.length * PRICING.total;
     const [org] = await db.select({ walletBalance: screeningOrganizations.walletBalance })
       .from(screeningOrganizations).where(eq(screeningOrganizations.id, orgId)).limit(1);
@@ -702,7 +737,7 @@ router.get('/billing', screeningAuthMiddleware, async (req: Request, res: Respon
       autoDebitEnabled: org?.autoDebitEnabled || false,
       monthlySpend: monthlyTotal?.total || '0',
       transactions,
-      pricing: PRICING,
+      pricing: await getScreeningPricing(),
     }));
   } catch (err: any) {
     res.status(500).json(formatErrorResponse(500, 'Failed to fetch billing'));
@@ -737,6 +772,187 @@ router.post('/billing/fund', screeningAuthMiddleware, async (req: Request, res: 
     res.json(formatResponse('success', 200, 'Wallet funded', { newBalance, amount }));
   } catch (err: any) {
     res.status(500).json(formatErrorResponse(500, 'Failed to fund wallet'));
+  }
+});
+
+// ── PAYSTACK BILLING ──────────────────────────────────────────────────────────
+
+router.post('/billing/paystack/initiate', screeningAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const orgId = (req as any).screeningOrgId;
+    const { amount } = req.body;
+    const amtNgn = parseFloat(amount);
+    if (!amtNgn || amtNgn < 1000) {
+      return res.status(400).json(formatErrorResponse(400, 'Minimum amount is ₦1,000'));
+    }
+
+    let paystackKey = process.env.PAYSTACK_SECRET_KEY;
+    if (!paystackKey) {
+      const row = (await db.execute(sql`
+        SELECT setting_value FROM admin_settings WHERE setting_key = 'paystack_secret_key' LIMIT 1
+      `)).rows[0] as any;
+      paystackKey = row?.setting_value || '';
+    }
+    if (!paystackKey) {
+      return res.status(503).json(formatErrorResponse(503, 'Payment gateway not configured. Please contact support.'));
+    }
+
+    const [org] = await db.select({ email: screeningOrganizations.email })
+      .from(screeningOrganizations).where(eq(screeningOrganizations.id, orgId)).limit(1);
+
+    const originalKey = process.env.PAYSTACK_SECRET_KEY;
+    process.env.PAYSTACK_SECRET_KEY = paystackKey;
+
+    const reference = `scr_${orgId.slice(0, 8)}_${Date.now()}`;
+    const callbackUrl = `${process.env.APP_BASE_URL || 'https://arapoint.com.ng'}/employment-screening/dashboard/billing?ref=${reference}`;
+
+    try {
+      const txData = await paystackService.initializeTransaction({
+        email: org?.email || 'noreply@arapoint.com.ng',
+        amountKobo: Math.round(amtNgn * 100),
+        reference,
+        callbackUrl,
+        metadata: { orgId, purpose: 'screening_wallet_funding' },
+      });
+
+      await db.execute(sql`
+        INSERT INTO screening_paystack_transactions (org_id, reference, amount_ngn, status, authorization_url)
+        VALUES (${orgId}, ${reference}, ${amtNgn}, 'pending', ${txData.authorization_url})
+      `);
+
+      res.json(formatResponse('success', 200, 'Payment initiated', {
+        authorizationUrl: txData.authorization_url,
+        reference,
+        amount: amtNgn,
+      }));
+    } finally {
+      if (originalKey === undefined) delete process.env.PAYSTACK_SECRET_KEY;
+      else process.env.PAYSTACK_SECRET_KEY = originalKey;
+    }
+  } catch (err: any) {
+    logger.error('Screening Paystack initiate error', { error: err.message });
+    res.status(500).json(formatErrorResponse(500, err.message || 'Failed to initiate payment'));
+  }
+});
+
+router.post('/billing/paystack-webhook', async (req: Request, res: Response) => {
+  const signature = req.headers['x-paystack-signature'] as string;
+  const rawBody = JSON.stringify(req.body);
+
+  if (!paystackService.verifyWebhookSignature(rawBody, signature)) {
+    return res.status(401).json(formatErrorResponse(401, 'Invalid Paystack signature'));
+  }
+
+  const { event, data } = req.body;
+  res.sendStatus(200);
+
+  if (event !== 'charge.success') return;
+
+  try {
+    const { reference, metadata } = data;
+    const orgId = metadata?.orgId;
+    if (!orgId || !reference) return;
+
+    const verified = await paystackService.verifyTransaction(reference);
+    if (verified.status !== 'success') return;
+
+    const amtNgn = Math.round(verified.amount) / 100;
+
+    const existing = ((await db.execute(sql`
+      SELECT status FROM screening_paystack_transactions WHERE reference = ${reference}
+    `)).rows[0] || {}) as any;
+    if (existing.status === 'successful') return;
+
+    const [org] = await db.select({ walletBalance: screeningOrganizations.walletBalance })
+      .from(screeningOrganizations).where(eq(screeningOrganizations.id, orgId)).limit(1);
+    const currentBalance = parseFloat(String(org?.walletBalance || '0'));
+    const newBalance = currentBalance + amtNgn;
+
+    await db.update(screeningOrganizations)
+      .set({ walletBalance: String(newBalance), updatedAt: new Date() })
+      .where(eq(screeningOrganizations.id, orgId));
+
+    await db.insert(screeningBillingTransactions).values({
+      orgId,
+      type: 'credit',
+      amount: String(amtNgn),
+      balanceBefore: String(currentBalance),
+      balanceAfter: String(newBalance),
+      description: `Wallet funded via Paystack — ref: ${reference}`,
+      reference,
+    });
+
+    await db.execute(sql`
+      UPDATE screening_paystack_transactions
+      SET status = 'successful', paid_at = now()
+      WHERE reference = ${reference}
+    `);
+
+    logger.info('Screening wallet funded via Paystack webhook', { orgId, amtNgn, reference });
+  } catch (err: any) {
+    logger.error('Screening Paystack webhook error', { error: err.message });
+  }
+});
+
+router.get('/billing/paystack/verify/:reference', screeningAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const orgId = (req as any).screeningOrgId;
+    const { reference } = req.params;
+
+    const result = await db.execute(sql`
+      SELECT * FROM screening_paystack_transactions
+      WHERE reference = ${reference} AND org_id = ${orgId}
+    `);
+    let tx = result.rows[0] as any;
+    if (!tx) return res.status(404).json(formatErrorResponse(404, 'Transaction not found'));
+
+    if (tx.status !== 'successful') {
+      try {
+        const verified = await paystackService.verifyTransaction(reference);
+        if (verified.status === 'success') {
+          const amtNgn = Math.round(verified.amount) / 100;
+
+          const [org] = await db.select({ walletBalance: screeningOrganizations.walletBalance })
+            .from(screeningOrganizations).where(eq(screeningOrganizations.id, orgId)).limit(1);
+          const currentBalance = parseFloat(String(org?.walletBalance || '0'));
+          const newBalance = currentBalance + amtNgn;
+
+          // Atomic credit — only if not already successful
+          const credited = await db.execute(sql`
+            UPDATE screening_paystack_transactions
+            SET status = 'successful', paid_at = now()
+            WHERE reference = ${reference} AND status != 'successful'
+            RETURNING id
+          `);
+
+          if ((credited.rows || []).length > 0) {
+            await db.update(screeningOrganizations)
+              .set({ walletBalance: String(newBalance), updatedAt: new Date() })
+              .where(eq(screeningOrganizations.id, orgId));
+
+            await db.insert(screeningBillingTransactions).values({
+              orgId,
+              type: 'credit',
+              amount: String(amtNgn),
+              balanceBefore: String(currentBalance),
+              balanceAfter: String(newBalance),
+              description: `Wallet funded via Paystack — ref: ${reference}`,
+              reference,
+            });
+
+            logger.info('Screening wallet funded via verify endpoint', { orgId, amtNgn, reference });
+          }
+
+          tx = { ...tx, status: 'successful', amount_ngn: amtNgn };
+        }
+      } catch (verifyErr: any) {
+        logger.warn('Paystack verify failed in screening verify endpoint', { reference, error: verifyErr.message });
+      }
+    }
+
+    res.json(formatResponse('success', 200, 'Transaction fetched', tx));
+  } catch (err: any) {
+    res.status(500).json(formatErrorResponse(500, 'Failed to verify payment'));
   }
 });
 

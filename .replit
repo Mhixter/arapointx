@@ -74,6 +74,10 @@ externalPort = 3002
 localPort = 5000
 externalPort = 5000
 
+[[ports]]
+localPort = 23636
+externalPort = 3001
+
 [deployment]
 deploymentTarget = "vm"
 run = ["bash", "-c", "cd Arapoint && npm start"]
