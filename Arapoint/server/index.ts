@@ -47,6 +47,8 @@ declare global {
 app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,
+  // Allow canvas/iframe embedding in development
+  frameguard: process.env.NODE_ENV === 'production' ? { action: 'sameorigin' } : false,
 }));
 
 // ── Subdomain → path redirect ──────────────────────────────────────────────────
