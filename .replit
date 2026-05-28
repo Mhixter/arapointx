@@ -59,14 +59,14 @@ args = "cd Arapoint && NODE_ENV=development node_modules/.bin/tsx server/rpa-wor
 name = "Arapoint Video Ad"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "console"
+isCanvasWorkflow = true
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 3001
-
-[workflows.workflow.metadata]
-outputType = "console"
-isCanvasWorkflow = true
 
 [[workflows.workflow]]
 name = "Video Recorder"
@@ -81,15 +81,11 @@ args = "rm -f exports/raw/05-education-silent.mp4 && node scripts/record-video.m
 
 [[ports]]
 localPort = 3001
-externalPort = 80
-
-[[ports]]
-localPort = 3002
-externalPort = 3002
+externalPort = 3001
 
 [[ports]]
 localPort = 5000
-externalPort = 5000
+externalPort = 80
 
 [deployment]
 deploymentTarget = "vm"
