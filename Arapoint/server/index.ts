@@ -47,9 +47,17 @@ declare global {
 app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,
-  // Allow canvas/iframe embedding in development
   frameguard: process.env.NODE_ENV === 'production' ? { action: 'sameorigin' } : false,
 }));
+
+// Explicitly allow iframe embedding in development (overrides any residual Helmet headers)
+if (process.env.NODE_ENV !== 'production') {
+  app.use((_req: Request, res: Response, next: NextFunction) => {
+    res.removeHeader('X-Frame-Options');
+    res.setHeader('Content-Security-Policy', "frame-ancestors *");
+    next();
+  });
+}
 
 // ── Subdomain → path redirect ──────────────────────────────────────────────────
 // developer.arapoint.com.ng/anything  →  arapoint.com.ng/developer/anything
