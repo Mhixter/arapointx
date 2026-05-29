@@ -70,7 +70,7 @@ export function DevLayout({ children }: { children: React.ReactNode }) {
           </div>
           <div>
             <p className="text-white font-bold text-sm leading-none">Arapoint</p>
-            <p className="text-blue-300 text-xs mt-0.5">Developer Portal</p>
+            <p className="text-blue-100 text-xs mt-0.5">Developer Portal</p>
           </div>
         </div>
       </div>
@@ -78,7 +78,7 @@ export function DevLayout({ children }: { children: React.ReactNode }) {
       {/* Wallet balance */}
       <div className="px-4 py-3 border-b border-blue-800/30">
         <div className="bg-blue-800/40 rounded-xl px-3 py-2.5">
-          <p className="text-blue-300 text-xs font-medium">Wallet Balance</p>
+          <p className="text-blue-100 text-xs font-medium">Wallet Balance</p>
           <p className="text-white text-base font-bold mt-0.5">
             ₦{developer.walletBalance?.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
           </p>
@@ -114,7 +114,7 @@ export function DevLayout({ children }: { children: React.ReactNode }) {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold text-white truncate">{developer.name}</p>
-            <p className="text-xs text-blue-300 truncate">{developer.email}</p>
+            <p className="text-xs text-blue-100 truncate">{developer.email}</p>
           </div>
         </div>
         <button
