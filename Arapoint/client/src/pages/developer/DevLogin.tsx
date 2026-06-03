@@ -4,13 +4,13 @@ import { Loader2, Mail, ArrowLeft, CheckCircle, Eye, EyeOff, KeyRound, Lock, Shi
 import arapointLogo from "@assets/arapoint-logo-transparent.png";
 
 const C = {
-  bg: "#f8fafc",
+  bg: "#f9fafb",
   card: "#ffffff",
-  border: "#e2e8f0",
-  text: "#1e293b",
-  muted: "#64748b",
-  blue: "#1d4ed8",
-  green: "#16a34a",
+  border: "#e5e7eb",
+  text: "#1f2937",
+  muted: "#6b7280",
+  blue: "#0b5fff",
+  green: "#12b76a",
 };
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -391,7 +391,7 @@ export default function DevLogin() {
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-white p-2" style={{ boxShadow: `0 8px 32px ${C.blue}40`, border: `1px solid ${C.border}` }}>
               <img src={arapointLogo} alt="Arapoint" className="w-full h-full object-contain" />
             </div>
-            <h1 className="text-2xl font-extrabold text-gray-900">Arapoint Developer Portal</h1>
+            <h1 className="text-2xl font-extrabold" style={{ color: C.text }}>Arapoint Developer Portal</h1>
             <p className="text-sm mt-1" style={{ color: C.muted }}>Build with Nigeria's verification infrastructure</p>
           </div>
 
@@ -401,7 +401,7 @@ export default function DevLogin() {
                 <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: `${C.blue}1A` }}>
                   <Mail className="w-8 h-8" style={{ color: C.blue }} />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Check your email</h3>
+                <h3 className="text-xl font-bold mb-2" style={{ color: C.text }}>Check your email</h3>
                 <p className="text-sm mb-2" style={{ color: C.muted }}>
                   We've sent a recovery link to{" "}
                   <span className="font-semibold" style={{ color: C.blue }}>{recoveryForm.email}</span>
@@ -431,7 +431,7 @@ export default function DevLogin() {
                   <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: "#3D0A0A" }}>
                     <ShieldCheck className="w-6 h-6" style={{ color: "#F87171" }} />
                   </div>
-                  <h2 className="text-lg font-bold text-gray-900">Recover Authenticator Access</h2>
+                  <h2 className="text-lg font-bold" style={{ color: C.text }}>Recover Authenticator Access</h2>
                   <p className="text-sm mt-1" style={{ color: C.muted }}>
                     Verify your identity to receive a one-time recovery link via email. This will disable 2FA on your account.
                   </p>
@@ -481,7 +481,7 @@ export default function DevLogin() {
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-white p-2" style={{ boxShadow: `0 8px 32px ${C.blue}40`, border: `1px solid ${C.border}` }}>
               <img src={arapointLogo} alt="Arapoint" className="w-full h-full object-contain" />
             </div>
-            <h1 className="text-2xl font-extrabold text-gray-900">Arapoint Developer Portal</h1>
+            <h1 className="text-2xl font-extrabold" style={{ color: C.text }}>Arapoint Developer Portal</h1>
             <p className="text-sm mt-1" style={{ color: C.muted }}>Build with Nigeria's verification infrastructure</p>
           </div>
 
@@ -492,7 +492,7 @@ export default function DevLogin() {
                 <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: `${C.green}1A` }}>
                   <CheckCircle className="w-10 h-10" style={{ color: C.green }} />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Password Reset!</h3>
+                <h3 className="text-xl font-bold mb-2" style={{ color: C.text }}>Password Reset!</h3>
                 <p className="text-sm mb-6" style={{ color: C.muted }}>Your password has been updated. You can now sign in.</p>
                 <button onClick={() => { setView("auth"); setForgotStep("email"); setForgotEmail(""); setForgotOtp(""); setNewPassword(""); setConfirmNewPassword(""); }}
                   className="w-full py-2.5 rounded-lg text-sm font-bold text-white transition-opacity hover:opacity-90"
@@ -511,7 +511,7 @@ export default function DevLogin() {
                   <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: `${C.blue}1A` }}>
                     <KeyRound className="w-6 h-6" style={{ color: C.blue }} />
                   </div>
-                  <h2 className="text-lg font-bold text-gray-900">Enter Reset Code</h2>
+                  <h2 className="text-lg font-bold" style={{ color: C.text }}>Enter Reset Code</h2>
                   <p className="text-sm mt-1" style={{ color: C.muted }}>
                     We sent a 6-digit code to{" "}
                     <span className="font-semibold" style={{ color: C.blue }}>{forgotEmail}</span>
@@ -525,7 +525,7 @@ export default function DevLogin() {
                       onChange={e => setForgotOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                       className="w-full px-3 py-3 rounded-lg text-center text-2xl tracking-[0.5em] font-mono outline-none"
                       placeholder="000000"
-                      style={{ background: "#0A0A0A", border: `1px solid ${C.border}`, color: C.text }}
+                      style={{ background: "#f3f4f6", border: `1px solid ${C.border}`, color: C.text }}
                       onFocus={e => (e.currentTarget.style.borderColor = C.blue)}
                       onBlur={e => (e.currentTarget.style.borderColor = C.border)}
                     />
@@ -574,7 +574,7 @@ export default function DevLogin() {
                   <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: `${C.blue}1A` }}>
                     <Mail className="w-6 h-6" style={{ color: C.blue }} />
                   </div>
-                  <h2 className="text-lg font-bold text-gray-900">Recover your account</h2>
+                  <h2 className="text-lg font-bold" style={{ color: C.text }}>Recover your account</h2>
                   <p className="text-sm mt-1" style={{ color: C.muted }}>Enter your registered email and we'll send a reset code.</p>
                 </div>
                 <form onSubmit={handleForgotSendOtp} className="space-y-4">
@@ -658,14 +658,14 @@ export default function DevLogin() {
           <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3 bg-white border border-gray-200 p-2">
             <img src={arapointLogo} alt="Arapoint" className="w-full h-full object-contain" />
           </div>
-          <h1 className="text-xl font-extrabold text-gray-900">Arapoint Developer Portal</h1>
-          <p className="text-sm mt-1 text-gray-500">Build with Nigeria's verification infrastructure</p>
+          <h1 className="text-xl font-extrabold" style={{ color: C.text }}>Arapoint Developer Portal</h1>
+          <p className="text-sm mt-1" style={{ color: C.muted }}>Build with Nigeria's verification infrastructure</p>
         </div>
         <div className="hidden lg:block mb-8">
-          <h2 className="text-2xl font-bold text-gray-900">
+          <h2 className="text-2xl font-bold" style={{ color: C.text }}>
             {tab === "login" ? "Sign in to your account" : "Create developer account"}
           </h2>
-          <p className="text-gray-500 text-sm mt-1">
+          <p style={{ color: C.muted }} className="text-sm mt-1">
             {tab === "login" ? "Access your API keys, logs, and billing" : "Start integrating Arapoint APIs for free"}
           </p>
         </div>
@@ -689,7 +689,7 @@ export default function DevLogin() {
           {/* ── Login ── */}
           {tab === "login" && loginStep === "credentials" && (
             <>
-              <h2 className="text-lg font-bold text-gray-900 mb-0.5">Welcome back</h2>
+              <h2 className="text-lg font-bold mb-0.5" style={{ color: C.text }}>Welcome back</h2>
               <p className="text-sm mb-5" style={{ color: C.muted }}>Sign in to your developer account</p>
               <form onSubmit={handleLogin} className="space-y-4">
                 <Field label="Email">
@@ -732,7 +732,7 @@ export default function DevLogin() {
                   style={{ background: `${C.blue}1A`, border: `1px solid ${C.blue}40` }}>
                   <ShieldCheck className="w-7 h-7" style={{ color: C.blue }} />
                 </div>
-                <h2 className="text-lg font-bold text-gray-900">Two-Factor Authentication</h2>
+                <h2 className="text-lg font-bold" style={{ color: C.text }}>Two-Factor Authentication</h2>
                 <p className="text-sm mt-1" style={{ color: C.muted }}>
                   Open Google Authenticator and enter the<br />6-digit code for Arapoint Developer Portal
                 </p>
@@ -745,7 +745,7 @@ export default function DevLogin() {
                     onChange={e => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     className="w-full px-3 py-3 rounded-lg text-center text-2xl tracking-[0.5em] font-mono outline-none"
                     placeholder="000000"
-                    style={{ background: "#0A0A0A", border: `1px solid ${C.border}`, color: C.text }}
+                    style={{ background: "#f3f4f6", border: `1px solid ${C.border}`, color: C.text }}
                     onFocus={e => (e.currentTarget.style.borderColor = C.blue)}
                     onBlur={e => (e.currentTarget.style.borderColor = C.border)}
                   />
@@ -780,7 +780,7 @@ export default function DevLogin() {
               <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: `${C.green}1A` }}>
                 <CheckCircle className="w-10 h-10" style={{ color: C.green }} />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Account Created!</h3>
+              <h3 className="text-xl font-bold mb-2" style={{ color: C.text }}>Account Created!</h3>
               <p className="text-sm" style={{ color: C.muted }}>Redirecting to your dashboard...</p>
             </div>
           )}
@@ -794,7 +794,7 @@ export default function DevLogin() {
                 <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: `${C.blue}1A` }}>
                   <Mail className="w-6 h-6" style={{ color: C.blue }} />
                 </div>
-                <h2 className="text-lg font-bold text-gray-900">Verify your email</h2>
+                <h2 className="text-lg font-bold" style={{ color: C.text }}>Verify your email</h2>
                 <p className="text-sm mt-1" style={{ color: C.muted }}>
                   Enter the 6-digit code sent to{" "}
                   <span className="font-semibold" style={{ color: C.blue }}>{registerForm.email}</span>
@@ -808,7 +808,7 @@ export default function DevLogin() {
                     onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     className="w-full px-3 py-3 rounded-lg text-center text-2xl tracking-[0.5em] font-mono outline-none"
                     placeholder="000000"
-                    style={{ background: "#0A0A0A", border: `1px solid ${C.border}`, color: C.text }}
+                    style={{ background: "#f3f4f6", border: `1px solid ${C.border}`, color: C.text }}
                     onFocus={e => (e.currentTarget.style.borderColor = C.blue)}
                     onBlur={e => (e.currentTarget.style.borderColor = C.border)}
                   />
@@ -834,7 +834,7 @@ export default function DevLogin() {
 
           {tab === "register" && registerStep === "form" && (
             <>
-              <h2 className="text-lg font-bold text-gray-900 mb-0.5">Create developer account</h2>
+              <h2 className="text-lg font-bold mb-0.5" style={{ color: C.text }}>Create developer account</h2>
               <p className="text-sm mb-5" style={{ color: C.muted }}>Start integrating Arapoint APIs</p>
               <form onSubmit={handleSendOtp} className="space-y-4">
                 <Field label="Full Name">
