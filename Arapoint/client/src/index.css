@@ -57,6 +57,23 @@
   --font-mono: 'DM Mono', 'Fira Code', monospace;
 }
 
+/* Developer Portal — always dark regardless of system theme */
+.dev-portal,
+.dev-portal * {
+  color-scheme: dark;
+}
+.dev-portal {
+  --dev-bg: #111827;
+  --dev-card: #1f2937;
+  --dev-border: #374151;
+  --dev-text: #f3f4f6;
+  --dev-muted: #9ca3af;
+  --dev-blue: #0b5fff;
+  --dev-green: #10b981;
+  --dev-amber: #f59e0b;
+  --dev-red: #ef4444;
+}
+
 /* LIGHT MODE - Clean, Professional, Trustworthy (Green/White/Navy) */
 :root {
   /* Backgrounds */

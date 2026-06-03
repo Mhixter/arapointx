@@ -264,6 +264,106 @@ router.post("/failed-education-checks/:id/override", async (req: Request, res: R
   }
 });
 
+// ── ADMIN FUND ORGANIZATION ───────────────────────────────────────────────
+
+router.post("/organizations/:id/fund", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { amount, note } = req.body;
+
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+      return res.status(400).json(formatErrorResponse(400, "Valid amount required"));
+    }
+
+    const org = await db.select().from(screeningOrganizations).where(eq(screeningOrganizations.id, id)).limit(1);
+    if (!org.length) return res.status(404).json(formatErrorResponse(404, "Organization not found"));
+
+    const current = parseFloat(String(org[0].walletBalance || "0"));
+    const funded = Number(amount);
+    const newBalance = current + funded;
+
+    await db.execute(sql`
+      UPDATE screening_organizations
+      SET wallet_balance = ${newBalance}, updated_at = now()
+      WHERE id = ${id}
+    `);
+
+    await db.execute(sql`
+      INSERT INTO screening_billing_transactions (id, org_id, type, amount, description, status, created_at)
+      VALUES (gen_random_uuid(), ${id}, 'credit', ${funded}, ${note || 'Admin wallet top-up'}, 'completed', now())
+    `).catch(() => {});
+
+    logger.info("Admin funded org wallet", { orgId: id, amount: funded, newBalance });
+    res.json(formatResponse("success", 200, "Wallet funded", { newBalance }));
+  } catch (err: any) {
+    logger.error("Fund org error", { error: err.message });
+    res.status(500).json(formatErrorResponse(500, "Failed to fund wallet"));
+  }
+});
+
+// ── ADMIN ORG DETAIL + ACTIVITIES ────────────────────────────────────────
+
+router.get("/organizations/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const org = await db.execute(sql`
+      SELECT o.*,
+        (SELECT COUNT(*) FROM screening_candidates c WHERE c.org_id = o.id) AS total_screenings,
+        (SELECT COUNT(*) FROM screening_candidates c WHERE c.org_id = o.id AND c.decision = 'pass') AS pass_count,
+        (SELECT COUNT(*) FROM screening_candidates c WHERE c.org_id = o.id AND c.decision = 'fail') AS fail_count,
+        (SELECT COUNT(*) FROM screening_users u WHERE u.org_id = o.id) AS team_members
+      FROM screening_organizations o
+      WHERE o.id = ${id}
+      LIMIT 1
+    `);
+
+    if (!org.rows.length) return res.status(404).json(formatErrorResponse(404, "Organization not found"));
+
+    const transactions = await db.execute(sql`
+      SELECT * FROM screening_billing_transactions
+      WHERE org_id = ${id}
+      ORDER BY created_at DESC
+      LIMIT 50
+    `).catch(() => ({ rows: [] }));
+
+    const recentScreenings = await db.execute(sql`
+      SELECT id, full_name, decision, overall_score, created_at, status
+      FROM screening_candidates
+      WHERE org_id = ${id}
+      ORDER BY created_at DESC
+      LIMIT 20
+    `);
+
+    res.json(formatResponse("success", 200, "Organization detail", {
+      organization: org.rows[0],
+      transactions: transactions.rows,
+      recentScreenings: recentScreenings.rows,
+    }));
+  } catch (err: any) {
+    logger.error("Org detail error", { error: err.message });
+    res.status(500).json(formatErrorResponse(500, "Failed to fetch organization"));
+  }
+});
+
+// ── ADMIN SUSPEND / ACTIVATE ORG ─────────────────────────────────────────
+
+router.patch("/organizations/:id/status", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!["active", "suspended"].includes(status)) {
+      return res.status(400).json(formatErrorResponse(400, "Status must be 'active' or 'suspended'"));
+    }
+    await db.execute(sql`
+      UPDATE screening_organizations SET is_active = ${status === "active"}, updated_at = now() WHERE id = ${id}
+    `);
+    res.json(formatResponse("success", 200, `Organization ${status}`, { id, status }));
+  } catch (err: any) {
+    res.status(500).json(formatErrorResponse(500, "Failed to update status"));
+  }
+});
+
 // ── ADMIN STATS ──────────────────────────────────────────────────────────
 
 router.get("/stats", async (req: Request, res: Response) => {

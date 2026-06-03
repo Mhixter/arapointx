@@ -37,6 +37,8 @@ import developerRoutes from "./src/api/routes/developer";
 import chatRoutes from "./src/api/routes/chat";
 import rpaRecoveryRoutes from "./src/api/routes/rpaRecovery";
 import screeningRoutes from "./src/api/routes/screening";
+import screeningAuthRoutes from "./src/api/routes/screeningAuth";
+import adminScreeningRoutes from "./src/api/routes/adminScreening";
 
 import { publicRateLimiter, authenticatedRateLimiter } from "./src/api/middleware/rateLimit";
 import { errorHandler } from "./src/api/middleware/errorHandler";
@@ -419,6 +421,8 @@ export async function registerRoutes(
   app.use('/api/chat', publicRateLimiter, chatRoutes);
   app.use('/api/admin/rpa-recovery', authenticatedRateLimiter, rpaRecoveryRoutes);
   app.use('/api/screening', screeningRoutes);
+  app.use('/api/screening', screeningAuthRoutes);
+  app.use('/api/admin/screening', adminAuthMiddleware, adminScreeningRoutes);
   
   // Public verification page route (no /api prefix)
   app.get('/verify-slip/:reference', (req, res) => {

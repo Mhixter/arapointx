@@ -129,7 +129,7 @@ export function DevLayout({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="dev-portal flex h-screen" style={{ background: "var(--dev-bg)" }}>
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex flex-col w-60 bg-[#1E3A8A] flex-shrink-0">
         <SidebarContent />

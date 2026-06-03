@@ -126,7 +126,8 @@ import AdminCRUDLayout from "@/components/layout/AdminCRUDLayout";
 
 // Employment Screening Platform Imports
 import ScreeningLogin from "@/pages/screening/Login";
-import ScreeningRegister from "@/pages/screening/Register";
+import ScreeningRegister from "@/pages/screening/RegisterWithOTP";
+import AdminScreeningOrgs from "@/pages/admin/AdminScreeningOrgs";
 import ScreeningOverview from "@/pages/screening/dashboard/Overview";
 import ScreeningCandidates from "@/pages/screening/dashboard/Candidates";
 import NewScreening from "@/pages/screening/dashboard/NewScreening";
@@ -363,6 +364,11 @@ function Router() {
       <Route path="/admin/broadcast">
         <AdminCRUDLayout>
           <AdminBroadcast />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/screening-orgs">
+        <AdminCRUDLayout>
+          <AdminScreeningOrgs />
         </AdminCRUDLayout>
       </Route>
 
