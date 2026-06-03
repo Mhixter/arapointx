@@ -38,6 +38,7 @@ import chatRoutes from "./src/api/routes/chat";
 import rpaRecoveryRoutes from "./src/api/routes/rpaRecovery";
 import screeningRoutes from "./src/api/routes/screening";
 import screeningAuthRoutes from "./src/api/routes/screeningAuth";
+import testimonialsRoutes from "./src/api/routes/testimonialsRoutes";
 import adminScreeningRoutes from "./src/api/routes/adminScreening";
 
 import { publicRateLimiter, authenticatedRateLimiter } from "./src/api/middleware/rateLimit";
@@ -420,6 +421,7 @@ export async function registerRoutes(
   app.use('/api/v1/developer', developerRoutes);
   app.use('/api/chat', publicRateLimiter, chatRoutes);
   app.use('/api/admin/rpa-recovery', authenticatedRateLimiter, rpaRecoveryRoutes);
+  app.use('/api/testimonials', testimonialsRoutes);
   app.use('/api/screening', screeningRoutes);
   app.use('/api/screening', screeningAuthRoutes);
   app.use('/api/admin/screening', adminAuthMiddleware, adminScreeningRoutes);

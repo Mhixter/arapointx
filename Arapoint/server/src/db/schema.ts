@@ -1280,6 +1280,20 @@ export const screeningBillingTransactions = pgTable('screening_billing_transacti
   index('sbt_created_idx').on(table.createdAt),
 ]);
 
+export const testimonials = pgTable('testimonials', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar('name', { length: 255 }).notNull(),
+  role: varchar('role', { length: 255 }).notNull(),
+  company: varchar('company', { length: 255 }),
+  avatarUrl: varchar('avatar_url', { length: 500 }),
+  quote: text('quote').notNull(),
+  rating: integer('rating').default(5),
+  isActive: boolean('is_active').default(true),
+  displayOrder: integer('display_order').default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
 export const screeningNotifications = pgTable('screening_notifications', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   orgId: uuid('org_id').notNull().references(() => screeningOrganizations.id, { onDelete: 'cascade' }),

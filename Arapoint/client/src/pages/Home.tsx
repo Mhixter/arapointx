@@ -4,6 +4,7 @@ import { CheckCircle2, Shield, GraduationCap, Building2, Zap, ChevronRight, Lock
 import { Link } from "wouter";
 import { useEffect, useRef, useState } from "react";
 import heroCutout from "@/assets/hero-cutout.png";
+import { TestimonialsSlider } from "@/components/TestimonialsSlider";
 
 const ORBIT_SECTORS = [
   { label: "Fintechs", icon: Zap, angle: -90 },
@@ -249,15 +250,15 @@ export default function Home() {
           <div className="space-y-8 animate-in slide-in-from-left-5 duration-700 fade-in justify-self-start max-w-lg">
             <div className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold bg-primary/10 text-primary border-primary/30 gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              NDPA Compliant · Registry Connected · Live
+              Instant · NDPA 2023 Compliant · Direct Registry Access
             </div>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading font-extrabold text-foreground tracking-tight leading-[1.1]">
-              Nigeria's Trusted<br />
-              <span className="text-primary">Identity</span> &amp;<br />
-              Verification API
+              Stop guessing.<br />
+              <span className="text-primary">Know</span> exactly who<br />
+              you're dealing with.
             </h1>
             <p className="text-lg text-muted-foreground max-w-xl leading-relaxed">
-              Verify NIN, BVN, WAEC, NECO results and screen employees — in real time. Built for fintechs, lenders, HR teams, and any Nigerian business that needs to know who they're dealing with.
+              Real-time NIN, BVN, and academic verification pulled directly from NIMC, CBN, WAEC, and NECO registries — not cached third-party data. Cross-referenced, scored, and decided in under 5 minutes. Built for every Nigerian business that can't afford to guess.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <Link href="/auth/signup">
@@ -272,10 +273,10 @@ export default function Home() {
               </Link>
             </div>
             <div className="pt-2 flex flex-wrap items-center gap-6 text-xs text-muted-foreground">
-              <div className="flex items-center gap-1.5"><CheckCircle2 className="text-primary h-3.5 w-3.5" /><span>No setup fee</span></div>
-              <div className="flex items-center gap-1.5"><CheckCircle2 className="text-primary h-3.5 w-3.5" /><span>Free sandbox</span></div>
-              <div className="flex items-center gap-1.5"><CheckCircle2 className="text-primary h-3.5 w-3.5" /><span>Pay per use</span></div>
-              <div className="flex items-center gap-1.5"><CheckCircle2 className="text-primary h-3.5 w-3.5" /><span>Under 2 seconds</span></div>
+              <div className="flex items-center gap-1.5"><CheckCircle2 className="text-primary h-3.5 w-3.5" /><span>Direct from NIMC &amp; CBN</span></div>
+              <div className="flex items-center gap-1.5"><CheckCircle2 className="text-primary h-3.5 w-3.5" /><span>Results in under 2 seconds</span></div>
+              <div className="flex items-center gap-1.5"><CheckCircle2 className="text-primary h-3.5 w-3.5" /><span>NDPA 2023 compliant</span></div>
+              <div className="flex items-center gap-1.5"><CheckCircle2 className="text-primary h-3.5 w-3.5" /><span>Pay per use · from ₦80</span></div>
             </div>
           </div>
 
@@ -585,6 +586,11 @@ export default function Home() {
             </div>
           </div>
         </div>
+      </section>
+
+      {/* ── TESTIMONIALS ── */}
+      <section className="container px-4">
+        <TestimonialsSlider />
       </section>
 
       {/* ── CTA ── */}

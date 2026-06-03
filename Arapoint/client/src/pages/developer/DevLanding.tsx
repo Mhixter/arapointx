@@ -5,6 +5,7 @@ import {
   Building2, CreditCard, Search, BarChart3, Clock,
   AlertTriangle, BadgeCheck, Briefcase, GraduationCap
 } from "lucide-react";
+import { TestimonialsSlider } from "@/components/TestimonialsSlider";
 
 const C = {
   bg: "var(--dev-bg)",
@@ -287,6 +288,10 @@ const { data } = await response.json();
               ))}
             </div>
           </div>
+        </section>
+
+        <section style={{ borderTop: `1px solid ${C.border}` }}>
+          <TestimonialsSlider dark accentColor="#10b981" />
         </section>
 
         <section className="container mx-auto px-4 pb-24">

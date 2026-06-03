@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Briefcase, CheckCircle2, ArrowRight, Shield, Zap, Users, BarChart3, Clock, Building2, GraduationCap, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import SeoSchema, { orgSchema, faqSchema, productSchema } from "@/components/SeoSchema";
+import { TestimonialsSlider } from "@/components/TestimonialsSlider";
 
 const faqs = [
   { q: "What is employment screening?", a: "Employment screening (also called pre-employment background checks) is the process of verifying a job candidate's identity, academic credentials, and other background information before hiring. In Nigeria, this typically involves verifying the candidate's NIN, BVN, and SSCE result (WAEC, NECO, or NABTEB certificate)." },
@@ -197,6 +198,10 @@ const { data } = await response.json();
       <div className="bg-muted/30 border-t border-border/50 py-8 px-4 text-center text-sm text-muted-foreground">
         <p>Related: <Link href="/identity-verification" className="text-primary hover:underline">Identity Verification</Link> · <Link href="/nin-verification" className="text-primary hover:underline">NIN Verification</Link> · <Link href="/bvn-verification" className="text-primary hover:underline">BVN Verification</Link> · <Link href="/education-verification" className="text-primary hover:underline">Education Verification</Link> · <Link href="/kyc-api" className="text-primary hover:underline">KYC API</Link></p>
       </div>
+
+      <section className="bg-muted/20 border-y border-border/50">
+        <TestimonialsSlider />
+      </section>
 
       <section className="py-16 px-4 bg-primary">
         <div className="container max-w-3xl mx-auto text-center space-y-5 text-primary-foreground">
