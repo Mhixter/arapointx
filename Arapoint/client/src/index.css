@@ -119,7 +119,7 @@
   --dev-bg: #f9fafb;
   --dev-card: #ffffff;
   --dev-border: #e5e7eb;
-  --dev-text: #374151;
+  --dev-text: #1f2937;
   --dev-muted: #6b7280;
   --dev-blue: #0b5fff;
   --dev-green: #12b76a;
@@ -193,6 +193,16 @@
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading font-bold tracking-tight;
+  }
+  
+  /* Fix white text on white backgrounds */
+  input::placeholder {
+    color: #9ca3af !important;
+  }
+  
+  input[style*="background: #0A0A0A"],
+  input[style*="background:#0A0A0A"] {
+    color: #f3f4f6 !important;
   }
 }
 
