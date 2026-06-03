@@ -114,6 +114,17 @@
   --sidebar-ring: 142 76% 36%;
 
   --radius: 0.5rem;
+
+  /* Developer Portal Theme - Light Mode */
+  --dev-bg: #f9fafb;
+  --dev-card: #ffffff;
+  --dev-border: #e5e7eb;
+  --dev-text: #374151;
+  --dev-muted: #6b7280;
+  --dev-blue: #0b5fff;
+  --dev-green: #12b76a;
+  --dev-amber: #f59e0b;
+  --dev-red: #ef4444;
 }
 
 .dark {
@@ -160,18 +171,17 @@
   --sidebar-accent-foreground: 210 40% 98%;
   --sidebar-border: 217 33% 17%;
   --sidebar-ring: 142 70% 50%;
-}
 
-:root {
-  --dev-bg: #f1f5f9;
-  --dev-card: #ffffff;
-  --dev-border: #e2e8f0;
-  --dev-text: #1e293b;
-  --dev-muted: #64748b;
-  --dev-blue: #1d4ed8;
-  --dev-green: #16a34a;
-  --dev-amber: #d97706;
-  --dev-red: #dc2626;
+  /* Developer Portal Theme - Dark Mode */
+  --dev-bg: #111827;
+  --dev-card: #1f2937;
+  --dev-border: #374151;
+  --dev-text: #f3f4f6;
+  --dev-muted: #9ca3af;
+  --dev-blue: #0b5fff;
+  --dev-green: #10b981;
+  --dev-amber: #f59e0b;
+  --dev-red: #ef4444;
 }
 
 @layer base {
@@ -251,11 +261,11 @@
   background: transparent;
 }
 [style*="--dev-bg"] ::-webkit-scrollbar-thumb {
-  background: #374151;
+  background: #9ca3af;
   border-radius: 999px;
 }
 [style*="--dev-bg"] ::-webkit-scrollbar-thumb:hover {
-  background: #4B5563;
+  background: #6b7280;
 }
 
 /* Developer Portal — Input/Select dark theme */
@@ -270,8 +280,8 @@
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 [style*="--dev-bg"] .dev-card-hover:hover {
-  border-color: #374151;
-  box-shadow: 0 0 0 1px rgba(55, 65, 81, 0.3);
+  border-color: #d1d5db;
+  box-shadow: 0 0 0 1px rgba(209, 213, 219, 0.3);
 }
 
 /* Developer Portal — Code block dark theme */
