@@ -24,10 +24,6 @@ args = "Server Backend"
 task = "workflow.run"
 args = "RPA Worker"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Video Recorder"
-
 [[workflows.workflow]]
 name = "Server Backend"
 author = "agent"
@@ -37,7 +33,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd Arapoint && NODE_ENV=development npx tsx server/index.ts"
+args = "cd Arapoint && npm install tsx --save-dev 2>/dev/null; NODE_ENV=development npx tsx server/index.ts"
 waitForPort = 5000
 
 [[workflows.workflow]]
@@ -49,18 +45,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd Arapoint && NODE_ENV=development node_modules/.bin/tsx server/rpa-worker.ts"
-
-[[workflows.workflow]]
-name = "Video Recorder"
-author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "rm -f exports/raw/05-education-silent.mp4 && node scripts/record-video.mjs --out exports/raw/05-education-silent.mp4 --max-seconds 130 --warmup-ms 1500 && echo '====RECORDING_COMPLETE===='"
+args = "cd Arapoint && NODE_ENV=development npx tsx server/rpa-worker.ts"
 
 [[ports]]
 localPort = 3001
