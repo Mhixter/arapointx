@@ -409,17 +409,44 @@ router.post('/candidates', screeningAuthMiddleware, async (req: Request, res: Re
 
         let rpaJobId: string | null = null;
         let status = 'completed';
+        let circuitReason = '';
 
         if (educationProvider && educationData) {
-          const [rpaJob] = await db.insert(rpaJobs).values({
-            userId: null,
-            serviceType: `screening_${educationProvider}`,
-            queryData: { ...educationData, educationProvider, screeningCandidateId: candidate.id },
-            status: 'pending',
-            priority: 1,
-          }).returning();
-          rpaJobId = rpaJob.id;
-          status = 'processing';
+          // Circuit breaker check — skip RPA if the portal is temporarily paused
+          let circuitOpen = false;
+          try {
+            const cr = await db.execute(sql`
+              SELECT circuit_open, circuit_open_until FROM screening_portal_circuit
+              WHERE portal = ${educationProvider.toLowerCase()} LIMIT 1
+            `);
+            const circuit = cr.rows[0] as any;
+            if (circuit?.circuit_open && circuit.circuit_open_until && new Date(circuit.circuit_open_until) > new Date()) {
+              circuitOpen = true;
+              const until = new Date(circuit.circuit_open_until).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' });
+              circuitReason = `${educationProvider.toUpperCase()} portal is temporarily paused after repeated failures (circuit active until ${until}). Your request has been routed to manual review at no extra charge.`;
+            } else if (circuit?.circuit_open) {
+              // Expired circuit — auto-reset
+              await db.execute(sql`
+                UPDATE screening_portal_circuit
+                SET circuit_open = false, consecutive_failures = 0, circuit_open_until = NULL, updated_at = NOW()
+                WHERE portal = ${educationProvider.toLowerCase()}
+              `);
+            }
+          } catch {}
+
+          if (!circuitOpen) {
+            const [rpaJob] = await db.insert(rpaJobs).values({
+              userId: null,
+              serviceType: `screening_${educationProvider}`,
+              queryData: { ...educationData, educationProvider, screeningCandidateId: candidate.id },
+              status: 'pending',
+              priority: 1,
+            }).returning();
+            rpaJobId = rpaJob.id;
+            status = 'processing';
+          } else {
+            status = 'manual_review';
+          }
         }
 
         const { score, decision } = computeOverallScore(ninSuccess, bvnSuccess, ninResult, bvnResult);
@@ -430,8 +457,15 @@ router.post('/candidates', screeningAuthMiddleware, async (req: Request, res: Re
           fraudResult: { score: fraud.score, level: fraud.level, flags: fraud.flags },
           overallScore: educationProvider ? null : score,
           decision: educationProvider ? null : decision,
-          status: educationProvider ? 'processing' : (fraud.score < 50 ? 'review' : decision === 'FAIL' ? 'failed' : 'completed'),
+          status: educationProvider ? (status as any) : (fraud.score < 50 ? 'review' : decision === 'FAIL' ? 'failed' : 'completed'),
           rpaJobId: rpaJobId || null,
+          ...(status === 'manual_review' ? {
+            educationResult: {
+              manualReview: true, reviewStatus: 'pending',
+              failureReason: circuitReason, provider: educationProvider,
+              circuitBreaker: true, requestedAt: new Date().toISOString(),
+            } as any,
+          } : {}),
           completedAt: educationProvider ? null : new Date(),
           updatedAt: new Date(),
         }).where(eq(screeningCandidates.id, candidate.id));
@@ -447,6 +481,15 @@ router.post('/candidates', screeningAuthMiddleware, async (req: Request, res: Re
             message: `${fullName} scored ${score}% — ${decision}`,
             candidateId: candidate.id,
             severity,
+          });
+        } else if (status === 'manual_review') {
+          await db.insert(screeningNotifications).values({
+            orgId,
+            type: 'alert',
+            title: `Education Check — Portal Paused, Manual Review Started`,
+            message: `${fullName}'s ${educationProvider.toUpperCase()} check has been routed to manual review automatically. Our team will process it within 2–4 hours at no extra charge. Reference: ${reference}`,
+            candidateId: candidate.id,
+            severity: 'warning',
           });
         }
       } catch (bgErr: any) {

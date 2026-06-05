@@ -392,6 +392,98 @@ router.get("/stats", async (req: Request, res: Response) => {
   }
 });
 
+// ── REVIEWER AGENT MANAGEMENT ─────────────────────────────────────────────
+
+router.get("/reviewer-agents", async (req: Request, res: Response) => {
+  try {
+    const rows = await db.execute(sql`
+      SELECT id, name, email, is_active, reviews_completed, notes, created_at
+      FROM screening_reviewer_agents ORDER BY created_at DESC
+    `);
+    res.json(formatResponse("success", 200, "Reviewer agents", rows.rows));
+  } catch (err: any) {
+    res.status(500).json(formatErrorResponse(500, "Failed to fetch agents"));
+  }
+});
+
+router.post("/reviewer-agents", async (req: Request, res: Response) => {
+  try {
+    const { name, email, password, notes } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json(formatErrorResponse(400, "Name, email, and password required"));
+    }
+    const bcrypt = await import("bcryptjs");
+    const hash = await bcrypt.hash(password, 10);
+    const result = await db.execute(sql`
+      INSERT INTO screening_reviewer_agents (name, email, password_hash, notes)
+      VALUES (${name}, ${email.toLowerCase()}, ${hash}, ${notes || null})
+      RETURNING id, name, email, is_active, reviews_completed, created_at
+    `);
+    logger.info("Reviewer agent created", { email });
+    res.status(201).json(formatResponse("success", 201, "Agent created", result.rows[0]));
+  } catch (err: any) {
+    if (err.message?.includes("unique") || err.message?.includes("duplicate")) {
+      return res.status(409).json(formatErrorResponse(409, "Email already exists"));
+    }
+    logger.error("Create reviewer agent error", { error: err.message });
+    res.status(500).json(formatErrorResponse(500, "Failed to create agent"));
+  }
+});
+
+router.put("/reviewer-agents/:id/toggle", async (req: Request, res: Response) => {
+  try {
+    await db.execute(sql`
+      UPDATE screening_reviewer_agents
+      SET is_active = NOT is_active, updated_at = NOW()
+      WHERE id = ${req.params.id}
+    `);
+    res.json(formatResponse("success", 200, "Agent updated", {}));
+  } catch {
+    res.status(500).json(formatErrorResponse(500, "Failed to update agent"));
+  }
+});
+
+router.delete("/reviewer-agents/:id", async (req: Request, res: Response) => {
+  try {
+    await db.execute(sql`
+      UPDATE screening_reviewer_agents SET is_active = false, updated_at = NOW()
+      WHERE id = ${req.params.id}
+    `);
+    res.json(formatResponse("success", 200, "Agent deactivated", {}));
+  } catch {
+    res.status(500).json(formatErrorResponse(500, "Failed to deactivate agent"));
+  }
+});
+
+// ── PORTAL HEALTH / CIRCUIT BREAKER ──────────────────────────────────────
+
+router.get("/portal-health", async (req: Request, res: Response) => {
+  try {
+    const rows = await db.execute(sql`
+      SELECT portal, consecutive_failures, total_failures, total_successes,
+             last_failure_at, last_success_at, circuit_open, circuit_open_until, updated_at
+      FROM screening_portal_circuit ORDER BY portal
+    `);
+    res.json(formatResponse("success", 200, "Portal health", rows.rows));
+  } catch {
+    res.json(formatResponse("success", 200, "Portal health", []));
+  }
+});
+
+router.post("/portal-health/:portal/reset", async (req: Request, res: Response) => {
+  try {
+    await db.execute(sql`
+      UPDATE screening_portal_circuit
+      SET circuit_open = false, consecutive_failures = 0, circuit_open_until = NULL, updated_at = NOW()
+      WHERE portal = ${req.params.portal}
+    `);
+    logger.info("Portal circuit manually reset", { portal: req.params.portal });
+    res.json(formatResponse("success", 200, "Circuit reset", { portal: req.params.portal }));
+  } catch {
+    res.status(500).json(formatErrorResponse(500, "Failed to reset circuit"));
+  }
+});
+
 // ── MANUAL REVIEW QUEUE ────────────────────────────────────────────────────
 
 router.get("/manual-review/queue", async (req: Request, res: Response) => {

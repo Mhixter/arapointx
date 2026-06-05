@@ -33,7 +33,8 @@ import {
   TrendingUp,
   Sparkles,
   Star,
-  ClipboardList
+  ClipboardList,
+  UserCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -97,6 +98,7 @@ const ALL_NAV_ITEMS = [
   { href: "/admin/testimonials", label: "Testimonials", icon: Star, permission: "settings" },
   { href: "/admin/screening-orgs", label: "Screening Orgs", icon: Building2, permission: "settings" },
   { href: "/admin/screening-manual-review", label: "Manual Review Queue", icon: ClipboardList, permission: "settings" },
+  { href: "/admin/screening-agents", label: "Screening Review Agents", icon: UserCheck, permission: "settings" },
   { href: "/admin/employment-queue", label: "Employment Queue", icon: ListTodo, permission: "settings" },
   { href: "/admin/login-activity", label: "Login Activity", icon: Activity, permission: "settings" },
   { href: "/admin/broadcast", label: "Email Broadcast", icon: Mail, permission: "settings" },

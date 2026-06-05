@@ -180,6 +180,10 @@ class RPABot {
           job.service_type.includes('nbais')) {
         const errorMsg = hasError ? (result.error || (result.data as any)?.errorMessage || 'Verification failed') : undefined;
         await this.updateEducationService(job, { ...result, success: !hasError }, errorMsg);
+        if (job.service_type.startsWith('screening_')) {
+          const portal = job.service_type.replace('screening_', '');
+          this.updatePortalCircuit(portal, !hasError).catch(() => {});
+        }
       }
 
       // ── Fire developer webhook if this was a developer API job ────────────
@@ -241,6 +245,10 @@ class RPABot {
             job.service_type.includes('neco') || job.service_type.includes('nabteb') ||
             job.service_type.includes('nbais')) {
           await this.updateEducationService(job, { success: false }, error.message);
+          if (job.service_type.startsWith('screening_')) {
+            const portal = job.service_type.replace('screening_', '');
+            this.updatePortalCircuit(portal, false).catch(() => {});
+          }
         }
 
         this.triggerAIRecovery(job, error.message).catch(e => {
@@ -467,6 +475,49 @@ class RPABot {
       );
     } catch (e: any) {
       logger.warn('Failed to fire developer webhook', { developerId, jobId, error: e.message });
+    }
+  }
+
+  private async updatePortalCircuit(portal: string, success: boolean): Promise<void> {
+    try {
+      if (success) {
+        await db.execute(sql`
+          INSERT INTO screening_portal_circuit
+            (portal, consecutive_failures, total_successes, last_success_at, circuit_open, updated_at)
+          VALUES (${portal}, 0, 1, NOW(), false, NOW())
+          ON CONFLICT (portal) DO UPDATE SET
+            consecutive_failures = 0,
+            total_successes = screening_portal_circuit.total_successes + 1,
+            last_success_at = NOW(),
+            circuit_open = false,
+            circuit_open_until = NULL,
+            updated_at = NOW()
+        `);
+      } else {
+        await db.execute(sql`
+          INSERT INTO screening_portal_circuit
+            (portal, consecutive_failures, total_failures, last_failure_at, updated_at)
+          VALUES (${portal}, 1, 1, NOW(), NOW())
+          ON CONFLICT (portal) DO UPDATE SET
+            consecutive_failures = screening_portal_circuit.consecutive_failures + 1,
+            total_failures = screening_portal_circuit.total_failures + 1,
+            last_failure_at = NOW(),
+            circuit_open = CASE
+              WHEN (screening_portal_circuit.consecutive_failures + 1) >= 3 THEN true
+              ELSE screening_portal_circuit.circuit_open
+            END,
+            circuit_open_until = CASE
+              WHEN (screening_portal_circuit.consecutive_failures + 1) >= 3
+                AND NOT screening_portal_circuit.circuit_open
+              THEN NOW() + INTERVAL '30 minutes'
+              ELSE screening_portal_circuit.circuit_open_until
+            END,
+            updated_at = NOW()
+        `);
+      }
+      logger.info(`Portal circuit updated`, { portal, success });
+    } catch (e: any) {
+      logger.warn('Portal circuit update failed (non-critical)', { portal, error: e.message });
     }
   }
 

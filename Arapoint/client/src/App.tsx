@@ -129,6 +129,9 @@ import ScreeningLogin from "@/pages/screening/Login";
 import ScreeningRegister from "@/pages/screening/RegisterWithOTP";
 import AdminScreeningOrgs from "@/pages/admin/AdminScreeningOrgs";
 import AdminScreeningManualReview from "@/pages/admin/AdminScreeningManualReview";
+import AdminScreeningAgents from "@/pages/admin/AdminScreeningAgents";
+import ScreeningReviewerLogin from "@/pages/screening/reviewer/Login";
+import ScreeningReviewerDashboard from "@/pages/screening/reviewer/Dashboard";
 import AdminTestimonials from "@/pages/admin/AdminTestimonials";
 import ScreeningOverview from "@/pages/screening/dashboard/Overview";
 import ScreeningCandidates from "@/pages/screening/dashboard/Candidates";
@@ -372,6 +375,17 @@ function Router() {
         <AdminCRUDLayout>
           <AdminScreeningManualReview />
         </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/screening-agents">
+        <AdminCRUDLayout>
+          <AdminScreeningAgents />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/screening/reviewer/login">
+        <ScreeningReviewerLogin />
+      </Route>
+      <Route path="/screening/reviewer/dashboard">
+        <ScreeningReviewerDashboard />
       </Route>
       <Route path="/admin/screening-orgs">
         <AdminCRUDLayout>

@@ -40,6 +40,7 @@ import screeningRoutes from "./src/api/routes/screening";
 import screeningAuthRoutes from "./src/api/routes/screeningAuth";
 import testimonialsRoutes from "./src/api/routes/testimonialsRoutes";
 import adminScreeningRoutes from "./src/api/routes/adminScreening";
+import screeningReviewerRoutes from "./src/api/routes/screeningReviewer";
 
 import { publicRateLimiter, authenticatedRateLimiter } from "./src/api/middleware/rateLimit";
 import { errorHandler } from "./src/api/middleware/errorHandler";
@@ -425,6 +426,10 @@ export async function registerRoutes(
   app.use('/api/screening', screeningRoutes);
   app.use('/api/screening', screeningAuthRoutes);
   app.use('/api/admin/screening', adminAuthMiddleware, adminScreeningRoutes);
+  app.use('/api/screening-reviewer', screeningReviewerRoutes);
+
+  // Keep-alive ping — used by self-ping in index.ts and external uptime monitors
+  app.get('/api/ping', (_req, res) => res.json({ status: 'alive', ts: Date.now(), server: 'Arapoint' }));
   
   // Public verification page route (no /api prefix)
   app.get('/verify-slip/:reference', (req, res) => {
