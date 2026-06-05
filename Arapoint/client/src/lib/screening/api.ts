@@ -112,7 +112,18 @@ export function getStatusBg(status: string | null | undefined): string {
   if (status === 'processing') return 'bg-blue-100 text-blue-700';
   if (status === 'review') return 'bg-yellow-100 text-yellow-700';
   if (status === 'failed') return 'bg-red-100 text-red-700';
+  if (status === 'manual_review') return 'bg-orange-100 text-orange-700';
   return 'bg-gray-100 text-gray-600';
+}
+
+export function getStatusLabel(status: string | null | undefined): string {
+  if (status === 'completed') return 'Completed';
+  if (status === 'processing') return 'In Progress';
+  if (status === 'review') return 'Needs Review';
+  if (status === 'failed') return 'Failed';
+  if (status === 'manual_review') return 'Manual Review';
+  if (status === 'pending') return 'Pending';
+  return status || 'Unknown';
 }
 
 export const PRICING = { nin: 130, bvn: 80, education: 120, fraud: 20, total: 350 };

@@ -392,4 +392,150 @@ router.get("/stats", async (req: Request, res: Response) => {
   }
 });
 
+// ── MANUAL REVIEW QUEUE ────────────────────────────────────────────────────
+
+router.get("/manual-review/queue", async (req: Request, res: Response) => {
+  try {
+    const rows = await db.execute(sql`
+      SELECT
+        sc.id, sc.reference, sc.full_name, sc.email, sc.nin, sc.bvn,
+        sc.education_provider, sc.education_data, sc.education_result,
+        sc.nin_result, sc.bvn_result, sc.fraud_result,
+        sc.overall_score, sc.decision, sc.amount_charged,
+        sc.processing_started_at, sc.created_at, sc.updated_at,
+        sc.rpa_job_id, sc.org_id,
+        so.organization_name, so.email AS org_email,
+        rj.error_message AS rpa_error, rj.retry_count AS rpa_retries
+      FROM screening_candidates sc
+      JOIN screening_organizations so ON sc.org_id = so.id
+      LEFT JOIN rpa_jobs rj ON sc.rpa_job_id = rj.id
+      WHERE sc.status = 'manual_review'
+      ORDER BY sc.created_at ASC
+    `);
+    res.json(formatResponse("success", 200, "Manual review queue", {
+      candidates: rows.rows,
+      count: rows.rows.length,
+    }));
+  } catch (err: any) {
+    logger.error("Manual review queue error", { error: err.message });
+    res.status(500).json(formatErrorResponse(500, "Failed to fetch manual review queue"));
+  }
+});
+
+router.post("/manual-review/:candidateId/submit", async (req: Request, res: Response) => {
+  try {
+    const { candidateId } = req.params;
+    const { found, subjectGrades, nameMatch, dobMatch, decision, overallScore, notes } = req.body;
+
+    const cRows = await db.execute(sql`
+      SELECT * FROM screening_candidates WHERE id = ${candidateId} AND status = 'manual_review' LIMIT 1
+    `);
+    if (!cRows.rows.length) {
+      return res.status(404).json(formatErrorResponse(404, "Candidate not found or not in manual review"));
+    }
+    const c = cRows.rows[0] as any;
+
+    const educationResult = {
+      manualReview: true,
+      reviewStatus: "completed",
+      completedAt: new Date().toISOString(),
+      found: !!found,
+      subjectGrades: subjectGrades || {},
+      nameMatch: !!nameMatch,
+      dobMatch: !!dobMatch,
+      notes: notes || "",
+    };
+
+    const finalDecision: string = decision || (found && nameMatch ? "PASS" : "FAIL");
+    const finalScore: number =
+      overallScore ??
+      (found && nameMatch && dobMatch ? 85 : found && nameMatch ? 70 : found ? 55 : 30);
+    const finalStatus =
+      finalDecision === "PASS" ? "completed" : finalDecision === "REVIEW" ? "review" : "failed";
+
+    await db.execute(sql`
+      UPDATE screening_candidates
+      SET
+        status = ${finalStatus},
+        education_result = ${JSON.stringify(educationResult)}::jsonb,
+        overall_score = ${finalScore},
+        decision = ${finalDecision},
+        completed_at = NOW(),
+        updated_at = NOW()
+      WHERE id = ${candidateId}
+    `);
+
+    await db.execute(sql`
+      INSERT INTO screening_notifications (id, org_id, type, title, message, candidate_id, severity, created_at)
+      VALUES (
+        gen_random_uuid(), ${c.org_id}, 'alert',
+        ${"Manual Review Complete — " + finalDecision},
+        ${`${c.full_name}'s education verification is complete. Result: ${finalDecision} (${finalScore}%). Reference: ${c.reference}`},
+        ${candidateId},
+        ${finalDecision === "PASS" ? "success" : finalDecision === "REVIEW" ? "warning" : "error"},
+        NOW()
+      )
+    `);
+
+    logger.info("Manual review submitted", { candidateId, decision: finalDecision, score: finalScore });
+    res.json(
+      formatResponse("success", 200, "Manual review submitted", {
+        candidateId,
+        decision: finalDecision,
+        score: finalScore,
+        status: finalStatus,
+      })
+    );
+  } catch (err: any) {
+    logger.error("Manual review submit error", { error: err.message });
+    res.status(500).json(formatErrorResponse(500, "Failed to submit manual review"));
+  }
+});
+
+// ── QUEUE MONITORING STATS ────────────────────────────────────────────────
+
+router.get("/queue/stats", async (req: Request, res: Response) => {
+  try {
+    const cStats = await db.execute(sql`
+      SELECT
+        COUNT(*) FILTER (WHERE status = 'pending')       AS pending,
+        COUNT(*) FILTER (WHERE status = 'processing')    AS processing,
+        COUNT(*) FILTER (WHERE status = 'manual_review') AS manual_review,
+        COUNT(*) FILTER (WHERE status = 'completed')     AS completed,
+        COUNT(*) FILTER (WHERE status = 'failed')        AS failed,
+        COUNT(*) FILTER (WHERE status = 'review')        AS under_review,
+        COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours') AS last_24h,
+        COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '1 hour')   AS last_1h
+      FROM screening_candidates
+    `);
+
+    const rpaStats = await db.execute(sql`
+      SELECT
+        service_type,
+        COUNT(*) FILTER (WHERE status = 'pending')    AS pending,
+        COUNT(*) FILTER (WHERE status = 'processing') AS processing,
+        COUNT(*) FILTER (WHERE status = 'failed')     AS failed,
+        COUNT(*) FILTER (WHERE status = 'completed')  AS completed,
+        ROUND(
+          AVG(EXTRACT(EPOCH FROM (updated_at - created_at))/60)
+          FILTER (WHERE status = 'completed'), 1
+        ) AS avg_minutes
+      FROM rpa_jobs
+      WHERE service_type LIKE 'screening_%'
+      GROUP BY service_type
+      ORDER BY service_type
+    `);
+
+    res.json(
+      formatResponse("success", 200, "Queue stats", {
+        candidates: cStats.rows[0],
+        rpaByPortal: rpaStats.rows,
+      })
+    );
+  } catch (err: any) {
+    logger.error("Queue stats error", { error: err.message });
+    res.status(500).json(formatErrorResponse(500, "Failed to fetch queue stats"));
+  }
+});
+
 export default router;

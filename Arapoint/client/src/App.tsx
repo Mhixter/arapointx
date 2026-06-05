@@ -128,6 +128,7 @@ import AdminCRUDLayout from "@/components/layout/AdminCRUDLayout";
 import ScreeningLogin from "@/pages/screening/Login";
 import ScreeningRegister from "@/pages/screening/RegisterWithOTP";
 import AdminScreeningOrgs from "@/pages/admin/AdminScreeningOrgs";
+import AdminScreeningManualReview from "@/pages/admin/AdminScreeningManualReview";
 import AdminTestimonials from "@/pages/admin/AdminTestimonials";
 import ScreeningOverview from "@/pages/screening/dashboard/Overview";
 import ScreeningCandidates from "@/pages/screening/dashboard/Candidates";
@@ -365,6 +366,11 @@ function Router() {
       <Route path="/admin/broadcast">
         <AdminCRUDLayout>
           <AdminBroadcast />
+        </AdminCRUDLayout>
+      </Route>
+      <Route path="/admin/screening-manual-review">
+        <AdminCRUDLayout>
+          <AdminScreeningManualReview />
         </AdminCRUDLayout>
       </Route>
       <Route path="/admin/screening-orgs">

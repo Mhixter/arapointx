@@ -335,6 +335,19 @@ router.post('/candidates', screeningAuthMiddleware, async (req: Request, res: Re
       return res.status(402).json(formatErrorResponse(402, `Insufficient wallet balance. Need ₦${charge}, have ₦${balance.toLocaleString()}`));
     }
 
+    // Fair-queue limit: cap in-flight jobs per org to prevent one org starving others
+    const pendingResult = await db.execute(sql`
+      SELECT COUNT(*) AS cnt FROM screening_candidates
+      WHERE org_id = ${orgId} AND status IN ('pending', 'processing')
+    `);
+    const pendingJobs = Number((pendingResult.rows[0] as any)?.cnt || 0);
+    const MAX_CONCURRENT_PER_ORG = 100;
+    if (pendingJobs >= MAX_CONCURRENT_PER_ORG) {
+      return res.status(429).json(formatErrorResponse(429,
+        `Queue limit reached. You currently have ${pendingJobs} screenings in progress. Please wait for some to complete before submitting more.`
+      ));
+    }
+
     const reference = generateCandidateRef();
     const [candidate] = await db.insert(screeningCandidates).values({
       orgId,
@@ -485,6 +498,36 @@ router.get('/candidates/:id', screeningAuthMiddleware, async (req: Request, res:
           message: `${candidate.fullName} scored ${score}% — ${decision}`,
           candidateId: id,
           severity: decision === 'PASS' ? 'success' : decision === 'REVIEW' ? 'warning' : 'error',
+        }).catch(() => {});
+
+        const [updated] = await db.select().from(screeningCandidates).where(eq(screeningCandidates.id, id)).limit(1);
+        return res.json(formatResponse('success', 200, 'Candidate fetched', updated));
+      }
+
+      // RPA exhausted all retries → escalate to manual review instead of marking failed
+      if (rpaJob?.status === 'failed') {
+        const failureReason = (rpaJob as any).errorMessage
+          || 'Portal automation failed after all retries. The exam body website may be temporarily unavailable.';
+
+        await db.update(screeningCandidates).set({
+          status: 'manual_review',
+          educationResult: {
+            manualReview: true,
+            reviewStatus: 'pending',
+            failureReason,
+            provider: candidate.educationProvider,
+            requestedAt: new Date().toISOString(),
+          } as any,
+          updatedAt: new Date(),
+        }).where(eq(screeningCandidates.id, id));
+
+        await db.insert(screeningNotifications).values({
+          orgId,
+          type: 'alert',
+          title: 'Education Check — Manual Review',
+          message: `${candidate.fullName}'s education verification has been escalated for manual review. Our team will process it within 2–4 hours at no extra charge. Reference: ${candidate.reference}`,
+          candidateId: id,
+          severity: 'warning',
         }).catch(() => {});
 
         const [updated] = await db.select().from(screeningCandidates).where(eq(screeningCandidates.id, id)).limit(1);

@@ -10,6 +10,7 @@ const TABS = [
   { label: "All", value: "all" },
   { label: "Completed", value: "completed" },
   { label: "In Progress", value: "processing" },
+  { label: "Manual Review", value: "manual_review" },
   { label: "Review", value: "review" },
   { label: "Failed", value: "failed" },
 ];
@@ -123,7 +124,7 @@ export default function ScreeningCandidates() {
                         </span>
                       ) : (
                         <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${getStatusBg(c.status)}`}>
-                          {c.status === "processing" ? "In Progress" : c.status}
+                          {c.status === "processing" ? "In Progress" : c.status === "manual_review" ? "Manual Review" : c.status}
                         </span>
                       )}
                     </div>
