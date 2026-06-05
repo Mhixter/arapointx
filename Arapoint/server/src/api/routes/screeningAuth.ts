@@ -8,6 +8,7 @@ import { v4 as uuid } from "uuid";
 import { logger } from "../../utils/logger";
 import { formatResponse, formatErrorResponse } from "../../utils/helpers";
 import * as emailService from "../../services/emailService";
+import { config } from "../../config/env";
 
 const router = Router();
 
@@ -64,17 +65,20 @@ router.post("/auth/send-otp", async (req: Request, res: Response) => {
 
     // Send OTP email
     try {
-      await emailService.sendEmail({
-        to: email,
-        subject: "Arapoint - Email Verification Code",
-        html: `
-          <h2>Verify Your Email</h2>
-          <p>Your verification code is:</p>
-          <h1 style="font-size: 32px; font-weight: bold; font-family: monospace; color: #0B5FFF;">${otp}</h1>
-          <p>This code expires in 10 minutes.</p>
-          <p style="color: #999; font-size: 12px;">If you didn't request this, please ignore this email.</p>
-        `,
-      });
+      await emailService.sendEmail(
+        email,
+        "Arapoint - Email Verification Code",
+        `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;">
+          <h2 style="color:#111827;margin-bottom:8px;">Verify Your Email</h2>
+          <p style="color:#6b7280;">Enter the code below to complete your Arapoint Employment Screening registration.</p>
+          <div style="background:#f3f4f6;border-radius:12px;padding:24px;text-align:center;margin:24px 0;">
+            <p style="font-size:13px;color:#6b7280;margin:0 0 8px;">Your verification code</p>
+            <p style="font-size:40px;font-weight:700;font-family:monospace;letter-spacing:0.2em;color:#0B5FFF;margin:0;">${otp}</p>
+            <p style="font-size:12px;color:#9ca3af;margin:8px 0 0;">Expires in 10 minutes</p>
+          </div>
+          <p style="color:#9ca3af;font-size:12px;">If you didn't request this code, you can safely ignore this email.</p>
+        </div>`
+      );
     } catch (emailErr: any) {
       logger.warn("OTP email send failed", { error: emailErr.message });
     }
@@ -183,10 +187,10 @@ router.post("/auth/register-with-otp", async (req: Request, res: Response) => {
       updatedAt: new Date(),
     } as any);
 
-    // Generate token
+    // Generate token — must match screeningAuthMiddleware expectations
     const token = jwt.sign(
-      { orgId, userId, email, role: "admin" },
-      process.env.JWT_SECRET || "your-secret-key",
+      { screeningOrgId: orgId, screeningUserId: userId, isScreening: true, email, role: "admin" },
+      config.JWT_SECRET,
       { expiresIn: "30d" }
     );
 
