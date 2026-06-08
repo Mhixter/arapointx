@@ -156,19 +156,19 @@ router.post("/auth/register-with-otp", async (req: Request, res: Response) => {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Create organization
+    // Create organization - FIXED: Use correct field names from schema
     const orgId = uuid();
     await db.insert(screeningOrganizations).values({
       id: orgId,
-      organizationName,
+      name: organizationName,  // ✅ FIX: Use 'name' not 'organizationName'
       email,
       phone: phone || "",
       industry: industry || "",
-      companySize: size || "",
+      size: size || "",  // ✅ FIX: Use 'size' not 'companySize'
       passwordHash,
-      status: "active",
-      walletBalance: "0",
+      isActive: true,  // ✅ FIX: Use 'isActive' not 'status'
       emailVerified: true,
+      walletBalance: "0",
       createdAt: new Date(),
       updatedAt: new Date(),
     } as any);
@@ -179,12 +179,10 @@ router.post("/auth/register-with-otp", async (req: Request, res: Response) => {
       id: userId,
       orgId,
       email,
-      firstName: organizationName.split(" ")[0],
-      lastName: organizationName.split(" ").slice(1).join(" ") || "Admin",
+      name: organizationName.split(" ")[0],  // ✅ FIX: Use 'name' not 'firstName' 
       role: "admin",
-      status: "active",
+      isActive: true,  // ✅ FIX: Use 'isActive' not 'status'
       createdAt: new Date(),
-      updatedAt: new Date(),
     } as any);
 
     // Generate token — must match screeningAuthMiddleware expectations
@@ -198,7 +196,7 @@ router.post("/auth/register-with-otp", async (req: Request, res: Response) => {
 
     res.json(formatResponse("success", 201, "Organization created", {
       token,
-      organization: { id: orgId, organizationName, email },
+      organization: { id: orgId, name: organizationName, email },
       user: { id: userId, email, role: "admin" },
     }));
   } catch (err: any) {
