@@ -347,7 +347,15 @@ function generateRegularSlip(data: NINData, reference: string, generatedAt: stri
 // STANDARD SLIP - Uses exact user template image as background with data overlay
 function generateStandardSlip(data: NINData, reference: string, generatedAt: string): string {
   const fullName = `${data.firstName} ${data.middleName || ''} ${data.lastName}`.replace(/\s+/g, ' ').trim();
-  const qrData = JSON.stringify({ nin: data.id, name: fullName });
+  const qrData = JSON.stringify({
+    nin: data.id,
+    surname: (data.lastName || '').toUpperCase(),
+    firstname: (data.firstName || '').toUpperCase(),
+    middlename: (data.middleName || '').toUpperCase(),
+    date_of_birth: data.dateOfBirth || '',
+    gender: (data.gender || '').toUpperCase(),
+    name: fullName,
+  });
   
   // Load the standard template as base64
   const templatePath = path.join(process.cwd(), 'server/src/templates/standard_template.png');
@@ -769,7 +777,14 @@ function generatePremiumSlip(data: NINData, reference: string, generatedAt: stri
   </div>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <script>
-    const qrData = "NIN:${escapeHtml(data.id)}|NAME:${escapeHtml(data.lastName).toUpperCase()}, ${escapeHtml(givenNames).toUpperCase()}";
+    const qrData = JSON.stringify({
+      nin: "${escapeHtml(data.id)}",
+      surname: "${escapeHtml(data.lastName).toUpperCase()}",
+      firstname: "${escapeHtml(data.firstName).toUpperCase()}",
+      middlename: "${escapeHtml(data.middleName || '').toUpperCase()}",
+      date_of_birth: "${escapeHtml(data.dateOfBirth || '')}",
+      gender: "${escapeHtml((data.gender || '').toUpperCase())}"
+    });
     QRCode.toCanvas(document.getElementById('qrcode'), qrData, {
       width: 150,
       margin: 0,

@@ -488,7 +488,12 @@ export const generatePdfSlip = async (
     slip_reference: slipReference,
     verification_status: "verified",
     verification_url: verificationUrl,
-    nin_masked: data.nin ? `***${data.nin.slice(-4)}` : "",
+    nin: data.nin || "",
+    surname: (data.surname || "").toUpperCase(),
+    firstname: (data.firstname || "").toUpperCase(),
+    middlename: (data.middlename || "").toUpperCase(),
+    date_of_birth: data.date_of_birth || "",
+    gender: (data.gender || "").toUpperCase(),
   };
 
   const settings = getSlipSettings(slipType);
