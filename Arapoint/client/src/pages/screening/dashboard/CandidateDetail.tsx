@@ -1,9 +1,33 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useLocation } from "wouter";
-import { CheckCircle, XCircle, AlertTriangle, Loader2, Download, RefreshCw, ArrowLeft, Shield, GraduationCap, User, TrendingUp } from "lucide-react";
+import { CheckCircle, XCircle, AlertTriangle, Loader2, Download, RefreshCw, ArrowLeft, Shield, GraduationCap, User, TrendingUp, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { screeningApi, getDecisionBg } from "@/lib/screening/api";
 import ScreeningDashboardLayout from "@/components/layout/ScreeningDashboardLayout";
+
+/** Mirror the server-side DOB normalisation so the frontend comparison is format-agnostic. */
+function normalizeDobFE(raw: string | undefined | null): string | null {
+  if (!raw) return null;
+  const s = raw.trim();
+  if (/^\d{4}[-/]\d{2}[-/]\d{2}/.test(s)) return s.substring(0, 10).replace(/\//g, '-');
+  const monthNames: Record<string, string> = {
+    jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+    jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+  };
+  const namedMatch = s.match(/^(\d{1,2})[-/\s]([a-zA-Z]{3})[-/\s](\d{4})/);
+  if (namedMatch) {
+    const mm = monthNames[namedMatch[2].toLowerCase()];
+    if (mm) return `${namedMatch[3]}-${mm}-${namedMatch[1].padStart(2, '0')}`;
+  }
+  const parts = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if (parts) {
+    const d = parseInt(parts[1], 10);
+    const m = parseInt(parts[2], 10);
+    const y = parts[3];
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }
+  return null;
+}
 
 function CircleScore({ score, size = 80 }: { score: number; size?: number }) {
   const radius = (size - 12) / 2;
@@ -47,6 +71,7 @@ export default function CandidateDetail() {
   const [candidate, setCandidate] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   const load = async () => {
     try {
@@ -56,6 +81,31 @@ export default function CandidateDetail() {
   };
 
   useEffect(() => { load(); }, [id]);
+
+  const downloadPdf = async () => {
+    if (!candidate || downloadingPdf) return;
+    setDownloadingPdf(true);
+    try {
+      const token = localStorage.getItem("screeningToken");
+      const res = await fetch(`/api/screening/candidates/${candidate.id}/pdf`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("PDF generation failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${candidate.reference || candidate.id}-report.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      alert("PDF download failed: " + (e.message || "Unknown error"));
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   useEffect(() => {
     if (candidate?.status === "processing") {
@@ -188,7 +238,7 @@ export default function CandidateDetail() {
               {ninData && bvnData && (
                 <>
                   {ninData.dateOfBirth && bvnData.dateOfBirth && (
-                    <CheckRow label="Date of Birth Match" status={ninData.dateOfBirth?.substring(0, 10) === bvnData.dateOfBirth?.substring(0, 10) ? "verified" : "failed"} />
+                    <CheckRow label="Date of Birth Match" status={normalizeDobFE(ninData.dateOfBirth) === normalizeDobFE(bvnData.dateOfBirth) ? "verified" : "failed"} />
                   )}
                 </>
               )}
@@ -209,9 +259,33 @@ export default function CandidateDetail() {
                   <h3 className="font-semibold text-gray-900">Education Verification</h3>
                   <span className="ml-auto text-xs text-gray-400 uppercase">{candidate.educationProvider}</span>
                 </div>
-                {edu ? (
+                {edu?.manualReview === true ? (
+                  /* Education escalated to manual review — not yet completed */
+                  <div className="space-y-3">
+                    <CheckRow
+                      label={`${(candidate.educationProvider || "").toUpperCase()} Results`}
+                      status={edu.reviewStatus === "completed" ? (edu.found ? "verified" : "failed") : "pending"}
+                      detail={edu.reviewStatus === "completed" ? (edu.found ? "Manual review completed" : "Not verified") : "Awaiting manual review"}
+                    />
+                    {edu.reviewStatus !== "completed" && (
+                      <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 rounded-xl px-3 py-2 mt-2">
+                        <Clock className="w-3.5 h-3.5 flex-shrink-0" />
+                        {edu.failureReason || "Education check sent to manual review. Our team will process it within 2–4 hours."}
+                      </div>
+                    )}
+                    {edu.reviewStatus === "completed" && edu.subjectGrades && Object.keys(edu.subjectGrades).length > 0 && (
+                      <div className="mt-4 overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead><tr className="border-b border-gray-100"><th className="text-left py-2 text-xs text-gray-400 font-medium">Subject</th><th className="text-right py-2 text-xs text-gray-400 font-medium">Grade</th></tr></thead>
+                          <tbody>{Object.entries(edu.subjectGrades).map(([subject, grade]: any) => (<tr key={subject} className="border-b border-gray-50"><td className="py-2 text-gray-700">{subject}</td><td className="py-2 text-right font-semibold text-gray-900">{grade}</td></tr>))}</tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                ) : edu?.found === true ? (
+                  /* Successfully verified via RPA */
                   <>
-                    <CheckRow label={`${(candidate.educationProvider || "").toUpperCase()} Results`} status="verified" detail={`${edu.candidateName || ""}`} />
+                    <CheckRow label={`${(candidate.educationProvider || "").toUpperCase()} Results`} status="verified" detail={edu.candidateName || undefined} />
                     {edu.subjects && Array.isArray(edu.subjects) && (
                       <div className="mt-4 overflow-x-auto">
                         <table className="w-full text-sm">
@@ -221,7 +295,11 @@ export default function CandidateDetail() {
                       </div>
                     )}
                   </>
+                ) : edu?.found === false ? (
+                  /* Record not found */
+                  <CheckRow label={`${(candidate.educationProvider || "").toUpperCase()} Results`} status="failed" detail="No matching record found" />
                 ) : (
+                  /* Still processing */
                   <CheckRow label="Education results" status="pending" detail="Still processing..." />
                 )}
               </div>
@@ -270,8 +348,16 @@ export default function CandidateDetail() {
 
             {/* Actions */}
             <div className="flex flex-wrap gap-3">
-              <Button className="bg-blue-700 hover:bg-blue-800 text-white rounded-xl flex-1 sm:flex-none">
-                <Download className="w-4 h-4 mr-2" /> Download PDF Report
+              <Button
+                className="bg-blue-700 hover:bg-blue-800 text-white rounded-xl flex-1 sm:flex-none"
+                onClick={downloadPdf}
+                disabled={downloadingPdf}
+              >
+                {downloadingPdf ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating...</>
+                ) : (
+                  <><Download className="w-4 h-4 mr-2" /> Download PDF Report</>
+                )}
               </Button>
               <Button variant="outline" onClick={() => { setRefreshing(true); load(); }} className="rounded-xl flex-1 sm:flex-none">
                 <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`} /> Refresh

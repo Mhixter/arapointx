@@ -16,9 +16,9 @@ router.get("/organizations", async (req: Request, res: Response) => {
   try {
     const organizations = await db.select({
       id: screeningOrganizations.id,
-      organizationName: screeningOrganizations.organizationName,
+      name: screeningOrganizations.name,
       email: screeningOrganizations.email,
-      status: screeningOrganizations.status,
+      isActive: screeningOrganizations.isActive,
       walletBalance: screeningOrganizations.walletBalance,
       industry: screeningOrganizations.industry,
       createdAt: screeningOrganizations.createdAt,
@@ -54,7 +54,7 @@ router.get("/screenings", async (req: Request, res: Response) => {
 
     let query = db.select({
       id: screeningCandidates.id,
-      candidateName: screeningCandidates.firstName,
+      candidateName: screeningCandidates.fullName,
       nin: screeningCandidates.nin,
       bvn: screeningCandidates.bvn,
       decision: screeningCandidates.decision,
@@ -370,10 +370,10 @@ router.get("/stats", async (req: Request, res: Response) => {
   try {
     const totalOrgs = await db.execute(sql`SELECT COUNT(*) as count FROM screening_organizations`);
     const totalScreenings = await db.execute(sql`SELECT COUNT(*) as count FROM screening_candidates`);
-    const passedScreenings = await db.execute(sql`SELECT COUNT(*) as count FROM screening_candidates WHERE decision = 'pass'`);
-    const failedScreenings = await db.execute(sql`SELECT COUNT(*) as count FROM screening_candidates WHERE decision = 'fail'`);
-    const reviewScreenings = await db.execute(sql`SELECT COUNT(*) as count FROM screening_candidates WHERE decision = 'review'`);
-    const failedEduChecks = await db.execute(sql`SELECT COUNT(*) as count FROM screening_failed_education_checks WHERE status = 'failed'`);
+    const passedScreenings = await db.execute(sql`SELECT COUNT(*) as count FROM screening_candidates WHERE decision = 'PASS'`);
+    const failedScreenings = await db.execute(sql`SELECT COUNT(*) as count FROM screening_candidates WHERE decision = 'FAIL'`);
+    const reviewScreenings = await db.execute(sql`SELECT COUNT(*) as count FROM screening_candidates WHERE decision = 'REVIEW'`);
+    const failedEduChecks = await db.execute(sql`SELECT COUNT(*) as count FROM screening_failed_education_checks WHERE status = 'failed'`).catch(() => ({ rows: [{ count: 0 }] }));
 
     const stats = {
       totalOrganizations: Number((totalOrgs.rows[0] as any)?.count || 0),

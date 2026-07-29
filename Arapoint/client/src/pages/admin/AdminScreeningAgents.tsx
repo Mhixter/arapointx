@@ -7,10 +7,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
+import { tokenStorage } from "@/lib/tokenStorage";
+
 const API = "/api/admin/screening";
 
 function adminHeaders() {
-  return { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("adminToken")}` };
+  // Use tokenStorage (sessionStorage) — same store the admin login uses
+  const token = tokenStorage.getItem("adminToken") || localStorage.getItem("adminToken") || "";
+  return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
 }
 
 function timeAgo(d: string) {

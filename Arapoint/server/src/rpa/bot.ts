@@ -269,6 +269,7 @@ class RPABot {
       case 'jamb':
       case 'jamb_score':
       case 'jamb_service':
+      case 'screening_jamb':
         return await jambWorker.execute(queryData);
 
       case 'jamb_exam_slip':
@@ -277,21 +278,25 @@ class RPABot {
       case 'waec':
       case 'waec_result':
       case 'waec_service':
+      case 'screening_waec':
         return await this.executeEducationWorker('waec', queryData);
 
       case 'neco':
       case 'neco_result':
       case 'neco_service':
+      case 'screening_neco':
         return await this.executeEducationWorker('neco', queryData);
 
       case 'nabteb':
       case 'nabteb_result':
       case 'nabteb_service':
+      case 'screening_nabteb':
         return await this.executeEducationWorker('nabteb', queryData);
 
       case 'nbais':
       case 'nbais_result':
       case 'nbais_service':
+      case 'screening_nbais':
         return await this.executeEducationWorker('nbais', queryData);
 
       case 'vtpass_data_scrape':

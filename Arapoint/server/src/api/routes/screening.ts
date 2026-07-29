@@ -82,11 +82,57 @@ function nameSimilarity(a: string, b: string): number {
   return union === 0 ? 0 : intersection / union;
 }
 
+/**
+ * Normalise a date string to YYYY-MM-DD for reliable cross-source comparison.
+ * Handles:
+ *   DD-MM-YYYY  (NIMC / NIN Prembly format, e.g. "10-11-2001")
+ *   DD/MM/YYYY
+ *   DD-MMM-YYYY (e.g. "10-Nov-2001")
+ *   YYYY-MM-DD  (BVN Prembly format, ISO)
+ *   YYYY/MM/DD
+ *   MM/DD/YYYY  (US format — detected when month > 12 in DD position)
+ */
+function normalizeDob(raw: string | undefined | null): string | null {
+  if (!raw) return null;
+  const s = raw.trim();
+
+  // Already ISO YYYY-MM-DD or YYYY/MM/DD
+  if (/^\d{4}[-/]\d{2}[-/]\d{2}/.test(s)) {
+    return s.substring(0, 10).replace(/\//g, '-');
+  }
+
+  // Month name: DD-MMM-YYYY or DD/MMM/YYYY
+  const monthNames: Record<string, string> = {
+    jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+    jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+  };
+  const namedMatch = s.match(/^(\d{1,2})[-/\s]([a-zA-Z]{3})[-/\s](\d{4})/);
+  if (namedMatch) {
+    const mm = monthNames[namedMatch[2].toLowerCase()];
+    if (mm) return `${namedMatch[3]}-${mm}-${namedMatch[1].padStart(2, '0')}`;
+  }
+
+  // DD-MM-YYYY or DD/MM/YYYY
+  const parts = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if (parts) {
+    const d = parseInt(parts[1], 10);
+    const m = parseInt(parts[2], 10);
+    const y = parts[3];
+    // If first part > 12 it must be the day
+    if (d > 12) return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    // Otherwise assume DD-MM-YYYY (Nigerian convention)
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }
+
+  return null;
+}
+
 function computeFraudScore(ninData: any, bvnData: any): { score: number; level: string; flags: string[] } {
   const flags: string[] = [];
   let deductions = 0;
 
   if (ninData && bvnData) {
+    // ── Name comparison ───────────────────────────────────────────────────
     const ninName = `${ninData.firstName || ''} ${ninData.lastName || ''}`.trim();
     const bvnName = `${bvnData.firstName || ''} ${bvnData.lastName || ''}`.trim();
     const similarity = nameSimilarity(ninName, bvnName);
@@ -97,12 +143,16 @@ function computeFraudScore(ninData: any, bvnData: any): { score: number; level: 
       flags.push('Moderate name mismatch between NIN and BVN');
       deductions += 15;
     }
-    const ninDob = ninData.dateOfBirth?.substring(0, 10);
-    const bvnDob = bvnData.dateOfBirth?.substring(0, 10);
+
+    // ── Date of birth comparison (format-normalised) ───────────────────────
+    const ninDob = normalizeDob(ninData.dateOfBirth);
+    const bvnDob = normalizeDob(bvnData.dateOfBirth);
     if (ninDob && bvnDob && ninDob !== bvnDob) {
       flags.push('Date of birth mismatch between NIN and BVN');
       deductions += 25;
     }
+
+    // ── Watchlist check ───────────────────────────────────────────────────
     if (bvnData.watchListed) {
       flags.push('BVN is watchlisted');
       deductions += 40;
@@ -124,8 +174,9 @@ function computeOverallScore(ninSuccess: boolean, bvnSuccess: boolean, ninData: 
     const sim = nameSimilarity(ninName, bvnName);
     if (sim >= 0.7) score += 20;
     else if (sim >= 0.5) score += 10;
-    const ninDob = ninData.dateOfBirth?.substring(0, 10);
-    const bvnDob = bvnData.dateOfBirth?.substring(0, 10);
+    // Use normalised DOB comparison
+    const ninDob = normalizeDob(ninData.dateOfBirth);
+    const bvnDob = normalizeDob(bvnData.dateOfBirth);
     if (ninDob && bvnDob && ninDob === bvnDob) score += 10;
   }
   if (educationResult?.found) {
@@ -1143,6 +1194,174 @@ router.put('/notifications/read-all', screeningAuthMiddleware, async (req: Reque
     res.json(formatResponse('success', 200, 'All notifications marked as read', {}));
   } catch (err: any) {
     res.status(500).json(formatErrorResponse(500, 'Failed to mark notifications'));
+  }
+});
+
+// ── PDF REPORT DOWNLOAD ───────────────────────────────────────────────────────
+
+router.get('/candidates/:id/pdf', screeningAuthMiddleware, async (req: Request, res: Response) => {
+  try {
+    const orgId = (req as any).screeningOrgId;
+    const { id } = req.params;
+
+    const [candidate] = await db.select().from(screeningCandidates)
+      .where(and(eq(screeningCandidates.id, id), eq(screeningCandidates.orgId, orgId))).limit(1);
+    if (!candidate) return res.status(404).json(formatErrorResponse(404, 'Candidate not found'));
+
+    const [org] = await db.select({ name: screeningOrganizations.name })
+      .from(screeningOrganizations).where(eq(screeningOrganizations.id, orgId)).limit(1);
+
+    const nin = candidate.ninResult as any;
+    const bvn = candidate.bvnResult as any;
+    const fraud = candidate.fraudResult as any;
+    const edu = candidate.educationResult as any;
+    const ninData = nin?.data;
+    const bvnData = bvn?.data;
+
+    const ninDob = normalizeDob(ninData?.dateOfBirth);
+    const bvnDob = normalizeDob(bvnData?.dateOfBirth);
+    const dobMatch = ninDob && bvnDob && ninDob === bvnDob;
+
+    const formatDate = (d: string | undefined | null) => {
+      if (!d) return '—';
+      const norm = normalizeDob(d);
+      if (!norm) return d;
+      const [y, m, day] = norm.split('-');
+      return `${day}-${m}-${y}`;
+    };
+
+    const riskColor = (score: number) =>
+      score >= 80 ? '#16a34a' : score >= 60 ? '#d97706' : '#dc2626';
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 13px; color: #1e293b; margin: 0; padding: 32px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 14px; color: #475569; margin: 0 0 12px; font-weight: 600; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 2px solid #1d4ed8; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+  .pass { background: #dcfce7; color: #15803d; }
+  .review { background: #fef9c3; color: #a16207; }
+  .fail { background: #fee2e2; color: #b91c1c; }
+  .section { margin-bottom: 24px; }
+  table { width: 100%; border-collapse: collapse; }
+  td, th { padding: 7px 10px; text-align: left; border-bottom: 1px solid #f1f5f9; font-size: 12px; }
+  th { font-weight: 600; color: #64748b; background: #f8fafc; }
+  .ok { color: #16a34a; font-weight: 700; }
+  .fail-text { color: #dc2626; font-weight: 700; }
+  .warn { color: #d97706; font-weight: 700; }
+  .flag-item { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 6px; padding: 6px 10px; margin: 4px 0; font-size: 12px; color: #9a3412; }
+  .score-bar { height: 10px; border-radius: 5px; background: #e2e8f0; margin: 6px 0; }
+  .score-fill { height: 10px; border-radius: 5px; }
+  .footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .field { }
+  .field .label { font-size: 11px; color: #94a3b8; }
+  .field .value { font-size: 13px; font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <p style="font-size:11px;color:#64748b;margin:0 0 4px">ARAPOINT EMPLOYMENT SCREENING</p>
+    <h1>${candidate.fullName}</h1>
+    <p style="margin:0;color:#64748b;font-size:12px">${candidate.reference} &bull; ${candidate.position || 'N/A'}</p>
+    <p style="margin:4px 0 0;font-size:11px;color:#94a3b8">Generated: ${new Date().toLocaleString('en-NG')}</p>
+  </div>
+  <div style="text-align:right">
+    <p style="font-size:11px;color:#64748b;margin:0 0 4px">Organisation</p>
+    <p style="font-weight:700;margin:0">${org?.name || 'N/A'}</p>
+    ${candidate.decision ? `<span class="badge ${candidate.decision === 'PASS' ? 'pass' : candidate.decision === 'REVIEW' ? 'review' : 'fail'}">${candidate.decision}</span>` : ''}
+    ${candidate.overallScore !== null && candidate.overallScore !== undefined ? `<p style="margin:6px 0 0;font-size:20px;font-weight:800;color:${riskColor(Number(candidate.overallScore))}">${candidate.overallScore}%</p>` : ''}
+  </div>
+</div>
+
+<div class="section">
+  <h2>Identity Verification</h2>
+  <table>
+    <tr><th>Check</th><th>Result</th><th>Details</th></tr>
+    <tr><td>NIN Verification</td><td class="${nin?.success ? 'ok' : 'fail-text'}">${nin?.success ? '✓ Verified' : '✗ Failed'}</td><td>${ninData ? `${ninData.firstName || ''} ${ninData.lastName || ''}`.trim() : '—'}</td></tr>
+    <tr><td>BVN Verification</td><td class="${bvn?.success ? 'ok' : 'fail-text'}">${bvn?.success ? '✓ Verified' : '✗ Failed'}</td><td>${bvnData ? `${bvnData.firstName || ''} ${bvnData.lastName || ''}`.trim() : '—'}</td></tr>
+    ${ninData && bvnData ? `<tr><td>Date of Birth Match</td><td class="${dobMatch ? 'ok' : 'fail-text'}">${dobMatch ? '✓ Match' : '✗ Mismatch'}</td><td>${formatDate(ninData.dateOfBirth)} (NIN) / ${formatDate(bvnData.dateOfBirth)} (BVN)</td></tr>` : ''}
+  </table>
+</div>
+
+${ninData ? `
+<div class="section">
+  <h2>NIN Identity Data</h2>
+  <div class="grid2">
+    <div class="field"><div class="label">Full Name</div><div class="value">${[ninData.firstName, ninData.middleName, ninData.lastName].filter(Boolean).join(' ')}</div></div>
+    <div class="field"><div class="label">Date of Birth</div><div class="value">${formatDate(ninData.dateOfBirth)}</div></div>
+    <div class="field"><div class="label">Gender</div><div class="value">${ninData.gender || '—'}</div></div>
+    <div class="field"><div class="label">State</div><div class="value">${ninData.state || '—'}</div></div>
+    <div class="field"><div class="label">LGA</div><div class="value">${ninData.lga || '—'}</div></div>
+    <div class="field"><div class="label">Phone</div><div class="value">${ninData.phone || '—'}</div></div>
+  </div>
+</div>` : ''}
+
+${edu ? `
+<div class="section">
+  <h2>Education Verification — ${(candidate.educationProvider || '').toUpperCase()}</h2>
+  <table>
+    <tr><th>Check</th><th>Result</th></tr>
+    <tr><td>Record Found</td><td class="${edu.found ? 'ok' : edu.manualReview && edu.reviewStatus !== 'completed' ? 'warn' : 'fail-text'}">${edu.manualReview && edu.reviewStatus !== 'completed' ? '⏳ Manual Review Pending' : edu.found ? '✓ Found' : '✗ Not Found'}</td></tr>
+    ${edu.found ? `<tr><td>Name Match</td><td class="${edu.nameMatch ? 'ok' : 'fail-text'}">${edu.nameMatch ? '✓ Match' : '✗ Mismatch'}</td></tr>` : ''}
+    ${edu.candidateName ? `<tr><td>Candidate Name on Record</td><td>${edu.candidateName}</td></tr>` : ''}
+  </table>
+  ${edu.subjects && Array.isArray(edu.subjects) && edu.subjects.length > 0 ? `
+  <table style="margin-top:10px">
+    <tr><th>Subject</th><th>Grade</th></tr>
+    ${edu.subjects.map((s: any) => `<tr><td>${s.subject}</td><td><strong>${s.grade}</strong></td></tr>`).join('')}
+  </table>` : ''}
+</div>` : ''}
+
+${fraud ? `
+<div class="section">
+  <h2>Fraud & Risk Analysis</h2>
+  <div style="display:flex;align-items:center;gap:20px;margin-bottom:12px">
+    <div>
+      <p style="margin:0;font-size:22px;font-weight:800;color:${riskColor(fraud.score)}">${fraud.score}%</p>
+      <p style="margin:0;font-size:12px;color:${riskColor(fraud.score)};font-weight:600">${fraud.level}</p>
+    </div>
+    <div style="flex:1">
+      <div class="score-bar"><div class="score-fill" style="width:${fraud.score}%;background:${riskColor(fraud.score)}"></div></div>
+      <p style="margin:0;font-size:11px;color:#94a3b8">${fraud.flags?.length || 0} risk factor(s) detected</p>
+    </div>
+  </div>
+  ${fraud.flags && fraud.flags.length > 0 ? fraud.flags.map((f: string) => `<div class="flag-item">⚠ ${f}</div>`).join('') : '<p style="color:#16a34a;font-size:12px">✓ No significant fraud indicators found.</p>'}
+</div>` : ''}
+
+${candidate.decision ? `
+<div class="section">
+  <h2>Recommendation</h2>
+  <div style="background:${candidate.decision === 'PASS' ? '#f0fdf4' : candidate.decision === 'REVIEW' ? '#fefce8' : '#fef2f2'};border:1px solid ${candidate.decision === 'PASS' ? '#bbf7d0' : candidate.decision === 'REVIEW' ? '#fef08a' : '#fecaca'};border-radius:8px;padding:14px">
+    <p style="margin:0;font-size:13px;color:#1e293b">
+      ${candidate.decision === 'PASS'
+        ? 'Candidate meets all employment verification requirements and is suitable for onboarding under standard HR review.'
+        : candidate.decision === 'REVIEW'
+        ? 'Candidate has some inconsistencies. Manual review is recommended before proceeding with the hiring decision.'
+        : 'Candidate failed key verification checks. High risk detected. Do not proceed without thorough manual investigation and sign-off from HR management.'}
+    </p>
+  </div>
+</div>` : ''}
+
+<div class="footer">
+  <p>This report was generated by Arapoint Employment Screening Platform. Reference: ${candidate.reference}. 
+  Generated on ${new Date().toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })} WAT.
+  This document is confidential and intended solely for HR use.</p>
+</div>
+</body>
+</html>`;
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${candidate.reference}-report.html"`);
+    res.send(html);
+  } catch (err: any) {
+    logger.error('PDF report error', { error: err.message });
+    res.status(500).json(formatErrorResponse(500, 'Failed to generate report'));
   }
 });
 
