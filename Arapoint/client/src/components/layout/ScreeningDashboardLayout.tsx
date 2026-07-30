@@ -47,22 +47,22 @@ export default function ScreeningDashboardLayout({ children }: { children: React
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
-      <div className="px-6 py-5 border-b border-blue-800/30">
+      <div className="px-6 py-5 border-b border-green-800/30">
         <div className="flex items-center gap-2 mb-1">
           <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center p-1">
             <img src={arapointLogo} alt="Arapoint" className="w-full h-full object-contain" />
           </div>
           <div>
             <p className="text-white font-bold text-sm leading-none">Arapoint</p>
-            <p className="text-blue-300 text-xs">Screening Platform</p>
+            <p className="text-green-300 text-xs">Screening Platform</p>
           </div>
         </div>
       </div>
 
-      <div className="px-4 py-3 border-b border-blue-800/30">
-        <div className="bg-blue-800/40 rounded-xl px-3 py-2">
+      <div className="px-4 py-3 border-b border-green-800/30">
+        <div className="bg-green-800/40 rounded-xl px-3 py-2">
           <p className="text-white text-xs font-semibold truncate">{orgName}</p>
-          <p className="text-blue-300 text-xs capitalize">{userRole.replace('_', ' ')}</p>
+          <p className="text-green-300 text-xs capitalize">{userRole.replace('_', ' ')}</p>
         </div>
       </div>
 
@@ -75,12 +75,12 @@ export default function ScreeningDashboardLayout({ children }: { children: React
               <a
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   isActive
-                    ? 'bg-white text-blue-700 shadow-sm'
-                    : 'text-blue-100 hover:bg-blue-700/50 hover:text-white'
+                    ? 'bg-white text-green-700 shadow-sm'
+                    : 'text-green-100 hover:bg-green-700/50 hover:text-white'
                 }`}
                 onClick={() => setSidebarOpen(false)}
               >
-                <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-blue-700' : ''}`} />
+                <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-green-700' : ''}`} />
                 <span>{item.label}</span>
                 {item.label === 'Alerts' && unread > 0 && (
                   <Badge className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0 min-w-5 h-4 flex items-center justify-center">
@@ -93,7 +93,7 @@ export default function ScreeningDashboardLayout({ children }: { children: React
         })}
       </nav>
 
-      <div className="px-3 py-4 border-t border-blue-800/30">
+      <div className="px-3 py-4 border-t border-green-800/30">
         <button
           onClick={handleLogout}
           className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-sm font-medium text-red-300 hover:bg-red-900/30 hover:text-red-200 transition-all"
@@ -108,7 +108,7 @@ export default function ScreeningDashboardLayout({ children }: { children: React
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 bg-[#1E3A8A] flex-shrink-0">
+      <aside className="hidden lg:flex flex-col w-64 bg-[#166534] flex-shrink-0">
         <SidebarContent />
       </aside>
 
@@ -116,7 +116,7 @@ export default function ScreeningDashboardLayout({ children }: { children: React
       {sidebarOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
           <div className="fixed inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
-          <aside className="relative flex flex-col w-64 bg-[#1E3A8A] z-10">
+          <aside className="relative flex flex-col w-64 bg-[#166534] z-10">
             <SidebarContent />
           </aside>
         </div>
@@ -142,7 +142,7 @@ export default function ScreeningDashboardLayout({ children }: { children: React
 
           <div className="flex items-center gap-2">
             <Link href="/employment-screening/dashboard/screen">
-              <Button size="sm" className="bg-blue-700 hover:bg-blue-800 text-white hidden sm:flex items-center gap-2">
+              <Button size="sm" className="bg-green-700 hover:bg-green-800 text-white hidden sm:flex items-center gap-2">
                 <Plus className="w-4 h-4" />
                 New Screening
               </Button>
@@ -159,7 +159,7 @@ export default function ScreeningDashboardLayout({ children }: { children: React
             </Link>
             <Link href="/employment-screening/dashboard/settings">
               <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-xl hover:bg-gray-100 cursor-pointer">
-                <div className="w-7 h-7 bg-blue-700 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                <div className="w-7 h-7 bg-green-700 rounded-full flex items-center justify-center text-white text-xs font-bold">
                   {userName.charAt(0).toUpperCase()}
                 </div>
                 <div className="hidden sm:block">

@@ -38,7 +38,7 @@ export default function ScreeningRegister() {
   return (
     <div className="min-h-screen flex">
       {/* Left — Branding */}
-      <div className="hidden lg:flex flex-col justify-between w-1/2 bg-gradient-to-br from-[#0F2461] via-[#1E3A8A] to-[#1D4ED8] p-12 relative overflow-hidden">
+      <div className="hidden lg:flex flex-col justify-between w-1/2 bg-gradient-to-br from-[#14532d] via-[#166534] to-[#15803d] p-12 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-20 left-20 w-64 h-64 border border-white rounded-full" />
           <div className="absolute top-40 left-40 w-40 h-40 border border-white rounded-full" />
@@ -56,13 +56,13 @@ export default function ScreeningRegister() {
             </div>
             <div>
               <p className="text-white font-bold text-xl">Arapoint</p>
-              <p className="text-blue-300 text-xs">Employment Trust Infrastructure</p>
+              <p className="text-green-300 text-xs">Employment Trust Infrastructure</p>
             </div>
           </div>
           <h1 className="text-4xl font-bold text-white mb-4 leading-tight">
             Start verifying<br />candidates<br />in minutes.
           </h1>
-          <p className="text-blue-200 text-lg">Create your organization and get ₦350/candidate verified instantly.</p>
+          <p className="text-green-200 text-lg">Create your organization and get ₦350/candidate verified instantly.</p>
         </div>
 
         <div className="relative space-y-4">
@@ -78,11 +78,11 @@ export default function ScreeningRegister() {
               </div>
               <div>
                 <p className="text-white text-sm font-semibold">{label}</p>
-                <p className="text-blue-300 text-xs">{desc}</p>
+                <p className="text-green-300 text-xs">{desc}</p>
               </div>
             </div>
           ))}
-          <p className="text-blue-300 text-xs pt-2">Pay only ₦350 per candidate. No monthly fees.</p>
+          <p className="text-green-300 text-xs pt-2">Pay only ₦350 per candidate. No monthly fees.</p>
         </div>
       </div>
 
@@ -105,12 +105,12 @@ export default function ScreeningRegister() {
             <div className="space-y-1.5">
               <Label className="text-sm font-medium text-gray-700">Organization Name</Label>
               <Input value={form.organizationName} onChange={set("organizationName")} placeholder="Acme Corp Ltd" required
-                className="h-11 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500" />
+                className="h-11 rounded-xl border-gray-200 focus:border-green-600 focus:ring-green-600" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-sm font-medium text-gray-700">Work Email</Label>
               <Input type="email" value={form.email} onChange={set("email")} placeholder="hr@company.com" required
-                className="h-11 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500" />
+                className="h-11 rounded-xl border-gray-200 focus:border-green-600 focus:ring-green-600" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
@@ -143,14 +143,14 @@ export default function ScreeningRegister() {
             <div className="space-y-1.5">
               <Label className="text-sm font-medium text-gray-700">Phone (Optional)</Label>
               <Input value={form.phone} onChange={set("phone")} placeholder="+234 800 000 0000"
-                className="h-11 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500" />
+                className="h-11 rounded-xl border-gray-200 focus:border-green-600 focus:ring-green-600" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-sm font-medium text-gray-700">Password</Label>
               <div className="relative">
                 <Input type={showPass ? "text" : "password"} value={form.password} onChange={set("password")}
                   placeholder="Min. 8 characters" required
-                  className="h-11 rounded-xl border-gray-200 focus:border-blue-500 focus:ring-blue-500 pr-10" />
+                  className="h-11 rounded-xl border-gray-200 focus:border-green-600 focus:ring-green-600 pr-10" />
                 <button type="button" onClick={() => setShowPass(!showPass)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                   {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -158,7 +158,7 @@ export default function ScreeningRegister() {
               </div>
             </div>
 
-            <Button type="submit" disabled={loading} className="w-full h-11 bg-blue-700 hover:bg-blue-800 text-white rounded-xl font-semibold">
+            <Button type="submit" disabled={loading} className="w-full h-11 bg-green-700 hover:bg-green-800 text-white rounded-xl font-semibold">
               {loading ? "Creating Organization..." : "Create Organization & Get Started"}
             </Button>
           </form>
@@ -166,14 +166,14 @@ export default function ScreeningRegister() {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-500">
               Already have an account?{" "}
-              <a href="/employment-screening/login" className="text-blue-700 font-semibold hover:underline">Sign in</a>
+              <a href="/employment-screening/login" className="text-green-700 font-semibold hover:underline">Sign in</a>
             </p>
           </div>
 
           <div className="mt-6 pt-6 border-t border-gray-100">
             <p className="text-center text-xs text-gray-400">
               By creating an account, you agree to our{" "}
-              <a href="/terms" className="text-blue-600 hover:underline">Terms of Service</a>
+              <a href="/terms" className="text-green-600 hover:underline">Terms of Service</a>
             </p>
           </div>
         </div>

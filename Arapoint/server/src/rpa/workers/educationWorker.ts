@@ -4,7 +4,7 @@ import { BaseWorker, WorkerResult } from './baseWorker';
 import { db } from '../../config/database';
 import { adminSettings } from '../../db/schema';
 import { eq } from 'drizzle-orm';
-import { browserPool } from '../browserPool';
+import { browserPool, PUPPETEER_EXECUTABLE, PUPPETEER_LAUNCH_ARGS } from '../browserPool';
 import { config } from '../../config/env';
 
 interface EducationQueryData {
@@ -420,7 +420,9 @@ export class EducationWorker extends BaseWorker {
     }
   }
 
-  /** Fallback: generate a custom HTML → PDF when browser cannot reach NECO portal */
+  /** Fallback: generate a custom HTML → PDF when browser cannot reach NECO portal.
+   *  Uses a dedicated short-lived puppeteer instance so it never competes with
+   *  the shared browser pool (which may already be fully occupied by RPA jobs). */
   private async buildNecoCustomPdfResult(
     data: EducationQueryData,
     examType: string,
@@ -429,21 +431,30 @@ export class EducationWorker extends BaseWorker {
     apiBody?: any,
   ): Promise<WorkerResult> {
     let pdfBase64: string | undefined;
-    let pooledResource: { browser: Browser; page: Page; release: () => Promise<void> } | null = null;
+    let dedicatedBrowser: Browser | null = null;
     try {
-      pooledResource = await browserPool.acquire();
-      if (pooledResource) {
-        const { page } = pooledResource;
+      const puppeteer = (await import('puppeteer')).default;
+      dedicatedBrowser = await puppeteer.launch({
+        headless: true,
+        executablePath: PUPPETEER_EXECUTABLE,
+        args: PUPPETEER_LAUNCH_ARGS,
+      });
+      const page = await dedicatedBrowser.newPage();
+      try {
         const html = this.buildNecoResultHtml({ candidateName, registrationNumber: data.registrationNumber, examYear: data.examYear, examType, subjects, rawData: apiBody });
-        await page.setContent(html, { waitUntil: 'domcontentloaded' });
+        await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 15_000 });
         const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '15mm', right: '15mm', bottom: '15mm', left: '15mm' } });
         pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
         logger.info('NECO fallback custom PDF generated', { size: pdfBuffer.length });
+      } finally {
+        await page.close().catch(() => {});
       }
     } catch (err: any) {
       logger.warn('NECO fallback PDF generation failed', { error: err.message });
     } finally {
-      if (pooledResource) await pooledResource.release();
+      if (dedicatedBrowser) {
+        try { await dedicatedBrowser.close(); } catch {}
+      }
     }
 
     if (!pdfBase64) {
