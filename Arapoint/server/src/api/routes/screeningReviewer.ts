@@ -159,7 +159,7 @@ router.get('/queue', reviewerAuth, async (req: Request, res: Response) => {
         sc.education_provider, sc.education_data, sc.education_result,
         sc.nin_result, sc.bvn_result, sc.fraud_result,
         sc.amount_charged, sc.created_at, sc.updated_at, sc.org_id,
-        so.organization_name,
+        so.name AS organization_name,
         rj.error_message AS rpa_error
       FROM screening_candidates sc
       JOIN screening_organizations so ON sc.org_id = so.id

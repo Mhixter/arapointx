@@ -14,6 +14,7 @@ import { logger } from '../../utils/logger';
 import { formatResponse, formatErrorResponse } from '../../utils/helpers';
 import { screeningAuthMiddleware } from '../middleware/auth';
 import * as paystackService from '../../services/paystackService';
+import puppeteer from 'puppeteer';
 
 // Create screening_paystack_transactions if it doesn't exist yet
 db.execute(sql`
@@ -1200,6 +1201,7 @@ router.put('/notifications/read-all', screeningAuthMiddleware, async (req: Reque
 // ── PDF REPORT DOWNLOAD ───────────────────────────────────────────────────────
 
 router.get('/candidates/:id/pdf', screeningAuthMiddleware, async (req: Request, res: Response) => {
+  let browser: any = null;
   try {
     const orgId = (req as any).screeningOrgId;
     const { id } = req.params;
@@ -1213,7 +1215,7 @@ router.get('/candidates/:id/pdf', screeningAuthMiddleware, async (req: Request, 
 
     const nin = candidate.ninResult as any;
     const bvn = candidate.bvnResult as any;
-    const fraud = candidate.fraudResult as any;
+    const rawFraud = candidate.fraudResult as any;
     const edu = candidate.educationResult as any;
     const ninData = nin?.data;
     const bvnData = bvn?.data;
@@ -1222,144 +1224,352 @@ router.get('/candidates/:id/pdf', screeningAuthMiddleware, async (req: Request, 
     const bvnDob = normalizeDob(bvnData?.dateOfBirth);
     const dobMatch = ninDob && bvnDob && ninDob === bvnDob;
 
+    // Re-evaluate fraud flags — remove stale DOB mismatch if dates now match
+    const fraudFlags: string[] = (rawFraud?.flags || []).filter((f: string) =>
+      !(dobMatch && /date of birth mismatch/i.test(f))
+    );
+    const fraud = rawFraud ? { ...rawFraud, flags: fraudFlags } : null;
+
     const formatDate = (d: string | undefined | null) => {
       if (!d) return '—';
       const norm = normalizeDob(d);
       if (!norm) return d;
       const [y, m, day] = norm.split('-');
-      return `${day}-${m}-${y}`;
+      return `${day}/${m}/${y}`;
     };
 
     const riskColor = (score: number) =>
       score >= 80 ? '#16a34a' : score >= 60 ? '#d97706' : '#dc2626';
+    const riskBg = (score: number) =>
+      score >= 80 ? '#f0fdf4' : score >= 60 ? '#fffbeb' : '#fef2f2';
+    const decisionColor = (d: string) =>
+      d === 'PASS' ? '#15803d' : d === 'REVIEW' ? '#a16207' : '#b91c1c';
+    const decisionBg = (d: string) =>
+      d === 'PASS' ? '#dcfce7' : d === 'REVIEW' ? '#fef9c3' : '#fee2e2';
+
+    const photoBlock = (photo: string | undefined, label: string) =>
+      photo ? `<div style="display:inline-block;text-align:center;margin-right:16px">
+        <img src="data:image/jpeg;base64,${photo}" style="width:80px;height:96px;object-fit:cover;border-radius:8px;border:2px solid #e2e8f0;display:block" />
+        <p style="margin:4px 0 0;font-size:10px;color:#94a3b8;font-weight:600">${label}</p>
+      </div>` : '';
+
+    const gradeColor = (g: string) => {
+      const grade = String(g).trim().toUpperCase();
+      if (['A1','A2','B2','B3'].includes(grade)) return '#15803d';
+      if (['C4','C5','C6'].includes(grade)) return '#d97706';
+      return '#b91c1c';
+    };
+
+    const subjectsTable = (subjects: any[]) => `
+      <table style="width:100%;border-collapse:collapse;margin-top:10px">
+        <thead>
+          <tr style="background:#f8fafc">
+            <th style="padding:8px 12px;text-align:left;font-size:11px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">#</th>
+            <th style="padding:8px 12px;text-align:left;font-size:11px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">Subject</th>
+            <th style="padding:8px 12px;text-align:center;font-size:11px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">Grade</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${subjects.map((s: any, i: number) => `
+            <tr style="border-bottom:1px solid #f1f5f9">
+              <td style="padding:7px 12px;font-size:12px;color:#94a3b8">${i + 1}</td>
+              <td style="padding:7px 12px;font-size:12px;color:#1e293b">${s.subject}</td>
+              <td style="padding:7px 12px;text-align:center">
+                <span style="font-size:12px;font-weight:700;color:${gradeColor(s.grade)}">${s.grade}</span>
+              </td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+
+    const reviewedGradesTable = (grades: Record<string, string>) => {
+      const entries = Object.entries(grades);
+      if (!entries.length) return '';
+      return `<table style="width:100%;border-collapse:collapse;margin-top:10px">
+        <thead><tr style="background:#f8fafc">
+          <th style="padding:8px 12px;text-align:left;font-size:11px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">#</th>
+          <th style="padding:8px 12px;text-align:left;font-size:11px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">Subject</th>
+          <th style="padding:8px 12px;text-align:center;font-size:11px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0">Grade</th>
+        </tr></thead>
+        <tbody>
+          ${entries.map(([subject, grade], i) => `<tr style="border-bottom:1px solid #f1f5f9">
+            <td style="padding:7px 12px;font-size:12px;color:#94a3b8">${i + 1}</td>
+            <td style="padding:7px 12px;font-size:12px;color:#1e293b">${subject}</td>
+            <td style="padding:7px 12px;text-align:center"><span style="font-size:12px;font-weight:700;color:${gradeColor(String(grade))}">${grade}</span></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+    };
+
+    const now = new Date().toLocaleString('en-NG', { timeZone: 'Africa/Lagos', dateStyle: 'long', timeStyle: 'short' });
 
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 <style>
-  body { font-family: Arial, sans-serif; font-size: 13px; color: #1e293b; margin: 0; padding: 32px; }
-  h1 { font-size: 20px; margin: 0 0 4px; }
-  h2 { font-size: 14px; color: #475569; margin: 0 0 12px; font-weight: 600; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; }
-  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 2px solid #1d4ed8; }
-  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; }
-  .pass { background: #dcfce7; color: #15803d; }
-  .review { background: #fef9c3; color: #a16207; }
-  .fail { background: #fee2e2; color: #b91c1c; }
-  .section { margin-bottom: 24px; }
-  table { width: 100%; border-collapse: collapse; }
-  td, th { padding: 7px 10px; text-align: left; border-bottom: 1px solid #f1f5f9; font-size: 12px; }
-  th { font-weight: 600; color: #64748b; background: #f8fafc; }
+  * { box-sizing: border-box; }
+  @page { size: A4; margin: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: #1e293b; margin: 0; padding: 0; background: #fff; }
+  .page { padding: 0; }
+
+  /* Cover band */
+  .topband { background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 60%, #2563eb 100%); padding: 28px 36px 24px; color: #fff; display: flex; justify-content: space-between; align-items: flex-start; }
+  .brand-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.65); margin: 0 0 6px; }
+  .candidate-name { font-size: 22px; font-weight: 800; margin: 0 0 4px; letter-spacing: -0.3px; }
+  .candidate-meta { font-size: 12px; color: rgba(255,255,255,0.75); margin: 0; }
+  .top-right { text-align: right; }
+  .org-label { font-size: 10px; color: rgba(255,255,255,0.6); margin: 0 0 3px; text-transform: uppercase; letter-spacing: 1px; }
+  .org-name { font-size: 14px; font-weight: 700; margin: 0 0 8px; }
+  .decision-pill { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 800; letter-spacing: 0.5px; }
+  .score-large { font-size: 32px; font-weight: 900; margin: 6px 0 0; }
+
+  /* Sub-band */
+  .subband { background: #1e3a8a; padding: 10px 36px; display: flex; gap: 24px; }
+  .subband-item { text-align: center; }
+  .subband-item .lbl { font-size: 9px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; }
+  .subband-item .val { font-size: 12px; font-weight: 700; color: #fff; margin-top: 1px; }
+
+  /* Body */
+  .body { padding: 24px 36px; }
+
+  /* Section */
+  .section { margin-bottom: 22px; }
+  .section-title { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1.5px; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .section-title .badge-sm { font-size: 10px; padding: 2px 8px; border-radius: 8px; font-weight: 700; margin-left: auto; }
+
+  /* Identity photos */
+  .photos-row { display: flex; gap: 12px; margin-bottom: 14px; }
+  .photo-card { text-align: center; }
+  .photo-card img { width: 72px; height: 88px; object-fit: cover; border-radius: 8px; border: 2px solid #e2e8f0; display: block; }
+  .photo-card .photo-lbl { font-size: 10px; color: #94a3b8; font-weight: 600; margin-top: 4px; }
+
+  /* Check table */
+  .check-table { width: 100%; border-collapse: collapse; }
+  .check-table th { padding: 8px 12px; text-align: left; font-size: 11px; color: #64748b; font-weight: 600; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+  .check-table td { padding: 8px 12px; font-size: 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+  .check-table tr:last-child td { border-bottom: none; }
   .ok { color: #16a34a; font-weight: 700; }
   .fail-text { color: #dc2626; font-weight: 700; }
   .warn { color: #d97706; font-weight: 700; }
-  .flag-item { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 6px; padding: 6px 10px; margin: 4px 0; font-size: 12px; color: #9a3412; }
-  .score-bar { height: 10px; border-radius: 5px; background: #e2e8f0; margin: 6px 0; }
-  .score-fill { height: 10px; border-radius: 5px; }
-  .footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .field { }
-  .field .label { font-size: 11px; color: #94a3b8; }
-  .field .value { font-size: 13px; font-weight: 500; }
+
+  /* ID grid */
+  .id-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; background: #f8fafc; border-radius: 10px; padding: 14px; margin-top: 12px; }
+  .id-field .lbl { font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .id-field .val { font-size: 13px; font-weight: 600; color: #1e293b; margin-top: 2px; }
+
+  /* Fraud section */
+  .fraud-meter { display: flex; align-items: center; gap: 20px; margin-bottom: 14px; padding: 14px; border-radius: 10px; }
+  .fraud-score-circle { width: 70px; height: 70px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 900; flex-shrink: 0; }
+  .fraud-score-circle .pct { font-size: 22px; line-height: 1; }
+  .fraud-score-circle .lvl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+  .fraud-bar-wrap { flex: 1; }
+  .fraud-bar-bg { height: 10px; background: #e2e8f0; border-radius: 5px; overflow: hidden; }
+  .fraud-bar-fill { height: 10px; border-radius: 5px; }
+  .flag-item { display: flex; align-items: flex-start; gap: 8px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 8px 12px; margin: 5px 0; font-size: 12px; color: #9a3412; }
+  .flag-icon { flex-shrink: 0; width: 16px; height: 16px; background: #f97316; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 10px; font-weight: 700; margin-top: 1px; }
+  .no-flags { color: #16a34a; font-size: 12px; font-weight: 600; padding: 8px 0; }
+
+  /* Recommendation */
+  .reco-box { border-radius: 10px; padding: 16px 18px; }
+  .reco-box .reco-title { font-size: 13px; font-weight: 700; margin: 0 0 6px; }
+  .reco-box .reco-body { font-size: 12px; line-height: 1.6; margin: 0; color: #374151; }
+
+  /* Footer */
+  .footer { margin-top: 28px; padding: 14px 36px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+  .footer-left { font-size: 10px; color: #94a3b8; }
+  .footer-right { font-size: 10px; color: #94a3b8; text-align: right; }
+  .confidential { font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #cbd5e1; border: 1px solid #e2e8f0; padding: 2px 8px; border-radius: 4px; }
+
+  /* Edu status */
+  .edu-pending { background: #fffbeb; border: 1px solid #fef08a; border-radius: 8px; padding: 12px 14px; font-size: 12px; color: #a16207; }
+  .edu-pending .title { font-weight: 700; margin: 0 0 4px; }
+  .edu-pending .body { margin: 0; }
 </style>
 </head>
 <body>
-<div class="header">
-  <div>
-    <p style="font-size:11px;color:#64748b;margin:0 0 4px">ARAPOINT EMPLOYMENT SCREENING</p>
-    <h1>${candidate.fullName}</h1>
-    <p style="margin:0;color:#64748b;font-size:12px">${candidate.reference} &bull; ${candidate.position || 'N/A'}</p>
-    <p style="margin:4px 0 0;font-size:11px;color:#94a3b8">Generated: ${new Date().toLocaleString('en-NG')}</p>
-  </div>
-  <div style="text-align:right">
-    <p style="font-size:11px;color:#64748b;margin:0 0 4px">Organisation</p>
-    <p style="font-weight:700;margin:0">${org?.name || 'N/A'}</p>
-    ${candidate.decision ? `<span class="badge ${candidate.decision === 'PASS' ? 'pass' : candidate.decision === 'REVIEW' ? 'review' : 'fail'}">${candidate.decision}</span>` : ''}
-    ${candidate.overallScore !== null && candidate.overallScore !== undefined ? `<p style="margin:6px 0 0;font-size:20px;font-weight:800;color:${riskColor(Number(candidate.overallScore))}">${candidate.overallScore}%</p>` : ''}
-  </div>
-</div>
+<div class="page">
 
-<div class="section">
-  <h2>Identity Verification</h2>
-  <table>
-    <tr><th>Check</th><th>Result</th><th>Details</th></tr>
-    <tr><td>NIN Verification</td><td class="${nin?.success ? 'ok' : 'fail-text'}">${nin?.success ? '✓ Verified' : '✗ Failed'}</td><td>${ninData ? `${ninData.firstName || ''} ${ninData.lastName || ''}`.trim() : '—'}</td></tr>
-    <tr><td>BVN Verification</td><td class="${bvn?.success ? 'ok' : 'fail-text'}">${bvn?.success ? '✓ Verified' : '✗ Failed'}</td><td>${bvnData ? `${bvnData.firstName || ''} ${bvnData.lastName || ''}`.trim() : '—'}</td></tr>
-    ${ninData && bvnData ? `<tr><td>Date of Birth Match</td><td class="${dobMatch ? 'ok' : 'fail-text'}">${dobMatch ? '✓ Match' : '✗ Mismatch'}</td><td>${formatDate(ninData.dateOfBirth)} (NIN) / ${formatDate(bvnData.dateOfBirth)} (BVN)</td></tr>` : ''}
-  </table>
-</div>
-
-${ninData ? `
-<div class="section">
-  <h2>NIN Identity Data</h2>
-  <div class="grid2">
-    <div class="field"><div class="label">Full Name</div><div class="value">${[ninData.firstName, ninData.middleName, ninData.lastName].filter(Boolean).join(' ')}</div></div>
-    <div class="field"><div class="label">Date of Birth</div><div class="value">${formatDate(ninData.dateOfBirth)}</div></div>
-    <div class="field"><div class="label">Gender</div><div class="value">${ninData.gender || '—'}</div></div>
-    <div class="field"><div class="label">State</div><div class="value">${ninData.state || '—'}</div></div>
-    <div class="field"><div class="label">LGA</div><div class="value">${ninData.lga || '—'}</div></div>
-    <div class="field"><div class="label">Phone</div><div class="value">${ninData.phone || '—'}</div></div>
-  </div>
-</div>` : ''}
-
-${edu ? `
-<div class="section">
-  <h2>Education Verification — ${(candidate.educationProvider || '').toUpperCase()}</h2>
-  <table>
-    <tr><th>Check</th><th>Result</th></tr>
-    <tr><td>Record Found</td><td class="${edu.found ? 'ok' : edu.manualReview && edu.reviewStatus !== 'completed' ? 'warn' : 'fail-text'}">${edu.manualReview && edu.reviewStatus !== 'completed' ? '⏳ Manual Review Pending' : edu.found ? '✓ Found' : '✗ Not Found'}</td></tr>
-    ${edu.found ? `<tr><td>Name Match</td><td class="${edu.nameMatch ? 'ok' : 'fail-text'}">${edu.nameMatch ? '✓ Match' : '✗ Mismatch'}</td></tr>` : ''}
-    ${edu.candidateName ? `<tr><td>Candidate Name on Record</td><td>${edu.candidateName}</td></tr>` : ''}
-  </table>
-  ${edu.subjects && Array.isArray(edu.subjects) && edu.subjects.length > 0 ? `
-  <table style="margin-top:10px">
-    <tr><th>Subject</th><th>Grade</th></tr>
-    ${edu.subjects.map((s: any) => `<tr><td>${s.subject}</td><td><strong>${s.grade}</strong></td></tr>`).join('')}
-  </table>` : ''}
-</div>` : ''}
-
-${fraud ? `
-<div class="section">
-  <h2>Fraud & Risk Analysis</h2>
-  <div style="display:flex;align-items:center;gap:20px;margin-bottom:12px">
+  <!-- TOP BAND -->
+  <div class="topband">
     <div>
-      <p style="margin:0;font-size:22px;font-weight:800;color:${riskColor(fraud.score)}">${fraud.score}%</p>
-      <p style="margin:0;font-size:12px;color:${riskColor(fraud.score)};font-weight:600">${fraud.level}</p>
+      <p class="brand-label">Arapoint Employment Screening</p>
+      <h1 class="candidate-name">${candidate.fullName}</h1>
+      <p class="candidate-meta">${candidate.reference} &bull; ${candidate.position || 'Position N/A'} &bull; Generated ${now} WAT</p>
     </div>
-    <div style="flex:1">
-      <div class="score-bar"><div class="score-fill" style="width:${fraud.score}%;background:${riskColor(fraud.score)}"></div></div>
-      <p style="margin:0;font-size:11px;color:#94a3b8">${fraud.flags?.length || 0} risk factor(s) detected</p>
+    <div class="top-right">
+      <p class="org-label">Organisation</p>
+      <p class="org-name">${org?.name || 'N/A'}</p>
+      ${candidate.decision ? `
+        <span class="decision-pill" style="background:${decisionBg(candidate.decision)};color:${decisionColor(candidate.decision)}">
+          ${candidate.decision === 'PASS' ? '✓ PASS' : candidate.decision === 'REVIEW' ? '⚠ REVIEW' : '✗ FAIL'}
+        </span>` : ''}
+      ${candidate.overallScore !== null && candidate.overallScore !== undefined
+        ? `<div class="score-large" style="color:${riskColor(Number(candidate.overallScore))}">${candidate.overallScore}%</div>` : ''}
     </div>
   </div>
-  ${fraud.flags && fraud.flags.length > 0 ? fraud.flags.map((f: string) => `<div class="flag-item">⚠ ${f}</div>`).join('') : '<p style="color:#16a34a;font-size:12px">✓ No significant fraud indicators found.</p>'}
-</div>` : ''}
 
-${candidate.decision ? `
-<div class="section">
-  <h2>Recommendation</h2>
-  <div style="background:${candidate.decision === 'PASS' ? '#f0fdf4' : candidate.decision === 'REVIEW' ? '#fefce8' : '#fef2f2'};border:1px solid ${candidate.decision === 'PASS' ? '#bbf7d0' : candidate.decision === 'REVIEW' ? '#fef08a' : '#fecaca'};border-radius:8px;padding:14px">
-    <p style="margin:0;font-size:13px;color:#1e293b">
-      ${candidate.decision === 'PASS'
-        ? 'Candidate meets all employment verification requirements and is suitable for onboarding under standard HR review.'
-        : candidate.decision === 'REVIEW'
-        ? 'Candidate has some inconsistencies. Manual review is recommended before proceeding with the hiring decision.'
-        : 'Candidate failed key verification checks. High risk detected. Do not proceed without thorough manual investigation and sign-off from HR management.'}
-    </p>
+  <!-- SUB-BAND -->
+  <div class="subband">
+    <div class="subband-item"><div class="lbl">NIN</div><div class="val">${nin?.success ? '✓ Verified' : '✗ Failed'}</div></div>
+    <div class="subband-item"><div class="lbl">BVN</div><div class="val">${bvn?.success ? '✓ Verified' : '✗ Failed'}</div></div>
+    ${ninData && bvnData ? `<div class="subband-item"><div class="lbl">DOB Match</div><div class="val">${dobMatch ? '✓ Match' : '✗ Mismatch'}</div></div>` : ''}
+    ${edu ? `<div class="subband-item"><div class="lbl">Education</div><div class="val">${edu.manualReview && edu.reviewStatus !== 'completed' ? '⏳ Pending' : edu.found ? '✓ Found' : '✗ Not Found'}</div></div>` : ''}
+    ${fraud ? `<div class="subband-item"><div class="lbl">Risk Score</div><div class="val" style="color:${riskColor(fraud.score)}">${fraud.score}% ${fraud.level}</div></div>` : ''}
   </div>
-</div>` : ''}
 
-<div class="footer">
-  <p>This report was generated by Arapoint Employment Screening Platform. Reference: ${candidate.reference}. 
-  Generated on ${new Date().toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })} WAT.
-  This document is confidential and intended solely for HR use.</p>
+  <div class="body">
+
+    <!-- IDENTITY -->
+    <div class="section">
+      <div class="section-title">
+        Identity Verification
+        <span class="badge-sm" style="background:${nin?.success && bvn?.success ? '#dcfce7' : '#fee2e2'};color:${nin?.success && bvn?.success ? '#15803d' : '#b91c1c'}">
+          ${nin?.success && bvn?.success ? 'Verified' : 'Issues Found'}
+        </span>
+      </div>
+
+      ${(ninData?.photo || bvnData?.photo) ? `
+      <div class="photos-row">
+        ${photoBlock(ninData?.photo, 'NIN Photo')}
+        ${photoBlock(bvnData?.photo, 'BVN Photo')}
+      </div>` : ''}
+
+      <table class="check-table">
+        <thead><tr><th>Check</th><th>Result</th><th>Details</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>NIN Verification</td>
+            <td class="${nin?.success ? 'ok' : 'fail-text'}">${nin?.success ? '✓ Verified' : '✗ Failed'}</td>
+            <td style="color:#64748b">${ninData ? [ninData.firstName, ninData.lastName].filter(Boolean).join(' ') : '—'}</td>
+          </tr>
+          <tr>
+            <td>BVN Verification</td>
+            <td class="${bvn?.success ? 'ok' : 'fail-text'}">${bvn?.success ? '✓ Verified' : '✗ Failed'}</td>
+            <td style="color:#64748b">${bvnData ? [bvnData.firstName, bvnData.lastName].filter(Boolean).join(' ') : '—'}</td>
+          </tr>
+          ${ninData && bvnData ? `<tr>
+            <td>Date of Birth Match</td>
+            <td class="${dobMatch ? 'ok' : 'fail-text'}">${dobMatch ? '✓ Match' : '✗ Mismatch'}</td>
+            <td style="color:#64748b">${formatDate(ninData.dateOfBirth)} (NIN) &nbsp;/&nbsp; ${formatDate(bvnData.dateOfBirth)} (BVN)</td>
+          </tr>` : ''}
+        </tbody>
+      </table>
+
+      ${ninData ? `<div class="id-grid">
+        <div class="id-field"><div class="lbl">Full Name</div><div class="val">${[ninData.firstName, ninData.middleName, ninData.lastName].filter(Boolean).join(' ')}</div></div>
+        <div class="id-field"><div class="lbl">Date of Birth</div><div class="val">${formatDate(ninData.dateOfBirth)}</div></div>
+        <div class="id-field"><div class="lbl">Gender</div><div class="val">${ninData.gender || '—'}</div></div>
+        <div class="id-field"><div class="lbl">State of Origin</div><div class="val">${ninData.state || '—'}</div></div>
+        <div class="id-field"><div class="lbl">LGA</div><div class="val">${ninData.lga || '—'}</div></div>
+        <div class="id-field"><div class="lbl">Phone</div><div class="val">${ninData.phone || '—'}</div></div>
+      </div>` : ''}
+    </div>
+
+    <!-- EDUCATION -->
+    ${edu ? `<div class="section">
+      <div class="section-title">
+        Education Verification — ${(candidate.educationProvider || '').toUpperCase()}
+        <span class="badge-sm" style="background:${edu.manualReview && edu.reviewStatus !== 'completed' ? '#fef9c3' : edu.found ? '#dcfce7' : '#fee2e2'};color:${edu.manualReview && edu.reviewStatus !== 'completed' ? '#a16207' : edu.found ? '#15803d' : '#b91c1c'}">
+          ${edu.manualReview && edu.reviewStatus !== 'completed' ? 'Manual Review' : edu.found ? 'Verified' : 'Not Found'}
+        </span>
+      </div>
+
+      ${edu.manualReview && edu.reviewStatus !== 'completed' ? `
+      <div class="edu-pending">
+        <p class="title">⏳ Awaiting Manual Review</p>
+        <p class="body">${edu.failureReason || 'Education check has been escalated for manual review. Our team will process it within 2–4 hours.'}</p>
+      </div>` : `
+      <table class="check-table">
+        <thead><tr><th>Check</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td>Record Found</td><td class="${edu.found ? 'ok' : 'fail-text'}">${edu.found ? '✓ Found' : '✗ Not Found'}</td></tr>
+          ${edu.found && edu.nameMatch !== undefined ? `<tr><td>Name Match</td><td class="${edu.nameMatch ? 'ok' : 'fail-text'}">${edu.nameMatch ? '✓ Match' : '✗ Mismatch'}</td></tr>` : ''}
+          ${edu.candidateName ? `<tr><td>Name on Record</td><td style="font-weight:600">${edu.candidateName}</td></tr>` : ''}
+        </tbody>
+      </table>
+      ${edu.subjects && Array.isArray(edu.subjects) && edu.subjects.length > 0 ? subjectsTable(edu.subjects) : ''}
+      ${edu.subjectGrades && typeof edu.subjectGrades === 'object' && Object.keys(edu.subjectGrades).length > 0 ? reviewedGradesTable(edu.subjectGrades) : ''}
+      `}
+    </div>` : ''}
+
+    <!-- FRAUD & RISK -->
+    ${fraud ? `<div class="section">
+      <div class="section-title">
+        Fraud & Risk Analysis
+        <span class="badge-sm" style="background:${riskBg(fraud.score)};color:${riskColor(fraud.score)}">${fraud.level}</span>
+      </div>
+      <div class="fraud-meter" style="background:${riskBg(fraud.score)}">
+        <div class="fraud-score-circle" style="background:${riskColor(fraud.score)}22;border:3px solid ${riskColor(fraud.score)}">
+          <span class="pct" style="color:${riskColor(fraud.score)}">${fraud.score}%</span>
+          <span class="lvl" style="color:${riskColor(fraud.score)}">${fraud.level}</span>
+        </div>
+        <div class="fraud-bar-wrap">
+          <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:6px">${fraud.flags.length === 0 ? 'No risk factors detected' : `${fraud.flags.length} risk factor${fraud.flags.length > 1 ? 's' : ''} detected`}</div>
+          <div class="fraud-bar-bg">
+            <div class="fraud-bar-fill" style="width:${fraud.score}%;background:${riskColor(fraud.score)}"></div>
+          </div>
+        </div>
+      </div>
+      ${fraud.flags.length > 0
+        ? fraud.flags.map((f: string) => `<div class="flag-item"><div class="flag-icon">!</div><span>${f}</span></div>`).join('')
+        : '<p class="no-flags">✓ No significant fraud indicators found. Candidate profile is consistent.</p>'}
+    </div>` : ''}
+
+    <!-- RECOMMENDATION -->
+    ${candidate.decision ? `<div class="section">
+      <div class="section-title">Final Recommendation</div>
+      <div class="reco-box" style="background:${decisionBg(candidate.decision)};border:1px solid ${candidate.decision === 'PASS' ? '#bbf7d0' : candidate.decision === 'REVIEW' ? '#fef08a' : '#fecaca'}">
+        <p class="reco-title" style="color:${decisionColor(candidate.decision)}">
+          ${candidate.decision === 'PASS' ? '✓ Proceed to Onboarding' : candidate.decision === 'REVIEW' ? '⚠ Manual Review Required' : '✗ Do Not Proceed'}
+        </p>
+        <p class="reco-body">
+          ${candidate.decision === 'PASS'
+            ? 'The candidate has passed all critical verification checks. Identity documents are consistent, and no significant fraud indicators were found. This candidate is suitable for onboarding subject to standard HR due diligence.'
+            : candidate.decision === 'REVIEW'
+            ? 'One or more verification checks returned results that require human review before a hiring decision is made. Please examine the flagged items in this report and seek additional documentation where necessary.'
+            : 'The candidate failed one or more critical verification checks. Significant risk indicators or document inconsistencies were identified. Do not proceed with this candidate without thorough manual investigation and senior HR sign-off.'}
+        </p>
+      </div>
+    </div>` : ''}
+
+  </div><!-- /body -->
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="footer-left">
+      <strong>Arapoint Employment Screening Platform</strong><br/>
+      Reference: ${candidate.reference} &bull; Generated: ${now} WAT
+    </div>
+    <div class="footer-right">
+      <span class="confidential">CONFIDENTIAL</span><br/>
+      For authorised HR use only
+    </div>
+  </div>
+
 </div>
 </body>
 </html>`;
 
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${candidate.reference}-report.html"`);
-    res.send(html);
+    browser = await puppeteer.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--disable-dev-shm-usage'],
+      headless: true,
+    });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '0', right: '0', bottom: '0', left: '0' },
+    });
+    await browser.close();
+    browser = null;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${candidate.reference}-screening-report.pdf"`);
+    res.send(pdfBuffer);
   } catch (err: any) {
+    if (browser) { try { await browser.close(); } catch {} }
     logger.error('PDF report error', { error: err.message });
     res.status(500).json(formatErrorResponse(500, 'Failed to generate report'));
   }

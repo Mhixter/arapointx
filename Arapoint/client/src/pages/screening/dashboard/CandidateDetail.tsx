@@ -95,7 +95,7 @@ export default function CandidateDetail() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${candidate.reference || candidate.id}-report.html`;
+      a.download = `${candidate.reference || candidate.id}-screening-report.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -129,13 +129,26 @@ export default function CandidateDetail() {
 
   const nin = candidate.ninResult as any;
   const bvn = candidate.bvnResult as any;
-  const fraud = candidate.fraudResult as any;
+  const rawFraud = candidate.fraudResult as any;
   const edu = candidate.educationResult as any;
 
   const ninSuccess = nin?.success;
   const bvnSuccess = bvn?.success;
   const ninData = nin?.data;
   const bvnData = bvn?.data;
+
+  // Re-evaluate DOB match live from actual data (overrides stale stored fraud flags)
+  const liveDobMatch = ninData?.dateOfBirth && bvnData?.dateOfBirth
+    ? normalizeDobFE(ninData.dateOfBirth) === normalizeDobFE(bvnData.dateOfBirth)
+    : null;
+
+  const fraud = rawFraud ? {
+    ...rawFraud,
+    flags: (rawFraud.flags || []).filter((f: string) =>
+      // Drop the DOB mismatch flag if the live comparison shows they actually match
+      !(liveDobMatch === true && /date of birth mismatch/i.test(f))
+    ),
+  } : rawFraud;
 
   const decisionBg: Record<string, string> = {
     PASS: "bg-green-100 border-green-200 text-green-800",
@@ -241,6 +254,33 @@ export default function CandidateDetail() {
                     <CheckRow label="Date of Birth Match" status={normalizeDobFE(ninData.dateOfBirth) === normalizeDobFE(bvnData.dateOfBirth) ? "verified" : "failed"} />
                   )}
                 </>
+              )}
+              {/* Photos */}
+              {(ninData?.photo || bvnData?.photo) && (
+                <div className="mt-4 flex gap-4">
+                  {ninData?.photo && (
+                    <div className="flex flex-col items-center gap-1">
+                      <img
+                        src={`data:image/jpeg;base64,${ninData.photo}`}
+                        alt="NIN Photo"
+                        className="w-20 h-24 object-cover rounded-xl border-2 border-blue-200 shadow-sm"
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                      <span className="text-xs text-gray-400 font-medium">NIN Photo</span>
+                    </div>
+                  )}
+                  {bvnData?.photo && (
+                    <div className="flex flex-col items-center gap-1">
+                      <img
+                        src={`data:image/jpeg;base64,${bvnData.photo}`}
+                        alt="BVN Photo"
+                        className="w-20 h-24 object-cover rounded-xl border-2 border-green-200 shadow-sm"
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                      <span className="text-xs text-gray-400 font-medium">BVN Photo</span>
+                    </div>
+                  )}
+                </div>
               )}
               {ninData && (
                 <div className="mt-4 grid grid-cols-2 gap-3 bg-gray-50 rounded-xl p-4">
