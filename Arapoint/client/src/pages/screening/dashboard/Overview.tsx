@@ -35,12 +35,12 @@ export default function ScreeningOverview() {
     <ScreeningDashboardLayout>
       <div className="p-6 max-w-7xl mx-auto">
         {/* Hero */}
-        <div className="bg-gradient-to-r from-[#1E3A8A] to-[#2563EB] rounded-2xl p-6 mb-6 text-white">
+        <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-2xl p-6 mb-6 text-white">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <p className="text-blue-200 text-sm">Welcome back,</p>
+              <p className="text-slate-300 text-sm">Welcome back,</p>
               <h1 className="text-2xl font-bold">{userName}</h1>
-              {stats && <p className="text-blue-200 text-sm mt-1">You have {stats.totalScreenings.toLocaleString()} total screenings</p>}
+              {stats && <p className="text-slate-300 text-sm mt-1">You have {stats.totalScreenings.toLocaleString()} total screenings</p>}
             </div>
             <Link href="/employment-screening/dashboard/screen">
               <Button className="bg-white text-blue-700 hover:bg-blue-50 font-semibold rounded-xl">
@@ -59,7 +59,7 @@ export default function ScreeningOverview() {
               ].map(({ label, value }) => (
                 <div key={label} className="bg-white/10 rounded-xl p-3 text-center">
                   <p className="text-xl font-bold">{value ?? "—"}</p>
-                  <p className="text-blue-200 text-xs">{label}</p>
+                  <p className="text-slate-300 text-xs">{label}</p>
                 </div>
               ))}
             </div>
@@ -106,14 +106,14 @@ export default function ScreeningOverview() {
                   <Users className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                   <p className="text-gray-400 text-sm">No screenings yet. Start your first one.</p>
                   <Link href="/employment-screening/dashboard/screen">
-                    <Button size="sm" className="mt-3 bg-blue-700 hover:bg-blue-800 text-white rounded-xl">Start Screening</Button>
+                    <Button size="sm" className="mt-3 bg-green-600 hover:bg-green-700 text-white rounded-xl">Start Screening</Button>
                   </Link>
                 </div>
               )}
               {!loading && stats?.recentScreenings?.map((c: any) => (
                 <Link key={c.id} href={`/employment-screening/dashboard/candidates/${c.id}`}>
                   <a className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition-colors">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-semibold text-sm flex-shrink-0">
+                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-semibold text-sm flex-shrink-0">
                       {c.fullName?.charAt(0)?.toUpperCase() || "?"}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -145,8 +145,8 @@ export default function ScreeningOverview() {
               <h3 className="font-semibold text-gray-900 mb-4">Quick Actions</h3>
               <div className="space-y-2">
                 {[
-                  { label: "Screen a Candidate", href: "/employment-screening/dashboard/screen", color: "bg-blue-700 text-white hover:bg-blue-800" },
-                  { label: "Bulk Upload CSV", href: "/employment-screening/dashboard/bulk", color: "bg-gray-900 text-white hover:bg-gray-800" },
+                  { label: "Screen a Candidate", href: "/employment-screening/dashboard/screen", color: "bg-green-600 text-white hover:bg-green-700" },
+                  { label: "Bulk Upload CSV", href: "/employment-screening/dashboard/bulk", color: "bg-slate-900 text-white hover:bg-slate-800" },
                   { label: "View Analytics", href: "/employment-screening/dashboard/analytics", color: "bg-gray-100 text-gray-700 hover:bg-gray-200" },
                   { label: "Fraud Center", href: "/employment-screening/dashboard/fraud", color: "bg-gray-100 text-gray-700 hover:bg-gray-200" },
                 ].map(({ label, href, color }) => (
@@ -159,21 +159,21 @@ export default function ScreeningOverview() {
                 ))}
               </div>
             </div>
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-100 p-5">
-              <p className="font-semibold text-blue-900 mb-1 text-sm">Pricing</p>
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl border border-green-100 p-5">
+              <p className="font-semibold text-green-900 mb-1 text-sm">Pricing</p>
               <div className="space-y-1.5">
                 {[["NIN Verification", "₦130"], ["BVN Verification", "₦80"], ["Education Check", "₦120"], ["Fraud Analysis", "₦20"]].map(([k, v]) => (
                   <div key={k} className="flex justify-between text-xs">
-                    <span className="text-blue-700">{k}</span>
-                    <span className="font-semibold text-blue-900">{v}</span>
+                    <span className="text-green-700">{k}</span>
+                    <span className="font-semibold text-green-900">{v}</span>
                   </div>
                 ))}
-                <div className="border-t border-blue-200 pt-1.5 flex justify-between text-sm font-bold text-blue-900">
+                <div className="border-t border-green-200 pt-1.5 flex justify-between text-sm font-bold text-green-900">
                   <span>Total per candidate</span><span>₦350</span>
                 </div>
               </div>
               <Link href="/employment-screening/dashboard/billing">
-                <a className="mt-3 block text-center text-xs text-blue-700 font-semibold hover:underline">Fund Wallet</a>
+                <a className="mt-3 block text-center text-xs text-green-700 font-semibold hover:underline">Fund Wallet</a>
               </Link>
             </div>
           </div>

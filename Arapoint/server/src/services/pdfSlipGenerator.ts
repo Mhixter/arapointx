@@ -234,7 +234,7 @@ const defaultPositions: Record<
     nationality_top: "75%",
     nationality_left: "32%",
     nationality_size: "14px",
-    hidden_fields: ["qr_code", "issue_date", "nationality"],
+    hidden_fields: ["issue_date", "nationality"],
     field_configs: {},
     global_font_family: "'Roboto', Arial, sans-serif",
     global_font_weight: "400",

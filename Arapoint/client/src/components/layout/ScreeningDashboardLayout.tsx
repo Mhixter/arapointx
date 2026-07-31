@@ -46,69 +46,71 @@ export default function ScreeningDashboardLayout({ children }: { children: React
   const userRole = session?.user?.role || "recruiter";
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full">
-      <div className="px-6 py-5 border-b border-green-800/30">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center p-1">
-            <img src={arapointLogo} alt="Arapoint" className="w-full h-full object-contain" />
+    <div className="flex flex-col h-full bg-gradient-to-b from-slate-900 to-slate-800">
+      {/* Logo */}
+      <div className="h-16 flex items-center px-4 border-b border-white/10">
+        <div className="flex items-center gap-2 font-bold text-xl tracking-tight">
+          <div className="h-10 w-10">
+            <img src={arapointLogo} alt="Arapoint" className="h-9 w-9 object-contain" />
           </div>
           <div>
-            <p className="text-white font-bold text-sm leading-none">Arapoint</p>
-            <p className="text-green-300 text-xs">Screening Platform</p>
+            <p className="text-white leading-none">Arapoint</p>
+            <p className="text-green-400 text-xs font-medium leading-none mt-0.5">Screening Platform</p>
           </div>
         </div>
       </div>
 
-      <div className="px-4 py-3 border-b border-green-800/30">
-        <div className="bg-green-800/40 rounded-xl px-3 py-2">
-          <p className="text-white text-xs font-semibold truncate">{orgName}</p>
-          <p className="text-green-300 text-xs capitalize">{userRole.replace('_', ' ')}</p>
+      {/* Org badge */}
+      <div className="px-4 py-3">
+        <div className="bg-gradient-to-r from-green-600 to-green-500 rounded-xl px-3 py-2.5 text-white">
+          <p className="text-sm font-semibold truncate leading-none">{orgName}</p>
+          <p className="text-green-100 text-xs capitalize mt-0.5">{userRole.replace('_', ' ')}</p>
         </div>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = location === item.href || (item.href !== '/employment-screening/dashboard' && location.startsWith(item.href));
           return (
-            <Link key={item.href} href={item.href}>
-              <a
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive
-                    ? 'bg-white text-green-700 shadow-sm'
-                    : 'text-green-100 hover:bg-green-700/50 hover:text-white'
-                }`}
-                onClick={() => setSidebarOpen(false)}
-              >
-                <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-green-700' : ''}`} />
-                <span>{item.label}</span>
-                {item.label === 'Alerts' && unread > 0 && (
-                  <Badge className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0 min-w-5 h-4 flex items-center justify-center">
-                    {unread > 9 ? '9+' : unread}
-                  </Badge>
-                )}
-              </a>
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                isActive
+                  ? 'bg-green-600 text-white shadow-lg shadow-green-600/30'
+                  : 'text-white/70 hover:bg-white/10 hover:text-white'
+              }`}
+              onClick={() => setSidebarOpen(false)}
+            >
+              <Icon className="w-4 h-4 flex-shrink-0" />
+              <span>{item.label}</span>
+              {item.label === 'Alerts' && unread > 0 && (
+                <Badge className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0 min-w-5 h-4 flex items-center justify-center">
+                  {unread > 9 ? '9+' : unread}
+                </Badge>
+              )}
             </Link>
           );
         })}
       </nav>
 
-      <div className="px-3 py-4 border-t border-green-800/30">
+      <div className="px-3 py-4 border-t border-white/10">
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-sm font-medium text-red-300 hover:bg-red-900/30 hover:text-red-200 transition-all"
+          className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-all"
         >
           <LogOut className="w-4 h-4 flex-shrink-0" />
-          <span>Logout</span>
+          <span>Sign Out</span>
         </button>
       </div>
     </div>
   );
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-slate-50">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 bg-[#166534] flex-shrink-0">
+      <aside className="hidden lg:flex flex-col w-64 bg-slate-900 flex-shrink-0">
         <SidebarContent />
       </aside>
 
@@ -116,7 +118,7 @@ export default function ScreeningDashboardLayout({ children }: { children: React
       {sidebarOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
           <div className="fixed inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
-          <aside className="relative flex flex-col w-64 bg-[#166534] z-10">
+          <aside className="relative flex flex-col w-64 bg-slate-900 z-10">
             <SidebarContent />
           </aside>
         </div>
