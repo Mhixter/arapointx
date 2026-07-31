@@ -1,25 +1,61 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Eye, EyeOff, Shield, Zap, Users, Building2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Eye, EyeOff, Building2, ArrowRight, ArrowLeft, CheckCircle,
+  Users, Briefcase, Shield, Zap, Sparkles, ChevronRight
+} from "lucide-react";
 import arapointLogo from "@assets/arapoint-logo-transparent.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { screeningApi, saveScreeningSession } from "@/lib/screening/api";
+
+const ease = [0.22, 1, 0.36, 1] as any;
+
+const INDUSTRIES = [
+  "Financial Services", "Technology", "Healthcare", "Education",
+  "Retail & E-commerce", "Manufacturing", "Logistics", "Government",
+  "Consulting", "Other",
+];
+
+const TEAM_SIZES = [
+  { label: "1–10", sub: "Startup / SME" },
+  { label: "11–50", sub: "Growing team" },
+  { label: "51–200", sub: "Mid-size" },
+  { label: "201–500", sub: "Enterprise" },
+  { label: "500+", sub: "Large enterprise" },
+];
+
+const STEPS = [
+  { id: 1, label: "Organization", icon: Building2 },
+  { id: 2, label: "Industry", icon: Briefcase },
+  { id: 3, label: "Team Size", icon: Users },
+  { id: 4, label: "Account", icon: Shield },
+];
 
 export default function ScreeningRegister() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
-  const [form, setForm] = useState({ organizationName: "", email: "", password: "", phone: "", industry: "", size: "" });
+  const [step, setStep] = useState(1);
+  const [form, setForm] = useState({
+    organizationName: "", email: "", password: "", phone: "", industry: "", size: ""
+  });
 
-  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm(f => ({ ...f, [k]: e.target.value }));
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const canNext = () => {
+    if (step === 1) return form.organizationName.trim().length >= 2;
+    if (step === 2) return form.industry.length > 0;
+    if (step === 3) return form.size.length > 0;
+    return form.email.trim().length > 3 && form.password.length >= 8;
+  };
+
+  const handleSubmit = async () => {
     if (form.password.length < 8) {
       toast({ title: "Weak password", description: "Password must be at least 8 characters", variant: "destructive" });
       return;
@@ -35,148 +71,263 @@ export default function ScreeningRegister() {
     } finally { setLoading(false); }
   };
 
+  const progressPct = ((step - 1) / (STEPS.length - 1)) * 100;
+
   return (
-    <div className="min-h-screen flex">
-      {/* Left — Branding */}
-      <div className="hidden lg:flex flex-col justify-between w-1/2 bg-gradient-to-br from-[#14532d] via-[#166534] to-[#15803d] p-12 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-20 w-64 h-64 border border-white rounded-full" />
-          <div className="absolute top-40 left-40 w-40 h-40 border border-white rounded-full" />
-          <div className="absolute bottom-20 right-10 w-80 h-80 border border-white rounded-full" />
-          {[...Array(20)].map((_, i) => (
-            <div key={i} className="absolute w-1 h-1 bg-white rounded-full"
-              style={{ top: `${(i * 17 + 5) % 100}%`, left: `${(i * 23 + 7) % 100}%`, opacity: 0.4 }} />
-          ))}
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "#F4F6F8" }}>
+      <div className="w-full max-w-xl">
+        {/* Logo */}
+        <div className="flex items-center justify-center gap-2.5 mb-8">
+          <div className="w-9 h-9 bg-white border rounded-xl flex items-center justify-center p-1.5 shadow-sm" style={{ borderColor: "#E5E7EB" }}>
+            <img src={arapointLogo} alt="Arapoint" className="w-full h-full object-contain" />
+          </div>
+          <div>
+            <p className="font-bold text-base leading-none" style={{ color: "#0F172A" }}>Arapoint Screening</p>
+            <p className="text-xs mt-0.5" style={{ color: "#08B63E" }}>Organization Onboarding</p>
+          </div>
         </div>
 
-        <div className="relative">
-          <div className="flex items-center gap-3 mb-16">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1">
-              <img src={arapointLogo} alt="Arapoint" className="w-full h-full object-contain" />
+        {/* Card */}
+        <div className="bg-white rounded-3xl shadow-xl border overflow-hidden" style={{ borderColor: "#E5E7EB", boxShadow: "0 20px 60px rgba(8,20,43,0.1)" }}>
+          {/* Progress header */}
+          <div className="px-8 pt-7 pb-5 border-b" style={{ borderColor: "#F4F6F8" }}>
+            <div className="flex items-center justify-between mb-4">
+              {STEPS.map((s, i) => {
+                const Icon = s.icon;
+                const done = step > s.id;
+                const active = step === s.id;
+                return (
+                  <div key={s.id} className="flex items-center gap-2">
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-300"
+                        style={{
+                          background: done ? "#08B63E" : active ? "#08142B" : "#F4F6F8",
+                          border: active ? "none" : done ? "none" : `1px solid #E5E7EB`
+                        }}>
+                        {done
+                          ? <CheckCircle className="w-4 h-4 text-white" />
+                          : <Icon className="w-4 h-4" style={{ color: active ? "white" : "#64748B" }} />}
+                      </div>
+                      <span className="text-[10px] font-medium hidden sm:block"
+                        style={{ color: active ? "#0F172A" : done ? "#08B63E" : "#64748B" }}>
+                        {s.label}
+                      </span>
+                    </div>
+                    {i < STEPS.length - 1 && (
+                      <div className="flex-1 h-0.5 mx-2 rounded-full transition-all duration-500"
+                        style={{ background: step > s.id ? "#08B63E" : "#E5E7EB", width: "40px" }} />
+                    )}
+                  </div>
+                );
+              })}
             </div>
-            <div>
-              <p className="text-white font-bold text-xl">Arapoint</p>
-              <p className="text-green-300 text-xs">Employment Trust Infrastructure</p>
+            {/* Progress bar */}
+            <div className="h-1 rounded-full" style={{ background: "#F4F6F8" }}>
+              <motion.div
+                className="h-full rounded-full"
+                style={{ background: "linear-gradient(90deg, #08B63E, #079C36)" }}
+                animate={{ width: `${progressPct}%` }}
+                transition={{ duration: 0.4, ease }}
+              />
             </div>
           </div>
-          <h1 className="text-4xl font-bold text-white mb-4 leading-tight">
-            Start verifying<br />candidates<br />in minutes.
-          </h1>
-          <p className="text-green-200 text-lg">Create your organization and get ₦350/candidate verified instantly.</p>
-        </div>
 
-        <div className="relative space-y-4">
-          {[
-            { icon: Shield, label: "NIN + BVN Identity", desc: "Cross-referenced in real-time" },
-            { icon: Zap, label: "Education Screening", desc: "WAEC, NECO, NABTEB, NBAIS verified" },
-            { icon: Users, label: "Team Management", desc: "Invite your HR team with role controls" },
-            { icon: Building2, label: "Fraud Detection", desc: "AI-powered risk scoring on every candidate" },
-          ].map(({ icon: Icon, label, desc }) => (
-            <div key={label} className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                <Icon className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <p className="text-white text-sm font-semibold">{label}</p>
-                <p className="text-green-300 text-xs">{desc}</p>
-              </div>
-            </div>
-          ))}
-          <p className="text-green-300 text-xs pt-2">Pay only ₦350 per candidate. No monthly fees.</p>
-        </div>
-      </div>
+          {/* Step content */}
+          <div className="px-8 py-7">
+            <AnimatePresence mode="wait">
+              {step === 1 && (
+                <motion.div key="step1"
+                  initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3, ease }}>
+                  <div className="mb-6">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold mb-3"
+                      style={{ background: "rgba(8,182,62,0.08)", color: "#08B63E", border: "1px solid rgba(8,182,62,0.2)" }}>
+                      <Sparkles className="w-3 h-3" /> Step 1 of 4
+                    </div>
+                    <h2 className="text-xl font-bold" style={{ color: "#0F172A" }}>Name your organization</h2>
+                    <p className="text-sm mt-1" style={{ color: "#64748B" }}>This will appear on all reports and certificates</p>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium" style={{ color: "#0F172A" }}>Organization Name</Label>
+                      <Input value={form.organizationName} onChange={set("organizationName")}
+                        placeholder="Acme Corporation Ltd." className="h-11 rounded-xl text-sm"
+                        style={{ borderColor: "#E5E7EB", background: "#F4F6F8" }} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium" style={{ color: "#0F172A" }}>Phone Number <span style={{ color: "#64748B" }}>(optional)</span></Label>
+                      <Input value={form.phone} onChange={set("phone")}
+                        placeholder="+234 801 234 5678" className="h-11 rounded-xl text-sm"
+                        style={{ borderColor: "#E5E7EB", background: "#F4F6F8" }} />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
 
-      {/* Right — Register form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-white overflow-y-auto">
-        <div className="w-full max-w-md py-6">
-          <div className="lg:hidden flex items-center gap-2 mb-8">
-            <div className="w-8 h-8 bg-white border border-gray-200 rounded-lg flex items-center justify-center p-1">
-              <img src={arapointLogo} alt="Arapoint" className="w-full h-full object-contain" />
-            </div>
-            <span className="text-lg font-bold text-gray-900">Arapoint Screening</span>
-          </div>
-
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900">Create Your Organization</h2>
-            <p className="text-gray-500 text-sm mt-1">Set up your screening account and start verifying</p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-gray-700">Organization Name</Label>
-              <Input value={form.organizationName} onChange={set("organizationName")} placeholder="Acme Corp Ltd" required
-                className="h-11 rounded-xl border-gray-200 focus:border-green-600 focus:ring-green-600" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-gray-700">Work Email</Label>
-              <Input type="email" value={form.email} onChange={set("email")} placeholder="hr@company.com" required
-                className="h-11 rounded-xl border-gray-200 focus:border-green-600 focus:ring-green-600" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-gray-700">Industry</Label>
-                <Select value={form.industry} onValueChange={v => setForm(f => ({ ...f, industry: v }))}>
-                  <SelectTrigger className="h-11 rounded-xl border-gray-200">
-                    <SelectValue placeholder="Select..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {["Fintech", "Banking", "Insurance", "Healthcare", "Logistics", "Telecom", "Retail", "Government", "Other"].map(i => (
-                      <SelectItem key={i} value={i}>{i}</SelectItem>
+              {step === 2 && (
+                <motion.div key="step2"
+                  initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3, ease }}>
+                  <div className="mb-6">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold mb-3"
+                      style={{ background: "rgba(37,99,235,0.08)", color: "#2563EB", border: "1px solid rgba(37,99,235,0.2)" }}>
+                      <Briefcase className="w-3 h-3" /> Step 2 of 4
+                    </div>
+                    <h2 className="text-xl font-bold" style={{ color: "#0F172A" }}>Select your industry</h2>
+                    <p className="text-sm mt-1" style={{ color: "#64748B" }}>Helps us tailor your screening configuration</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {INDUSTRIES.map(ind => (
+                      <button key={ind} type="button" onClick={() => setForm(f => ({ ...f, industry: ind }))}
+                        className="text-left px-4 py-3 rounded-xl text-sm font-medium transition-all border"
+                        style={form.industry === ind ? {
+                          background: "rgba(8,182,62,0.08)", borderColor: "#08B63E", color: "#08B63E"
+                        } : { borderColor: "#E5E7EB", color: "#0F172A", background: "#FAFAFA" }}>
+                        {form.industry === ind && <CheckCircle className="w-3.5 h-3.5 inline mr-1.5" />}
+                        {ind}
+                      </button>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-gray-700">Company Size</Label>
-                <Select value={form.size} onValueChange={v => setForm(f => ({ ...f, size: v }))}>
-                  <SelectTrigger className="h-11 rounded-xl border-gray-200">
-                    <SelectValue placeholder="Select..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {["1-10", "11-50", "51-200", "201-500", "500+"].map(s => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                  </div>
+                </motion.div>
+              )}
+
+              {step === 3 && (
+                <motion.div key="step3"
+                  initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3, ease }}>
+                  <div className="mb-6">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold mb-3"
+                      style={{ background: "rgba(124,58,237,0.08)", color: "#7C3AED", border: "1px solid rgba(124,58,237,0.2)" }}>
+                      <Users className="w-3 h-3" /> Step 3 of 4
+                    </div>
+                    <h2 className="text-xl font-bold" style={{ color: "#0F172A" }}>Team size</h2>
+                    <p className="text-sm mt-1" style={{ color: "#64748B" }}>How many employees does your organization have?</p>
+                  </div>
+                  <div className="space-y-2">
+                    {TEAM_SIZES.map(({ label, sub }) => (
+                      <button key={label} type="button" onClick={() => setForm(f => ({ ...f, size: label }))}
+                        className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl text-sm font-medium transition-all border"
+                        style={form.size === label ? {
+                          background: "rgba(8,182,62,0.08)", borderColor: "#08B63E"
+                        } : { borderColor: "#E5E7EB", background: "#FAFAFA" }}>
+                        <div>
+                          <span className="font-semibold" style={{ color: form.size === label ? "#08B63E" : "#0F172A" }}>{label}</span>
+                          <span className="ml-2 text-xs" style={{ color: "#64748B" }}>{sub}</span>
+                        </div>
+                        {form.size === label
+                          ? <CheckCircle className="w-4 h-4" style={{ color: "#08B63E" }} />
+                          : <ChevronRight className="w-4 h-4" style={{ color: "#E5E7EB" }} />}
+                      </button>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-gray-700">Phone (Optional)</Label>
-              <Input value={form.phone} onChange={set("phone")} placeholder="+234 800 000 0000"
-                className="h-11 rounded-xl border-gray-200 focus:border-green-600 focus:ring-green-600" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-gray-700">Password</Label>
-              <div className="relative">
-                <Input type={showPass ? "text" : "password"} value={form.password} onChange={set("password")}
-                  placeholder="Min. 8 characters" required
-                  className="h-11 rounded-xl border-gray-200 focus:border-green-600 focus:ring-green-600 pr-10" />
-                <button type="button" onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                  {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
+                  </div>
+                </motion.div>
+              )}
 
-            <Button type="submit" disabled={loading} className="w-full h-11 bg-green-700 hover:bg-green-800 text-white rounded-xl font-semibold">
-              {loading ? "Creating Organization..." : "Create Organization & Get Started"}
-            </Button>
-          </form>
+              {step === 4 && (
+                <motion.div key="step4"
+                  initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3, ease }}>
+                  <div className="mb-6">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold mb-3"
+                      style={{ background: "rgba(239,68,68,0.08)", color: "#EF4444", border: "1px solid rgba(239,68,68,0.2)" }}>
+                      <Shield className="w-3 h-3" /> Step 4 of 4
+                    </div>
+                    <h2 className="text-xl font-bold" style={{ color: "#0F172A" }}>Create your account</h2>
+                    <p className="text-sm mt-1" style={{ color: "#64748B" }}>Set up admin credentials for your organization</p>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium" style={{ color: "#0F172A" }}>Work Email</Label>
+                      <Input type="email" value={form.email} onChange={set("email")}
+                        placeholder="you@company.com" className="h-11 rounded-xl text-sm"
+                        style={{ borderColor: "#E5E7EB", background: "#F4F6F8" }} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-sm font-medium" style={{ color: "#0F172A" }}>Password</Label>
+                      <div className="relative">
+                        <Input type={showPass ? "text" : "password"} value={form.password} onChange={set("password")}
+                          placeholder="Min. 8 characters" className="h-11 rounded-xl text-sm pr-10"
+                          style={{ borderColor: "#E5E7EB", background: "#F4F6F8" }} />
+                        <button type="button" onClick={() => setShowPass(!showPass)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "#64748B" }}>
+                          {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      {form.password.length > 0 && (
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: "#F4F6F8" }}>
+                            <div className="h-full rounded-full transition-all"
+                              style={{
+                                width: form.password.length < 6 ? "25%" : form.password.length < 10 ? "60%" : "100%",
+                                background: form.password.length < 6 ? "#EF4444" : form.password.length < 10 ? "#F59E0B" : "#08B63E"
+                              }} />
+                          </div>
+                          <span className="text-xs" style={{ color: form.password.length < 6 ? "#EF4444" : form.password.length < 10 ? "#F59E0B" : "#08B63E" }}>
+                            {form.password.length < 6 ? "Weak" : form.password.length < 10 ? "Fair" : "Strong"}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-500">
-              Already have an account?{" "}
-              <a href="/employment-screening/login" className="text-green-700 font-semibold hover:underline">Sign in</a>
-            </p>
-          </div>
+                  {/* Summary */}
+                  <div className="mt-5 p-4 rounded-xl" style={{ background: "#F4F6F8", border: "1px solid #E5E7EB" }}>
+                    <p className="text-xs font-semibold mb-2" style={{ color: "#0F172A" }}>Summary</p>
+                    <div className="space-y-1">
+                      {[
+                        ["Organization", form.organizationName],
+                        ["Industry", form.industry],
+                        ["Team Size", form.size],
+                      ].map(([k, v]) => (
+                        <div key={k} className="flex justify-between text-xs">
+                          <span style={{ color: "#64748B" }}>{k}</span>
+                          <span className="font-medium" style={{ color: "#0F172A" }}>{v || "—"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-          <div className="mt-6 pt-6 border-t border-gray-100">
-            <p className="text-center text-xs text-gray-400">
-              By creating an account, you agree to our{" "}
-              <a href="/terms" className="text-green-600 hover:underline">Terms of Service</a>
-            </p>
+            {/* Navigation */}
+            <div className="flex items-center gap-3 mt-7">
+              {step > 1 && (
+                <Button variant="outline" onClick={() => setStep(s => s - 1)} className="rounded-xl"
+                  style={{ borderColor: "#E5E7EB", color: "#0F172A" }}>
+                  <ArrowLeft className="w-4 h-4 mr-1" /> Back
+                </Button>
+              )}
+              <Button
+                className="flex-1 h-11 text-white rounded-xl font-semibold"
+                style={{ background: canNext() ? "linear-gradient(135deg, #08B63E, #079C36)" : "#E5E7EB", color: canNext() ? "white" : "#64748B" }}
+                disabled={!canNext() || loading}
+                onClick={step < 4 ? () => setStep(s => s + 1) : handleSubmit}>
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Creating...
+                  </span>
+                ) : step < 4 ? (
+                  <span className="flex items-center gap-2">
+                    Continue <ArrowRight className="w-4 h-4" />
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <Zap className="w-4 h-4" /> Create Organization
+                  </span>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
+
+        <p className="text-center text-sm mt-5" style={{ color: "#64748B" }}>
+          Already have an account?{" "}
+          <a href="/employment-screening/login" className="font-semibold hover:opacity-70" style={{ color: "#08B63E" }}>
+            Sign in
+          </a>
+        </p>
       </div>
     </div>
   );
