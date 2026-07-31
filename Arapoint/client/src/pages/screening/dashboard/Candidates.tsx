@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { screeningApi, getDecisionBg, getStatusBg, getStatusLabel } from "@/lib/screening/api";
+import { screeningApi, getStatusBg, getStatusLabel } from "@/lib/screening/api";
 import ScreeningDashboardLayout from "@/components/layout/ScreeningDashboardLayout";
 
 const ease = [0.22, 1, 0.36, 1] as any;
