@@ -776,12 +776,14 @@ export const getSlipPdf = async (
       if (isPdfBuffer(dbBuffer)) {
         return dbBuffer;
       }
-      console.warn(`[getSlipPdf] Invalid PDF payload in database for ${slipReference}, falling back`);
+      console.warn("[getSlipPdf] Invalid PDF payload in database, falling back", {
+        slipReference,
+      });
     } catch (decodeError) {
-      console.warn(
-        `[getSlipPdf] Failed to decode PDF payload for ${slipReference}:`,
-        (decodeError as Error).message,
-      );
+      console.warn("[getSlipPdf] Failed to decode PDF payload", {
+        slipReference,
+        error: (decodeError as Error).message,
+      });
     }
   }
 
@@ -795,7 +797,9 @@ export const getSlipPdf = async (
   if (fs.existsSync(pdfPath)) {
     const buf = fs.readFileSync(pdfPath);
     if (!isPdfBuffer(buf)) {
-      console.warn(`[getSlipPdf] Invalid local PDF file for ${slipReference}, trying regeneration`);
+      console.warn("[getSlipPdf] Invalid local PDF file, trying regeneration", {
+        slipReference,
+      });
     } else {
     // Backfill pdfData so future downloads are instant
       try {
