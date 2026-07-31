@@ -165,9 +165,9 @@ const defaultPositions: Record<
     nin_top: "14.9%",
     nin_left: "9.4%",
     nin_size: "17px",
-    qr_top: "",
-    qr_right: "",
-    qr_width: "",
+    qr_top: "21.5%",
+    qr_right: "5%",
+    qr_width: "8.5%",
     sex_top: "21.1%",
     sex_left: "35.5%",
     sex_size: "17px",
@@ -486,12 +486,16 @@ export const generatePdfSlip = async (
 
   const qrCodeData = {
     slip_reference: slipReference,
+    slip_type: slipType,
     verification_status: "verified",
     verification_url: verificationUrl,
     nin: data.nin || "",
+    full_name: `${(data.firstname || "").toUpperCase()} ${(data.middlename || "").toUpperCase()} ${(data.surname || "").toUpperCase()}`.replace(/\s+/g, " ").trim(),
+    name: `${(data.firstname || "").toUpperCase()} ${(data.middlename || "").toUpperCase()} ${(data.surname || "").toUpperCase()}`.replace(/\s+/g, " ").trim(),
     surname: (data.surname || "").toUpperCase(),
     firstname: (data.firstname || "").toUpperCase(),
     middlename: (data.middlename || "").toUpperCase(),
+    dob: data.date_of_birth || "",
     date_of_birth: data.date_of_birth || "",
     gender: (data.gender || "").toUpperCase(),
   };
@@ -614,7 +618,7 @@ export const generatePdfSlip = async (
   }
 
   // 3. QR code
-  if (!hiddenFields.includes("qr_code") && positions.qr_top) {
+  if (!hiddenFields.includes("qr_code") && (positions.qr_top || positions.qr_right)) {
     try {
       const qrW = toPx(positions.qr_width, width);
       const qrY = toPx(positions.qr_top, height);
@@ -762,9 +766,25 @@ export const getSlipPdf = async (
     .set({ downloadCount: (slip[0].downloadCount || 0) + 1 })
     .where(eq(ninSlips.slipReference, slipReference));
 
+  const isPdfBuffer = (buffer: Buffer) =>
+    buffer.length > 4 && buffer.subarray(0, 4).toString("ascii") === "%PDF";
+
   // Prefer DB-stored PDF (permanent) over local file (ephemeral)
   if (slip[0].pdfData) {
-    return Buffer.from(slip[0].pdfData, "base64");
+    try {
+      const dbBuffer = Buffer.from(slip[0].pdfData, "base64");
+      if (isPdfBuffer(dbBuffer)) {
+        return dbBuffer;
+      }
+      console.warn("[getSlipPdf] Invalid PDF payload in database, falling back", {
+        slipReference,
+      });
+    } catch (decodeError) {
+      console.warn("[getSlipPdf] Failed to decode PDF payload", {
+        slipReference,
+        error: (decodeError as Error).message,
+      });
+    }
   }
 
   // Fallback: try local filesystem (may not exist after server restart)
@@ -776,14 +796,20 @@ export const getSlipPdf = async (
 
   if (fs.existsSync(pdfPath)) {
     const buf = fs.readFileSync(pdfPath);
+    if (!isPdfBuffer(buf)) {
+      console.warn("[getSlipPdf] Invalid local PDF file, trying regeneration", {
+        slipReference,
+      });
+    } else {
     // Backfill pdfData so future downloads are instant
-    try {
-      await db
-        .update(ninSlips)
-        .set({ pdfData: buf.toString("base64") })
-        .where(eq(ninSlips.slipReference, slipReference));
-    } catch (_) {}
-    return buf;
+      try {
+        await db
+          .update(ninSlips)
+          .set({ pdfData: buf.toString("base64") })
+          .where(eq(ninSlips.slipReference, slipReference));
+      } catch (_) {}
+      return buf;
+    }
   }
 
   // Last resort: regenerate from stored slip record data

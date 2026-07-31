@@ -54,7 +54,7 @@ export default function BatchDetail() {
             { label: "Pass", value: passCount, color: "text-green-600" },
             { label: "Review", value: reviewCount, color: "text-yellow-600" },
             { label: "Failed", value: failCount, color: "text-red-600" },
-            { label: "Pending", value: pendingCount, color: "text-blue-600" },
+            { label: "Pending", value: pendingCount, color: "text-emerald-600" },
           ].map(({ label, value, color }) => (
             <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
               <p className={`text-2xl font-bold ${color}`}>{value}</p>
@@ -68,12 +68,12 @@ export default function BatchDetail() {
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-5">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-semibold text-gray-800">Processing Progress</p>
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${batch.status === "completed" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${batch.status === "completed" ? "bg-green-100 text-green-700" : "bg-emerald-100 text-emerald-700"}`}>
                 {batch.status === "completed" ? "Completed" : "In Progress"}
               </span>
             </div>
             <div className="w-full bg-gray-100 rounded-full h-2.5">
-              <div className="h-2.5 rounded-full bg-blue-600 transition-all duration-500"
+              <div className="h-2.5 rounded-full bg-emerald-600 transition-all duration-500"
                 style={{ width: `${Math.round(((batch.completedCandidates || 0) / batch.totalCandidates) * 100)}%` }} />
             </div>
             <div className="flex justify-between text-xs text-gray-400 mt-1">
@@ -91,7 +91,7 @@ export default function BatchDetail() {
           </div>
           {loading && candidates.length === 0 ? (
             <div className="py-16 flex items-center justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-blue-700" />
+              <Loader2 className="w-6 h-6 animate-spin text-green-700" />
             </div>
           ) : candidates.length === 0 ? (
             <div className="py-12 text-center">
@@ -103,7 +103,7 @@ export default function BatchDetail() {
               {candidates.map((c: any) => (
                 <Link key={c.id} href={`/employment-screening/dashboard/candidates/${c.id}`}>
                   <a className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition-colors">
-                    <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold text-xs flex-shrink-0">
+                    <div className="w-9 h-9 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-bold text-xs flex-shrink-0">
                       {c.fullName?.charAt(0)?.toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">

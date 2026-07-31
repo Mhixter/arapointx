@@ -10,7 +10,7 @@ import ScreeningDashboardLayout from "@/components/layout/ScreeningDashboardLayo
 
 const ROLES = ["super_admin", "hr_manager", "recruiter"];
 const ROLE_LABELS: Record<string, string> = { super_admin: "Super Admin", hr_manager: "HR Manager", recruiter: "Recruiter" };
-const ROLE_COLORS: Record<string, string> = { super_admin: "bg-purple-100 text-purple-700", hr_manager: "bg-blue-100 text-blue-700", recruiter: "bg-gray-100 text-gray-600" };
+const ROLE_COLORS: Record<string, string> = { super_admin: "bg-purple-100 text-purple-700", hr_manager: "bg-green-100 text-green-700", recruiter: "bg-gray-100 text-gray-600" };
 
 function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const { toast } = useToast();
@@ -56,12 +56,12 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
               </SelectContent>
             </Select>
           </div>
-          <div className="bg-blue-50 rounded-xl p-3 text-xs text-blue-700">
+          <div className="bg-green-50 rounded-xl p-3 text-xs text-green-700">
             A temporary password will be generated. Share it with the team member so they can log in.
           </div>
           <div className="flex gap-3 pt-2">
             <Button variant="outline" type="button" onClick={onClose} className="flex-1 rounded-xl">Cancel</Button>
-            <Button type="submit" disabled={loading} className="flex-1 bg-blue-700 hover:bg-blue-800 text-white rounded-xl">
+            <Button type="submit" disabled={loading} className="flex-1 bg-green-700 hover:bg-green-800 text-white rounded-xl">
               {loading ? "Inviting..." : "Send Invite"}
             </Button>
           </div>
@@ -115,7 +115,7 @@ export default function TeamManagement() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={load} className="rounded-xl"><RefreshCw className="w-4 h-4" /></Button>
-            <Button size="sm" onClick={() => setShowInvite(true)} className="bg-blue-700 hover:bg-blue-800 text-white rounded-xl">
+            <Button size="sm" onClick={() => setShowInvite(true)} className="bg-green-700 hover:bg-green-800 text-white rounded-xl">
               <UserPlus className="w-4 h-4 mr-2" /> Invite Member
             </Button>
           </div>
@@ -157,7 +157,7 @@ export default function TeamManagement() {
               {members.map(m => (
                 <div key={m.id} className={`flex flex-col sm:grid sm:grid-cols-4 items-start sm:items-center gap-3 sm:gap-0 px-6 py-4 ${!m.isActive ? "opacity-50" : ""}`}>
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold text-sm flex-shrink-0">
+                    <div className="w-9 h-9 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-bold text-sm flex-shrink-0">
                       {m.name?.charAt(0)?.toUpperCase()}
                     </div>
                     <div>

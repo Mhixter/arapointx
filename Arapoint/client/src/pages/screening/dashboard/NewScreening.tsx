@@ -78,15 +78,15 @@ export default function NewScreening() {
               <p className="text-xs text-gray-500 mb-1">Reference ID</p>
               <p className="font-bold text-gray-900 text-lg">{candidateRef}</p>
             </div>
-            <div className="bg-blue-50 rounded-xl p-4 mb-6 text-left text-sm text-blue-700 space-y-2">
+            <div className="bg-green-50 rounded-xl p-4 mb-6 text-left text-sm text-green-700 space-y-2">
               <div className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /><span>NIN & BVN verification running...</span></div>
               {includeEdu && form.educationProvider && <div className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /><span>{form.educationProvider.toUpperCase()} verification in queue</span></div>}
               <div className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /><span>Fraud analysis running...</span></div>
-              <p className="text-xs text-blue-500 mt-1">Estimated time: 3–5 minutes</p>
+              <p className="text-xs text-green-500 mt-1">Estimated time: 3–5 minutes</p>
             </div>
             <div className="flex gap-3">
               <Button onClick={() => setLocation(`/employment-screening/dashboard/candidates/${candidateId}`)}
-                className="flex-1 bg-blue-700 hover:bg-blue-800 text-white rounded-xl">View Result</Button>
+                className="flex-1 bg-green-700 hover:bg-green-800 text-white rounded-xl">View Result</Button>
               <Button variant="outline" onClick={() => { setSubmitted(false); setForm({ fullName: "", email: "", phone: "", position: "", nin: "", bvn: "", educationProvider: "", examNumber: "", examYear: "", cardSerial: "", cardPin: "", token: "" }); }}
                 className="flex-1 rounded-xl">Screen Another</Button>
             </div>
@@ -108,7 +108,7 @@ export default function NewScreening() {
           {/* Candidate Info */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <div className="flex items-center gap-2 mb-4">
-              <User className="w-4 h-4 text-blue-700" />
+              <User className="w-4 h-4 text-green-700" />
               <h2 className="font-semibold text-gray-900 text-sm">Candidate Information</h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -134,9 +134,9 @@ export default function NewScreening() {
           {/* Identity */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <div className="flex items-center gap-2 mb-4">
-              <ShieldCheck className="w-4 h-4 text-blue-700" />
+              <ShieldCheck className="w-4 h-4 text-green-700" />
               <h2 className="font-semibold text-gray-900 text-sm">Identity Verification</h2>
-              <span className="ml-auto text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">NIN ₦130 + BVN ₦80</span>
+              <span className="ml-auto text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">NIN ₦130 + BVN ₦80</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
@@ -153,9 +153,9 @@ export default function NewScreening() {
           {/* Education */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <div className="flex items-center gap-2 mb-4">
-              <GraduationCap className="w-4 h-4 text-blue-700" />
+              <GraduationCap className="w-4 h-4 text-green-700" />
               <h2 className="font-semibold text-gray-900 text-sm">Education Verification</h2>
-              <span className="ml-auto text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">+₦120</span>
+              <span className="ml-auto text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">+₦120</span>
               <label className="flex items-center gap-1.5 ml-2 text-xs text-gray-500 cursor-pointer">
                 <input type="checkbox" checked={includeEdu} onChange={e => setIncludeEdu(e.target.checked)} className="rounded" />
                 Include
@@ -204,13 +204,13 @@ export default function NewScreening() {
           </div>
 
           {/* Summary + Submit */}
-          <div className="bg-blue-700 rounded-2xl p-5 text-white flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="bg-green-700 rounded-2xl p-5 text-white flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
               <p className="font-semibold">Total Charge</p>
               <p className="text-3xl font-bold">₦{charge.toLocaleString()}</p>
-              <p className="text-blue-200 text-xs mt-0.5">Will be debited from wallet balance</p>
+              <p className="text-green-200 text-xs mt-0.5">Will be debited from wallet balance</p>
             </div>
-            <Button type="submit" disabled={loading} className="bg-white text-blue-700 hover:bg-blue-50 font-semibold rounded-xl px-8 h-12 text-sm">
+            <Button type="submit" disabled={loading} className="bg-white text-green-700 hover:bg-green-50 font-semibold rounded-xl px-8 h-12 text-sm">
               {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Processing...</> : <>Start Verification <ChevronRight className="w-4 h-4 ml-1" /></>}
             </Button>
           </div>

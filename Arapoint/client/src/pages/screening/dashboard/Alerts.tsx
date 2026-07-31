@@ -11,7 +11,7 @@ function NotifIcon({ severity }: { severity: string }) {
   if (severity === "error") return <div className="w-9 h-9 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0"><AlertTriangle className="w-4 h-4 text-red-600" /></div>;
   if (severity === "warning") return <div className="w-9 h-9 bg-yellow-100 rounded-xl flex items-center justify-center flex-shrink-0"><AlertTriangle className="w-4 h-4 text-yellow-600" /></div>;
   if (severity === "success") return <div className="w-9 h-9 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0"><CheckCircle className="w-4 h-4 text-green-600" /></div>;
-  return <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0"><Info className="w-4 h-4 text-blue-600" /></div>;
+  return <div className="w-9 h-9 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0"><Info className="w-4 h-4 text-green-600" /></div>;
 }
 
 export default function ScreeningAlerts() {
@@ -61,7 +61,7 @@ export default function ScreeningAlerts() {
         <div className="flex gap-2 mb-4 bg-gray-100 rounded-xl p-1 w-fit">
           {TABS.map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === t ? "bg-white text-blue-700 shadow-sm" : "text-gray-600 hover:text-gray-800"}`}>
+              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === t ? "bg-white text-green-700 shadow-sm" : "text-gray-600 hover:text-gray-800"}`}>
               {t}
             </button>
           ))}
@@ -86,7 +86,7 @@ export default function ScreeningAlerts() {
             <div className="divide-y divide-gray-50">
               {filtered.map(n => (
                 <div key={n.id}
-                  className={`flex gap-4 px-6 py-4 cursor-pointer hover:bg-gray-50 transition-colors ${!n.isRead ? "bg-blue-50/40" : ""}`}
+                  className={`flex gap-4 px-6 py-4 cursor-pointer hover:bg-gray-50 transition-colors ${!n.isRead ? "bg-green-50/40" : ""}`}
                   onClick={() => !n.isRead && markRead(n.id)}>
                   <NotifIcon severity={n.severity} />
                   <div className="flex-1 min-w-0">
@@ -97,18 +97,18 @@ export default function ScreeningAlerts() {
                     <p className="text-xs text-gray-500 mt-0.5 truncate">{n.message}</p>
                     {n.candidateId && (
                       <Link href={`/employment-screening/dashboard/candidates/${n.candidateId}`}>
-                        <a className="text-xs text-blue-600 hover:underline mt-1 inline-block" onClick={e => e.stopPropagation()}>View candidate →</a>
+                        <a className="text-xs text-green-600 hover:underline mt-1 inline-block" onClick={e => e.stopPropagation()}>View candidate →</a>
                       </Link>
                     )}
                   </div>
-                  {!n.isRead && <div className="w-2 h-2 bg-blue-600 rounded-full mt-1.5 flex-shrink-0" />}
+                  {!n.isRead && <div className="w-2 h-2 bg-green-600 rounded-full mt-1.5 flex-shrink-0" />}
                 </div>
               ))}
             </div>
           )}
           {filtered.length > 0 && (
             <div className="px-6 py-3 border-t border-gray-100">
-              <button className="w-full text-sm text-blue-700 font-medium hover:underline">View All Notifications</button>
+              <button className="w-full text-sm text-green-700 font-medium hover:underline">View All Notifications</button>
             </div>
           )}
         </div>

@@ -48,9 +48,9 @@ function CircleScore({ score, size = 80 }: { score: number; size?: number }) {
 }
 
 function CheckRow({ label, status, detail }: { label: string; status: "verified" | "failed" | "pending" | "low_risk" | "medium_risk" | "high_risk"; detail?: string }) {
-  const icons = { verified: <CheckCircle className="w-4 h-4 text-green-600" />, failed: <XCircle className="w-4 h-4 text-red-500" />, pending: <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />, low_risk: <CheckCircle className="w-4 h-4 text-green-600" />, medium_risk: <AlertTriangle className="w-4 h-4 text-yellow-500" />, high_risk: <AlertTriangle className="w-4 h-4 text-red-500" /> };
+  const icons = { verified: <CheckCircle className="w-4 h-4 text-green-600" />, failed: <XCircle className="w-4 h-4 text-red-500" />, pending: <Loader2 className="w-4 h-4 text-green-500 animate-spin" />, low_risk: <CheckCircle className="w-4 h-4 text-green-600" />, medium_risk: <AlertTriangle className="w-4 h-4 text-yellow-500" />, high_risk: <AlertTriangle className="w-4 h-4 text-red-500" /> };
   const labels: Record<string, string> = { verified: "Verified", failed: "Failed", pending: "In Progress", low_risk: "Low Risk", medium_risk: "Medium Risk", high_risk: "High Risk" };
-  const colors: Record<string, string> = { verified: "text-green-600", failed: "text-red-600", pending: "text-blue-600", low_risk: "text-green-600", medium_risk: "text-yellow-600", high_risk: "text-red-600" };
+  const colors: Record<string, string> = { verified: "text-green-600", failed: "text-red-600", pending: "text-green-600", low_risk: "text-green-600", medium_risk: "text-yellow-600", high_risk: "text-red-600" };
   return (
     <div className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
       <div className="flex items-center gap-3">
@@ -117,7 +117,7 @@ export default function CandidateDetail() {
   if (loading) return (
     <ScreeningDashboardLayout>
       <div className="p-6 flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-700" />
+        <Loader2 className="w-8 h-8 animate-spin text-green-700" />
       </div>
     </ScreeningDashboardLayout>
   );
@@ -177,7 +177,7 @@ export default function CandidateDetail() {
 
         {/* Header card */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-5 flex flex-col sm:flex-row gap-6">
-          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold text-2xl flex-shrink-0">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-bold text-2xl flex-shrink-0">
             {candidate.fullName?.charAt(0)?.toUpperCase()}
           </div>
           <div className="flex-1">
@@ -188,8 +188,8 @@ export default function CandidateDetail() {
           </div>
           {isProcessing ? (
             <div className="flex flex-col items-center justify-center gap-2">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-700" />
-              <p className="text-xs text-blue-600 font-medium">Processing...</p>
+              <Loader2 className="w-8 h-8 animate-spin text-green-700" />
+              <p className="text-xs text-green-600 font-medium">Processing...</p>
             </div>
           ) : candidate.overallScore !== null && candidate.overallScore !== undefined ? (
             <div className="flex flex-col items-center gap-2">
@@ -200,8 +200,8 @@ export default function CandidateDetail() {
         </div>
 
         {isProcessing && (
-          <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 mb-5">
-            <p className="font-semibold text-blue-900 text-sm mb-3">Verification in Progress</p>
+          <div className="bg-green-50 border border-green-100 rounded-2xl p-5 mb-5">
+            <p className="font-semibold text-green-900 text-sm mb-3">Verification in Progress</p>
             <div className="space-y-2">
               {[
                 { label: "NIN Verification", done: ninSuccess },
@@ -210,12 +210,12 @@ export default function CandidateDetail() {
                 { label: "Fraud Analysis", done: !!fraud },
               ].map(({ label, done }) => (
                 <div key={label} className="flex items-center gap-3 text-sm">
-                  {done ? <CheckCircle className="w-4 h-4 text-green-600" /> : <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />}
-                  <span className={done ? "text-green-700" : "text-blue-700"}>{label}</span>
+                  {done ? <CheckCircle className="w-4 h-4 text-green-600" /> : <Loader2 className="w-4 h-4 text-green-600 animate-spin" />}
+                  <span className={done ? "text-green-700" : "text-green-700"}>{label}</span>
                 </div>
               ))}
             </div>
-            <p className="text-xs text-blue-400 mt-3">Page refreshes automatically. Estimated: 3–5 min.</p>
+            <p className="text-xs text-green-400 mt-3">Page refreshes automatically. Estimated: 3–5 min.</p>
           </div>
         )}
 
@@ -225,7 +225,7 @@ export default function CandidateDetail() {
             {candidate.overallScore !== null && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-5">
                 <div className="flex items-center gap-2 mb-4">
-                  <TrendingUp className="w-4 h-4 text-blue-700" />
+                  <TrendingUp className="w-4 h-4 text-green-700" />
                   <h3 className="font-semibold text-gray-900">Verification Score</h3>
                 </div>
                 <div className="flex items-center gap-6">
@@ -243,7 +243,7 @@ export default function CandidateDetail() {
             {/* Identity */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-5">
               <div className="flex items-center gap-2 mb-4">
-                <User className="w-4 h-4 text-blue-700" />
+                <User className="w-4 h-4 text-green-700" />
                 <h3 className="font-semibold text-gray-900">Identity Verification</h3>
               </div>
               <CheckRow label="NIN Verification" status={ninSuccess ? "verified" : "failed"} detail={ninData ? `${ninData.firstName || ""} ${ninData.lastName || ""}`.trim() || undefined : undefined} />
@@ -263,7 +263,7 @@ export default function CandidateDetail() {
                       <img
                         src={`data:image/jpeg;base64,${ninData.photo}`}
                         alt="NIN Photo"
-                        className="w-20 h-24 object-cover rounded-xl border-2 border-blue-200 shadow-sm"
+                        className="w-20 h-24 object-cover rounded-xl border-2 border-green-200 shadow-sm"
                         onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                       />
                       <span className="text-xs text-gray-400 font-medium">NIN Photo</span>
@@ -295,7 +295,7 @@ export default function CandidateDetail() {
             {(edu || candidate.educationProvider) && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-5">
                 <div className="flex items-center gap-2 mb-4">
-                  <GraduationCap className="w-4 h-4 text-blue-700" />
+                  <GraduationCap className="w-4 h-4 text-green-700" />
                   <h3 className="font-semibold text-gray-900">Education Verification</h3>
                   <span className="ml-auto text-xs text-gray-400 uppercase">{candidate.educationProvider}</span>
                 </div>
@@ -349,7 +349,7 @@ export default function CandidateDetail() {
             {fraud && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-5">
                 <div className="flex items-center gap-2 mb-4">
-                  <Shield className="w-4 h-4 text-blue-700" />
+                  <Shield className="w-4 h-4 text-green-700" />
                   <h3 className="font-semibold text-gray-900">Fraud & Risk Analysis</h3>
                   <span className={`ml-auto text-xs font-semibold px-2.5 py-1 rounded-full ${fraud.score >= 80 ? "bg-green-100 text-green-700" : fraud.score >= 60 ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700"}`}>
                     {fraud.level}
@@ -389,7 +389,7 @@ export default function CandidateDetail() {
             {/* Actions */}
             <div className="flex flex-wrap gap-3">
               <Button
-                className="bg-blue-700 hover:bg-blue-800 text-white rounded-xl flex-1 sm:flex-none"
+                className="bg-green-700 hover:bg-green-800 text-white rounded-xl flex-1 sm:flex-none"
                 onClick={downloadPdf}
                 disabled={downloadingPdf}
               >

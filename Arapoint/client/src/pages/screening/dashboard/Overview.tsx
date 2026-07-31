@@ -43,7 +43,7 @@ export default function ScreeningOverview() {
               {stats && <p className="text-slate-300 text-sm mt-1">You have {stats.totalScreenings.toLocaleString()} total screenings</p>}
             </div>
             <Link href="/employment-screening/dashboard/screen">
-              <Button className="bg-white text-blue-700 hover:bg-blue-50 font-semibold rounded-xl">
+              <Button className="bg-white text-green-700 hover:bg-green-50 font-semibold rounded-xl">
                 <Plus className="w-4 h-4 mr-2" />
                 Start New Screening
               </Button>
@@ -73,7 +73,7 @@ export default function ScreeningOverview() {
           </div>
         ) : stats && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <StatCard label="Total Screenings" value={stats.totalScreenings?.toLocaleString() ?? "0"} icon={Users} color="bg-blue-50 text-blue-600" sub="All time" />
+            <StatCard label="Total Screenings" value={stats.totalScreenings?.toLocaleString() ?? "0"} icon={Users} color="bg-green-50 text-green-600" sub="All time" />
             <StatCard label="Pass Rate" value={`${stats.passRate ?? 0}%`} icon={TrendingUp} color="bg-green-50 text-green-600" sub="Of completed screenings" />
             <StatCard label="Wallet Balance" value={`₦${Number(stats.walletBalance || 0).toLocaleString()}`} icon={CheckCircle} color="bg-purple-50 text-purple-600" sub="Available" />
             <StatCard label="Under Review" value={stats.review?.toLocaleString() ?? "0"} icon={AlertTriangle} color="bg-yellow-50 text-yellow-600" sub="Needs attention" />
@@ -86,7 +86,7 @@ export default function ScreeningOverview() {
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <h2 className="font-semibold text-gray-900">Recent Screenings</h2>
               <Link href="/employment-screening/dashboard/candidates">
-                <a className="text-blue-700 text-sm font-medium flex items-center gap-1 hover:underline">
+                <a className="text-green-700 text-sm font-medium flex items-center gap-1 hover:underline">
                   View all <ArrowRight className="w-3 h-3" />
                 </a>
               </Link>

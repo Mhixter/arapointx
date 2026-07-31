@@ -53,7 +53,7 @@ export default function ScreeningCandidates() {
             <p className="text-sm text-gray-500">Manage and track candidate verifications</p>
           </div>
           <Link href="/employment-screening/dashboard/screen">
-            <Button className="bg-blue-700 hover:bg-blue-800 text-white rounded-xl">
+            <Button className="bg-green-700 hover:bg-green-800 text-white rounded-xl">
               <Plus className="w-4 h-4 mr-2" /> New Screening
             </Button>
           </Link>
@@ -76,7 +76,7 @@ export default function ScreeningCandidates() {
         <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
           {TABS.map(t => (
             <button key={t.value} onClick={() => setTab(t.value)}
-              className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all ${tab === t.value ? 'bg-blue-700 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-300'}`}>
+              className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all ${tab === t.value ? 'bg-green-700 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:border-green-300'}`}>
               {t.label} {counts[t.value] !== undefined ? <span className="ml-1 opacity-70">{counts[t.value]?.toLocaleString()}</span> : ""}
             </button>
           ))}
@@ -107,7 +107,7 @@ export default function ScreeningCandidates() {
               {filtered.map(c => (
                 <Link key={c.id} href={`/employment-screening/dashboard/candidates/${c.id}`}>
                   <a className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition-colors group">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold text-sm flex-shrink-0">
+                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-bold text-sm flex-shrink-0">
                       {c.fullName?.charAt(0)?.toUpperCase() || "?"}
                     </div>
                     <div className="flex-1 min-w-0">

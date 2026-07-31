@@ -7,6 +7,25 @@ import {
 import { nameSimilarityScore, toDecision, validateTimeline } from './verification';
 
 const router = Router();
+const EMPLOYMENT_MODEL_VERSION = 'employment-screening-v2';
+
+function buildIntegrationModel(level: string) {
+  return {
+    version: EMPLOYMENT_MODEL_VERSION,
+    level,
+    checks: ['nin', 'bvn', 'identity_cross_match', 'timeline', 'ssce'],
+    scoring: {
+      nin: 20,
+      bvn: 20,
+      name_match: 20,
+      dob_match: 15,
+      timeline: 10,
+      ssce: 15,
+      max_with_ssce: 100,
+      max_without_ssce: 85,
+    },
+  };
+}
 
 function dobsMatch(a: string, b: string): boolean {
   if (!a || !b) return false;
@@ -108,6 +127,12 @@ router.post('/verify/employment', apiKeyAuth, async (req: Request, res: Response
         data: {
           requestId, level, queueStatus: 'completed', processedAt: new Date().toISOString(),
           decision: 'PASS', flags: [],
+          model: buildIntegrationModel(level),
+          organization: {
+            id: dev.id,
+            name: dev.company || dev.name || null,
+            email: dev.email || null,
+          },
           checks: { identity_match: true, name_match_score: nameScore, dob_match: true, education_verified: !!ssce, timeline_valid: timeline.valid },
           confidence: { score: 100, label: 'Very High Confidence', grade: 'A', earned: 100, maxPossible: 100 },
           checkpoints: {
@@ -155,6 +180,12 @@ router.post('/verify/employment', apiKeyAuth, async (req: Request, res: Response
       data: {
         requestId, level, queueStatus: 'queued',
         submittedAt: new Date().toISOString(),
+        model: buildIntegrationModel(level),
+        organization: {
+          id: dev.id,
+          name: dev.company || dev.name || null,
+          email: dev.email || null,
+        },
         pollUrl: `GET /verify/employment/result/${requestId}`,
         estimatedTime: ssce ? '60–120 seconds (SSCE lookup via RPA)' : '5–15 seconds (identity checks only)',
         checks: {
@@ -349,7 +380,13 @@ router.get('/verify/employment/result/:requestId', apiKeyAuth, async (req: Reque
       statusCode = 202;
       responseData = {
         status: 'accepted', code: 202, message: 'Verification is queued and will begin processing shortly.',
-        data: { requestId, queueStatus: 'queued', submittedAt: stored.created_at, pollUrl: `GET /verify/employment/result/${requestId}` },
+        data: {
+          requestId,
+          queueStatus: 'queued',
+          submittedAt: stored.created_at,
+          model: buildIntegrationModel(stored.level || 'standard'),
+          pollUrl: `GET /verify/employment/result/${requestId}`,
+        },
       };
       return res.status(202).json(responseData);
     }
@@ -359,6 +396,7 @@ router.get('/verify/employment/result/:requestId', apiKeyAuth, async (req: Reque
         status: 'accepted', code: 202, message: 'Identity checks complete. SSCE result is being retrieved via RPA.',
         data: {
           requestId, queueStatus: 'processing', submittedAt: stored.created_at,
+          model: buildIntegrationModel(stored.level || 'standard'),
           pollUrl: `GET /verify/employment/result/${requestId}`,
           partial: {
             nin: stored.nin_score > 0 ? 'verified' : 'pending',
@@ -438,6 +476,12 @@ router.get('/verify/employment/result/:requestId', apiKeyAuth, async (req: Reque
         requestId, level: stored.level,
         processedAt: stored.created_at,
         retrievedAt: new Date().toISOString(),
+        model: buildIntegrationModel(stored.level || 'standard'),
+        organization: {
+          id: dev.id,
+          name: dev.company || dev.name || null,
+          email: dev.email || null,
+        },
         decision, flags,
         checks: {
           identity_match: ninScore > 0 && bvnScore > 0,
