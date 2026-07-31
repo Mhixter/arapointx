@@ -19,7 +19,7 @@ const verifyNinSchema = z.object({
   photo: z.string().optional(),
   tracking_id: z.string().optional(),
   verification_reference: z.string().optional(),
-  slip_type: z.enum(['standard', 'premium', 'long']).default('standard')
+  slip_type: z.enum(['standard', 'premium', 'long', 'full_info']).default('standard')
 });
 
 router.post('/verify-nin', authMiddleware, async (req: Request, res: Response) => {
@@ -293,7 +293,7 @@ router.get('/analyzer/:type', adminAuthMiddleware, async (req: Request, res: Res
       { key: 'middlename', label: 'Middle Name', condition: slipType === 'long', posFields: [{id:'middlename_top',label:'Top'},{id:'middlename_left',label:'Left'},{id:'middlename_size',label:'Font Size'}] },
       { key: 'dob', label: 'Date of Birth', condition: slipType !== 'long', posFields: [{id:'dob_top',label:'Top'},{id:'dob_left',label:'Left'},{id:'dob_size',label:'Font Size'}] },
       { key: 'nin', label: 'NIN', condition: true, posFields: [{id:'nin_top',label:'Top'},{id:'nin_left',label:'Left'},{id:'nin_size',label:'Font Size'}] },
-      { key: 'qr_code', label: 'QR Code', condition: slipType !== 'long', posFields: [{id:'qr_top',label:'Top'},{id:'qr_right',label:'Right'},{id:'qr_width',label:'Width'}], isImage: true },
+      { key: 'qr_code', label: 'QR Code', condition: true, posFields: [{id:'qr_top',label:'Top'},{id:'qr_right',label:'Right'},{id:'qr_width',label:'Width'}], isImage: true },
       { key: 'sex', label: 'Sex/Gender', condition: slipType !== 'standard', posFields: [{id:'sex_top',label:'Top'},{id:'sex_left',label:'Left'},{id:'sex_size',label:'Font Size'}] },
       { key: 'issue_date', label: 'Issue Date', condition: slipType === 'premium' || slipType === 'full_info', posFields: [{id:'issue_top',label:'Top'},{id: slipType === 'premium' ? 'issue_right' : 'issue_left',label: slipType === 'premium' ? 'Right' : 'Left'},{id:'issue_size',label:'Font Size'}] },
       { key: 'tracking_id', label: 'Tracking ID', condition: slipType === 'long' || slipType === 'full_info', posFields: [{id:'tracking_top',label:'Top'},{id:'tracking_left',label:'Left'},{id:'tracking_size',label:'Font Size'}] },

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { motion } from "framer-motion";
 import { Eye, EyeOff, Shield, Zap, Users, Building2, Loader2, Mail, CheckCircle, ArrowLeft } from "lucide-react";
 import arapointLogo from "@assets/arapoint-logo-transparent.png";
 import { Button } from "@/components/ui/button";
@@ -158,9 +159,9 @@ export default function ScreeningRegisterWithOTP() {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex bg-slate-950">
       {/* Left — Branding */}
-      <div className="hidden lg:flex flex-col justify-between w-1/2 bg-gradient-to-br from-[#0F2461] via-[#1E3A8A] to-[#1D4ED8] p-12 relative overflow-hidden">
+      <div className="hidden lg:flex flex-col justify-between w-1/2 bg-gradient-to-br from-[#052e16] via-[#14532d] to-[#166534] p-12 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-20 left-20 w-64 h-64 border border-white rounded-full" />
           <div className="absolute top-40 left-40 w-40 h-40 border border-white rounded-full" />
@@ -177,13 +178,13 @@ export default function ScreeningRegisterWithOTP() {
             </div>
             <div>
               <p className="text-white font-bold text-xl">Arapoint</p>
-              <p className="text-blue-300 text-xs">Employment Screening</p>
+              <p className="text-green-300 text-xs">Employment Screening</p>
             </div>
           </div>
           <h1 className="text-4xl font-bold text-white mb-4 leading-tight">
             Screen candidates.<br />Verify credentials.<br />Make smart hires.
           </h1>
-          <p className="text-blue-200 text-lg">NIN, BVN, WAEC verification — all in minutes, not days.</p>
+          <p className="text-green-200 text-lg">NIN, BVN, WAEC verification — all in minutes, not days.</p>
         </div>
         <div className="relative space-y-4">
           {[
@@ -197,17 +198,22 @@ export default function ScreeningRegisterWithOTP() {
               </div>
               <div>
                 <p className="text-white text-sm font-semibold">{label}</p>
-                <p className="text-blue-300 text-xs">{desc}</p>
+                <p className="text-green-300 text-xs">{desc}</p>
               </div>
             </div>
           ))}
-          <p className="text-blue-300 text-xs pt-2">Used by HR teams and recruiters across Nigeria.</p>
+          <p className="text-green-300 text-xs pt-2">Used by HR teams and recruiters across Nigeria.</p>
         </div>
       </div>
 
       {/* Right — Form */}
-      <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto" style={{ background: "#ffffff" }}>
-        <div className="w-full max-w-md">
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-8 overflow-y-auto bg-slate-50">
+        <motion.div
+          className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-[0_20px_55px_-28px_rgba(2,6,23,0.35)]"
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45 }}
+        >
           {/* Mobile Header */}
           <div className="lg:hidden text-center mb-8">
             <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3 bg-white border border-gray-200 p-2">
@@ -219,12 +225,12 @@ export default function ScreeningRegisterWithOTP() {
 
           {step === "success" ? (
             <div className="text-center py-12">
-              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "#d1fae51a" }}>
+              <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 bg-green-50">
                 <CheckCircle className="w-10 h-10 text-green-600" />
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome!</h2>
               <p className="text-gray-600 mb-6">Your account has been created. Redirecting to dashboard...</p>
-              <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+              <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto" />
             </div>
           ) : step === "otp" ? (
             <div>
@@ -235,12 +241,12 @@ export default function ScreeningRegisterWithOTP() {
                 <ArrowLeft className="w-4 h-4" /> Back to form
               </button>
               <div className="text-center mb-6">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: "#dbeafe" }}>
-                  <Mail className="w-6 h-6 text-blue-600" />
+                <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 bg-green-50">
+                  <Mail className="w-6 h-6 text-green-600" />
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900">Verify your email</h2>
                 <p className="text-gray-600 text-sm mt-2">
-                  Enter the 6-digit code sent to <span className="font-semibold text-blue-600">{registrationData?.email}</span>
+                  Enter the 6-digit code sent to <span className="font-semibold text-green-700">{registrationData?.email}</span>
                 </p>
               </div>
               <form onSubmit={handleOtpSubmit} className="space-y-4">
@@ -253,14 +259,14 @@ export default function ScreeningRegisterWithOTP() {
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     placeholder="000000"
-                    className="w-full px-4 py-3 rounded-lg text-center text-3xl tracking-[0.5em] font-mono border border-gray-300 text-gray-900 focus:outline-none focus:border-blue-600"
+                    className="w-full px-4 py-3 rounded-lg text-center text-3xl tracking-[0.5em] font-mono border border-gray-300 text-gray-900 focus:outline-none focus:border-green-600"
                   />
                 </div>
                 <Button
                   type="submit"
                   disabled={loading || otp.length !== 6}
                   className="w-full py-2.5 font-bold text-white rounded-lg transition-opacity disabled:opacity-50"
-                  style={{ background: "#1d4ed8" }}
+                  style={{ background: "#15803d" }}
                 >
                   {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
                   Create Account
@@ -271,7 +277,7 @@ export default function ScreeningRegisterWithOTP() {
                     type="button"
                     onClick={handleResendOtp}
                     disabled={resendCountdown > 0 || loading}
-                    className="font-semibold text-blue-600 disabled:opacity-50"
+                    className="font-semibold text-green-700 disabled:opacity-50"
                   >
                     {resendCountdown > 0 ? `Resend in ${resendCountdown}s` : "Resend OTP"}
                   </button>
@@ -383,7 +389,7 @@ export default function ScreeningRegisterWithOTP() {
                   type="submit"
                   disabled={loading}
                   className="w-full py-2.5 font-bold text-white rounded-lg transition-opacity disabled:opacity-50"
-                  style={{ background: "#1d4ed8" }}
+                  style={{ background: "#15803d" }}
                 >
                   {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
                   Send Verification Code
@@ -391,13 +397,13 @@ export default function ScreeningRegisterWithOTP() {
               </form>
               <p className="text-center text-xs text-gray-600 mt-6">
                 Already have an account?{" "}
-                <a href="/employment-screening/login" className="font-semibold text-blue-600 hover:underline">
+                <a href="/employment-screening/login" className="font-semibold text-green-700 hover:underline">
                   Sign in
                 </a>
               </p>
             </div>
           )}
-        </div>
+        </motion.div>
       </div>
     </div>
   );
