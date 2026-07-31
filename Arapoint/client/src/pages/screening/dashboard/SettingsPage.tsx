@@ -70,20 +70,20 @@ export default function ScreeningSettings() {
             <h1 className="text-xl font-bold text-gray-900">Settings</h1>
             <p className="text-sm text-gray-500">Manage your organization preferences</p>
           </div>
-          <Button onClick={handleSave} disabled={saving} className="bg-blue-700 hover:bg-blue-800 text-white rounded-xl">
+          <Button onClick={handleSave} disabled={saving} className="bg-green-700 hover:bg-green-800 text-white rounded-xl">
             <Save className="w-4 h-4 mr-2" />{saving ? "Saving..." : "Save Changes"}
           </Button>
         </div>
 
         {/* Profile card */}
-        <div className="bg-gradient-to-r from-blue-700 to-blue-800 rounded-2xl p-6 mb-6 flex items-center gap-4">
-          <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-blue-700 font-bold text-xl flex-shrink-0">
+        <div className="bg-gradient-to-r from-green-700 to-green-800 rounded-2xl p-6 mb-6 flex items-center gap-4">
+          <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-green-700 font-bold text-xl flex-shrink-0">
             {form.name?.charAt(0)?.toUpperCase() || "O"}
           </div>
           <div className="flex-1">
             <p className="text-white font-bold text-lg">{form.name}</p>
-            <p className="text-blue-200 text-sm">{session?.org?.email}</p>
-            <p className="text-blue-300 text-xs mt-0.5">{session?.user?.role?.replace("_", " ")} · Organization Admin</p>
+            <p className="text-green-200 text-sm">{session?.org?.email}</p>
+            <p className="text-green-300 text-xs mt-0.5">{session?.user?.role?.replace("_", " ")} · Organization Admin</p>
           </div>
         </div>
 
@@ -91,7 +91,7 @@ export default function ScreeningSettings() {
         <div className="flex gap-2 mb-6 bg-gray-100 rounded-xl p-1 w-fit">
           {TABS.map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === t ? "bg-white text-blue-700 shadow-sm" : "text-gray-600 hover:text-gray-800"}`}>
+              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === t ? "bg-white text-green-700 shadow-sm" : "text-gray-600 hover:text-gray-800"}`}>
               {t}
             </button>
           ))}
@@ -100,7 +100,7 @@ export default function ScreeningSettings() {
         {tab === "Organization" && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
             <div className="flex items-center gap-2 mb-2">
-              <Building2 className="w-4 h-4 text-blue-700" />
+              <Building2 className="w-4 h-4 text-green-700" />
               <h2 className="font-semibold text-gray-900 text-sm">Organization Details</h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -147,7 +147,7 @@ export default function ScreeningSettings() {
         {tab === "Billing" && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
             <div className="flex items-center gap-2 mb-2">
-              <Bell className="w-4 h-4 text-blue-700" />
+              <Bell className="w-4 h-4 text-green-700" />
               <h2 className="font-semibold text-gray-900 text-sm">Billing Preferences</h2>
             </div>
             <div className="space-y-1.5">
@@ -188,7 +188,7 @@ export default function ScreeningSettings() {
           <div className="space-y-4">
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <div className="flex items-center gap-2 mb-4">
-                <Shield className="w-4 h-4 text-blue-700" />
+                <Shield className="w-4 h-4 text-green-700" />
                 <h2 className="font-semibold text-gray-900 text-sm">Security</h2>
               </div>
               <div className="space-y-3">

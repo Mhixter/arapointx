@@ -95,19 +95,19 @@ export default function BulkUpload() {
 
         {/* Upload area */}
         <div
-          className={`border-2 border-dashed rounded-2xl p-12 text-center mb-6 transition-all cursor-pointer ${dragging ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"}`}
+          className={`border-2 border-dashed rounded-2xl p-12 text-center mb-6 transition-all cursor-pointer ${dragging ? "border-green-500 bg-green-50" : "border-gray-200 hover:border-green-300 hover:bg-gray-50"}`}
           onDragOver={e => { e.preventDefault(); setDragging(true); }}
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
           onClick={() => document.getElementById("csv-input")?.click()}
         >
           <input id="csv-input" type="file" accept=".csv,.xlsx" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
-          <Upload className="w-10 h-10 text-blue-700 mx-auto mb-3" />
-          <p className="font-semibold text-blue-700 text-lg">Drag & drop your file here</p>
-          <p className="text-blue-600">or <span className="underline cursor-pointer">browse</span></p>
+          <Upload className="w-10 h-10 text-green-700 mx-auto mb-3" />
+          <p className="font-semibold text-green-700 text-lg">Drag & drop your file here</p>
+          <p className="text-green-600">or <span className="underline cursor-pointer">browse</span></p>
           <p className="text-gray-400 text-sm mt-2">Supports: CSV, XLSX</p>
           <button onClick={e => { e.stopPropagation(); downloadTemplate(); }}
-            className="mt-2 text-sm text-blue-600 hover:underline font-medium">Download sample template</button>
+            className="mt-2 text-sm text-green-600 hover:underline font-medium">Download sample template</button>
         </div>
 
         {/* Preview */}
@@ -139,12 +139,12 @@ export default function BulkUpload() {
               {parsed.length > 5 && <p className="text-xs text-gray-400 mt-2">... and {parsed.length - 5} more candidates</p>}
             </div>
             <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 border-t border-gray-100">
-              <div className="bg-blue-50 rounded-xl p-3 text-sm">
-                <span className="text-blue-700 font-semibold">{parsed.length} candidates × ₦{PRICING.total} = </span>
-                <span className="text-blue-900 font-bold text-lg">₦{charge.toLocaleString()}</span>
-                <span className="text-blue-500 text-xs ml-2">will be deducted from wallet</span>
+              <div className="bg-green-50 rounded-xl p-3 text-sm">
+                <span className="text-green-700 font-semibold">{parsed.length} candidates × ₦{PRICING.total} = </span>
+                <span className="text-green-900 font-bold text-lg">₦{charge.toLocaleString()}</span>
+                <span className="text-green-500 text-xs ml-2">will be deducted from wallet</span>
               </div>
-              <Button onClick={handleUpload} disabled={uploading} className="bg-blue-700 hover:bg-blue-800 text-white rounded-xl px-6">
+              <Button onClick={handleUpload} disabled={uploading} className="bg-green-700 hover:bg-green-800 text-white rounded-xl px-6">
                 {uploading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Processing...</> : <><Upload className="w-4 h-4 mr-2" />Start Bulk Screening</>}
               </Button>
             </div>
@@ -174,7 +174,7 @@ export default function BulkUpload() {
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="text-sm font-semibold text-gray-700">{passRate}% Pass</span>
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${b.status === "completed" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${b.status === "completed" ? "bg-green-100 text-green-700" : "bg-emerald-100 text-emerald-700"}`}>
                           {b.status === "completed" ? "Completed" : "Processing"}
                         </span>
                       </div>

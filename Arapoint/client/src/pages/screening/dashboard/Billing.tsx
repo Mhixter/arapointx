@@ -47,7 +47,7 @@ function FundModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
           <div className="grid grid-cols-2 gap-2">
             {presets.map(p => (
               <button key={p} type="button" onClick={() => setAmount(String(p))}
-                className={`py-2.5 rounded-xl text-sm font-medium border transition-all ${amount === String(p) ? "bg-blue-700 text-white border-blue-700" : "border-gray-200 text-gray-700 hover:border-blue-300"}`}>
+                className={`py-2.5 rounded-xl text-sm font-medium border transition-all ${amount === String(p) ? "bg-green-700 text-white border-green-700" : "border-gray-200 text-gray-700 hover:border-green-300"}`}>
                 ₦{p.toLocaleString()}
               </button>
             ))}
@@ -59,7 +59,7 @@ function FundModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
               className="h-11 rounded-xl border-gray-200" />
           </div>
           {amount && Number(amount) >= 1000 && (
-            <div className="bg-blue-50 rounded-xl p-3 text-sm text-blue-700 flex justify-between">
+            <div className="bg-green-50 rounded-xl p-3 text-sm text-green-700 flex justify-between">
               <span>Candidates you can screen:</span>
               <span className="font-bold">{Math.floor(Number(amount) / PRICING.total).toLocaleString()}</span>
             </div>
@@ -71,7 +71,7 @@ function FundModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
           <div className="flex gap-3 pt-2">
             <Button variant="outline" type="button" onClick={onClose} className="flex-1 rounded-xl">Cancel</Button>
             <Button type="submit" disabled={loading || !amount || Number(amount) < 1000}
-              className="flex-1 bg-blue-700 hover:bg-blue-800 text-white rounded-xl">
+              className="flex-1 bg-green-700 hover:bg-green-800 text-white rounded-xl">
               {loading ? (
                 <><Loader2 className="w-4 h-4 animate-spin mr-2" />Redirecting...</>
               ) : (
@@ -108,9 +108,9 @@ function PaystackReturnBanner({ reference, onVerified }: { reference: string; on
 
   if (status === "verifying") {
     return (
-      <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-3">
-        <Loader2 className="w-5 h-5 text-blue-600 animate-spin flex-shrink-0" />
-        <p className="text-sm text-blue-700 font-medium">Verifying your payment, please wait...</p>
+      <div className="mb-4 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+        <Loader2 className="w-5 h-5 text-green-600 animate-spin flex-shrink-0" />
+        <p className="text-sm text-green-700 font-medium">Verifying your payment, please wait...</p>
       </div>
     );
   }
@@ -158,7 +158,7 @@ export default function BillingPage() {
             <h1 className="text-xl font-bold text-gray-900">Billing & Wallet</h1>
             <p className="text-sm text-gray-500">Manage your wallet balance and transaction history</p>
           </div>
-          <Button onClick={() => setShowFund(true)} className="bg-blue-700 hover:bg-blue-800 text-white rounded-xl">
+          <Button onClick={() => setShowFund(true)} className="bg-green-700 hover:bg-green-800 text-white rounded-xl">
             <Plus className="w-4 h-4 mr-2" /> Fund Wallet
           </Button>
         </div>
@@ -169,13 +169,13 @@ export default function BillingPage() {
 
         {/* Wallet + Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div className="sm:col-span-1 bg-gradient-to-br from-[#1E3A8A] to-[#2563EB] rounded-2xl p-6 text-white">
+          <div className="sm:col-span-1 bg-gradient-to-br from-[#166534] to-[#16a34a] rounded-2xl p-6 text-white">
             <div className="flex items-center gap-2 mb-2">
-              <Wallet className="w-4 h-4 text-blue-200" />
-              <p className="text-blue-200 text-sm">Wallet Balance</p>
+              <Wallet className="w-4 h-4 text-green-200" />
+              <p className="text-green-200 text-sm">Wallet Balance</p>
             </div>
             <p className="text-3xl font-bold">{loading ? "—" : formatCurrency(Number(billing?.walletBalance || 0))}</p>
-            <p className="text-blue-200 text-xs mt-1">
+            <p className="text-green-200 text-xs mt-1">
               ≈ {loading ? "—" : Math.floor(Number(billing?.walletBalance || 0) / PRICING.total).toLocaleString()} screenings left
             </p>
             <button onClick={() => setShowFund(true)}
@@ -192,7 +192,7 @@ export default function BillingPage() {
           </div>
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <div className="flex items-center gap-2 mb-2">
-              <CreditCard className="w-4 h-4 text-blue-600" />
+              <CreditCard className="w-4 h-4 text-green-600" />
               <p className="text-sm text-gray-500">Rate per Screening</p>
             </div>
             <p className="text-2xl font-bold text-gray-900">₦{PRICING.total.toLocaleString()}</p>
@@ -220,7 +220,7 @@ export default function BillingPage() {
             ))}
             <div className="border-t border-gray-100 pt-3 flex items-center justify-between">
               <span className="font-bold text-gray-900">Total per candidate</span>
-              <span className="font-bold text-blue-700 text-lg">₦{PRICING.total.toLocaleString()}</span>
+              <span className="font-bold text-green-700 text-lg">₦{PRICING.total.toLocaleString()}</span>
             </div>
           </div>
         </div>

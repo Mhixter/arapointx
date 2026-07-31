@@ -65,7 +65,7 @@ export default function FraudCenter() {
           {[
             { label: "High Risk", value: data?.overview?.highRisk ?? "—", icon: AlertTriangle, color: "bg-red-50 text-red-600", border: "border-red-100" },
             { label: "Medium Risk", value: data?.overview?.mediumRisk ?? "—", icon: TrendingUp, color: "bg-yellow-50 text-yellow-600", border: "border-yellow-100" },
-            { label: "Review Queue", value: data?.overview?.reviewQueue ?? "—", icon: Shield, color: "bg-blue-50 text-blue-600", border: "border-blue-100" },
+            { label: "Review Queue", value: data?.overview?.reviewQueue ?? "—", icon: Shield, color: "bg-green-50 text-green-600", border: "border-green-100" },
           ].map(({ label, value, icon: Icon, color, border }) => (
             <div key={label} className={`bg-white rounded-2xl border ${border} shadow-sm p-5 flex items-center gap-4`}>
               <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${color}`}>
@@ -80,12 +80,12 @@ export default function FraudCenter() {
         </div>
 
         {/* Info card */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-5 mb-6">
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100 rounded-2xl p-5 mb-6">
           <div className="flex items-start gap-3">
-            <Shield className="w-5 h-5 text-blue-700 mt-0.5 flex-shrink-0" />
+            <Shield className="w-5 h-5 text-green-700 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="font-semibold text-blue-900 text-sm mb-1">How Fraud Scoring Works</p>
-              <p className="text-blue-700 text-xs leading-relaxed">
+              <p className="font-semibold text-green-900 text-sm mb-1">How Fraud Scoring Works</p>
+              <p className="text-green-700 text-xs leading-relaxed">
                 Each candidate is cross-checked for identity consistency. We compare NIN and BVN name similarity (threshold 70%), date-of-birth match, and check against watchlists. Scores below 60% indicate High Risk, 60–79% is Medium Risk, and 80%+ is Low Risk.
               </p>
             </div>

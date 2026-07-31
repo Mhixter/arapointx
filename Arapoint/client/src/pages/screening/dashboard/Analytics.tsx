@@ -60,7 +60,7 @@ export default function ScreeningAnalytics() {
         <div className="flex gap-2 mb-6 bg-gray-100 rounded-xl p-1 w-fit">
           {TABS.map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === t ? "bg-white text-blue-700 shadow-sm" : "text-gray-600 hover:text-gray-800"}`}>
+              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === t ? "bg-white text-green-700 shadow-sm" : "text-gray-600 hover:text-gray-800"}`}>
               {t}
             </button>
           ))}
@@ -89,7 +89,7 @@ export default function ScreeningAnalytics() {
                       <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} />
                       <Tooltip />
-                      <Line type="monotone" dataKey="screenings" stroke="#2563EB" strokeWidth={2} dot={{ fill: "#2563EB", r: 4 }} name="This Week" />
+                      <Line type="monotone" dataKey="screenings" stroke="#16a34a" strokeWidth={2} dot={{ fill: "#16a34a", r: 4 }} name="This Week" />
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
@@ -133,14 +133,14 @@ export default function ScreeningAnalytics() {
                     <XAxis dataKey="provider" tick={{ fontSize: 12 }} />
                     <YAxis tick={{ fontSize: 11 }} />
                     <Tooltip />
-                    <Bar dataKey="count" fill="#2563EB" radius={[6, 6, 0, 0]} name="Screenings" />
+                    <Bar dataKey="count" fill="#16a34a" radius={[6, 6, 0, 0]} name="Screenings" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             )}
 
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100 p-5">
-              <h3 className="font-semibold text-blue-900 mb-3 text-sm flex items-center gap-2">
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-100 p-5">
+              <h3 className="font-semibold text-green-900 mb-3 text-sm flex items-center gap-2">
                 <BarChart3 className="w-4 h-4" /> Insights
               </h3>
               <div className="space-y-2">
@@ -148,7 +148,7 @@ export default function ScreeningAnalytics() {
                   analytics.overview.passRate >= 70 ? `✓ Strong pass rate of ${analytics.overview.passRate}% — above industry average.` : `⚠ Pass rate is ${analytics.overview.passRate}% — consider reviewing your candidate pool.`,
                   analytics.overview.reviewCount > 0 ? `${analytics.overview.reviewCount} candidate(s) require manual review.` : "No candidates pending manual review.",
                   analytics.overview.total === 0 ? "Start screening candidates to generate insights." : `${analytics.overview.total.toLocaleString()} total screenings completed.`,
-                ].map((msg, i) => <p key={i} className="text-sm text-blue-800">{msg}</p>)}
+                ].map((msg, i) => <p key={i} className="text-sm text-green-800">{msg}</p>)}
               </div>
             </div>
           </>
