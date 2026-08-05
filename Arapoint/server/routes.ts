@@ -418,6 +418,7 @@ export async function registerRoutes(
 
   app.use('/api/support', authenticatedRateLimiter, supportRoutes);
   app.use('/api/webhooks', webhookRoutes);
+  app.use('/webhooks', webhookRoutes);
   app.use('/api/files', authenticatedRateLimiter, filesRoutes);
   app.use('/api/v1/developer', developerRoutes);
   app.use('/api/chat', publicRateLimiter, chatRoutes);
