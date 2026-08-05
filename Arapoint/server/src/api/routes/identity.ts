@@ -154,12 +154,13 @@ const verifyNINWithFallback = async (nin: string): Promise<{ success: boolean; d
         return { ...result, provider, techhubSlipHtml };
       }
       if (result.success && result.data && !hasValidVerificationData(result.data)) {
-        lastError = 'No record found for the provided NIN. Please double-check and try again.';
-        logger.warn('Provider returned empty data', { provider });
-      } else {
-        lastError = result.error;
+        // Provider responded but found no record — this is a definitive "not found",
+        // not an API failure. Stop here; do NOT fall through to another provider.
+        logger.warn('Provider returned no record — not falling back', { provider });
+        return { success: false, error: 'No record found for the provided NIN. Please double-check and try again.', reference: '', provider };
       }
-      logger.warn('Provider verification failed, trying next', { provider, error: lastError });
+      lastError = result.error;
+      logger.warn('Provider API error, trying next', { provider, error: lastError });
     } catch (error: any) {
       lastError = error.message;
       logger.warn('Provider threw error, trying next', { provider, error: error.message });

@@ -177,12 +177,12 @@ const defaultPositions: Record<
     address_top: "11%",
     address_left: "63.8%",
     address_size: "17px",
-    hidden_fields: [],
+    hidden_fields: ["qr_code"],
     field_configs: {
-      middlename: { font_family: "'Roboto', sans-serif", font_weight: "400" },
+      middlename: { font_family: "'Times-Roman', serif", font_weight: "400" },
     },
-    global_font_family: "'Roboto', Arial, sans-serif",
-    global_font_weight: "400",
+    global_font_family: "'Times New Roman', serif",
+    global_font_weight: "700",
     global_color: "#000000",
   },
   full_info: {
@@ -525,7 +525,7 @@ export const generatePdfSlip = async (
 
   const resolveFont = (weight?: string): string => {
     const w = weight || settings.global_font_weight || "700";
-    return parseInt(w) >= 700 || w === "bold" ? "Helvetica-Bold" : "Helvetica";
+    return parseInt(w) >= 700 || w === "bold" ? "Times-Bold" : "Times-Roman";
   };
 
   const globalFont = resolveFont(settings.global_font_weight);
