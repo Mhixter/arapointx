@@ -245,6 +245,15 @@ const defaultPositions: Record<
 let customPositions: Record<string, SlipPositions> = {};
 let customSettings: Record<string, Partial<SlipSettings>> = {};
 
+// Per-slip-type defaults that are NOT derivable from SlipPositions
+const defaultSlipSettings: Record<string, Partial<SlipSettings>> = {
+  standard:  { hidden_fields: ["qr_code"], global_font_family: "'Times New Roman', serif", global_font_weight: "700", global_color: "#000000" },
+  premium:   { hidden_fields: [],          global_font_family: "'Times New Roman', serif", global_font_weight: "700", global_color: "#000000" },
+  long:      { hidden_fields: ["qr_code"], global_font_family: "'Times New Roman', serif", global_font_weight: "700", global_color: "#000000",
+               field_configs: { middlename: { font_weight: "400" } } },
+  full_info: { hidden_fields: ["issue_date", "nationality"], global_font_family: "'Times New Roman', serif", global_font_weight: "400", global_color: "#000000" },
+};
+
 export const getSlipPositions = (
   slipType: "standard" | "premium" | "long" | "full_info",
 ): SlipPositions => {
@@ -263,15 +272,15 @@ export const setSlipPositions = (
 export const getSlipSettings = (
   slipType: "standard" | "premium" | "long" | "full_info",
 ): SlipSettings => {
-  const settings = customSettings[slipType] || {};
+  const base = defaultSlipSettings[slipType] || {};
+  const custom = customSettings[slipType] || {};
   return {
     positions: getSlipPositions(slipType),
-    hidden_fields: settings.hidden_fields || [],
-    field_configs: settings.field_configs || {},
-    global_font_family:
-      settings.global_font_family || "'Roboto', Arial, sans-serif",
-    global_font_weight: settings.global_font_weight || "700",
-    global_color: settings.global_color || "#000",
+    hidden_fields: custom.hidden_fields ?? base.hidden_fields ?? [],
+    field_configs: { ...(base.field_configs || {}), ...(custom.field_configs || {}) },
+    global_font_family: custom.global_font_family || base.global_font_family || "'Times New Roman', serif",
+    global_font_weight: custom.global_font_weight || base.global_font_weight || "700",
+    global_color: custom.global_color || base.global_color || "#000000",
   };
 };
 
@@ -576,6 +585,7 @@ export const generatePdfSlip = async (
     leftPct: string,
     sizePx: string,
     fieldKey?: string,
+    maxWidthPx?: number,
   ) => {
     if (!text || !topPct || !leftPct) return;
     const x = toPx(leftPct, width);
@@ -584,7 +594,11 @@ export const generatePdfSlip = async (
     const cfg = fieldKey ? fieldConfigs[fieldKey] : undefined;
     const font = cfg?.font_weight ? resolveFont(cfg.font_weight) : globalFont;
     const color = cfg?.color || globalColor;
-    doc.font(font).fontSize(sz).fillColor(color).text(text, x, y, { lineBreak: false });
+    if (maxWidthPx && maxWidthPx > 0) {
+      doc.font(font).fontSize(sz).fillColor(color).text(text, x, y, { lineBreak: true, width: maxWidthPx });
+    } else {
+      doc.font(font).fontSize(sz).fillColor(color).text(text, x, y, { lineBreak: false });
+    }
   };
 
   // Draw text right-aligned from the right edge
@@ -673,7 +687,11 @@ export const generatePdfSlip = async (
   }
 
   if (!hiddenFields.includes("address") && positions.address_top) {
-    drawText((data.address || "").toUpperCase(), positions.address_top, positions.address_left || "", positions.address_size || "14px", "address");
+    // Compute available width from address start to right photo edge (or page edge)
+    const addrLeftPx = toPx(positions.address_left || "0", width);
+    const photoRightEdge = positions.photo_left ? toPx(positions.photo_left, width) : width;
+    const addrMaxWidth = Math.max(photoRightEdge - addrLeftPx - 10, 80);
+    drawText((data.address || "").toUpperCase(), positions.address_top, positions.address_left || "", positions.address_size || "14px", "address", addrMaxWidth);
   }
 
   if (!hiddenFields.includes("phone") && positions.phone_top) {

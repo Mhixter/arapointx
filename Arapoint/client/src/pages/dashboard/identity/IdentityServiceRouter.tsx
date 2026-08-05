@@ -221,7 +221,7 @@ function ServiceContent({ service }: { service: any }) {
   const [slipHtml, setSlipHtml] = useState<string | null>(null);
   const [slipDownloadUrl, setSlipDownloadUrl] = useState<string | null>(null);
   const [slipReference, setSlipReference] = useState<string | null>(null);
-  const [selectedSlip, setSelectedSlip] = useState("information");
+  const [selectedSlip, setSelectedSlip] = useState("regular");
   const [selectedStatus, setSelectedStatus] = useState("");
   const [consentChecked, setConsentChecked] = useState(false);
   const [error, setError] = useState("");

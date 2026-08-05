@@ -815,148 +815,140 @@ export const generateBVNSlip = (data: BVNData, reference: string, slipType: 'sta
 };
 
 function generateBVNStandardSlip(data: BVNData, reference: string, generatedAt: string): string {
-  return `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BVN Slip - ${reference}</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; background: #f0f0f0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-    .slip { width: 420px; background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); overflow: hidden; }
-    .header { background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%); padding: 15px 20px; text-align: center; }
-    .header h1 { font-size: 14px; color: #fff; letter-spacing: 1px; margin-bottom: 3px; }
-    .header h2 { font-size: 11px; color: rgba(255,255,255,0.9); font-weight: normal; }
-    .content { padding: 25px 20px; display: flex; gap: 20px; }
-    .photo { width: 100px; height: 120px; border: 2px solid #1565c0; object-fit: cover; background: #f5f5f5; flex-shrink: 0; }
-    .info { flex: 1; }
-    .name-section { margin-bottom: 15px; }
-    .surname { font-size: 22px; font-weight: bold; color: #1a1a1a; text-transform: uppercase; }
-    .firstname { font-size: 18px; font-weight: bold; color: #1a1a1a; text-transform: uppercase; }
-    .field { margin-bottom: 8px; }
-    .field-label { font-size: 9px; color: #666; text-transform: uppercase; }
-    .field-value { font-size: 13px; font-weight: bold; color: #1a1a1a; }
-    .bvn-section { background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%); padding: 15px; text-align: center; }
-    .bvn-label { font-size: 10px; color: rgba(255,255,255,0.9); margin-bottom: 5px; }
-    .bvn-value { font-size: 26px; font-weight: bold; color: #fff; letter-spacing: 3px; font-family: 'Courier New', monospace; }
-    .footer { background: #f5f5f5; padding: 10px 20px; text-align: center; font-size: 9px; color: #666; }
-  </style>
-</head>
-<body>
-  <div class="slip">
-    <div class="header">
-      <h1>CENTRAL BANK OF NIGERIA</h1>
-      <h2>Bank Verification Number (BVN) Slip</h2>
-    </div>
-    <div class="content">
-      ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo">` : '<div class="photo" style="display: flex; align-items: center; justify-content: center; color: #999; font-size: 10px;">Photo</div>'}
-      <div class="info">
-        <div class="name-section">
-          <div class="surname">${escapeHtml(data.lastName)}</div>
-          <div class="firstname">${escapeHtml(data.firstName)}</div>
-        </div>
-        <div class="field">
-          <div class="field-label">Date of Birth</div>
-          <div class="field-value">${formatDateShort(data.dateOfBirth)}</div>
-        </div>
-        <div class="field">
-          <div class="field-label">Gender</div>
-          <div class="field-value">${escapeHtml(data.gender)}</div>
-        </div>
-        <div class="field">
-          <div class="field-label">Phone</div>
-          <div class="field-value">${escapeHtml(data.phone)}</div>
-        </div>
-      </div>
-    </div>
-    <div class="bvn-section">
-      <div class="bvn-label">Bank Verification Number</div>
-      <div class="bvn-value">${escapeHtml(data.id)}</div>
-    </div>
-    <div class="footer">${reference} | ${new Date(generatedAt).toLocaleDateString('en-NG')}</div>
-  </div>
-</body>
-</html>
-  `.trim();
+  return generateBVNA4Slip(data, reference, generatedAt);
 }
 
 function generateBVNPremiumSlip(data: BVNData, reference: string, generatedAt: string): string {
-  return `
-<!DOCTYPE html>
+  return generateBVNA4Slip(data, reference, generatedAt);
+}
+
+function generateBVNA4Slip(data: BVNData, reference: string, generatedAt: string): string {
+  const printDate = new Date(generatedAt).toLocaleDateString('en-NG', { day: '2-digit', month: 'long', year: 'numeric' });
+  const field = (label: string, value: string) =>
+    `<tr><td class="lbl">${escapeHtml(label)}</td><td class="val">${escapeHtml(value || '—')}</td></tr>`;
+
+  return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BVN Premium Slip - ${reference}</title>
+  <title>BVN Slip - ${reference}</title>
   <style>
+    @page { size: A4; margin: 18mm 20mm; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; background: #0d47a1; padding: 20px; min-height: 100vh; display: flex; justify-content: center; align-items: center; }
-    .slip { width: 550px; background: linear-gradient(180deg, #0d47a1 0%, #1565c0 30%, #1976d2 60%, #1565c0 100%); border-radius: 15px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.4); position: relative; padding: 30px; }
-    .header { text-align: center; margin-bottom: 25px; }
-    .cbn-logo { width: 70px; height: 70px; margin: 0 auto 12px; background: #ffd700; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: bold; color: #0d47a1; }
-    .header h1 { font-size: 18px; color: #ffd700; letter-spacing: 2px; margin-bottom: 3px; }
-    .header h2 { font-size: 11px; color: rgba(255,255,255,0.9); }
-    .main-content { display: flex; gap: 20px; margin-bottom: 20px; }
-    .photo { width: 120px; height: 145px; border: 3px solid #ffd700; object-fit: cover; background: #f5f5f5; flex-shrink: 0; }
-    .info-section { flex: 1; color: #fff; }
-    .field { margin-bottom: 10px; }
-    .field-label { font-size: 9px; color: rgba(255,255,255,0.7); text-transform: uppercase; }
-    .field-value { font-size: 14px; font-weight: bold; text-transform: uppercase; }
-    .field-row { display: flex; gap: 15px; }
-    .field-row .field { flex: 1; }
-    .bvn-section { background: rgba(255,215,0,0.15); border: 2px solid #ffd700; padding: 15px; text-align: center; border-radius: 8px; margin-bottom: 15px; }
-    .bvn-label { font-size: 10px; color: rgba(255,255,255,0.9); margin-bottom: 5px; }
-    .bvn-value { font-size: 32px; font-weight: bold; color: #ffd700; letter-spacing: 4px; font-family: 'Courier New', monospace; }
-    .footer { text-align: center; font-size: 9px; color: rgba(255,255,255,0.6); }
+    body { font-family: 'Times New Roman', Times, serif; color: #000; background: #fff; font-size: 12pt; }
+
+    /* ── Header ── */
+    .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2.5pt solid #000; padding-bottom: 10px; margin-bottom: 14px; }
+    .nibss-logo { font-family: Arial, sans-serif; font-size: 28pt; font-weight: 900; letter-spacing: -1px; }
+    .nibss-logo span.N { color: #006400; }
+    .nibss-logo span.I { color: #008000; }
+    .nibss-logo span.B { color: #cc0000; }
+    .nibss-logo span.S1 { color: #000080; }
+    .nibss-logo span.S2 { color: #000080; }
+    .header-center { text-align: center; flex: 1; padding: 0 12px; }
+    .header-center h1 { font-size: 15pt; font-weight: bold; letter-spacing: 0.5px; }
+    .header-center h2 { font-size: 10pt; font-weight: normal; margin-top: 2px; }
+    .header-center h3 { font-size: 9pt; font-weight: normal; color: #333; margin-top: 1px; }
+    .header-right { text-align: right; font-size: 8pt; color: #333; line-height: 1.6; }
+
+    /* ── BVN box ── */
+    .bvn-box { border: 2pt solid #000; text-align: center; padding: 10px 20px; margin-bottom: 14px; }
+    .bvn-box .bvn-label { font-size: 9pt; letter-spacing: 1px; text-transform: uppercase; }
+    .bvn-box .bvn-num { font-size: 28pt; font-weight: bold; font-family: 'Courier New', monospace; letter-spacing: 6px; margin-top: 2px; }
+
+    /* ── Photo + info row ── */
+    .main-row { display: flex; gap: 18px; margin-bottom: 14px; }
+    .photo-col { flex: 0 0 110px; }
+    .photo-col img, .photo-col .no-photo { width: 110px; height: 130px; object-fit: cover; border: 1.5pt solid #000; display: block; }
+    .photo-col .no-photo { display: flex; align-items: center; justify-content: center; font-size: 9pt; color: #555; background: #f5f5f5; }
+    .info-col { flex: 1; }
+
+    /* ── Data table ── */
+    table { width: 100%; border-collapse: collapse; font-size: 10.5pt; }
+    table td { padding: 5px 8px; border: 1pt solid #bbb; vertical-align: top; }
+    td.lbl { width: 38%; font-weight: bold; background: #f7f7f7; color: #222; }
+    td.val { color: #000; text-transform: uppercase; }
+
+    /* ── Section title ── */
+    .section-title { font-size: 9pt; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1pt solid #000; padding-bottom: 3px; margin: 12px 0 6px; color: #000; }
+
+    /* ── Divider / footer ── */
+    .divider { border: none; border-top: 1pt solid #000; margin: 14px 0 10px; }
+    .footer { font-size: 8pt; color: #333; display: flex; justify-content: space-between; }
+    .notice { font-size: 8pt; border: 1pt solid #bbb; padding: 8px 10px; margin-top: 10px; line-height: 1.5; }
+
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
   </style>
 </head>
 <body>
-  <div class="slip">
-    <div class="header">
-      <div class="cbn-logo">CBN</div>
-      <h1>CENTRAL BANK OF NIGERIA</h1>
-      <h2>Bank Verification Number System</h2>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="nibss-logo"><span class="N">N</span><span class="I">I</span><span class="B">B</span><span class="S1">S</span><span class="S2">S</span></div>
+    <div class="header-center">
+      <h1>Bank Verification Number (BVN) Slip</h1>
+      <h2>Nigeria Inter-Bank Settlement System</h2>
+      <h3>Central Bank of Nigeria — BVN Management System</h3>
     </div>
-    <div class="main-content">
-      ${data.photo ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photo" class="photo">` : '<div class="photo" style="display: flex; align-items: center; justify-content: center; color: #666; font-size: 11px;">Photo</div>'}
-      <div class="info-section">
-        <div class="field">
-          <div class="field-label">Surname</div>
-          <div class="field-value">${escapeHtml(data.lastName)}</div>
-        </div>
-        <div class="field">
-          <div class="field-label">First Name</div>
-          <div class="field-value">${escapeHtml(data.firstName)}</div>
-        </div>
-        <div class="field">
-          <div class="field-label">Middle Name</div>
-          <div class="field-value">${escapeHtml(data.middleName) || '-'}</div>
-        </div>
-        <div class="field-row">
-          <div class="field">
-            <div class="field-label">Date of Birth</div>
-            <div class="field-value">${formatDateShort(data.dateOfBirth)}</div>
-          </div>
-          <div class="field">
-            <div class="field-label">Gender</div>
-            <div class="field-value">${escapeHtml(data.gender)}</div>
-          </div>
-        </div>
-        <div class="field">
-          <div class="field-label">Phone Number</div>
-          <div class="field-value">${escapeHtml(data.phone)}</div>
-        </div>
-      </div>
+    <div class="header-right">
+      Ref: ${reference}<br>
+      Date: ${printDate}
     </div>
-    <div class="bvn-section">
-      <div class="bvn-label">BANK VERIFICATION NUMBER (BVN)</div>
-      <div class="bvn-value">${escapeHtml(data.id)}</div>
-    </div>
-    <div class="footer">${reference} | ${new Date(generatedAt).toLocaleDateString('en-NG')}</div>
   </div>
+
+  <!-- BVN number -->
+  <div class="bvn-box">
+    <div class="bvn-label">Bank Verification Number</div>
+    <div class="bvn-num">${escapeHtml(data.id || '')}</div>
+  </div>
+
+  <!-- Photo + personal info -->
+  <div class="main-row">
+    <div class="photo-col">
+      ${data.photo
+        ? `<img src="data:image/jpeg;base64,${data.photo}" alt="Photograph">`
+        : `<div class="no-photo">No Photo</div>`}
+    </div>
+    <div class="info-col">
+      <div class="section-title">Personal Information</div>
+      <table>
+        ${field('Surname', data.lastName)}
+        ${field('First Name', data.firstName)}
+        ${field('Middle Name', data.middleName || '')}
+        ${field('Date of Birth', formatDateShort(data.dateOfBirth))}
+        ${field('Gender', data.gender)}
+      </table>
+    </div>
+  </div>
+
+  <!-- Contact & identity -->
+  <div class="section-title">Contact &amp; Identity Details</div>
+  <table>
+    ${field('Phone Number', data.phone)}
+    ${field('Nationality', (data as any).nationality || 'Nigerian')}
+    ${field('State of Origin', (data as any).stateOfOrigin || (data as any).state || '')}
+    ${field('LGA of Origin', (data as any).lgaOfOrigin || (data as any).lga || '')}
+    ${field('Marital Status', (data as any).maritalStatus || '')}
+    ${field('Watch Listed', (data as any).watchListed || 'No')}
+    ${field('Enrollment Bank', (data as any).enrollmentBank || (data as any).bank || '')}
+    ${field('Enrollment Branch', (data as any).enrollmentBranch || '')}
+    ${field('Registration Date', formatDateShort((data as any).registrationDate || (data as any).enrollmentDate || ''))}
+  </table>
+
+  <hr class="divider">
+
+  <div class="notice">
+    <strong>Notice:</strong> This Bank Verification Number (BVN) slip is an official document generated through the Nigeria Inter-Bank Settlement System (NIBSS) platform.
+    It is confidential and must be handled with care. Unauthorised disclosure of BVN details is prohibited under the CBN BVN Policy Guidelines.
+  </div>
+
+  <div class="footer">
+    <span>Generated via Arapoint Verification Platform</span>
+    <span>${printDate}</span>
+  </div>
+
 </body>
-</html>
-  `.trim();
+</html>`;
 }
