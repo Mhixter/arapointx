@@ -358,4 +358,66 @@ router.post('/airtimenigeria', async (req: Request, res: Response) => {
   }
 });
 
+// ─── WhatsApp Webhook ─────────────────────────────────────────────────────────
+const WHATSAPP_VERIFY_TOKEN = 'techskyarapoint.techboyinformationwhyneedthishelp';
+
+// Meta calls GET to verify the endpoint
+router.get('/whatsapp', (req: Request, res: Response) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  if (mode === 'subscribe' && token === WHATSAPP_VERIFY_TOKEN) {
+    logger.info('WhatsApp webhook verified successfully');
+    return res.status(200).send(challenge);
+  }
+
+  logger.warn('WhatsApp webhook verification failed', { mode, token });
+  return res.status(403).json(formatErrorResponse(403, 'Verification failed'));
+});
+
+// Meta POSTs incoming messages here
+router.post('/whatsapp', (req: Request, res: Response) => {
+  // Always respond 200 immediately so Meta doesn't retry
+  res.status(200).send('EVENT_RECEIVED');
+
+  try {
+    const body = req.body;
+    logger.info('WhatsApp webhook event received', { body: JSON.stringify(body) });
+
+    if (body.object !== 'whatsapp_business_account') return;
+
+    const entries = body.entry || [];
+    for (const entry of entries) {
+      const changes = entry.changes || [];
+      for (const change of changes) {
+        const value = change.value || {};
+
+        // Incoming messages
+        const messages = value.messages || [];
+        for (const message of messages) {
+          const from = message.from;
+          const msgType = message.type;
+          const text = message.text?.body || '';
+          logger.info('WhatsApp inbound message', { from, type: msgType, text });
+          // TODO: route to agent notification handler or reply logic
+        }
+
+        // Status updates (sent/delivered/read/failed)
+        const statuses = value.statuses || [];
+        for (const status of statuses) {
+          logger.info('WhatsApp message status update', {
+            messageId: status.id,
+            recipientId: status.recipient_id,
+            status: status.status,
+            timestamp: status.timestamp,
+          });
+        }
+      }
+    }
+  } catch (error: any) {
+    logger.error('WhatsApp webhook processing error', { error: error.message });
+  }
+});
+
 export default router;
